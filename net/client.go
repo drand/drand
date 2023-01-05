@@ -2,7 +2,9 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"google.golang.org/grpc"
 
@@ -15,6 +17,7 @@ type Client interface {
 	ProtocolClient
 	PublicClient
 	HTTPClient
+	DKGClient
 }
 
 // Stoppable is an interface that some clients can implement to close their
@@ -48,4 +51,24 @@ type PublicClient interface {
 // it is currently used for relaying metrics between group members.
 type HTTPClient interface {
 	HandleHTTP(p Peer) (http.Handler, error)
+}
+
+// listenAddrFor parses the address specified into a dialable / listenable address
+func listenAddrFor(listenAddr string) (network, addr string) {
+	if strings.HasPrefix(listenAddr, "unix://") {
+		return "unix", strings.TrimPrefix(listenAddr, "unix://")
+	}
+	if strings.Contains(listenAddr, ":") {
+		return grpcDefaultIPNetwork, listenAddr
+	}
+	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
+}
+
+type DKGClient interface {
+	Propose(ctx context.Context, p Peer, in *drand.ProposalTerms, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	Abort(ctx context.Context, p Peer, in *drand.AbortDKG, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	Execute(ctx context.Context, p Peer, in *drand.StartExecution, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	Accept(ctx context.Context, p Peer, in *drand.AcceptProposal, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	Reject(ctx context.Context, p Peer, in *drand.RejectProposal, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
 }

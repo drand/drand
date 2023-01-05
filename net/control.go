@@ -79,7 +79,6 @@ type ControlClient struct {
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
 func NewControlClient(addr string) (*ControlClient, error) {
-	var conn *grpc.ClientConn
 	network, host := listenAddrFor(addr)
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)

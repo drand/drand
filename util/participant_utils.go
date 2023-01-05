@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/drand/drand/net"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -113,6 +115,10 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 		},
 		Index: uint32(index),
 	}, nil
+}
+
+func ToPeer(participant *drand.Participant) net.Peer {
+	return net.CreatePeer(participant.Address, participant.Tls)
 }
 
 func pkToPoint(pk []byte, sch *crypto.Scheme) (kyber.Point, error) {

@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -327,15 +326,4 @@ func (g *grpcClient) Stop() {
 		c.Close()
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
-}
-
-// listenAddrFor parses the address specified into a dialable / listenable address
-func listenAddrFor(listenAddr string) (network, addr string) {
-	if strings.HasPrefix(listenAddr, "unix://") {
-		return "unix", strings.TrimPrefix(listenAddr, "unix://")
-	}
-	if strings.Contains(listenAddr, ":") {
-		return grpcDefaultIPNetwork, listenAddr
-	}
-	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }

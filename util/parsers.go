@@ -2,15 +2,15 @@ package util
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/key"
 )
 
 func ParseGroupFileBytes(groupFileBytes []byte) (*key.Group, error) {
+	//nolint:nilnil
 	if len(groupFileBytes) == 0 {
-		return nil, errors.New("group file bytes were empty")
+		return nil, nil
 	}
 
 	t := key.GroupTOML{}
@@ -24,17 +24,4 @@ func ParseGroupFileBytes(groupFileBytes []byte) (*key.Group, error) {
 		return nil, err
 	}
 	return &previousGroupFile, nil
-}
-
-type toTOML interface {
-	TOML() interface{}
-}
-
-func TOMLBytes(t toTOML) ([]byte, error) {
-	var b bytes.Buffer
-	var err error
-	if t != nil {
-		err = toml.NewEncoder(&b).Encode(t.TOML())
-	}
-	return b.Bytes(), err
 }

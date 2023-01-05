@@ -6,10 +6,14 @@ import (
 	"time"
 
 	"github.com/drand/drand/net"
+
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// actions_active contains all the DKG actions that require user interaction: creating a network,
+// accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
 func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
 	beaconID := options.BeaconID
@@ -58,8 +62,8 @@ func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstPropo
 	}
 
 	sendProposalAndStoreNextState := func() error {
-		err := d.network.Send(me, nextState.Joining, func(client drand.DKGClient) (*drand.EmptyResponse, error) {
-			return client.Propose(ctx, &terms)
+		err := d.network.Send(me, nextState.Joining, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+			return client.Propose(ctx, peer, &terms)
 		})
 		if err != nil {
 			return err
@@ -97,10 +101,13 @@ func (d *DKGProcess) attemptAbort(
 	participants []*drand.Participant,
 	beaconID string,
 ) error {
-	return d.network.Send(me, participants, func(client drand.DKGClient) (*drand.EmptyResponse, error) {
-		return client.Abort(ctx, &drand.AbortDKG{Metadata: &drand.DKGMetadata{
-			BeaconID: beaconID,
-		}})
+	return d.network.Send(me, participants, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+		return client.Abort(
+			ctx,
+			peer,
+			&drand.AbortDKG{Metadata: &drand.DKGMetadata{
+				BeaconID: beaconID,
+			}})
 	})
 }
 
@@ -141,15 +148,28 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 		return nil, err
 	}
 
-	// sends the proposal to all participants of the DKG and stores the updated state in the DB
-	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-
 	sendProposalToAllAndStoreState := func() error {
-		err = d.network.Send(me, allParticipants, func(client drand.DKGClient) (*drand.EmptyResponse, error) {
-			return client.Propose(ctx, &terms)
-		})
+		// we send the proposal to joiners and remainers and error if they don't respond
+		err = d.network.Send(
+			me,
+			util.Concat(nextState.Joining, nextState.Remaining),
+			func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				return client.Propose(ctx, peer, &terms)
+			},
+		)
 		if err != nil {
 			return err
+		}
+
+		// we make a best effort attempt to send the proposal to the leaver, but if their node is e.g. turned off then
+		// we ignore the error
+		if len(nextState.Leaving) > 0 {
+			err = d.network.Send(me, nextState.Leaving, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				return client.Propose(ctx, peer, &terms)
+			})
+		}
+		if err != nil {
+			d.log.Warnw("could not send proposal to a leaving participant", "err", err)
 		}
 
 		if err := d.store.SaveCurrent(beaconID, nextState); err != nil {
@@ -162,6 +182,7 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 
 	// if there's an error sending to a party or saving the state, attempt a rollback by issuing an abort
 	rollback := func(err error) {
+		allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 		d.log.Errorw("There was an error proposing a DKG", "err", err, "beaconID", beaconID)
 		_ = d.attemptAbort(ctx, me, allParticipants, beaconID)
 	}
@@ -192,7 +213,7 @@ func (d *DKGProcess) StartAbort(ctx context.Context, options *drand.AbortOptions
 		return nil, err
 	}
 
-	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
+	allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	if err := d.attemptAbort(ctx, me, allParticipants, beaconID); err != nil {
 		return nil, err
 	}
@@ -216,14 +237,18 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	}
 
 	callback := func(me *drand.Participant, nextState *DBState) error {
-		allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-		return d.network.SendIgnoringConnectionError(me, allParticipants, func(client drand.DKGClient) (*drand.EmptyResponse, error) {
-			return client.Execute(ctx, &drand.StartExecution{
-				Metadata: &drand.DKGMetadata{
-					BeaconID: beaconID,
-				}},
-			)
-		})
+		allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
+		return d.network.SendIgnoringConnectionError(
+			me,
+			allParticipants,
+			func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				return client.Execute(ctx, peer, &drand.StartExecution{
+					Metadata: &drand.DKGMetadata{
+						BeaconID: beaconID,
+					}},
+				)
+			},
+		)
 	}
 
 	err := d.executeActionWithCallback("DKG execution", beaconID, stateTransition, callback)
@@ -243,7 +268,9 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	go func() {
 		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters
 		time.Sleep(d.config.KickoffGracePeriod)
-		err := d.executeAndFinishDKG(beaconID, dkgConfig)
+		// copy this to avoid any data races with kyber
+		dkgConfigCopy := *dkgConfig
+		err := d.executeAndFinishDKG(beaconID, dkgConfigCopy)
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
 		}
@@ -267,7 +294,8 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 	return responseOrError(err)
 }
 
-// StartAccept don't believe the lying linter
+// StartAccept
+// don't believe the lying linter
 //
 //nolint:dupl
 func (d *DKGProcess) StartAccept(ctx context.Context, options *drand.AcceptOptions) (*drand.EmptyResponse, error) {
@@ -278,17 +306,15 @@ func (d *DKGProcess) StartAccept(ctx context.Context, options *drand.AcceptOptio
 	}
 
 	callback := func(me *drand.Participant, nextState *DBState) error {
-		client, err := net.NewDKGClient(nextState.Leader.Address, nextState.Leader.Tls)
-		if err != nil {
-			return err
-		}
-
-		_, err = client.Accept(ctx, &drand.AcceptProposal{
-			Acceptor: me,
-			Metadata: &drand.DKGMetadata{
-				BeaconID: beaconID,
-			},
-		})
+		_, err := d.internalClient.Accept(
+			ctx,
+			util.ToPeer(nextState.Leader),
+			&drand.AcceptProposal{
+				Acceptor: me,
+				Metadata: &drand.DKGMetadata{
+					BeaconID: beaconID,
+				},
+			})
 		return err
 	}
 
@@ -296,7 +322,8 @@ func (d *DKGProcess) StartAccept(ctx context.Context, options *drand.AcceptOptio
 	return responseOrError(err)
 }
 
-// StartReject don't believe the lying linter
+// StartReject
+// don't believe the lying linter
 //
 //nolint:dupl
 func (d *DKGProcess) StartReject(ctx context.Context, options *drand.RejectOptions) (*drand.EmptyResponse, error) {
@@ -307,17 +334,14 @@ func (d *DKGProcess) StartReject(ctx context.Context, options *drand.RejectOptio
 	}
 
 	callback := func(me *drand.Participant, nextState *DBState) error {
-		client, err := net.NewDKGClient(nextState.Leader.Address, nextState.Leader.Tls)
-		if err != nil {
-			return err
-		}
-
-		_, err = client.Reject(ctx, &drand.RejectProposal{
-			Rejector: me,
-			Metadata: &drand.DKGMetadata{
-				BeaconID: beaconID,
-			},
-		})
+		_, err := d.internalClient.Reject(ctx,
+			util.ToPeer(nextState.Leader),
+			&drand.RejectProposal{
+				Rejector: me,
+				Metadata: &drand.DKGMetadata{
+					BeaconID: beaconID,
+				},
+			})
 		return err
 	}
 
@@ -410,15 +434,4 @@ func responseOrError(err error) (*drand.EmptyResponse, error) {
 	}
 
 	return &drand.EmptyResponse{}, nil
-}
-
-// concat takes a variable number of Participant arrays and combines them into a single array
-func concat(arrs ...[]*drand.Participant) []*drand.Participant {
-	var output []*drand.Participant
-
-	for _, v := range arrs {
-		output = append(output, v...)
-	}
-
-	return output
 }

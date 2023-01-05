@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/drand/drand/dkg"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/core/dkg"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -101,6 +102,8 @@ func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteSt
 }
 
 func (dd *DrandDaemon) init() error {
+	dd.state.Lock()
+	defer dd.state.Unlock()
 	c := dd.opts
 
 	// Set the private API address to the command-line flag, if given.
@@ -137,19 +140,6 @@ func (dd *DrandDaemon) init() error {
 
 	// set up the gRPC clients
 	p := c.ControlPort()
-
-	dkgStore, err := dkg.NewDKGStore(c.configFolder, c.boltOpts)
-	if err != nil {
-		return err
-	}
-
-	dkgConfig := dkg.Config{
-		TimeBetweenDKGPhases: DefaultDKGPhaseTimeout,
-		KickoffGracePeriod:   DefaultDKGKickoffGracePeriod,
-		SkipKeyVerification:  false,
-	}
-	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dkgConfig, dd.log)
-
 	controlListener, err := net.NewGRPCListener(dd, p)
 	if err != nil {
 		return err
@@ -161,6 +151,17 @@ func (dd *DrandDaemon) init() error {
 	if err != nil {
 		return err
 	}
+	dkgStore, err := dkg.NewDKGStore(c.configFolder, c.boltOpts)
+	if err != nil {
+		return err
+	}
+
+	dkgConfig := dkg.Config{
+		TimeBetweenDKGPhases: DefaultDKGPhaseTimeout,
+		KickoffGracePeriod:   DefaultDKGKickoffGracePeriod,
+		SkipKeyVerification:  false,
+	}
+	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway, dkgConfig, dd.log)
 
 	go dd.control.Start()
 
@@ -321,7 +322,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		dd.log.Errorw("beacon id ", beaconID, " can't instantiate randomness beacon. err:", err)
+		dd.log.Errorw("can't instantiate randomness beacon", "beacon id", beaconID, "err", err)
 		return nil, err
 	}
 
@@ -344,12 +345,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 	// Add beacon handler for http server
 	dd.AddBeaconHandler(beaconID, bp)
 
-	// XXX make it configurable so that new share holder can still start if
-	// nobody started.
-	// drand.StartBeacon(!c.Bool(pushFlag.Name))
-	//catchup := true
-	// TODO (dlsniper): This error should be propagated
-	//nolint:errcheck // This should be handled, see the above commentbp.StartBeacon(catchup)
+	err = bp.StartBeacon(true)
 
-	return bp, nil
+	return bp, err
 }

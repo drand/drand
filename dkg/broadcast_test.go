@@ -3,6 +3,8 @@ package dkg
 import (
 	"testing"
 
+	"github.com/drand/drand/net"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
@@ -11,7 +13,10 @@ import (
 )
 
 func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
-	_, err := newEchoBroadcast(log.DefaultLogger(),
+	gateway := net.PrivateGateway{}
+	_, err := newEchoBroadcast(
+		gateway.DKGClient,
+		log.DefaultLogger(),
 		common.GetAppVersion(),
 		"default",
 		"localhost:8080",
@@ -24,7 +29,11 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 }
 
 func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
-	_, err := newEchoBroadcast(log.DefaultLogger(),
+	gateway := net.PrivateGateway{}
+
+	_, err := newEchoBroadcast(
+		gateway.DKGClient,
+		log.DefaultLogger(),
 		common.GetAppVersion(),
 		"default",
 		"localhost:8080",

@@ -3,16 +3,18 @@ package drand
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"os"
 	"time"
+
+	"github.com/drand/drand/dkg"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
-	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
-	"github.com/weaveworks/common/fs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -31,8 +33,8 @@ var dkgCommand = &cli.Command{
 				catchupPeriodFlag,
 				proposalFlag,
 				secretFlag,
-				timeoutFlag,
 				dkgTimeoutFlag,
+				transitionTimeFlag,
 			),
 			Action: makeProposal,
 		},
@@ -83,10 +85,17 @@ var dkgCommand = &cli.Command{
 			Flags: toArray(
 				beaconIDFlag,
 				controlFlag,
+				formatFlag,
 			),
 			Action: viewStatus,
 		},
 	},
+}
+
+var formatFlag = &cli.StringFlag{
+	Name:  "format",
+	Usage: "Set the format of the status output",
+	Value: "pretty",
 }
 
 func makeProposal(c *cli.Context) error {
@@ -147,6 +156,10 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	// this is IntFlag and not StringFlag so must be checked separately
 	if !c.IsSet(thresholdFlag.Name) {
 		return nil, fmt.Errorf("%s flag is required for initial proposals", thresholdFlag.Name)
+	}
+
+	if c.IsSet(transitionTimeFlag.Name) {
+		return nil, fmt.Errorf("%s flag may not be set for initial proposals", transitionTimeFlag.Name)
 	}
 
 	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
@@ -214,7 +227,13 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 	}
 
 	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
-	transitionTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
+
+	var transitionTime time.Time
+	if c.IsSet(transitionTimeFlag.Name) {
+		transitionTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
+	} else {
+		transitionTime = time.Now().Add(1 * time.Minute)
+	}
 
 	return &drand.ProposalOptions{
 		BeaconID:             beaconID,
@@ -234,7 +253,7 @@ func joinNetwork(c *cli.Context) error {
 
 	var groupFile []byte
 	if c.IsSet(groupFlag.Name) {
-		fileContents, err := fs.ReadFile(c.String(groupFlag.Name))
+		fileContents, err := os.ReadFile(c.String(groupFlag.Name))
 		if err != nil {
 			return err
 		}
@@ -341,72 +360,105 @@ func viewStatus(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("<<Current>>")
-	printEntry(status.Current)
-	fmt.Println()
-	fmt.Println("<<Last Completed>>")
-	printEntry(status.Complete)
+	if !c.IsSet(formatFlag.Name) || c.String(formatFlag.Name) == "pretty" {
+		prettyPrint(c, "<<Current>>", status.Current)
+		prettyPrint(c, "<<Completed>>", status.Complete)
+	} else if c.String(formatFlag.Name) == "csv" {
+		csvPrint(c, "<<Current>>", status.Current)
+		csvPrint(c, "<<Completed>>", status.Complete)
+	} else {
+		return errors.New("invalid format flag")
+	}
 	return nil
 }
 
-func printEntry(entry *drand.DKGEntry) {
+func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
+	out := c.App.Writer
+	_, _ = fmt.Fprintf(out, "%s", tag)
 	if entry == nil {
-		fmt.Println("DKG entry nil")
+		_, _ = fmt.Fprintln(out, "nil")
+		return
+	}
+
+	_, err := fmt.Fprintf(
+		c.App.Writer,
+		"BeaconID:%s,State:%s,Epoch:%d,Threshold:%d,Timeout:%s,GenesisTime:%s,TransitionTime:%s,GenesisSeed:%s,Leader:%s",
+		entry.BeaconID,
+		dkg.DKGStatus(entry.State).String(),
+		entry.Epoch,
+		entry.Threshold,
+		entry.Timeout.AsTime().String(),
+		entry.GenesisTime.AsTime().String(),
+		entry.TransitionTime.AsTime().String(),
+		hex.EncodeToString(entry.GenesisSeed),
+		entry.Leader.Address,
+	)
+	if err != nil {
+		_, _ = fmt.Fprintln(out, "error")
+	}
+}
+
+func prettyPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
+	out := c.App.Writer
+
+	_, _ = fmt.Fprintln(out, tag)
+	if entry == nil {
+		_, _ = fmt.Fprintln(out, "nil")
 		return
 	}
 
 	if entry.State == uint32(dkg.Fresh) {
-		fmt.Println("DKG not yet started!")
+		_, _ = fmt.Fprintln(out, "DKG not yet started!")
 		return
 	}
 
-	fmt.Printf("BeaconID:\t%s\n", entry.BeaconID)
-	fmt.Printf("State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
-	fmt.Printf("Epoch:\t\t%d\n", entry.Epoch)
-	fmt.Printf("Threshold:\t%d\n", entry.Threshold)
-	fmt.Printf("Timeout:\t%s\n", entry.Timeout.AsTime().String())
-	fmt.Printf("GenesisTime:\t%s\n", entry.GenesisTime.AsTime().String())
-	fmt.Printf("TransitionTime:\t%s\n", entry.TransitionTime.AsTime().String())
-	fmt.Printf("GenesisSeed:\t%s\n", hex.EncodeToString(entry.GenesisSeed))
-	fmt.Printf("Leader:\t\t%s\n", entry.Leader.Address)
-	fmt.Println("Joining: [")
+	_, _ = fmt.Fprintf(out, "BeaconID:\t%s\n", entry.BeaconID)
+	_, _ = fmt.Fprintf(out, "State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
+	_, _ = fmt.Fprintf(out, "Epoch:\t\t%d\n", entry.Epoch)
+	_, _ = fmt.Fprintf(out, "Threshold:\t%d\n", entry.Threshold)
+	_, _ = fmt.Fprintf(out, "Timeout:\t%s\n", entry.Timeout.AsTime().String())
+	_, _ = fmt.Fprintf(out, "GenesisTime:\t%s\n", entry.GenesisTime.AsTime().String())
+	_, _ = fmt.Fprintf(out, "TransitionTime:\t%s\n", entry.TransitionTime.AsTime().String())
+	_, _ = fmt.Fprintf(out, "GenesisSeed:\t%s\n", hex.EncodeToString(entry.GenesisSeed))
+	_, _ = fmt.Fprintf(out, "Leader:\t\t%s\n", entry.Leader.Address)
+	_, _ = fmt.Fprint(out, "Joining: [")
 	for _, joiner := range entry.Joining {
-		fmt.Printf("\t\t%s\n", joiner.Address)
+		_, _ = fmt.Fprintf(out, "\t\t%s\n", joiner.Address)
 	}
-	fmt.Println("]")
+	_, _ = fmt.Fprintln(out, "]")
 
-	fmt.Println("Leaving: [")
+	_, _ = fmt.Fprintln(out, "Leaving: [")
 	for _, leaver := range entry.Leaving {
-		fmt.Printf("\t\t%s\n", leaver.Address)
+		_, _ = fmt.Fprintf(out, "\t\t%s\n", leaver.Address)
 	}
-	fmt.Println("]")
+	_, _ = fmt.Fprintln(out, "]")
 
-	fmt.Println("Remaining: [")
+	_, _ = fmt.Fprintln(out, "Remaining: [")
 	for _, remainer := range entry.Remaining {
-		fmt.Printf("\t\t%s\n", remainer.Address)
+		_, _ = fmt.Fprintf(out, "\t\t%s\n", remainer.Address)
 	}
-	fmt.Println("]")
+	_, _ = fmt.Fprintln(out, "]")
 
 	if dkg.DKGStatus(entry.State) == dkg.Proposing {
-		fmt.Println("Accepted: [")
+		_, _ = fmt.Fprintln(out, "Accepted: [")
 		for _, acceptor := range entry.Acceptors {
-			fmt.Printf("\t\t%s\n", acceptor.Address)
+			_, _ = fmt.Fprintf(out, "\t\t%s\n", acceptor.Address)
 		}
-		fmt.Println("]")
+		_, _ = fmt.Fprintln(out, "]")
 
-		fmt.Println("Rejected: [")
+		_, _ = fmt.Fprintln(out, "Rejected: [")
 		for _, rejector := range entry.Rejectors {
-			fmt.Printf("\t\t%s\n", rejector.Address)
+			_, _ = fmt.Fprintf(out, "\t\t%s\n", rejector.Address)
 		}
-		fmt.Println("]")
+		_, _ = fmt.Fprintln(out, "]")
 	}
 
 	if dkg.DKGStatus(entry.State) >= dkg.Executing {
-		fmt.Println("Final group: [")
+		_, _ = fmt.Fprintln(out, "Final group: [")
 		for _, member := range entry.FinalGroup {
-			fmt.Printf("\t\t%s\n", member)
+			_, _ = fmt.Fprintf(out, "\t\t%s\n", member)
 		}
-		fmt.Println("]")
+		_, _ = fmt.Fprintln(out, "]")
 	}
 }
 

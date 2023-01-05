@@ -13,7 +13,8 @@ import (
 	"testing"
 	"time"
 
-	dkg2 "github.com/drand/drand/core/dkg"
+	dkg2 "github.com/drand/drand/dkg"
+
 	"github.com/drand/kyber/share/dkg"
 
 	"github.com/stretchr/testify/assert"
@@ -296,10 +297,6 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 	dt.SetMockClock(t, group1.GenesisTime)
 	err = dt.WaitUntilChainIsServing(t, dt.nodes[0])
 	require.NoError(t, err)
-
-	// move to genesis time - so nodes start to make a round
-	// dt.AdvanceMockClock(t,offsetGenesis)
-	// two = genesis + 1st round (happens at genesis)
 
 	t.Log("Check Beacon Length")
 	dt.CheckBeaconLength(t, dt.nodes, 2)
@@ -1127,6 +1124,8 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0o740)
 	require.NoError(t, err)
 
+	err = node.daemon.init()
+	require.NoError(t, err)
 	// try and reload the beacon from the store
 	// the updated TLS status will fail verification
 	_, err = node.daemon.LoadBeaconFromStore(beaconID, store)

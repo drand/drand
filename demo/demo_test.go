@@ -3,6 +3,7 @@ package main_test
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ func TestLocalOrchestration(t *testing.T) {
 	testFinished := make(chan struct{})
 
 	go func() {
-		// Signal that we finished the test and we can exit cleanly
+		// Signal that we finished the test and can exit cleanly
 		defer close(testFinished)
 		testLocalOrchestration(t)
 	}()
@@ -56,9 +57,12 @@ func testLocalOrchestration(t *testing.T) {
 	o := lib.NewOrchestrator(c)
 	defer o.Shutdown()
 	t.Log("[DEBUG]", "[+] StartCurrentNodes")
-	o.StartCurrentNodes()
+	err := o.StartCurrentNodes()
+	require.NoError(t, err)
 
-	o.RunDKG(3 * time.Second)
+	err = o.RunDKG(20 * time.Second)
+	require.NoError(t, err)
+
 	o.WaitGenesis()
 
 	t.Log("[DEBUG]", "[+] WaitPeriod", 1)

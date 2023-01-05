@@ -14,14 +14,21 @@ type Node interface {
 	CtrlAddr() string
 	PublicAddr() string
 	Index() int
-	RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error)
+	StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error
+	StartLeaderReshare(thr int, transitionTime time.Duration, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error
+	ExecuteLeaderDKG() error
+	ExecuteLeaderReshare() error
+	JoinDKG() error
+	AcceptReshare() error
+	JoinReshare(oldGroup key.Group) error
+	WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error)
 	GetGroup() *key.Group
-	RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group
 	ChainInfo(group string) bool
 	Ping() bool
 	GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string)
 	WriteCertificate(path string)
 	WritePublic(path string)
+	Identity() (*drand.Participant, error)
 	Stop()
 	PrintLog()
 }

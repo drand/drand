@@ -9,13 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/dkg"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -104,14 +105,10 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load() error {
 	var err error
-	bp.group, err = bp.store.LoadGroup()
-	if err != nil {
-		return err
-	}
 
 	beaconID := bp.getBeaconID()
-
-	if bp.group == nil {
+	bp.group, err = bp.store.LoadGroup()
+	if err != nil || bp.group == nil {
 		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 		return ErrDKGNotStarted
 	}
@@ -259,6 +256,8 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput *dkg.SharingOutput) error {
 }
 
 func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) error {
+	bp.state.Lock()
+	defer bp.state.Unlock()
 	bp.group = group
 	bp.share = share
 	bp.chainHash = chain.NewChainInfo(bp.group).Hash()

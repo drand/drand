@@ -3,7 +3,6 @@ package dkg
 import (
 	"testing"
 
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,11 +13,11 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
-	dkg := NewFullDKGEntry(
+	leader := NewParticipant("somebody")
+	dkg := NewCompleteDKGEntry(
 		beaconID,
 		Executing,
-		&leader,
+		leader,
 	)
 
 	// store the DKG details
@@ -51,11 +50,11 @@ func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
-	dkg := NewFullDKGEntry(
+	leader := NewParticipant("somebody")
+	dkg := NewCompleteDKGEntry(
 		beaconID,
 		Executing,
-		&leader,
+		leader,
 	)
 
 	// store the DKG details under one beaconId
@@ -90,11 +89,11 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
-	dkg := NewFullDKGEntry(
+	leader := NewParticipant("somebody")
+	dkg := NewCompleteDKGEntry(
 		beaconID,
 		Complete,
-		&leader,
+		leader,
 	)
 
 	// store the finished DKG details

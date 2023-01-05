@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/net"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -19,10 +21,10 @@ import (
 //nolint:funlen
 func TestStartNetwork(t *testing.T) {
 	myKeypair := key.NewKeyPair("somebody.com")
-	me, err := util.PublicKeyAsParticipant(myKeypair.Public)
+	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
-	anotherParticipant := NewParticipant()
-	anotherParticipant.Address = "anotherparticipant.com"
+
+	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
 
 	tests := []struct {
@@ -42,12 +44,12 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", me, proposal.Joining, mock.Anything).Return(nil).Once()
+				network.On("Send", alice, proposal.Joining, mock.Anything).Return(nil).Once()
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 			},
 			expectedError:            nil,
@@ -63,7 +65,7 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(nil, expectedError)
@@ -81,7 +83,7 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
@@ -100,7 +102,7 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
@@ -119,12 +121,12 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", me, proposal.Joining, mock.Anything).Return(expectedError)
+				network.On("Send", alice, proposal.Joining, mock.Anything).Return(expectedError)
 			},
 			expectedError:            errors.New("some mysterious network error"),
 			expectedNetworkCallCount: 2, // 1 to send the packet, 1 to abort
@@ -139,12 +141,12 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{me, anotherParticipant},
+				Joining:              []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", me, proposal.Joining, mock.Anything).Return(nil)
+				network.On("Send", alice, proposal.Joining, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(expectedError)
 			},
 			expectedError:            errors.New("some database error"),
@@ -183,10 +185,9 @@ func TestStartNetwork(t *testing.T) {
 //nolint:funlen
 func TestStartProposal(t *testing.T) {
 	myKeypair := key.NewKeyPair("somebody.com")
-	me, err := util.PublicKeyAsParticipant(myKeypair.Public)
+	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
-	anotherParticipant := NewParticipant()
-	anotherParticipant.Address = "anotherparticipant.com"
+	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
 	startState := DBState{
 		BeaconID:      beaconID,
@@ -197,11 +198,11 @@ func TestStartProposal(t *testing.T) {
 		SchemeID:      "pedersen-bls-chained",
 		CatchupPeriod: 10,
 		BeaconPeriod:  10,
-		Leader:        me,
+		Leader:        alice,
 		Remaining:     nil,
-		Joining:       []*drand.Participant{me},
+		Joining:       []*drand.Participant{alice},
 		Leaving:       nil,
-		Acceptors:     []*drand.Participant{me},
+		Acceptors:     []*drand.Participant{alice},
 		Rejectors:     nil,
 		FinalGroup:    &key.Group{},
 	}
@@ -221,14 +222,14 @@ func TestStartProposal(t *testing.T) {
 				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 			},
 			expectedError:            nil,
@@ -241,8 +242,8 @@ func TestStartProposal(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(nil, expectedError)
@@ -257,8 +258,8 @@ func TestStartProposal(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
@@ -274,14 +275,14 @@ func TestStartProposal(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            5, // threshold higher than node count
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 			},
 			expectedError:            ErrThresholdHigherThanNodeCount,
@@ -295,14 +296,14 @@ func TestStartProposal(t *testing.T) {
 				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", me, allParticipants, mock.Anything).Return(expectedError)
+				network.On("Send", alice, allParticipants, mock.Anything).Return(expectedError)
 			},
 			expectedError:            errors.New("some network error"),
 			expectedNetworkCallCount: 2, // attempts a rollback
@@ -315,18 +316,59 @@ func TestStartProposal(t *testing.T) {
 				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{anotherParticipant},
-				Remaining:            []*drand.Participant{me},
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
 				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(expectedError)
 			},
 			expectedError:            errors.New("some database error"),
 			expectedNetworkCallCount: 2, // attempts rollback
+		},
+		{
+			name: "error signaling to leavers of the proposal does not attempt rollback",
+			proposal: &drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{bob},
+				Remaining:            []*drand.Participant{alice},
+				Leaving:              []*drand.Participant{carol},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				startState := DBState{
+					BeaconID:      beaconID,
+					Epoch:         1,
+					State:         Complete,
+					Threshold:     1,
+					Timeout:       time.Now(),
+					SchemeID:      "pedersen-bls-chained",
+					CatchupPeriod: 10,
+					BeaconPeriod:  10,
+					Leader:        alice,
+					Remaining:     nil,
+					Joining:       []*drand.Participant{alice, carol},
+					Leaving:       nil,
+					Acceptors:     []*drand.Participant{alice, carol},
+					Rejectors:     nil,
+					FinalGroup:    &key.Group{},
+				}
+				resharers := util.Concat(proposal.Joining, proposal.Remaining)
+				leavers := []*drand.Participant{carol}
+				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
+				store.On("GetFinished", beaconID).Return(&startState, nil)
+				network.On("Send", alice, resharers, mock.Anything).Return(nil)
+				network.On("Send", alice, leavers, mock.Anything).Return(errors.New("carol is offline"))
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+			},
+			expectedError:            nil,
+			expectedNetworkCallCount: 2, // 1 for resharers, 1 for carol, but no rollback
 		},
 	}
 	for _, test := range tests {
@@ -360,10 +402,9 @@ func TestStartProposal(t *testing.T) {
 
 func TestAbort(t *testing.T) {
 	myKeypair := key.NewKeyPair("somebody.com")
-	me, err := util.PublicKeyAsParticipant(myKeypair.Public)
+	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
-	anotherParticipant := NewParticipant()
-	anotherParticipant.Address = "anotherparticipant.com"
+	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
 	startState := DBState{
 		BeaconID:      beaconID,
@@ -374,8 +415,8 @@ func TestAbort(t *testing.T) {
 		SchemeID:      "pedersen-bls-chained",
 		CatchupPeriod: 10,
 		BeaconPeriod:  10,
-		Leader:        me,
-		Remaining:     []*drand.Participant{me, anotherParticipant},
+		Leader:        alice,
+		Remaining:     []*drand.Participant{alice, bob},
 		Joining:       nil,
 		Leaving:       nil,
 		Acceptors:     nil,
@@ -394,7 +435,7 @@ func TestAbort(t *testing.T) {
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 				store.On("GetCurrent", beaconID).Return(&startState, nil)
-				network.On("Send", me, startState.Remaining, mock.Anything).Return(nil)
+				network.On("Send", alice, startState.Remaining, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 			},
 			expectedError:            nil,
@@ -405,7 +446,7 @@ func TestAbort(t *testing.T) {
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork) {
 				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 
-				startState.Leader = anotherParticipant
+				startState.Leader = bob
 				store.On("GetCurrent", beaconID).Return(&startState, nil)
 			},
 			expectedError:            errors.New("cannot abort the DKG if you aren't the leader"),
@@ -457,11 +498,11 @@ type MockNetwork struct {
 	mock.Mock
 }
 
-func (n *MockNetwork) Send(from *drand.Participant, to []*drand.Participant, action func(client drand.DKGClient) (*drand.EmptyResponse, error)) error {
+func (n *MockNetwork) Send(from *drand.Participant, to []*drand.Participant, action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error)) error {
 	args := n.Called(from, to, action)
 	return args.Error(0)
 }
-func (n *MockNetwork) SendIgnoringConnectionError(from *drand.Participant, to []*drand.Participant, action func(client drand.DKGClient) (*drand.EmptyResponse, error)) error {
+func (n *MockNetwork) SendIgnoringConnectionError(from *drand.Participant, to []*drand.Participant, action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error)) error {
 	args := n.Called(from, to, action)
 	return args.Error(0)
 }

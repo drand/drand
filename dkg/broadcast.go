@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/drand/drand/util"
+
 	"github.com/drand/drand/protobuf/common"
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/kyber"
@@ -74,6 +76,7 @@ var _ Broadcast = (*echoBroadcast)(nil)
 type verifyPacket func(packet) error
 
 func newEchoBroadcast(
+	client net.DKGClient,
 	l log.Logger,
 	version commonutils.Version,
 	beaconID string,
@@ -84,15 +87,11 @@ func newEchoBroadcast(
 	if len(to) == 0 {
 		return nil, errors.New("cannot create a broadcaster with no participants")
 	}
-	dispatcher, err := newDispatcher(l, to, own)
-	if err != nil {
-		return nil, err
-	}
 	return &echoBroadcast{
 		l:          l.Named("echoBroadcast"),
 		version:    version,
 		beaconID:   beaconID,
-		dispatcher: dispatcher,
+		dispatcher: newDispatcher(client, l, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
@@ -265,23 +264,20 @@ type dispatcher struct {
 	senders []*sender
 }
 
-func newDispatcher(l log.Logger, to []*drand.Participant, us string) (*dispatcher, error) {
+func newDispatcher(dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
 	var senders = make([]*sender, 0, len(to)-1)
 	queue := senderQueueSize(len(to))
 	for _, node := range to {
 		if node.Address == us {
 			continue
 		}
-		sender, err := newSender(l, node, queue)
-		if err != nil {
-			return nil, err
-		}
+		sender := newSender(dkgClient, node, l, queue)
 		go sender.run()
 		senders = append(senders, sender)
 	}
 	return &dispatcher{
 		senders: senders,
-	}, nil
+	}
 }
 
 // broadcast uses the regular channel limitation for messages coming from other
@@ -308,22 +304,18 @@ func (d *dispatcher) stop() {
 
 type sender struct {
 	l      log.Logger
-	client drand.DKGClient
+	client net.DKGClient
 	to     *drand.Participant
 	newCh  chan broadcastPacket
 }
 
-func newSender(l log.Logger, to *drand.Participant, queueSize int) (*sender, error) {
-	client, err := net.NewDKGClient(to.Address, to.Tls)
-	if err != nil {
-		return nil, err
-	}
+func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueSize int) *sender {
 	return &sender{
 		l:      l.Named("Sender"),
 		client: client,
 		to:     to,
 		newCh:  make(chan broadcastPacket, queueSize),
-	}, nil
+	}
 }
 
 func (s *sender) sendPacket(p broadcastPacket) {
@@ -341,7 +333,8 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	_, err := s.client.BroadcastDKG(context.Background(), newPacket)
+	node := util.ToPeer(s.to)
+	_, err := s.client.BroadcastDKG(context.Background(), node, newPacket)
 	if err != nil {
 		s.l.Errorw("error while sending out", "to", s.to.Address, "err:", err)
 	} else {

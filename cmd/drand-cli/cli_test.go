@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	gnet "net"
 	"os"
@@ -14,8 +15,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/drand/drand/util"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
@@ -271,7 +270,7 @@ func TestStartAndStop(t *testing.T) {
 	}
 }
 
-func TestUtilCheck(t *testing.T) {
+func TestUtilCheckReturnsErrorForPortNotMatchingKeypair(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := t.TempDir()
@@ -284,7 +283,7 @@ func TestUtilCheck(t *testing.T) {
 
 	listenPort := test.FreePort()
 	listenAddr := "127.0.0.1:" + listenPort
-	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
+	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", listenAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -306,25 +305,38 @@ func TestUtilCheck(t *testing.T) {
 	// consistent
 	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, listenAddr}
 	require.Error(t, CLI().Run(check))
+}
 
-	// cancel the daemon and make it listen on the right address
-	cancel()
-	ctx, cancel = context.WithCancel(context.Background())
+func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+
+	tmp := t.TempDir()
+
+	keyPort := test.FreePort()
+	keyAddr := "127.0.0.1:" + keyPort
+	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, "--id", beaconID, keyAddr}
+	require.NoError(t, CLI().Run(generate))
+
+	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	waitCh := make(chan bool)
 	go func() {
+		waitCh <- true
 		err := CLI().RunContext(ctx, listen)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("error while starting the node %v\n", err)
+			t.Fail()
+			return
 		}
 	}()
+	<-waitCh
+	// XXX can we maybe try to bind continuously to not having to wait
+	time.Sleep(200 * time.Millisecond)
 
-	_, err := util.RetryOnError(10, func() (*interface{}, error) {
-		check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
-		return nil, CLI().Run(check)
-	})
-	require.NoError(t, err)
+	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, keyAddr}
+	require.NoError(t, CLI().Run(check))
 }
 
 //nolint:funlen
@@ -729,7 +741,6 @@ func TestDrandReloadBeacon(t *testing.T) {
 	n := 4
 	instances := genAndLaunchDrandInstances(t, n)
 
-	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
 			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
@@ -738,11 +749,10 @@ func TestDrandReloadBeacon(t *testing.T) {
 		}
 	}
 	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
 	t.Log("waiting for initial set up to settle on all nodes")
-	for i := 0; i < n; i++ {
-		err := <-done
-		require.NoError(t, err)
-	}
 
 	defer func() {
 		for _, inst := range instances {
@@ -793,7 +803,6 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	n := 4
 	instances := genAndLaunchDrandInstances(t, n)
 
-	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
 			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
@@ -803,10 +812,12 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	dkgTimeoutSeconds := 20
+
 	t.Log("waiting for initial set up to settle on all nodes")
-	for i := 0; i < n; i++ {
-		err := <-done
-		require.NoError(t, err)
+	err := instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	defer func() {
@@ -991,6 +1002,40 @@ func (d *drandInstance) executeDKG(t *testing.T, beaconID string) {
 	err := CLI().Run(dkgArgs)
 	require.NoError(t, err)
 }
+
+func (d *drandInstance) awaitDKGComplete(t *testing.T, beaconID string, epoch uint32, timeoutSeconds int) error {
+	t.Helper()
+	dkgArgs := []string{
+		"drand",
+		"dkg",
+		"status",
+		"--control", d.ctrlPort,
+		"--id", beaconID,
+		"--format", "csv",
+	}
+
+	for i := 0; i < timeoutSeconds; i++ {
+		cli := CLI()
+		var buf bytes.Buffer
+		cli.Writer = &buf
+
+		err := cli.Run(dkgArgs)
+		if err != nil {
+			return err
+		}
+
+		statusOutput := buf.String()
+		expected := fmt.Sprintf("State:Complete,Epoch:%d,", epoch)
+
+		if strings.Contains(statusOutput, expected) {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return errors.New("DKG didn't complete within the timeout")
+}
+
 func (d *drandInstance) load(beaconID string) error {
 	reloadArgs := []string{
 		"drand",

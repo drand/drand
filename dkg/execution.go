@@ -50,6 +50,7 @@ func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
 
 	// create the network over which to send all the DKG packets
 	board, err := newEchoBroadcast(
+		d.internalClient,
 		d.log,
 		common.GetAppVersion(),
 		beaconID,
@@ -68,7 +69,10 @@ func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
 	return config, nil
 }
 
-func (d *DKGProcess) executeAndFinishDKG(beaconID string, config *dkg.Config) error {
+// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy :))
+//
+//nolint:gocritic
+func (d *DKGProcess) executeAndFinishDKG(beaconID string, config dkg.Config) error {
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
 		return err
@@ -80,7 +84,7 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string, config *dkg.Config) er
 	}
 
 	executeAndStoreDKG := func() error {
-		output, err := d.startDKGExecution(beaconID, current, config)
+		output, err := d.startDKGExecution(beaconID, current, &config)
 		if err != nil {
 			return err
 		}
@@ -101,7 +105,7 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string, config *dkg.Config) er
 			return err
 		}
 
-		d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
+		d.log.Infow("DKG completed successfully!", "beaconID", beaconID, "epoch", finalState.Epoch)
 		return nil
 	}
 

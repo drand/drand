@@ -137,7 +137,7 @@ func (s *boltStore) save(bucketName []byte, beaconID string, state *DBState) err
 
 func (s *boltStore) Close() error {
 	if err := s.db.Close(); err != nil {
-		log.DefaultLogger().Errorw("", "boltdb", "close", "err", err)
+		s.log.Errorw("", "boltdb", "close", "err", err)
 		return err
 	}
 

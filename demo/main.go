@@ -74,8 +74,8 @@ func main() {
 	}
 	orch := lib.NewOrchestrator(c)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
-	// is that we are using self signed certificates, so when the first drand nodes
-	// start, they need to know about all self signed certificates. So we create
+	// is that we are using self-signed certificates, so when the first drand nodes
+	// start, they need to know about all self-signed certificates. So we create
 	// already the new nodes here, such that when calling "StartCurrentNodes",
 	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(3)
@@ -92,8 +92,15 @@ func main() {
 		}
 	}()
 	setSignal(orch)
-	orch.StartCurrentNodes()
-	orch.RunDKG(4 * time.Second)
+	err = orch.StartCurrentNodes()
+	if err != nil {
+		panic(err)
+	}
+	err = orch.RunDKG(20 * time.Second)
+	if err != nil {
+		panic(err)
+	}
+
 	orch.WaitGenesis()
 	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
@@ -106,31 +113,6 @@ func main() {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
-
-	// stop the whole network, wait a bit and see if it can restart at the right
-	// round
-	/*orch.StopAllNodes(nodeToStop)*/
-	// orch.WaitPeriod()
-	// orch.WaitPeriod()
-	// // start all but the one still down
-	// orch.StartCurrentNodes(nodeToStop)
-	// // leave time to network to sync
-	// periodD, _ := time.ParseDuration(period)
-	// orch.Wait(time.Duration(2) * periodD)
-	// for i := 0; i < nRound; i++ {
-	// orch.WaitPeriod()
-	// orch.CheckCurrentBeacon(nodeToStop)
-	// }
-
-	// stop only more than a threshold of the network, wait a bit and see if it
-	// can restart at the right round correctly
-	/*nodesToStop := []int{1, 2}*/
-	// fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
-	// orch.StopNodes(nodesToStop...)
-	// orch.WaitPeriod()
-	// orch.WaitPeriod()
-	// fmt.Printf("[+] Trying to start them again and check beacons\n")
-	// orch.StartNode(nodesToStop...)
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	orch.WaitPeriod()
@@ -141,10 +123,17 @@ func main() {
 	}
 
 	// --- RESHARING PART ---
-	orch.StartNewNodes()
+	err = orch.StartNewNodes()
+	if err != nil {
+		panic(err)
+	}
+
 	// exclude first node
-	orch.CreateResharingGroup(1, newThr)
-	orch.RunResharing("4s")
+	resharingGroup, err := orch.CreateResharingGroup(1, newThr)
+	if err != nil {
+		panic(err)
+	}
+	orch.RunResharing(resharingGroup, 60*time.Second)
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {
@@ -155,14 +144,6 @@ func main() {
 		orch.WaitPeriod()
 		orch.CheckNewBeacon()
 	}
-}
-
-func findTransitionTime(period time.Duration, genesis int64, secondsFromNow int64) int64 {
-	transition := genesis
-	for transition < time.Now().Unix()+secondsFromNow {
-		transition += int64(period.Seconds())
-	}
-	return transition
 }
 
 func setSignal(orch *lib.Orchestrator) {

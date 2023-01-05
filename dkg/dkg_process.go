@@ -3,6 +3,8 @@ package dkg
 import (
 	"time"
 
+	"github.com/drand/drand/net"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -12,6 +14,7 @@ import (
 type DKGProcess struct {
 	store            Store
 	network          Network
+	internalClient   net.DKGClient
 	beaconIdentifier BeaconIdentifier
 	log              log.Logger
 	config           Config
@@ -68,12 +71,12 @@ type Network interface {
 	Send(
 		from *drand.Participant,
 		to []*drand.Participant,
-		action func(client drand.DKGClient) (*drand.EmptyResponse, error),
+		action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
 	) error
 	SendIgnoringConnectionError(
 		from *drand.Participant,
 		to []*drand.Participant,
-		action func(client drand.DKGClient) (*drand.EmptyResponse, error),
+		action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
 	) error
 }
 
@@ -87,13 +90,18 @@ func NewDKGProcess(
 	store Store,
 	beaconIdentifier BeaconIdentifier,
 	completedDKGs chan<- SharingOutput,
+	privateGateway *net.PrivateGateway,
 	config Config,
 	l log.Logger,
 ) *DKGProcess {
 	return &DKGProcess{
-		store:            store,
-		network:          &GrpcNetwork{},
+		store: store,
+		network: &GrpcNetwork{
+			dkgClient: privateGateway.DKGClient,
+			log:       l,
+		},
 		beaconIdentifier: beaconIdentifier,
+		internalClient:   privateGateway.DKGClient,
 		log:              l,
 		Executions:       make(map[string]Broadcast),
 		config:           config,
@@ -104,5 +112,9 @@ func NewDKGProcess(
 func (d *DKGProcess) Close() {
 	for _, e := range d.Executions {
 		e.Stop()
+	}
+	err := d.store.Close()
+	if err != nil {
+		d.log.Errorw("error closing the database", "err", err)
 	}
 }

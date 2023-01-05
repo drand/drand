@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -11,11 +10,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/core/dkg"
-	"github.com/drand/drand/util"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"
@@ -31,56 +25,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 )
-
-type MockNode struct {
-	addr     string
-	certPath string
-	daemon   *DrandDaemon
-	drand    *BeaconProcess
-	clock    clock.FakeClock
-}
-
-func (n *MockNode) JoinDKG() error {
-	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
-	if err != nil {
-		return err
-	}
-	_, err = d.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  n.drand.beaconID,
-		GroupFile: nil,
-	})
-
-	return err
-}
-func (n *MockNode) JoinReshare(oldGroup *key.Group) error {
-	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
-	if err != nil {
-		return err
-	}
-	var groupFileBytes []byte
-	err = toml.NewEncoder(bytes.NewBuffer(groupFileBytes)).Encode(oldGroup.TOML())
-	if err != nil {
-		return err
-	}
-	_, err = d.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  n.drand.beaconID,
-		GroupFile: groupFileBytes,
-	})
-
-	return err
-}
-
-func (n *MockNode) Accept() error {
-	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
-	if err != nil {
-		return err
-	}
-	_, err = d.StartAccept(context.Background(), &drand.AcceptOptions{
-		BeaconID: n.drand.beaconID,
-	})
-
-	return err
-}
 
 //nolint:gocritic
 type DrandTestScenario struct {
@@ -123,7 +67,12 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
+<<<<<<< HEAD
 
+=======
+//
+//nolint:funlen
+>>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 func BatchNewDrand(
 	t *testing.T,
 	currentNodeCount,
@@ -232,16 +181,6 @@ func BatchNewDrand(
 	return daemons, drands, group, dir, certPaths
 }
 
-// CloseAllDrands closes all drands
-func CloseAllDrands(drands []*BeaconProcess) {
-	for i := 0; i < len(drands); i++ {
-		drands[i].Stop(context.Background())
-	}
-	for i := 0; i < len(drands); i++ {
-		<-drands[i].WaitExit()
-	}
-}
-
 // Deprecated: do not use sleeps in your tests
 func getSleepDuration() time.Duration {
 	if os.Getenv("CI") != "" {
@@ -280,7 +219,10 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
-		node := newNode(dt.clock.Now(), certPaths[i], daemons[i], drandInstance)
+		node, err := newNode(dt.clock.Now(), certPaths[i], daemons[i], drandInstance)
+		if err != nil {
+			panic("couldn't construct mock node")
+		}
 		dt.nodes = append(dt.nodes, node)
 	}
 
@@ -303,6 +245,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 
 	return addresses
 }
+<<<<<<< HEAD
 
 // waitForStatus waits and retries calling Status until the condition is satisfied or the max retries is reached
 func (d *DrandTestScenario) waitFor(
@@ -331,6 +274,9 @@ func (d *DrandTestScenario) waitFor(
 	}
 }
 
+=======
+
+>>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 // GetBeacon returns the beacon of the given round for the specified drand id
 func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
@@ -485,7 +431,10 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 	// store new part. and add certificate path of old nodes to the new ones
 	d.newNodes = make([]*MockNode, countOfAdditionalNodes)
 	for i, inst := range newDrands {
-		node := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
+		node, err := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
+		if err != nil {
+			panic("could not construct mock node")
+		}
 		d.newNodes[i] = node
 		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))
 		for _, cp := range oldCertPaths {
@@ -520,6 +469,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	leader := d.nodes[0]
 	followers := d.nodes[1:]
 
+<<<<<<< HEAD
 	leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
 	if err != nil {
 		return nil, err
@@ -534,23 +484,27 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Second)),
 		Joining:              joiners,
 	})
+=======
+	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.ID, int(d.catchupPeriod.Seconds()), joiners)
+
+>>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, follower := range followers {
-		err = follower.JoinDKG()
+		err = follower.dkgRunner.JoinDKG()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err = leaderClient.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: d.beaconID})
+	err = leader.dkgRunner.StartExecution()
 	if err != nil {
 		return nil, err
 	}
 
-	groupFile, err := d.WaitForDKG(leaderClient, 1, 100)
+	groupFile, err := d.WaitForDKG(leader, 1, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -560,43 +514,18 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 
 // WaitForDKG waits for the DKG complete and returns the group file
 // it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
-func (d *DrandTestScenario) WaitForDKG(client drand.DKGControlClient, epoch uint32, numberOfSeconds int) (*key.Group, error) {
-	return util.RetryOnError(numberOfSeconds, func() (*key.Group, error) {
-		res, err := client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: d.beaconID})
-		if err != nil {
-			return nil, err
-		}
+func (d *DrandTestScenario) WaitForDKG(node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
+	err := node.dkgRunner.WaitForDKG(d.beaconID, epoch, numberOfSeconds)
+	if err != nil {
+		return nil, err
+	}
 
-		switch res.Current.State {
-		case uint32(dkg.Evicted):
-			panic("leader got evicted")
-		case uint32(dkg.TimedOut):
-			panic("DKG timed out")
-		case uint32(dkg.Aborted):
-			panic("DKG was aborted")
-		}
-
-		if res.Complete == nil || res.Complete.Epoch != epoch {
-			return nil, errors.New("DKG not finished yet")
-		}
-
-		if res.Complete.State == uint32(dkg.TimedOut) {
-			return nil, ErrTimeout
-		}
-
-		if res.Complete.State != uint32(dkg.Complete) {
-			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", dkg.DKGStatus(res.Complete.State).String()))
-		}
-		group := d.nodes[0].daemon.beaconProcesses[d.beaconID].group
-		if group == nil {
-			panic("group file was nil despite completion!")
-		}
-
-		return group, nil
-	})
+	group := d.nodes[0].daemon.beaconProcesses[d.beaconID].group
+	if group == nil {
+		panic("group file was nil despite completion!")
+	}
+	return group, nil
 }
-
-var ErrTimeout = errors.New("DKG timed out")
 
 type lifecycleHooks struct {
 	postAcceptance     func()
@@ -622,10 +551,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 
 	// our first node will be the leader
 	leader := remainingNodes[0]
-	leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
-	if err != nil {
-		return nil, err
-	}
 
 	// map all the remainers to participants
 	remainers := make([]*drand.Participant, len(remainingNodes))
@@ -660,30 +585,21 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 	}
 
-	// propose a DKG with remainers and joiners
-	_, err = leaderClient.StartProposal(context.Background(), &drand.ProposalOptions{
-		BeaconID:             d.beaconID,
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
-		Threshold:            uint32(len(remainers) + len(joiners)/2),
-		CatchupPeriodSeconds: uint32(d.catchupPeriod.Seconds()),
-		TransitionTime:       timestamppb.New(time.Now().Add(1 * time.Second)),
-		Remaining:            remainers,
-		Joining:              joiners,
-	})
+	err := leader.dkgRunner.StartProposal(
+		d.thr,
+		time.Now().Add(5*time.Second),
+		int(d.catchupPeriod.Seconds()),
+		joiners,
+		remainers,
+		[]*drand.Participant{},
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	// all the remainers except the leader accept
 	for _, remainer := range remainingNodes[1:] {
-		client, err := net.NewDKGControlClient(remainer.drand.opts.controlPort)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = client.StartAccept(context.Background(), &drand.AcceptOptions{
-			BeaconID: d.beaconID,
-		})
+		err := remainer.dkgRunner.Accept()
 		if err != nil {
 			return nil, err
 		}
@@ -696,27 +612,14 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 
 	// all the joiners join
 	for _, joiner := range joiningNodes {
-		client, err := net.NewDKGControlClient(joiner.drand.opts.controlPort)
-		if err != nil {
-			return nil, err
-		}
-
-		groupFile, err := util.TOMLBytes(d.group)
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = client.StartJoin(context.Background(), &drand.JoinOptions{
-			BeaconID:  d.beaconID,
-			GroupFile: groupFile,
-		})
+		err = joiner.dkgRunner.JoinReshare(d.group)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// the leader kicks off the execution phase
-	_, err = leaderClient.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: d.beaconID})
+	err = leader.dkgRunner.StartExecution()
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +630,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 	}
 
 	// we wait up to 100 seconds for it to finish (or for the leader to get evicted)
-	groupFile, err := d.WaitForDKG(leaderClient, 2, 120)
+	groupFile, err := d.WaitForDKG(leader, 2, 120)
 	if err != nil {
 		return nil, err
 	}
@@ -824,25 +727,4 @@ func unixSetLimit(soft, max uint64) error {
 		Max: max,
 	}
 	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rlimit)
-}
-
-// newNode creates a node struct from a drand and sets the clock according to the drand test clock.
-func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProcess) *MockNode {
-	id := dr.priv.Public.Address()
-	c := clock.NewFakeClockAt(now)
-
-	// Note: not pure
-	dr.opts.clock = c
-
-	return &MockNode{
-		certPath: certPath,
-		addr:     id,
-		daemon:   daemon,
-		drand:    dr,
-		clock:    c,
-	}
-}
-
-func (n *MockNode) GetAddr() string {
-	return n.addr
 }

@@ -207,8 +207,10 @@ type GroupTOML struct {
 	ID             string
 }
 
-// FromTOML decodes the group from the toml struct
 func (g *Group) FromTOML(i interface{}) error {
+	if i == nil {
+		return nil
+	}
 	gt, ok := i.(*GroupTOML)
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")

@@ -12,11 +12,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// BroadcastDKG is the public method to call during a DKG protocol.
-func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
-	return &drand.Empty{Metadata: bp.newMetadata()}, nil
-}
-
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
