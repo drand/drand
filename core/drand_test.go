@@ -922,7 +922,7 @@ func TestDrandFollowChain(t *testing.T) {
 
 		// check if the beacon is in the database
 		store := newNode.drand.dbStore
-		if dt.nodes[0].drand.opts.dbStorageEngine == chain.BoltDB {
+		if newNode.drand.opts.dbStorageEngine == chain.BoltDB {
 			store, err = dt.nodes[0].drand.createDBStore()
 			require.NoError(t, err)
 		}
