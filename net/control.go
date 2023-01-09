@@ -352,6 +352,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 			select {
 			case outCh <- resp:
 			case <-cc.Done():
+				log.DefaultLogger().Debugw("ControlClient.StartCheckChain finished due to context finish.")
 				close(errCh)
 				close(outCh)
 				return

@@ -1022,7 +1022,8 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
 	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	store.Close(ctx)
+	err = store.Close(ctx)
+	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
 	dt.StartDrand(dt.nodes[0].addr, false, false)
