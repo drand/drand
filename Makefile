@@ -61,7 +61,7 @@ test-integration:
 
 test-integration-postgres:
 	go test -failfast -v ./demo
-	ge test -failfast -race -short -tags integration -v ./...
+	go test -failfast -race -short -tags integration -v ./...
 	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
 
 coverage:
