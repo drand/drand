@@ -8,12 +8,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {

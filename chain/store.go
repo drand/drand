@@ -53,15 +53,21 @@ const (
 	PostgreSQL StorageType = "postgres"
 )
 
+// Metrics values
+const (
+	boltDBMetrics = iota + 1
+	postgreSQLMetrics
+)
+
 func MetricsStorageType(st StorageType) int {
-	// NOTE: Please only append to this list.
 	switch st {
 	case BoltDB:
-		return 1 // We know this to be Bolt
+		return boltDBMetrics
 	case PostgreSQL:
-		return 2 //nolint:gomnd // We know this to be Postgres
+		return postgreSQLMetrics
 	default:
 		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
+		// Please add the storage type to the Metrics values list above
 		panic(err)
 	}
 }
