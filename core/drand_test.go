@@ -1005,6 +1005,10 @@ func TestDrandCheckChain(t *testing.T) {
 
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
 	store := dt.nodes[0].drand.dbStore
+	if dt.nodes[0].drand.opts.dbStorageEngine == chain.BoltDB {
+		store, err = dt.nodes[0].drand.createDBStore()
+		require.NoError(t, err)
+	}
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
 	beac, err := store.Get(ctx, upTo-1)
