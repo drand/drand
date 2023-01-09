@@ -29,61 +29,53 @@ func NewStore() *Store {
 	}
 }
 
-func (m *Store) Len(_ context.Context) (int, error) {
-	m.storeMtx.RLock()
-	defer m.storeMtx.RUnlock()
+func (s *Store) Len(_ context.Context) (int, error) {
+	s.storeMtx.RLock()
+	defer s.storeMtx.RUnlock()
 
-	return len(m.store), nil
+	return len(s.store), nil
 }
 
-func (m *Store) Put(_ context.Context, beacon *chain.Beacon) error {
-	m.storeMtx.Lock()
-	defer m.storeMtx.Unlock()
+func (s *Store) Put(_ context.Context, beacon *chain.Beacon) error {
+	s.storeMtx.Lock()
+	defer s.storeMtx.Unlock()
 	defer func() {
-		if len(m.store) > m.maxSize {
-			m.store = m.store[len(m.store)-m.maxSize:]
+		if len(s.store) > s.maxSize {
+			s.store = s.store[len(s.store)-s.maxSize:]
 		}
 	}()
 
-	found := false
-	defer func() {
-		sort.Slice(m.store, func(i, j int) bool {
-			return m.store[i].Round < m.store[j].Round
-		})
-	}()
-
-	for _, sb := range m.store {
+	for _, sb := range s.store {
 		if sb.Round == beacon.Round {
-			found = true
-			break
+			return nil
 		}
 	}
 
-	if found {
-		return nil
-	}
+	s.store = append(s.store, beacon)
+	sort.Slice(s.store, func(i, j int) bool {
+		return s.store[i].Round < s.store[j].Round
+	})
 
-	m.store = append(m.store, beacon)
 	return nil
 }
 
-func (m *Store) Last(_ context.Context) (*chain.Beacon, error) {
-	m.storeMtx.RLock()
-	defer m.storeMtx.RUnlock()
+func (s *Store) Last(_ context.Context) (*chain.Beacon, error) {
+	s.storeMtx.RLock()
+	defer s.storeMtx.RUnlock()
 
-	if len(m.store) == 0 {
+	if len(s.store) == 0 {
 		return nil, errors.ErrNoBeaconStored
 	}
 
-	result := m.store[len(m.store)-1]
+	result := s.store[len(s.store)-1]
 	return result, nil
 }
 
-func (m *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
-	m.storeMtx.RLock()
-	defer m.storeMtx.RUnlock()
+func (s *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
+	s.storeMtx.RLock()
+	defer s.storeMtx.RUnlock()
 
-	for _, beacon := range m.store {
+	for _, beacon := range s.store {
 		if beacon.Round == round {
 			return beacon, nil
 		}
@@ -92,24 +84,24 @@ func (m *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
 	return nil, errors.ErrNoBeaconStored
 }
 
-func (m *Store) Cursor(ctx context.Context, f func(context.Context, chain.Cursor) error) error {
+func (s *Store) Cursor(ctx context.Context, f func(context.Context, chain.Cursor) error) error {
 	cursor := &memDBCursor{
-		s: m,
+		s: s,
 	}
 	return f(ctx, cursor)
 }
 
 // Close is a noop
-func (m *Store) Close(_ context.Context) error {
+func (s *Store) Close(_ context.Context) error {
 	return nil
 }
 
-func (m *Store) Del(_ context.Context, round uint64) error {
-	m.storeMtx.Lock()
-	defer m.storeMtx.Unlock()
+func (s *Store) Del(_ context.Context, round uint64) error {
+	s.storeMtx.Lock()
+	defer s.storeMtx.Unlock()
 
 	foundIdx := -1
-	for idx, beacon := range m.store {
+	for idx, beacon := range s.store {
 		if beacon.Round == round {
 			foundIdx = idx
 			break
@@ -120,12 +112,12 @@ func (m *Store) Del(_ context.Context, round uint64) error {
 		return nil
 	}
 
-	m.store = append(m.store[:foundIdx], m.store[foundIdx+1:]...)
+	s.store = append(s.store[:foundIdx], s.store[foundIdx+1:]...)
 
 	return nil
 }
 
-func (m *Store) SaveTo(ctx context.Context, w io.Writer) error {
+func (s *Store) SaveTo(ctx context.Context, w io.Writer) error {
 	// TODO implement me
 	panic("implement me")
 }
