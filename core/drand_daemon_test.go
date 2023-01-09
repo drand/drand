@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
@@ -46,6 +46,8 @@ func TestDrandDaemon_Stop(t *testing.T) {
 		WithControlPort(port),
 		WithLogLevel(log.LogDebug, false),
 	}
+
+	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
 	dd, err := NewDrandDaemon(NewConfig(confOptions...))
 	require.NoError(t, err)

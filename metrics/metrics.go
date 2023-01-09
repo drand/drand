@@ -231,6 +231,12 @@ var (
 		Help: "1 for drand nodes, not emitted for relays",
 	})
 
+	// DrandStorageBackend reports the database the node is running with
+	DrandStorageBackend = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "drand_node_db",
+		Help: "The database type the node is running with",
+	})
+
 	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
 	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
 	// Due to the fact that grpc-go doesn't support adding a listener for state tracking, this is
@@ -255,11 +261,15 @@ var (
 func bindMetrics() {
 	// The private go-level metrics live in private.
 	if err := PrivateMetrics.Register(collectors.NewGoCollector()); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "goCollector", "err", err)
 		return
 	}
 	if err := PrivateMetrics.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "processCollector", "err", err)
+		return
+	}
+	if err := PrivateMetrics.Register(DrandStorageBackend); err != nil {
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "storageBackend", "err", err)
 		return
 	}
 

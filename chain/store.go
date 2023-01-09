@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -51,6 +52,25 @@ const (
 	// PostgreSQL uses the PostgreSQL database for storing data
 	PostgreSQL StorageType = "postgres"
 )
+
+// Metrics values
+const (
+	boltDBMetrics = iota + 1
+	postgreSQLMetrics
+)
+
+func MetricsStorageType(st StorageType) int {
+	switch st {
+	case BoltDB:
+		return boltDBMetrics
+	case PostgreSQL:
+		return postgreSQLMetrics
+	default:
+		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
+		// Please add the storage type to the Metrics values list above
+		panic(err)
+	}
+}
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
