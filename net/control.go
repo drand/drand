@@ -341,20 +341,24 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 	outCh = make(chan *control.SyncProgress, progressSyncQueue)
 	errCh = make(chan error, 1)
 	go func() {
+		defer func() {
+			close(outCh)
+			close(errCh)
+		}()
+
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
 				errCh <- err
-				close(errCh)
-				close(outCh)
 				return
 			}
+
+			log.DefaultLogger().Infow("florin: processing response", "resp.Target", resp.Target, "resp.Current", resp.Current)
+
 			select {
 			case outCh <- resp:
 			case <-cc.Done():
-				log.DefaultLogger().Debugw("ControlClient.StartCheckChain finished due to context finish.")
-				close(errCh)
-				close(outCh)
+				log.DefaultLogger().Debugw("florin: ControlClient.StartCheckChain finished due to context finish.")
 				return
 			}
 		}

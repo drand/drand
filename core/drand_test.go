@@ -40,20 +40,26 @@ func setFDLimit(t *testing.T) {
 
 func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan error, amount uint64, progressing bool) {
 	if progressing {
-		for {
-			select {
-			case p, ok := <-progress:
-				if ok && p.Current == amount {
-					t.Logf("\t\t --> Successful chain sync progress. Achieved round: %d.", amount)
-					return
-				}
-			case e := <-errCh:
+		defer func() {
+			for e := range errCh {
+				t.Logf("florin: read err %v from channel\n", e)
 				if errors.Is(e, io.EOF) { // means we've reached the end
 					t.Logf("\t\t --> Got EOF from daemon.")
 					return
 				}
 				t.Logf("\t\t --> Unexpected error received: %v.", e)
 				require.NoError(t, e)
+			}
+		}()
+
+		for {
+			select {
+			case p, ok := <-progress:
+				t.Logf("florin: sync round: %d\n", p.Current)
+				if ok && p.Current == amount {
+					t.Logf("\t\t --> Successful chain sync progress. Achieved round: %d.", amount)
+					return
+				}
 			case <-time.After(2 * time.Second):
 				t.Fatalf("\t\t --> Timeout during test")
 				return
@@ -62,10 +68,12 @@ func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan
 	} else { // we test the special case when we get Current == 0 and Target reports the amount of invalid beacon
 		select {
 		case p, ok := <-progress:
+			t.Logf("florin: sync round: %d\n", p.Current)
 			require.True(t, ok)
 			require.Equal(t, uint64(0), p.Current)
 			require.Equal(t, amount, p.Target)
 		case e := <-errCh:
+			t.Logf("florin: read err %v from channel\n", e)
 			if errors.Is(e, io.EOF) {
 				t.Logf("\t\t --> Got EOF from daemon.")
 				return
@@ -995,8 +1003,10 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
 	progress, errCh, err := ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 	require.NoError(t, err)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", upTo, false)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 0)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", 0, false)
 	consumeProgress(t, progress, errCh, 0, false)
 
 	t.Logf(" \t\t --> Done, canceling.\n")
@@ -1035,8 +1045,10 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Re-Running resync in dry run.\n")
 	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 	require.NoError(t, err)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", upTo, true)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", 1, false)
 	consumeProgress(t, progress, errCh, 1, false)
 
 	// we wait to make sure everything is done on the sync manager side before testing.
@@ -1049,10 +1061,13 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Re-Running resync and correct the error.\n")
 	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, nil, tls, upTo, beaconID)
 	require.NoError(t, err)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", upTo, true)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", 1, false)
 	consumeProgress(t, progress, errCh, 1, false)
 	// goes on with correcting the chain
+	t.Logf("florin: consumeProgress(t, progress, errCh, %d, %t)\n", 1, true)
 	consumeProgress(t, progress, errCh, 1, true)
 	// now the progress chan should be closed
 	_, ok := <-progress
