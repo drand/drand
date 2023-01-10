@@ -958,7 +958,7 @@ func TestDrandFollowChain(t *testing.T) {
 func TestDrandCheckChain(t *testing.T) {
 	cfg := Config{}
 	WithTestDB(t, "")[0](&cfg)
-	if cfg.dbStorageEngine == chain. MemDB {
+	if cfg.dbStorageEngine == chain.MemDB {
 		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
 	}
 	n, p := 4, 1*time.Second
