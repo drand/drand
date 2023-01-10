@@ -39,6 +39,8 @@ func setFDLimit(t *testing.T) {
 }
 
 func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan error, amount uint64, progressing bool) {
+	t.Logf("in consumeProgress(t, progress, errCh, %d, %t)\n", amount, progressing)
+
 	if progressing {
 		defer func() {
 			for e := range errCh {
@@ -55,9 +57,13 @@ func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan
 		for {
 			select {
 			case p, ok := <-progress:
-				t.Logf("florin: sync round: %d\n", p.Current)
+				t.Logf("florin: sync round: %v with ok: %t\n", p, ok)
 				if ok && p.Current == amount {
 					t.Logf("\t\t --> Successful chain sync progress. Achieved round: %d.", amount)
+					return
+				}
+				t.Logf("florin: skipping %v ok was %t\n", p, ok)
+				if !ok {
 					return
 				}
 			case <-time.After(2 * time.Second):
@@ -68,7 +74,7 @@ func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan
 	} else { // we test the special case when we get Current == 0 and Target reports the amount of invalid beacon
 		select {
 		case p, ok := <-progress:
-			t.Logf("florin: sync round: %d\n", p.Current)
+			t.Logf("florin: sync round: %v ok was %t\n", p, ok)
 			require.True(t, ok)
 			require.Equal(t, uint64(0), p.Current)
 			require.Equal(t, amount, p.Target)

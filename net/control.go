@@ -339,7 +339,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 	}
 
 	outCh = make(chan *control.SyncProgress, progressSyncQueue)
-	errCh = make(chan error, 1)
+	errCh = make(chan error)
 	go func() {
 		defer func() {
 			close(outCh)
