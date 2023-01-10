@@ -956,6 +956,11 @@ func TestDrandFollowChain(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
+	cfg := Config{}
+	WithTestDB(t, "")[0](&cfg)
+	if cfg.dbStorageEngine == chain. MemDB {
+		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
+	}
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
@@ -1042,6 +1047,10 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
+
+	// Skip why: This call will create a new database connection.
+	//  However, for the MemDB engine type, this means we create a new backing array from scratch
+	//  thus removing all previous items from memory. At that point, this invalidates the test.
 	dt.StartDrand(dt.nodes[0].addr, false, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
