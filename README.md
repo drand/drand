@@ -45,6 +45,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
   - [JavaScript client](#javascript-client)
 - [Documentation](#documentation)
 - [What's Next?](#whats-next)
+- [Development](#development)
 - [Acknowledgments](#acknowledgments)
 - [Coverage](#coverage)
 - [License](#license)

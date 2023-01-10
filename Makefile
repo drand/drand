@@ -44,33 +44,33 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	go test -race -short -v ./...
+	go test -failfast -race -short -v ./...
 
 test-unit-postgres:
-	go test -race -tags postgres -short -v ./...
+	go test -failfast -race -tags postgres -short -v ./...
 
 test-unit-cover:
-	go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-postgres-cover:
-	go test -short -tags integration -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast -short -tags integration -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -v ./demo
+	go test -failfast -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
 test-integration-postgres:
-	go test -v ./demo
-	go test -race -short -tags integration -v ./...
+	go test -failfast -v ./demo
+	go test -failfast -race -short -tags integration -v ./...
 	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
 
 coverage:
 	go get -v -t -d ./...
-	go test -race -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -failfast -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 coverage-postgres:
 	go get -v -t -d ./...
-	go test -race -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
+	go test -failfast -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build
@@ -149,4 +149,3 @@ install_deps_darwin-m:
 	sudo unzip -o $(PROTOC_ZIP_DARWIN_M) -d /usr/local bin/protoc 'include/*'
 	sudo chmod a+x /usr/local/bin/protoc
 	rm -f $(PROTOC_ZIP_DARWIN_M)
-
