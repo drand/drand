@@ -246,12 +246,12 @@ func TestStore_Put(t *testing.T) {
 		bufferSize int
 		beacons    []chain.Beacon
 	}{
-		"under-buffer":                 {5, genBeacons(3)},
-		"equal-to-buffer":              {5, genBeacons(5)},
-		"over-buffer":                  {5, genBeacons(18)},
-		"out-of-order-under-buffer":    {5, shuffle(3)},
-		"out-of-order-equal-to-buffer": {5, genBeacons(5)},
-		"out-of-order-over-buffer":     {5, genBeacons(18)},
+		"under-buffer":                 {10, genBeacons(3)},
+		"equal-to-buffer":              {10, genBeacons(5)},
+		"over-buffer":                  {10, genBeacons(18)},
+		"out-of-order-under-buffer":    {10, shuffle(3)},
+		"out-of-order-equal-to-buffer": {10, genBeacons(5)},
+		"out-of-order-over-buffer":     {10, genBeacons(18)},
 	}
 	for tName, tt := range tests {
 		tName := tName

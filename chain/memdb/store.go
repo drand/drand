@@ -21,8 +21,8 @@ type Store struct {
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
 func NewStore(bufferSize int) *Store {
-	if bufferSize < 1 {
-		err := fmt.Errorf("in-memory buffer size cannot be smaller than 1, currently %d, recommended at least 2000", bufferSize)
+	if bufferSize < 10 {
+		err := fmt.Errorf("in-memory buffer size cannot be smaller than 10, currently %d, recommended at least 2000", bufferSize)
 		panic(err)
 	}
 	return &Store{

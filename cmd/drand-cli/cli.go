@@ -354,7 +354,7 @@ var pgDSNFlag = &cli.StringFlag{
 
 var memDBSizeFlag = &cli.IntFlag{
 	Name:    "memdb-size",
-	Usage:   "The buffer size for in-memory storage. Must be at least 1. Recommended, 2000 or more",
+	Usage:   "The buffer size for in-memory storage. Must be at least 10. Recommended, 2000 or more",
 	Value:   2000,
 	EnvVars: []string{"DRAND_MEMDB_SIZE"},
 }
