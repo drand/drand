@@ -9,7 +9,7 @@ import (
 )
 
 type Node interface {
-	Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error
+	Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error
 	PrivateAddr() string
 	CtrlAddr() string
 	PublicAddr() string

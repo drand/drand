@@ -11,5 +11,5 @@ import (
 )
 
 func createStore(_ *testing.T, _ log.Logger, _ *BeaconTest, _ int) (chain.Store, error) {
-	return memdb.NewStore(), nil
+	return memdb.NewStore(10), nil
 }

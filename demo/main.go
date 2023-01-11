@@ -67,6 +67,7 @@ func main() {
 		IsCandidate:  true,
 		DBEngineType: chain.StorageType(*dbEngineType),
 		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		MemDBSize:    2000,
 	}
 	orch := lib.NewOrchestrator(c)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here

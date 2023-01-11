@@ -107,6 +107,7 @@ func main() {
 		IsCandidate:  false,
 		DBEngineType: chain.StorageType(*dbEngineType),
 		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		MemDBSize:    2000,
 	}
 	orch := lib.NewOrchestrator(c)
 	orch.UpdateBinary(*candidate, 2, true)
@@ -142,6 +143,7 @@ func main() {
 			IsCandidate:  false,
 			DBEngineType: chain.StorageType(*dbEngineType),
 			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+			MemDBSize:    2000,
 		}
 		orch = lib.NewOrchestrator(c)
 
@@ -172,6 +174,7 @@ func main() {
 			IsCandidate:  false,
 			DBEngineType: chain.StorageType(*dbEngineType),
 			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+			MemDBSize:    2000,
 		}
 		orch = lib.NewOrchestrator(c)
 

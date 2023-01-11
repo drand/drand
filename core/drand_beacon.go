@@ -323,7 +323,7 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		dbStore, err = boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 
 	case chain.MemDB:
-		dbStore, err = memdb.NewStore(), nil
+		dbStore, err = memdb.NewStore(bp.opts.memDBSize), nil
 
 	case chain.PostgreSQL:
 		dbStore, err = pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)

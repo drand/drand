@@ -17,7 +17,7 @@ import (
 func TestStoreBoltOrder(t *testing.T) {
 	ctx := context.Background()
 
-	store := memdb.NewStore()
+	store := memdb.NewStore(10)
 	defer func() {
 		require.NoError(t, store.Close(ctx))
 	}()
@@ -58,7 +58,7 @@ func TestStoreBolt(t *testing.T) {
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	s := memdb.NewStore()
+	s := memdb.NewStore(10)
 
 	sLen, err := s.Len(ctx)
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestStoreBolt(t *testing.T) {
 	err = s.Close(ctx)
 	require.NoError(t, err)
 
-	s = memdb.NewStore()
+	s = memdb.NewStore(10)
 	require.NoError(t, s.Put(ctx, b1))
 
 	require.NoError(t, s.Put(ctx, b1))
@@ -108,7 +108,7 @@ func TestStoreBolt(t *testing.T) {
 	err = s.Close(ctx)
 	require.NoError(t, err)
 
-	s = memdb.NewStore()
+	s = memdb.NewStore(10)
 	err = s.Put(ctx, b1)
 	require.NoError(t, err)
 	err = s.Put(ctx, b2)
@@ -152,7 +152,7 @@ func TestStoreBolt(t *testing.T) {
 func TestStore_Cursor(t *testing.T) {
 	ctx := context.Background()
 
-	dbStore := memdb.NewStore()
+	dbStore := memdb.NewStore(10)
 	defer func() {
 		require.NoError(t, dbStore.Close(ctx))
 	}()

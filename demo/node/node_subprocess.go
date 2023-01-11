@@ -56,6 +56,7 @@ type NodeProc struct {
 
 	dbEngineType chain.StorageType
 	pgDSN        string
+	memDBSize    int
 }
 
 func NewNode(i int, cfg cfg.Config) *NodeProc {
@@ -79,6 +80,7 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 		isCandidate:  cfg.IsCandidate,
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN(),
+		memDBSize:    cfg.MemDBSize,
 	}
 	n.setup()
 	return n
@@ -140,12 +142,15 @@ func (n *NodeProc) setup() {
 	checkErr(err)
 }
 
-func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error {
+func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	if dbEngineType != "" {
 		n.dbEngineType = dbEngineType
 	}
 	if pgDSN != nil {
 		n.pgDSN = pgDSN()
+	}
+	if memDBSize != 0 {
+		n.memDBSize = memDBSize
 	}
 
 	// create log file
@@ -171,6 +176,7 @@ func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDS
 	}
 	args = append(args, pair("--db", string(n.dbEngineType))...)
 	args = append(args, pair("--pg-dsn", n.pgDSN)...)
+	args = append(args, pair("--memdb-size", fmt.Sprintf("%d", n.memDBSize))...)
 	args = append(args, "--verbose")
 
 	fmt.Printf("starting node %s with cmd: %s \n", n.privAddr, args)

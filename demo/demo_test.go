@@ -46,6 +46,7 @@ func testLocalOrchestration(t *testing.T) {
 		IsCandidate:  true,
 		DBEngineType: withTestDB(),
 		PgDSN:        withPgDSN(t),
+		MemDBSize:    10,
 	}
 	o := lib.NewOrchestrator(c)
 	defer o.Shutdown()

@@ -2,6 +2,7 @@ package memdb
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sort"
 	"sync"
@@ -12,20 +13,22 @@ import (
 
 // Store represents access to the in-memory storage for beacon management.
 type Store struct {
-	storeMtx *sync.RWMutex
-	store    []*chain.Beacon
-	maxSize  int
+	storeMtx   *sync.RWMutex
+	store      []*chain.Beacon
+	bufferSize int
 }
 
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
-func NewStore() *Store {
-	const maxSize = 10
-
+func NewStore(bufferSize int) *Store {
+	if bufferSize < 1 {
+		err := fmt.Errorf("in-memory buffer size cannot be smaller than 1, currently %d, recommended at least 2000", bufferSize)
+		panic(err)
+	}
 	return &Store{
-		storeMtx: &sync.RWMutex{},
-		store:    make([]*chain.Beacon, 0, maxSize),
-		maxSize:  maxSize,
+		storeMtx:   &sync.RWMutex{},
+		store:      make([]*chain.Beacon, 0, bufferSize),
+		bufferSize: bufferSize,
 	}
 }
 
@@ -40,8 +43,8 @@ func (s *Store) Put(_ context.Context, beacon *chain.Beacon) error {
 	s.storeMtx.Lock()
 	defer s.storeMtx.Unlock()
 	defer func() {
-		if len(s.store) > s.maxSize {
-			s.store = s.store[len(s.store)-s.maxSize:]
+		if len(s.store) > s.bufferSize {
+			s.store = s.store[len(s.store)-s.bufferSize:]
 		}
 	}()
 

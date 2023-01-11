@@ -354,10 +354,9 @@ var pgDSNFlag = &cli.StringFlag{
 
 var memDBSizeFlag = &cli.IntFlag{
 	Name:    "memdb-size",
-	Usage:   "The buffer size for in-memory storage. Must be at least 10. Recommended, 2000 or more",
+	Usage:   "The buffer size for in-memory storage. Must be at least 1. Recommended, 2000 or more",
 	Value:   2000,
 	EnvVars: []string{"DRAND_MEMDB_SIZE"},
-	Hidden:  true,
 }
 
 var appCommands = []*cli.Command{
@@ -1062,7 +1061,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 			opts = append(opts, core.WithPgDSN(pgdsn))
 		}
 	case chain.MemDB:
-		opts = append(opts, core.WithDBStorageEngine(chain.MemDB))
+		opts = append(opts,
+			core.WithDBStorageEngine(chain.MemDB),
+			core.WithMemDBSize(c.Int(memDBSizeFlag.Name)),
+		)
 	default:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
 	}
