@@ -353,12 +353,9 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 				return
 			}
 
-			log.DefaultLogger().Infow("florin: processing response", "resp.Target", resp.Target, "resp.Current", resp.Current)
-
 			select {
 			case outCh <- resp:
 			case <-cc.Done():
-				log.DefaultLogger().Debugw("florin: ControlClient.StartCheckChain finished due to context finish.")
 				return
 			}
 		}
