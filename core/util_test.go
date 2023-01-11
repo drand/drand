@@ -312,7 +312,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// We need to make sure the daemon is running before continuing
 		d.waitFor(d.t, controlClient, 10, func(r *drand.StatusResponse) bool {
-			// / XXX: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
+			// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 			return r.Beacon.IsRunning
 		})
 		d.t.Logf("[DEBUG] leader node %s Status: isRunning", leaderNode.GetAddr())
@@ -355,7 +355,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 			// We need to make sure the daemon is running before continuing
 			d.waitFor(d.t, client, 10, func(r *drand.StatusResponse) bool {
-				// / XXX: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
+				// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 				return r.Beacon.IsRunning
 			})
 			d.t.Logf("[DEBUG] follower node %s Status: isRunning", n.GetAddr())

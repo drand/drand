@@ -125,7 +125,7 @@ jobs:
         run: make build && cp drand ~/go/bin/drand-candidate
 
       # Regression test
-      - name: Run regression with PostgresDB backend
+      - name: Run regression with MemDB backend
         id: regression-memdb
         run: go run ./demo/regression -db=memdb -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
 
