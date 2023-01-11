@@ -54,10 +54,17 @@ func (s *Store) Put(_ context.Context, beacon *chain.Beacon) error {
 		}
 	}
 
+	shouldSort := false
+	if len(s.store) > 0 &&
+		beacon.Round < s.store[len(s.store)-1].Round {
+		shouldSort = true
+	}
 	s.store = append(s.store, beacon)
-	sort.Slice(s.store, func(i, j int) bool {
-		return s.store[i].Round < s.store[j].Round
-	})
+	if shouldSort {
+		sort.Slice(s.store, func(i, j int) bool {
+			return s.store[i].Round < s.store[j].Round
+		})
+	}
 
 	return nil
 }
