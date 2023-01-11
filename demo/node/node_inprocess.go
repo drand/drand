@@ -114,6 +114,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		core.WithControlPort(l.ctrlAddr),
 		core.WithDBStorageEngine(l.dbEngineType),
 		core.WithPgDSN(l.pgDSN()),
+		core.WithMemDBSize(l.memDBSize),
 	}
 
 	if l.tls {
