@@ -155,7 +155,9 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(test.LogLevel(t), false))
+			WithLogLevel(test.LogLevel(t), false),
+			WithMemDBSize(100),
+		)
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
