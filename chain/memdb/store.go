@@ -24,7 +24,7 @@ func NewStore() *Store {
 
 	return &Store{
 		storeMtx: &sync.RWMutex{},
-		store:    []*chain.Beacon{},
+		store:    make([]*chain.Beacon, 0, maxSize),
 		maxSize:  maxSize,
 	}
 }
