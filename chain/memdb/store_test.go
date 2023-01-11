@@ -5,7 +5,9 @@ package memdb_test
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -211,4 +213,56 @@ func TestStore_Cursor(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func TestStore_Put(t *testing.T) {
+	ctx := context.Background()
+
+	genBeacons := func(size int) []chain.Beacon {
+		result := make([]chain.Beacon, size)
+		for i := 0; i < size; i++ {
+			result[i] = chain.Beacon{
+				PreviousSig: []byte{byte(i - 1)},
+				Round:       uint64(i),
+				Signature:   []byte{byte(i)},
+			}
+		}
+
+		return result
+	}
+
+	shuffle := func(size int) []chain.Beacon {
+		rand.Seed(time.Now().UnixNano())
+		result := genBeacons(size)
+
+		rand.Shuffle(size, func(i, j int) {
+			result[i], result[j] = result[j], result[i]
+		})
+
+		return result
+	}
+
+	tests := map[string]struct {
+		bufferSize int
+		beacons    []chain.Beacon
+	}{
+		"under-buffer":                 {5, genBeacons(3)},
+		"equal-to-buffer":              {5, genBeacons(5)},
+		"over-buffer":                  {5, genBeacons(18)},
+		"out-of-order-under-buffer":    {5, shuffle(3)},
+		"out-of-order-equal-to-buffer": {5, genBeacons(5)},
+		"out-of-order-over-buffer":     {5, genBeacons(18)},
+	}
+	for tName, tt := range tests {
+		tName := tName
+		tt := tt
+		t.Run(tName, func(t *testing.T) {
+			s := memdb.NewStore(tt.bufferSize)
+
+			for i := 0; i < len(tt.beacons); i++ {
+				err := s.Put(ctx, &tt.beacons[i])
+				require.NoError(t, err)
+			}
+		})
+	}
 }
