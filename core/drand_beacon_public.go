@@ -194,16 +194,20 @@ func (bp *BeaconProcess) PushDKGInfo(_ context.Context, in *drand.DKGInfoPacket)
 // given round
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
 	bp.state.Lock()
+	logger := bp.log.Named("SyncChain")
 	b := bp.beacon
 	c := bp.chainHash
-	bp.state.Unlock()
 	if b == nil || len(c) == 0 {
-		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+		logger.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+		bp.state.Unlock()
 		return fmt.Errorf("no beacon handler available")
 	}
+	store := b.Store()
+	// we cannot just defer Unlock because beacon.SyncChain can run for a long time
+	bp.state.Unlock()
 
 	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
-	return beacon.SyncChain(bp.log.Named("SyncChain"), bp.beacon.Store(), req, stream)
+	return beacon.SyncChain(logger, store, req, stream)
 }
 
 // GetIdentity returns the identity of this drand node
