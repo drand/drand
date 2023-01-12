@@ -202,7 +202,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 		bp.state.Unlock()
 		return fmt.Errorf("no beacon handler available")
 	}
-	store := bp.beacon.Store()
+	store := b.Store()
 	// we cannot just defer Unlock because beacon.SyncChain can run for a long time
 	bp.state.Unlock()
 
