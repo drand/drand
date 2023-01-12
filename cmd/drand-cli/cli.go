@@ -352,6 +352,14 @@ var pgDSNFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_PG_DSN"},
 }
 
+var memDBSizeFlag = &cli.IntFlag{
+	Name:    "memdb-size",
+	Usage:   "The buffer size for in-memory storage. Must be at least 10. Recommended, 2000 or more",
+	Value:   2000,
+	EnvVars: []string{"DRAND_MEMDB_SIZE"},
+	Hidden:  true,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -360,7 +368,7 @@ var appCommands = []*cli.Command{
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
 			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag, beaconIDFlag,
-			storageTypeFlag, pgDSNFlag),
+			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)
