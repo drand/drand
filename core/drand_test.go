@@ -405,20 +405,8 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	}()
 	time.Sleep(3 * time.Second)
 
-	// XXX: this isn't always the case: it can already have reached past this at this point because of the above Sleep.
-	t.Log("Move to response phase")
-	dt.AdvanceMockClock(t, timeout)
-
 	// TODO: How to remove this sleep? How to check when a node is at this stage
 	// at this point in time, nodes should have gotten all deals and send back their responses to all nodes
-	time.Sleep(getSleepDuration())
-
-	t.Log("Move to justification phase")
-	dt.AdvanceMockClock(t, timeout)
-
-	// TODO: How to remove this sleep? How to check when a node is at this stage
-	// at this time, all nodes received the responses of each other nodes but
-	// there is one node missing so they expect justifications
 	time.Sleep(getSleepDuration())
 
 	// TODO: How to remove this sleep? How to check when a node is at this stage
@@ -426,9 +414,6 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	dt.AdvanceMockClock(t, timeout)
 
 	time.Sleep(getSleepDuration())
-	// at this time they received no justification from the missing node so he's
-	// excluded of the group and the dkg should finish
-	// time.Sleep(10 * time.Second)
 
 	var resharedGroup *key.Group
 	select {
