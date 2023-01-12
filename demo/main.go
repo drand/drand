@@ -34,7 +34,7 @@ var testF = flag.Bool("test", false, "Run it as a test that finishes.")
 var tls = flag.Bool("tls", true, "Run the nodes with self signed certs.")
 var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
 var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
-var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
+var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. Supported values: bolt, postgres, or memdb.")
 
 func main() {
 	flag.Parse()
@@ -67,6 +67,7 @@ func main() {
 		IsCandidate:  true,
 		DBEngineType: chain.StorageType(*dbEngineType),
 		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		MemDBSize:    2000,
 	}
 	orch := lib.NewOrchestrator(c)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here

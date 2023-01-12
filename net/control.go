@@ -339,21 +339,23 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 	}
 
 	outCh = make(chan *control.SyncProgress, progressSyncQueue)
-	errCh = make(chan error, 1)
+	errCh = make(chan error)
 	go func() {
+		defer func() {
+			close(outCh)
+			close(errCh)
+		}()
+
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
 				errCh <- err
-				close(errCh)
-				close(outCh)
 				return
 			}
+
 			select {
 			case outCh <- resp:
 			case <-cc.Done():
-				close(errCh)
-				close(outCh)
 				return
 			}
 		}

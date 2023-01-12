@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
@@ -35,6 +36,7 @@ type BeaconProcess struct {
 	index int
 
 	store       key.Store
+	dbStore     chain.Store
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
 
@@ -311,15 +313,20 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 
 func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 	beaconName := commonutils.GetCanonicalBeaconID(bp.beaconID)
+	var dbStore chain.Store
+	var err error
 
 	switch bp.opts.dbStorageEngine {
 	case chain.BoltDB:
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
-		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		dbStore, err = boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+
+	case chain.MemDB:
+		dbStore, err = memdb.NewStore(bp.opts.memDBSize), nil
 
 	case chain.PostgreSQL:
-		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
+		dbStore, err = pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
 
 	default:
 		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
@@ -327,8 +334,11 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 
-		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		dbStore, err = boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 	}
+
+	bp.dbStore = dbStore
+	return dbStore, err
 }
 
 func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {

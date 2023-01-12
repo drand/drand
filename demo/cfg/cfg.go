@@ -19,6 +19,7 @@ type Config struct {
 	IsCandidate  bool
 	DBEngineType chain.StorageType
 	PgDSN        func() string
+	MemDBSize    int
 	Offset       int
 	BasePath     string
 	CertFolder   string

@@ -155,7 +155,9 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(test.LogLevel(t), false))
+			WithLogLevel(test.LogLevel(t), false),
+			WithMemDBSize(100),
+		)
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
@@ -170,11 +172,12 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		daemons[i] = daemon
 		drands[i] = bp
 
-		// to make sure to stop all daemon after each test
+		// Make sure to stop all daemon after each test
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 			daemon.Stop(ctx)
-			cancel()
+			time.Sleep(3 * time.Second)
 		})
 	}
 
@@ -311,7 +314,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// We need to make sure the daemon is running before continuing
 		d.waitFor(d.t, controlClient, 10, func(r *drand.StatusResponse) bool {
-			/// XXX: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
+			// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 			return r.Beacon.IsRunning
 		})
 		d.t.Logf("[DEBUG] leader node %s Status: isRunning", leaderNode.GetAddr())
@@ -354,7 +357,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 			// We need to make sure the daemon is running before continuing
 			d.waitFor(d.t, client, 10, func(r *drand.StatusResponse) bool {
-				/// XXX: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
+				// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 				return r.Beacon.IsRunning
 			})
 			d.t.Logf("[DEBUG] follower node %s Status: isRunning", n.GetAddr())

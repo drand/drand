@@ -37,6 +37,7 @@ type Config struct {
 	boltOpts          *bolt.Options
 	pgDSN             string
 	pgConn            *sqlx.DB
+	memDBSize         int
 	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
@@ -203,6 +204,17 @@ func WithPgDSN(dsn string) ConfigOption {
 // PgDSN returns the PostgreSQL specific DSN configuration.
 func (d *Config) PgDSN() string {
 	return d.pgDSN
+}
+
+func WithMemDBSize(bufferSize int) ConfigOption {
+	return func(d *Config) {
+		//nolint:gomnd // We want to have a guard here. And it's number 10. It's higher than 1 or 2 to allow for chained mode
+		if bufferSize < 10 {
+			err := fmt.Errorf("in-memory buffer size cannot be smaller than 10, currently %d, recommended at least 2000", bufferSize)
+			panic(err)
+		}
+		d.memDBSize = bufferSize
+	}
 }
 
 // WithConfigFolder sets the base configuration folder to the given string.

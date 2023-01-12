@@ -1,4 +1,4 @@
-//go:build !postgres && !memdb
+//go:build memdb
 
 package main_test
 
@@ -9,7 +9,7 @@ import (
 )
 
 func withTestDB() chain.StorageType {
-	return chain.BoltDB
+	return chain.MemDB
 }
 
 func withPgDSN(_ *testing.T) func() string {

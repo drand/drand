@@ -41,6 +41,7 @@ type LocalNode struct {
 
 	dbEngineType chain.StorageType
 	pgDSN        func() string
+	memDBSize    int
 
 	log log.Logger
 
@@ -74,6 +75,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		beaconID:     cfg.BeaconID,
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
+		memDBSize:    cfg.MemDBSize,
 	}
 
 	var priv *key.Pair
@@ -87,12 +89,15 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	return l
 }
 
-func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error {
+func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	if dbEngineType != "" {
 		l.dbEngineType = dbEngineType
 	}
 	if pgDSN != nil {
 		l.pgDSN = pgDSN
+	}
+	if memDBSize != 0 {
+		l.memDBSize = memDBSize
 	}
 
 	certs, err := fs.Files(certFolder)
@@ -109,6 +114,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		core.WithControlPort(l.ctrlAddr),
 		core.WithDBStorageEngine(l.dbEngineType),
 		core.WithPgDSN(l.pgDSN()),
+		core.WithMemDBSize(l.memDBSize),
 	}
 
 	if l.tls {

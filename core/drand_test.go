@@ -39,7 +39,20 @@ func setFDLimit(t *testing.T) {
 }
 
 func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan error, amount uint64, progressing bool) {
+	t.Logf("in consumeProgress(t, progress, errCh, %d, %t)\n", amount, progressing)
+
 	if progressing {
+		defer func() {
+			for e := range errCh {
+				if errors.Is(e, io.EOF) { // means we've reached the end
+					t.Logf("\t\t --> Got EOF from daemon.")
+					return
+				}
+				t.Logf("\t\t --> Unexpected error received: %v.", e)
+				require.NoError(t, e)
+			}
+		}()
+
 		for {
 			select {
 			case p, ok := <-progress:
@@ -47,13 +60,9 @@ func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan
 					t.Logf("\t\t --> Successful chain sync progress. Achieved round: %d.", amount)
 					return
 				}
-			case e := <-errCh:
-				if errors.Is(e, io.EOF) { // means we've reached the end
-					t.Logf("\t\t --> Got EOF from daemon.")
+				if !ok {
 					return
 				}
-				t.Logf("\t\t --> Unexpected error received: %v.", e)
-				require.NoError(t, e)
 			case <-time.After(2 * time.Second):
 				t.Fatalf("\t\t --> Timeout during test")
 				return
@@ -921,7 +930,11 @@ func TestDrandFollowChain(t *testing.T) {
 		ctx = context.Background()
 
 		// check if the beacon is in the database
-		store, err := newNode.drand.createDBStore()
+		store := newNode.drand.dbStore
+		if newNode.drand.opts.dbStorageEngine == chain.BoltDB {
+			store, err = newNode.drand.createDBStore()
+			require.NoError(t, err)
+		}
 		require.NoError(t, err)
 		defer store.Close(ctx)
 
@@ -938,6 +951,11 @@ func TestDrandFollowChain(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
+	cfg := Config{}
+	WithTestDB(t, "")[0](&cfg)
+	if cfg.dbStorageEngine == chain.MemDB {
+		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
+	}
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
@@ -1004,8 +1022,11 @@ func TestDrandCheckChain(t *testing.T) {
 	dt.StopMockNode(dt.nodes[0].addr, false)
 
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
-	store, err := dt.nodes[0].drand.createDBStore()
-	require.NoError(t, err)
+	store := dt.nodes[0].drand.dbStore
+	if dt.nodes[0].drand.opts.dbStorageEngine == chain.BoltDB {
+		store, err = dt.nodes[0].drand.createDBStore()
+		require.NoError(t, err)
+	}
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
 	beac, err := store.Get(ctx, upTo-1)
@@ -1015,9 +1036,14 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
 	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	store.Close(ctx)
+	err = store.Close(ctx)
+	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
+
+	// Skip why: This call will create a new database connection.
+	//  However, for the MemDB engine type, this means we create a new backing array from scratch
+	//  thus removing all previous items from memory. At that point, this invalidates the test.
 	dt.StartDrand(dt.nodes[0].addr, false, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")

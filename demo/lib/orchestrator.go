@@ -63,6 +63,7 @@ type Orchestrator struct {
 	binary            string
 	dbEngineType      chain.StorageType
 	pgDSN             func() string
+	memDBSize         int
 }
 
 func NewOrchestrator(c cfg.Config) *Orchestrator {
@@ -99,6 +100,7 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 		beaconID:          common.GetCanonicalBeaconID(c.BeaconID),
 		dbEngineType:      c.DBEngineType,
 		pgDSN:             c.PgDSN,
+		memDBSize:         c.MemDBSize,
 	}
 	return e
 }
@@ -116,7 +118,7 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, n := range nodes {
 		fmt.Printf("\t- Starting node %s\n", n.PrivateAddr())
-		n.Start(e.certFolder, e.dbEngineType, e.pgDSN)
+		n.Start(e.certFolder, e.dbEngineType, e.pgDSN, e.memDBSize)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -403,6 +405,7 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		IsCandidate:  e.isBinaryCandidate,
 		DBEngineType: e.dbEngineType,
 		PgDSN:        e.pgDSN,
+		MemDBSize:    e.memDBSize,
 	}
 	//  offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool
 	e.newNodes, e.newPaths = createNodes(c)
@@ -590,7 +593,7 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		// Here we send the nil values to the start method to allow the node to reconnect to the same database
-		foundNode.Start(e.certFolder, "", nil)
+		foundNode.Start(e.certFolder, "", nil, e.memDBSize)
 		var started bool
 		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {

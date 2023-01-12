@@ -1,4 +1,4 @@
-//go:build !postgres && !memdb
+//go:build memdb
 
 package core
 
@@ -10,6 +10,6 @@ import (
 
 func WithTestDB(_ *testing.T, _ string) []ConfigOption {
 	return []ConfigOption{
-		WithDBStorageEngine(chain.BoltDB),
+		WithDBStorageEngine(chain.MemDB),
 	}
 }

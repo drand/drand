@@ -51,12 +51,16 @@ const (
 
 	// PostgreSQL uses the PostgreSQL database for storing data
 	PostgreSQL StorageType = "postgres"
+
+	// MemDB uses the in-memory database to store data
+	MemDB StorageType = "memdb"
 )
 
-// Metrics values
+// Metrics values for reporting storage type used
 const (
 	boltDBMetrics = iota + 1
 	postgreSQLMetrics
+	memDBMetrics
 )
 
 func MetricsStorageType(st StorageType) int {
@@ -65,6 +69,8 @@ func MetricsStorageType(st StorageType) int {
 		return boltDBMetrics
 	case PostgreSQL:
 		return postgreSQLMetrics
+	case MemDB:
+		return memDBMetrics
 	default:
 		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
 		// Please add the storage type to the Metrics values list above
