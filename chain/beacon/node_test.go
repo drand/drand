@@ -330,8 +330,8 @@ func (b *BeaconTest) StopBeacon(i int) {
 		if !n.started {
 			return
 		}
-		n.listener.Stop(context.Background())
 		n.handler.Stop()
+		n.listener.Stop(context.Background())
 		n.started = false
 	}
 	delete(b.nodes, j)

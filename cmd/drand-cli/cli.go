@@ -428,7 +428,7 @@ var appCommands = []*cli.Command{
 				err2 := loadCmd(c)
 				if err2 != nil {
 					fmt.Fprintf(os.Stdout, "Keys couldn't be loaded on drand daemon. If it is not running, "+
-						"these new keys will loaded on startup. Err: %s", err2)
+						"these new keys will loaded on startup. Err: %s\n", err2)
 				}
 			}
 			return err

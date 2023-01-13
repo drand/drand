@@ -155,9 +155,12 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 		if err != nil {
 			return nil, err
 		}
+
+		// TODO dlsniper: Check out
+		dd.RemoveBeaconHandler(beaconID, bp)
+
 		bp.Stop(ctx)
 
-		dd.RemoveBeaconHandler(beaconID, bp)
 		dd.RemoveBeaconProcess(beaconID, bp)
 	}
 
@@ -235,6 +238,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
+	// TODO dlsniper: Check out
 	select {
 	case <-dd.exitCh:
 		dd.log.Errorw("Trying to stop an already stopping daemon")

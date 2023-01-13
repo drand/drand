@@ -431,8 +431,8 @@ func (h *Handler) Stop() {
 	}
 	close(h.close)
 
-	h.chain.Stop()
 	h.ticker.Stop()
+	h.chain.Stop()
 
 	h.stopped = true
 	h.running = false

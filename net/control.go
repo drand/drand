@@ -46,8 +46,8 @@ func (g *ControlListener) Start() {
 
 // Stop the listener and connections
 func (g *ControlListener) Stop() {
-	g.conns.Stop()
 	g.lis.Close()
+	g.conns.Stop()
 }
 
 // ControlClient is a struct that implement control.ControlClient and is used to
