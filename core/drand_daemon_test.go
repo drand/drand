@@ -60,23 +60,32 @@ func TestDrandDaemon_Stop(t *testing.T) {
 
 	time.Sleep(250 * time.Millisecond)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	t.Logf("running dd.Stop()")
 	dd.Stop(ctx)
-	if closing, ok := <-dd.WaitExit(); !ok || !closing {
-		t.Fatal("Expecting to receive from exit channel")
-	}
-	if _, ok := <-dd.WaitExit(); ok {
-		t.Fatal("Expecting exit channel to be closed")
-	}
-	if closing, ok := <-proc.WaitExit(); !ok || !closing {
-		t.Fatal("Expecting to receive from exit channel")
-	}
-	if _, ok := <-proc.WaitExit(); ok {
-		t.Fatal("Expecting exit channel to be closed")
-	}
-	proc.Stop(ctx)
-	time.Sleep(250 * time.Millisecond)
-	dd.Stop(ctx)
+
+	t.Logf("running dd.WaitExit()")
+	closing, ok := <-dd.WaitExit()
+	require.True(t, ok, "Expecting to receive from exit channel")
+	require.True(t, closing, "Expecting to receive from exit channel")
+
+	t.Logf("running dd.WaitExit()")
+	_, ok = <-dd.WaitExit()
+	require.False(t, ok, "Expecting to receive from exit channel")
+
+	t.Logf("running proc.WaitExit()")
+	_, ok = <-proc.WaitExit()
+	require.False(t, ok, "If we block the exit of drandDaemon by waiting for all beacons to exit, then this should return false as we consume the value already")
+
+	/*
+		// Uncomment all the code below if we do not block on exit of drandDaemon
+		t.Logf("running proc.WaitExit()")
+		_, ok = <-proc.WaitExit()
+		require.False(t, ok, "Expecting exit channel to be closed")
+
+		t.Logf("running proc.Stop()")
+		proc.Stop(ctx)
+	*/
 }

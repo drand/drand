@@ -155,9 +155,13 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 		if err != nil {
 			return nil, err
 		}
-		bp.Stop(ctx)
 
+		// TODO dlsniper: Check out
 		dd.RemoveBeaconHandler(beaconID, bp)
+
+		bp.Stop(ctx)
+		<-bp.WaitExit()
+
 		dd.RemoveBeaconProcess(beaconID, bp)
 	}
 
@@ -235,6 +239,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
+	dd.log.Debugw("dd.Stop called")
 	select {
 	case <-dd.exitCh:
 		dd.log.Errorw("Trying to stop an already stopping daemon")
@@ -243,22 +248,47 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		dd.log.Infow("Stopping DrandDaemon")
 	}
 	for _, bp := range dd.beaconProcesses {
-		dd.log.Debugw("Sending Stop to beaconProcesses", "bp", bp.beaconID)
+		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
 		bp.Stop(ctx)
 	}
 
+	// TODO (dlsniper): Should we wait here for all BPs to finish or run ahead and close the daemon?
+	//  I lean towards waiting for all beacons. However, one might hang.
+	for _, bp := range dd.beaconProcesses {
+		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
+		<-bp.WaitExit()
+	}
+
+	dd.log.Debugw("all beacons exited successfully")
+
 	if dd.pubGateway != nil {
 		dd.pubGateway.StopAll(ctx)
+		dd.log.Debugw("pubGateway stopped successfully")
 	}
 	dd.privGateway.StopAll(ctx)
+	dd.log.Debugw("privGateway stopped successfully")
 	// we defer the stop of the ControlListener to avoid canceling our context already
-	defer dd.control.Stop()
+	defer func() {
+		// We launch this in a goroutine to allow the stop connection to exit successfully.
+		// If we wouldn't launch it in a goroutine the Stop call itself would block the shutdown
+		// procedure and we'd be in a loop.
+		// By default, the Stop call will try to terminate all connections nicely.
+		// However, after a timeout, it will forcefully close all connections and terminate.
+		go func() {
+			dd.control.Stop()
+			dd.log.Debugw("control stopped successfully")
+		}()
+	}()
+
+	dd.log.Debugw("waiting for dd.exitCh to finish")
 
 	select {
 	case dd.exitCh <- true:
+		dd.log.Debugw("signaled dd.exitCh")
 		close(dd.exitCh)
 	case <-ctx.Done():
 		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
 	}
 }
 

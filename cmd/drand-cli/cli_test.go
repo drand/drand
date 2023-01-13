@@ -740,7 +740,10 @@ func TestDrandReloadBeacon(t *testing.T) {
 		for _, inst := range instances {
 			// We want to ignore this error, at least until the stop command won't return an error
 			// when correctly running the stop command.
-			_ = inst.stopAll()
+			t.Logf("stopping instance %v\n", inst.addr)
+			err := inst.stopAll()
+			require.NoError(t, err)
+			t.Logf("stopped instance %v\n", inst.addr)
 		}
 	}()
 

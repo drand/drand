@@ -434,6 +434,8 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 	dr := node.drand
 	dr.Stop(context.Background())
+	<-dr.WaitExit()
+
 	d.t.Logf("[drand] stop %s", dr.priv.Public.Address())
 
 	controlClient, err := net.NewControlClient(dr.opts.controlPort)

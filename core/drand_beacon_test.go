@@ -44,13 +44,18 @@ func TestBeaconProcess_Stop(t *testing.T) {
 	defer cancel()
 
 	proc.Stop(ctx)
-	if closed, ok := <-proc.WaitExit(); !ok || !closed {
-		t.Fatal("Expecting to receive from exit channel")
-	}
-	if _, ok := <-proc.WaitExit(); ok {
-		t.Fatal("Expecting exit channel to be closed")
-	}
+	closed, ok := <-proc.WaitExit()
+	require.True(t, ok, "Expecting to receive from exit channel")
+	require.True(t, closed, "Expecting to receive from exit channel")
+
+	_, ok = <-proc.WaitExit()
+	require.Falsef(t, ok, "Expecting exit channel to be closed")
+
 	proc.Stop(ctx)
+	<-proc.WaitExit()
+
 	time.Sleep(250 * time.Millisecond)
+
 	proc.Stop(ctx)
+	<-proc.WaitExit()
 }

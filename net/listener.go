@@ -204,6 +204,6 @@ func (g *grpcListener) Start() {
 }
 
 func (g *grpcListener) Stop(ctx context.Context) {
-	_ = g.lis.Close()
 	g.grpcServer.Stop()
+	_ = g.lis.Close()
 }

@@ -104,7 +104,7 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 			}
 			t := time.NewTimer(c.autoWatchRetry)
 			select {
-			case <-t.C:
+			case <-t.C: //TODO: (dlsniper)HUH??
 			case <-ctx.Done():
 				t.Stop()
 			}
