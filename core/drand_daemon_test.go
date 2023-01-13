@@ -77,8 +77,10 @@ func TestDrandDaemon_Stop(t *testing.T) {
 
 	t.Logf("running proc.WaitExit()")
 	_, ok = <-proc.WaitExit()
-	require.False(t, ok, "If we block the exit of drandDaemon by waiting for all beacons to exit, then this should return false as we consume the value already")
+	require.False(t, ok, "If we block the exit of drandDaemon by waiting for all beacons to exit,"+
+		"then this should return false as we consume the value already")
 
+	//nolint:gocritic // Dear linter, I do want to have this code commented at least during code review. I know what I'm doing.
 	/*
 		// Uncomment all the code below if we do not block on exit of drandDaemon
 		t.Logf("running proc.WaitExit()")

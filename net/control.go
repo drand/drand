@@ -55,7 +55,8 @@ func (g *ControlListener) Stop() {
 	}()
 	select {
 	case <-stopped:
-	case <-time.After(5*time.Second):
+	//nolint:gomnd // We want to forcefully terminate this in 5 seconds.
+	case <-time.After(5 * time.Second):
 		g.conns.Stop()
 	}
 
