@@ -252,8 +252,6 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		bp.Stop(ctx)
 	}
 
-	// TODO (dlsniper): Should we wait here for all BPs to finish or run ahead and close the daemon?
-	//  I lean towards waiting for all beacons. However, one might hang.
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
 
