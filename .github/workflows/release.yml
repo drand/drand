@@ -10,17 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@331ce1d993939866bb63c32c6cbbfd48fa76fc57 # pin@v2
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
         with:
-          go-version: '1.19.2'
+          go-version: '1.19.5'
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@64c0c85d18e984422218383b81c52f8b077404d3 # pin@v1.1.2
+        uses: arduino/setup-protoc@ab6203da1c3118e4406048171b09238ad31ad73e # pin@latest-16.02.2023
         with:
           version: '3.19.6'
 
@@ -32,17 +32,17 @@ jobs:
 
       - name: Get latest release version number
         id: get_version
-        uses: battila7/get-version-action@d97fbc34ceb64d1f5d95f4dfd6dce33521ccccf5 # pin@v2
+        uses: battila7/get-version-action@d681662789c541f0777208c1f0e82f255f70b28d # pin@latest-16.01.2023
 
       - name: Parse semver string
         id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@3576f3a20a39f8752fe0d8195f5ed384090285dc # pin@v1
+        uses: booxmedialtd/ws-action-parse-semver@7784200024d6b3fc01253e617ec0168daf603de3 # pin@v1.4.7
         with:
           input_string: ${{ steps.get_version.outputs.version }}
           version_extractor_regex: 'v(.*)$'
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5a54d7e660bda43b405e8463261b3d25631ffe86 # pin@v2
+        uses: goreleaser/goreleaser-action@8f67e590f2d095516493f017008adc464e63adb1 # pin@v4.1.0
         with:
           version: latest
           args: release --rm-dist
