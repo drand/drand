@@ -94,7 +94,7 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 	_, ok = <-proc.WaitExit()
 	require.False(t, ok, "Expecting exit channel to be closed")
 
-	time.Sleep(250*time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 
 	dd.Stop(ctx)
 	closed, ok = <-dd.WaitExit()

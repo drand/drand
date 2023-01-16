@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
@@ -169,7 +170,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
 
-// ReloadBeacon
+// LoadBeacon tells the DrandDaemon to load a new beacon into the memory
 func (dd *DrandDaemon) LoadBeacon(ctx context.Context, in *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error) {
 	beaconID, err := dd.readBeaconID(in.GetMetadata())
 	if err != nil {
@@ -255,7 +256,17 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	//  I lean towards waiting for all beacons. However, one might hang.
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
-		<-bp.WaitExit()
+
+		//nolint:gomnd // We want to wait for 5 seconds before sending a timeout for the beacon shutdown
+		t := time.NewTimer(5 * time.Second)
+		select {
+		case <-bp.WaitExit():
+			if !t.Stop() {
+				<-t.C
+			}
+		case <-t.C:
+			dd.log.Errorw("beacon process failed to terminate in 5 seconds, exiting forcefully", "id", bp.getBeaconID())
+		}
 	}
 
 	dd.log.Debugw("all beacons exited successfully")
