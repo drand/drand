@@ -23,7 +23,7 @@ jobs:
     steps:
       # Deps
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3.5.0
         with:
           go-version: '1.19.5'
       - name: Dir Setup
@@ -31,11 +31,11 @@ jobs:
 
       # Master branch
       - name: Checkout master branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
         with:
           ref: 'master'
       - name: Check cache for master
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_master
         with:
           path: ~/go/pkg/mod
@@ -47,9 +47,9 @@ jobs:
 
       # Candidate branch
       - name: Checkout candidate branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
       - name: Check cache for candidate
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_candidate
         with:
           path: ~/go/pkg/mod
@@ -77,7 +77,7 @@ jobs:
 
       - name: Record Comment
         if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v1
+        uses: marocchino/sticky-pull-request-comment@v2.3.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message: ${{ steps.report.outputs.result }}
@@ -88,7 +88,7 @@ jobs:
     steps:
       # Deps
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3.5.0
         with:
           go-version: '1.19.5'
       - name: Dir Setup
@@ -96,11 +96,11 @@ jobs:
 
       # Master branch
       - name: Checkout master branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
         with:
           ref: 'master'
       - name: Check cache for master
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_master
         with:
           path: ~/go/pkg/mod
@@ -112,9 +112,9 @@ jobs:
 
       # Candidate branch
       - name: Checkout candidate branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
       - name: Check cache for candidate
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_candidate
         with:
           path: ~/go/pkg/mod
@@ -142,7 +142,7 @@ jobs:
 
       - name: Record Comment
         if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v1
+        uses: marocchino/sticky-pull-request-comment@v2.3.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message: ${{ steps.report.outputs.result }}
@@ -153,7 +153,7 @@ jobs:
     steps:
       # Deps
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3.5.0
         with:
           go-version: '1.19.5'
       - name: Dir Setup
@@ -161,11 +161,11 @@ jobs:
 
       # Master branch
       - name: Checkout master branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
         with:
           ref: 'master'
       - name: Check cache for master
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_master
         with:
           path: ~/go/pkg/mod
@@ -177,9 +177,9 @@ jobs:
 
       # Candidate branch
       - name: Checkout candidate branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.3.0
       - name: Check cache for candidate
-        uses: actions/cache@v2
+        uses: actions/cache@v3.2.3
         id: cache_candidate
         with:
           path: ~/go/pkg/mod
@@ -207,7 +207,7 @@ jobs:
 
       - name: Record Comment
         if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v1
+        uses: marocchino/sticky-pull-request-comment@v2.3.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message: ${{ steps.report.outputs.result }}

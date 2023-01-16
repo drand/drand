@@ -11,19 +11,19 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
-    - uses: actions/cache@v2
+      uses: actions/checkout@v3.3.0
+    - uses: actions/cache@v3.2.3
       id: generate-dep-cache
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-    - uses: actions/setup-go@v2
+    - uses: actions/setup-go@v3.5.0
       with:
         go-version: '1.19.5'
     - name: Fetch Dependencies
       run: go get ./...
     - name: Install Protoc
-      uses: arduino/setup-protoc@v1.1.2
+      uses: arduino/setup-protoc@ab6203da1c3118e4406048171b09238ad31ad73e # pin@latest-16.02.2023
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         version: '3.19.6'
