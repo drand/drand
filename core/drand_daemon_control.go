@@ -156,7 +156,6 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 			return nil, err
 		}
 
-		// TODO dlsniper: Check out
 		dd.RemoveBeaconHandler(beaconID, bp)
 
 		bp.Stop(ctx)
