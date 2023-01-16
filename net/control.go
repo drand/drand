@@ -45,8 +45,21 @@ func (g *ControlListener) Start() {
 }
 
 // Stop the listener and connections
+// By default, the Stop call will try to terminate all connections nicely.
+// However, after a timeout, it will forcefully close all connections and terminate.
 func (g *ControlListener) Stop() {
-	g.conns.Stop()
+	stopped := make(chan struct{})
+	go func() {
+		g.conns.GracefulStop()
+		stopped <- struct{}{}
+	}()
+	select {
+	case <-stopped:
+	//nolint:gomnd // We want to forcefully terminate this in 5 seconds.
+	case <-time.After(5 * time.Second):
+		g.conns.Stop()
+	}
+
 	g.lis.Close()
 }
 

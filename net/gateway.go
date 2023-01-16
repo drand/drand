@@ -27,10 +27,10 @@ func (g *PrivateGateway) StartAll() {
 
 // StopAll stops the control and public functionalities of the node
 func (g *PrivateGateway) StopAll(ctx context.Context) {
-	g.Listener.Stop(ctx)
 	if s, ok := g.ProtocolClient.(Stoppable); ok {
 		s.Stop()
 	}
+	g.Listener.Stop(ctx)
 }
 
 // Listener is the active listener for incoming requests.

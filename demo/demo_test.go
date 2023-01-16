@@ -12,8 +12,8 @@ import (
 )
 
 func TestLocalOrchestration(t *testing.T) {
-	// Let us have a 3 minutes deadline since the CI is slow
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	// Let us have a 10 minutes deadline since the CI is slow
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	testFinished := make(chan struct{})

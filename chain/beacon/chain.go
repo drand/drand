@@ -110,6 +110,13 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
+	// TODO (dlsniper): This should be flagged in a different way
+	select {
+	case <-c.done:
+		return
+	default:
+	}
+
 	lastBeacon, err := c.Last(context.Background())
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)

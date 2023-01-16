@@ -106,7 +106,9 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 			select {
 			case <-t.C:
 			case <-ctx.Done():
-				t.Stop()
+				if !t.Stop() {
+					<-t.C
+				}
 			}
 			c.log.Infow("", "watch_aggregator", "retrying auto watch")
 		}
