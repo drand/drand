@@ -46,7 +46,7 @@ func getPublicRandomness(c *cli.Context) error {
 	for _, id := range ids {
 		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS, info.Hash())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s", id.Addr, err)
+			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s\n", id.Addr, err)
 			break
 		}
 
@@ -55,11 +55,11 @@ func getPublicRandomness(c *cli.Context) error {
 		if err == nil {
 			foundCorrect = true
 			if c.Bool(verboseFlag.Name) {
-				fmt.Fprintf(output, "drand: public randomness retrieved from %s", id.Addr)
+				fmt.Fprintf(output, "drand: public randomness retrieved from %s\n", id.Addr)
 			}
 			break
 		}
-		fmt.Fprintf(os.Stderr, "drand: could not get public randomness from %s: %s", id.Addr, err)
+		fmt.Fprintf(os.Stderr, "drand: could not get public randomness from %s: %s\n", id.Addr, err)
 	}
 	if !foundCorrect {
 		return errors.New("drand: could not verify randomness")
@@ -96,7 +96,7 @@ func getChainInfo(c *cli.Context) error {
 		if err == nil {
 			break
 		}
-		fmt.Fprintf(os.Stderr, "drand: error fetching distributed key from %s : %s",
+		fmt.Fprintf(os.Stderr, "drand: error fetching distributed key from %s : %s\n",
 			addr, err)
 	}
 	if ci == nil {
