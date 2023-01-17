@@ -366,7 +366,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	}
 
 	if bp.opts.dbStorageEngine == chain.MemDB {
-		err := bp.storePrevious(store)
+		err := bp.storePreviousFromNetwork(store)
 		if err != nil {
 			return nil, err
 		}
@@ -442,33 +442,16 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	return metadata
 }
 
-func (bp *BeaconProcess) storePrevious(store chain.Store) error {
+func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	ctx := context.Background()
 
-	peers := bp.toPeers(bp.group.Nodes)
-	round, _ := chain.NextRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
-	nRound := round - 1
-	found := false
-	previousRound := chain.Beacon{}
-	for _, peer := range peers {
-		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{
-			Round:    nRound,
-			Metadata: bp.newMetadata(),
-		})
-		if err != nil {
-			bp.log.Errorw("failed to get rand value from peer", "round", nRound, "err", err, "peer", peer.Address())
-			continue
-		}
+	nextRound, _ := chain.NextRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
+	targetRound := nextRound - 1
+	peers := bp.computePeers(bp.group.Nodes)
 
-		found = true
-		previousRound.PreviousSig = r.PreviousSignature
-		previousRound.Round = r.Round
-		previousRound.Signature = r.Signature
-		break
-	}
-
-	if !found {
-		return fmt.Errorf("could not find round n-1(%d) in any peer", nRound)
+	previousRound, err2 := bp.loadBeaconFromPeers(ctx, targetRound, peers)
+	if err2 != nil {
+		return err2
 	}
 
 	verifier := chain.NewVerifier(bp.group.Scheme)
@@ -485,7 +468,37 @@ func (bp *BeaconProcess) storePrevious(store chain.Store) error {
 	return err
 }
 
-func (bp *BeaconProcess) toPeers(nodes []*key.Node) []net.Peer {
+func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (chain.Beacon, error) {
+	found := false
+	round := chain.Beacon{}
+
+	// TODO (dlsniper): This is checking all the peers sequentially, until one replies.
+	//  If we are interested in the getting the response as fast as possible, we could make
+	//  the requests run all in parallel and cancel as soon as any of them returns a non-error response.
+	for _, peer := range peers {
+		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{
+			Round:    targetRound,
+			Metadata: bp.newMetadata(),
+		})
+		if err != nil {
+			bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", err, "peer", peer.Address())
+			continue
+		}
+
+		found = true
+		round.PreviousSig = r.PreviousSignature
+		round.Round = r.Round
+		round.Signature = r.Signature
+		break
+	}
+
+	if !found {
+		return round, fmt.Errorf("could not find round n-1(%d) in any peer", targetRound)
+	}
+	return round, nil
+}
+
+func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {
 	nodeAddr := bp.priv.Public.Address()
 	var peers []net.Peer
 	for i := 0; i < len(nodes); i++ {
