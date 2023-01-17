@@ -449,13 +449,13 @@ func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	targetRound := nextRound - 1
 	peers := bp.computePeers(bp.group.Nodes)
 
-	previousRound, err2 := bp.loadBeaconFromPeers(ctx, targetRound, peers)
-	if err2 != nil {
-		return err2
+	previousRound, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
+	if err != nil {
+		return err
 	}
 
-	verifier := chain.NewVerifier(bp.group.Scheme)
-	err := verifier.VerifyBeacon(previousRound, bp.group.PublicKey.Key())
+	verif := chain.NewVerifier(bp.group.Scheme)
+	err = verif.VerifyBeacon(previousRound, bp.group.PublicKey.Key())
 	if err != nil {
 		bp.log.Errorw("failed to verify beacon", "err", err)
 		return err
