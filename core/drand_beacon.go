@@ -458,7 +458,8 @@ func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	// It could happen that we request the round right when it's generated
 	// due to delays in the network.
 	// However, this breaks the tests in a different way as their clock does not manually advance.
-	_  = nextRoundTime
+	_ = nextRoundTime
+	//nolint: gocritic // This code is commented on purpose, see the above comment
 	/*if nextRoundTime > clkNow {
 		bp.opts.clock.Sleep(time.Duration(nextRoundTime-clkNow) * time.Second)
 	}*/
