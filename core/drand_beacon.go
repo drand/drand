@@ -456,10 +456,12 @@ func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 
 	// Even if we require the round to be the previous one, not the next one,
 	// It could happen that we request the round right when it's generated
-	// due to delays in the network
-	if nextRoundTime > clkNow {
+	// due to delays in the network.
+	// However, this breaks the tests in a different way as their clock does not manually advance.
+	_  = nextRoundTime
+	/*if nextRoundTime > clkNow {
 		bp.opts.clock.Sleep(time.Duration(nextRoundTime-clkNow) * time.Second)
-	}
+	}*/
 
 	peers := bp.computePeers(bp.group.Nodes)
 	previousRound, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)

@@ -177,7 +177,6 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			daemon.Stop(ctx)
-			time.Sleep(3 * time.Second)
 		})
 	}
 
