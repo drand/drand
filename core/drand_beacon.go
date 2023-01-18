@@ -450,7 +450,7 @@ func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	targetRound := nextRound - 1
 	if targetRound < 1 {
 		// We cannot sync the initial round.
-		// Asume this is a fresh start
+		// Assume this is a fresh start
 		return nil
 	}
 
