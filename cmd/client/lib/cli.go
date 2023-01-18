@@ -122,7 +122,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.WithChainInfo(info))
 	}
 
-	gc, err := buildGrpcClient(c, &info)
+	gc, err := buildGrpcClient(c, info)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	return client.Wrap(clients, opts...)
 }
 
-func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
+func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, error) {
 	if c.IsSet(GRPCConnectFlag.Name) {
 		hash := make([]byte, 0)
 
@@ -172,19 +172,13 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error)
 			}
 		}
 
-		if *info != nil && len(hash) == 0 {
-			hash = (*info).Hash()
+		if info != nil && len(hash) == 0 {
+			hash = info.Hash()
 		}
 
 		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
 		if err != nil {
 			return nil, err
-		}
-		if *info == nil {
-			*info, err = gc.Info(context.Background())
-			if err != nil {
-				return nil, err
-			}
 		}
 		return []client.Client{gc}, nil
 	}
