@@ -445,10 +445,23 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	ctx := context.Background()
 
-	nextRound, _ := chain.NextRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
+	clkNow := bp.opts.clock.Now().Unix()
+	nextRound, nextRoundTime := chain.NextRound(clkNow, bp.group.Period, bp.group.GenesisTime)
 	targetRound := nextRound - 1
-	peers := bp.computePeers(bp.group.Nodes)
+	if targetRound < 1 {
+		// We cannot sync the initial round.
+		// Asume this is a fresh start
+		return nil
+	}
 
+	// Even if we require the round to be the previous one, not the next one,
+	// It could happen that we request the round right when it's generated
+	// due to delays in the network
+	if nextRoundTime > clkNow {
+		bp.opts.clock.Sleep(time.Duration(nextRoundTime-clkNow) * time.Second)
+	}
+
+	peers := bp.computePeers(bp.group.Nodes)
 	previousRound, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
 	if err != nil {
 		return err
