@@ -165,7 +165,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.CheckBeaconLength(t, restOfNodes, 2)
 
 	t.Logf("Start last node %s", lastNode.addr)
-	dt.StartDrand(lastNode.addr, true, false)
+	dt.StartDrand(t, lastNode.addr, true, false)
 
 	// The catchup process will finish when node gets the previous beacons (1st round)
 	err := dt.WaitUntilRound(t, lastNode, 1)
@@ -1029,7 +1029,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Skip why: This call will create a new database connection.
 	//  However, for the MemDB engine type, this means we create a new backing array from scratch
 	//  thus removing all previous items from memory. At that point, this invalidates the test.
-	dt.StartDrand(dt.nodes[0].addr, false, false)
+	dt.StartDrand(t, dt.nodes[0].addr, false, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
 	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})

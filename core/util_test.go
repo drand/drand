@@ -462,12 +462,13 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 // StartDrand fetches the drand given the id, in the respective group given the
 // newGroup parameter and runs the beacon
-func (d *DrandTestScenario) StartDrand(nodeAddress string, catchup, newGroup bool) {
+func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup, newGroup bool) {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	d.t.Logf("[drand] Start")
-	dr.StartBeacon(catchup)
+	err := dr.StartBeacon(catchup)
+	require.NoError(t, err)
 	d.t.Logf("[drand] Started")
 }
 
