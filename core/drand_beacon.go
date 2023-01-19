@@ -233,7 +233,10 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 
 	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
 	if catchup {
-		go b.Catchup()
+		// This doesn't need to be called async.
+		// In the future, we might want to wait and return any errors from it too.
+		// TODO: Add error handling for this method and handle it here.
+		b.Catchup()
 	} else if err := b.Start(); err != nil {
 		bp.log.Errorw("", "beacon_start", err)
 		return err
