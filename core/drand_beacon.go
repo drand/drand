@@ -366,7 +366,8 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	}
 
 	if bp.opts.dbStorageEngine == chain.MemDB {
-		err := bp.storePreviousFromNetwork(store)
+		ctx := context.Background()
+		err := bp.storeCurrentFromPeerNetwork(ctx, store)
 		if err != nil {
 			return nil, err
 		}
@@ -442,9 +443,7 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	return metadata
 }
 
-func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
-	ctx := context.Background()
-
+func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
 	clkNow := bp.opts.clock.Now().Unix()
 	currentRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
 	if currentRound < 1 {
