@@ -14,8 +14,8 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 		chainHash := fmt.Sprintf("%x", chainHashHex)
 
 		dd.state.Lock()
-		defer dd.state.Unlock()
 		beaconIDByHash, isChainHashFound := dd.chainHashes[chainHash]
+		dd.state.Unlock()
 		if isChainHashFound {
 			// check if rcv beacon id on request points to a different id obtained from chain hash
 			// we accept the empty beacon id, since we do a match on the chain hash in that case
