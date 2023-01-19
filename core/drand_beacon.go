@@ -371,7 +371,8 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	if bp.opts.dbStorageEngine == chain.MemDB {
 		ctx := context.Background()
 		err := bp.storeCurrentFromPeerNetwork(ctx, store)
-		if err != nil {
+		if err != nil && !errors.Is(err, errNoRoundInPeers) {
+			bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
 			return nil, err
 		}
 	}
@@ -446,6 +447,8 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	return metadata
 }
 
+var errNoRoundInPeers = errors.New("could not find round")
+
 func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
 	clkNow := bp.opts.clock.Now().Unix()
 	currentRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
@@ -479,28 +482,45 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 	found := false
 	round := chain.Beacon{}
 
-	// TODO (dlsniper): This is checking all the peers sequentially, until one replies.
-	//  If we are interested in the getting the response as fast as possible, we could make
-	//  the requests run all in parallel and cancel as soon as any of them returns a non-error response.
-	for _, peer := range peers {
-		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{
-			Round:    targetRound,
-			Metadata: bp.newMetadata(),
-		})
-		if err != nil {
-			bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", err, "peer", peer.Address())
-			continue
-		}
+	setMtx := sync.Mutex{}
 
-		found = true
-		round.PreviousSig = r.PreviousSignature
-		round.Round = r.Round
-		round.Signature = r.Signature
+	findCtx, findCancel := context.WithCancel(ctx)
+	defer findCancel()
+
+	for _, peer := range peers {
+		peer := peer
+
+		go func() {
+			r, err := bp.privGateway.PublicRand(findCtx, peer, &drand.PublicRandRequest{
+				Round:    targetRound,
+				Metadata: bp.newMetadata(),
+			})
+			if err != nil {
+				bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", err, "peer", peer.Address())
+				return
+			}
+
+			select {
+			case <-findCtx.Done():
+				return
+			default:
+			}
+
+			findCancel()
+
+			setMtx.Lock()
+			defer setMtx.Unlock()
+
+			found = true
+			round.PreviousSig = r.PreviousSignature
+			round.Round = r.Round
+			round.Signature = r.Signature
+		}()
 		break
 	}
 
 	if !found {
-		return round, fmt.Errorf("could not find round n-1(%d) in any peer", targetRound)
+		return round, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 	}
 	return round, nil
 }
