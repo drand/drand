@@ -23,12 +23,12 @@ jobs:
       with:
         version: v1.50
         args: --timeout 5m
-    - name: golangci-lint
+    - name: golangci-lint-memdb
       uses: golangci/golangci-lint-action@v3.3.1
       with:
         version: v1.50
         args: --build-tags memdb --timeout 5m
-    - name: golangci-lint
+    - name: golangci-lint-postgres
       uses: golangci/golangci-lint-action@v3.3.1
       with:
         version: v1.50
