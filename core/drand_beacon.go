@@ -366,11 +366,11 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	}
 
 	if bp.opts.dbStorageEngine == chain.MemDB {
-		ctx := context.Background()
+		/*ctx := context.Background()
 		err := bp.storeCurrentFromPeerNetwork(ctx, store)
 		if err != nil {
 			return nil, err
-		}
+		}*/
 	}
 
 	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
