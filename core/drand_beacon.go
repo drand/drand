@@ -446,26 +446,15 @@ func (bp *BeaconProcess) storePreviousFromNetwork(store chain.Store) error {
 	ctx := context.Background()
 
 	clkNow := bp.opts.clock.Now().Unix()
-	nextRound, nextRoundTime := chain.NextRound(clkNow, bp.group.Period, bp.group.GenesisTime)
-	targetRound := nextRound - 1
-	if targetRound < 1 {
+	currentRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	if currentRound < 1 {
 		// We cannot sync the initial round.
 		// Assume this is a fresh start
 		return nil
 	}
 
-	// Even if we require the round to be the previous one, not the next one,
-	// It could happen that we request the round right when it's generated
-	// due to delays in the network.
-	// However, this breaks the tests in a different way as their clock does not manually advance.
-	_ = nextRoundTime
-	//nolint: gocritic // This code is commented on purpose, see the above comment
-	/*if nextRoundTime > clkNow {
-		bp.opts.clock.Sleep(time.Duration(nextRoundTime-clkNow) * time.Second)
-	}*/
-
 	peers := bp.computePeers(bp.group.Nodes)
-	previousRound, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
+	previousRound, err := bp.loadBeaconFromPeers(ctx, currentRound, peers)
 	if err != nil {
 		return err
 	}
