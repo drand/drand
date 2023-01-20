@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/weaveworks/common/fs"
 
@@ -104,11 +103,11 @@ func TestRunDKG(t *testing.T) {
 
 	t.Log(group)
 
-	assert.Equal(t, 3, group.Threshold)
-	assert.Equal(t, expectedBeaconPeriod, group.Period)
-	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
-	assert.Equal(t, n, len(group.Nodes))
-	assert.Equal(t, int64(449884810), group.GenesisTime)
+	require.Equal(t, 3, group.Threshold)
+	require.Equal(t, expectedBeaconPeriod, group.Period)
+	require.Equal(t, time.Duration(0), group.CatchupPeriod)
+	require.Equal(t, n, len(group.Nodes))
+	require.Equal(t, int64(449884810), group.GenesisTime)
 }
 
 // Test dkg for a large quantity of nodes (22 nodes)
@@ -127,11 +126,11 @@ func TestRunDKGLarge(t *testing.T) {
 
 	group := dt.RunDKG()
 
-	assert.Equal(t, 12, group.Threshold)
-	assert.Equal(t, expectedBeaconPeriod, group.Period)
-	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
-	assert.Equal(t, n, len(group.Nodes))
-	assert.Equal(t, int64(449884810), group.GenesisTime)
+	require.Equal(t, 12, group.Threshold)
+	require.Equal(t, expectedBeaconPeriod, group.Period)
+	require.Equal(t, time.Duration(0), group.CatchupPeriod)
+	require.Equal(t, n, len(group.Nodes))
+	require.Equal(t, int64(449884810), group.GenesisTime)
 }
 
 // Test Start/Stop after DKG
@@ -178,7 +177,7 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	t.Log("Check Beacon Public")
 	response := dt.CheckPublicBeacon(lastNode.addr, false)
-	assert.Equal(t, uint64(2), response.Round)
+	require.Equal(t, uint64(2), response.Round)
 }
 
 // Test dkg when two nodes cannot broadcast messages between them. The rest of the nodes
@@ -1173,7 +1172,7 @@ func TestReshareWithInvalidBeaconIdInMetadataFailsButNoSegfault(t *testing.T) {
 		},
 	}
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
-	assert.EqualError(
+	require.EqualError(
 		t,
 		err,
 		"beacon with ID "+nonsenseBeaconID+" could not be found - make sure you have passed the id flag or have a default beacon",
@@ -1206,7 +1205,7 @@ func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
 	}
 
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
-	assert.EqualError(t, err, "cannot reshare without an old group")
+	require.EqualError(t, err, "cannot reshare without an old group")
 }
 
 func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
@@ -1253,5 +1252,5 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	// the updated TLS status will fail verification
 	_, err = node.daemon.LoadBeaconFromStore(beaconID, store)
 
-	assert.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+	require.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 }
