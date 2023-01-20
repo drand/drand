@@ -139,7 +139,9 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 	}
 	bp.index = int(thisBeacon.Index)
+	bp.state.Lock()
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
+	bp.state.Unlock()
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
