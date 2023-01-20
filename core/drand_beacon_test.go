@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
@@ -103,4 +104,62 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 
 	_, ok = <-dd.WaitExit()
 	require.False(t, ok, "Expecting exit channel to be closed")
+}
+
+func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+	ctx := context.Background()
+
+	const existingNodesCount = 3
+	const thr = 4
+	const period = 1 * time.Second
+	beaconName := t.Name()
+
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+
+	// We want to explicitly run a node with the chain.MemDB backend
+	newNodes := ts.AddNodesWithOptions(t, 1, sch, beaconName, WithDBStorageEngine(chain.MemDB))
+	group := ts.RunDKG()
+
+	ts.SetMockClock(t, group.GenesisTime)
+
+	memDBNode := newNodes[0]
+	err := ts.WaitUntilChainIsServing(t, memDBNode)
+	require.NoError(t, err)
+
+	storeLen, err := memDBNode.drand.dbStore.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, storeLen)
+}
+
+func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+
+	const existingNodesCount = 3
+	const thr = 3
+	const period = 1 * time.Second
+	beaconName := t.Name()
+
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+	group := ts.RunDKG()
+
+	ts.SetMockClock(t, group.GenesisTime)
+	err := ts.WaitUntilChainIsServing(t, ts.nodes[0])
+	require.NoError(t, err)
+
+	// We want to explicitly run a node with the chain.MemDB backend
+	newNodes := ts.SetupNewNodes(t, 1, WithDBStorageEngine(chain.MemDB))
+
+	group, err = ts.RunReshare(t, &reshareConfig{
+		oldRun:  existingNodesCount,
+		newRun:  len(newNodes),
+		newThr:  thr + 1,
+		timeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	ts.SetMockClock(t, group.TransitionTime)
+
+	err = ts.WaitUntilChainIsServing(t, newNodes[0])
+	require.NoError(t, err)
 }

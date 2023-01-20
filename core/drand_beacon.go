@@ -519,7 +519,6 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 	for _, peer := range peers {
 		go func(peer net.Peer) {
-
 			b := chain.Beacon{}
 			r, err := bp.privGateway.PublicRand(ctxFind, peer, &prr)
 			if err == nil && r != nil {

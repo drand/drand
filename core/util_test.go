@@ -286,9 +286,11 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
-	errDetector := make(chan error, d.n+1)
+	totalNodes := d.n
+
+	errDetector := make(chan error, totalNodes+1)
 	var wg sync.WaitGroup
-	wg.Add(d.n)
+	wg.Add(totalNodes)
 
 	runLeaderNode := func() {
 		defer wg.Done()
@@ -296,7 +298,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
+			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
 		if err != nil {
 			errDetector <- err
 			return
@@ -424,7 +426,8 @@ func (d *DrandTestScenario) GetMockNode(nodeAddress string, newGroup bool) *Mock
 		}
 	}
 
-	panic("no nodes found at this nodeAddress")
+	require.FailNow(d.t, "no nodes found at this nodeAddress: "+nodeAddress)
+	return nil
 }
 
 // StopMockNode stops a node from the first group
@@ -526,10 +529,10 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
-func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
+func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...ConfigOption) []*MockNode {
 	t.Log("Setup of", newNodes, "new nodes for tests")
-	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
-		WithCallOption(grpc.WaitForReady(false)))
+	opts = append(opts, WithCallOption(grpc.WaitForReady(false)))
+	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID, opts...)
 	d.newDir = newDir
 
 	oldCertPaths := make([]string, len(d.nodes))
@@ -556,6 +559,27 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNod
 	}
 
 	return d.newNodes
+}
+
+// AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
+// The options set will overwrite the existing ones.
+func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, sch scheme.Scheme, beaconID string, opts ...ConfigOption) []*MockNode {
+	t.Logf("Setup of %d new nodes for tests", n)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
+
+	d.n += n
+
+	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
+	daemons, drands, _, _, certPaths := BatchNewDrand(t, n, false, sch, beaconID, opts...)
+	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
+	var result []*MockNode
+	for i, drandInstance := range drands {
+		node := newNode(d.clock.Now(), certPaths[i], daemons[i], drandInstance)
+		d.nodes = append(d.nodes, node)
+		result = append(result, node)
+	}
+
+	return result
 }
 
 func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round uint64) error {
