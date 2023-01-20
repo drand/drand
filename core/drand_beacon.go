@@ -479,19 +479,28 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 }
 
 func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (chain.Beacon, error) {
-	found := false
-	round := chain.Beacon{}
+	found := make(chan chain.Beacon)
+	done := make(chan bool)
 
-	setMtx := sync.Mutex{}
+	ctxFind, cancelFind := context.WithCancel(ctx)
+	defer cancelFind()
 
-	findCtx, findCancel := context.WithCancel(ctx)
-	defer findCancel()
+	wg := sync.WaitGroup{}
 
 	for _, peer := range peers {
 		peer := peer
 
 		go func() {
-			r, err := bp.privGateway.PublicRand(findCtx, peer, &drand.PublicRandRequest{
+			wg.Add(1)
+			defer wg.Done()
+
+			select {
+			case <-ctxFind.Done():
+				return
+			default:
+			}
+
+			r, err := bp.privGateway.PublicRand(ctxFind, peer, &drand.PublicRandRequest{
 				Round:    targetRound,
 				Metadata: bp.newMetadata(),
 			})
@@ -501,28 +510,32 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 			}
 
 			select {
-			case <-findCtx.Done():
+			case <-ctxFind.Done():
 				return
 			default:
 			}
 
-			findCancel()
+			cancelFind()
 
-			setMtx.Lock()
-			defer setMtx.Unlock()
-
-			found = true
-			round.PreviousSig = r.PreviousSignature
-			round.Round = r.Round
-			round.Signature = r.Signature
+			found <- chain.Beacon{
+				PreviousSig: r.PreviousSignature,
+				Round:       r.Round,
+				Signature:   r.Signature,
+			}
 		}()
-		break
 	}
 
-	if !found {
-		return round, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case r := <-found:
+		return r, nil
+	case <-done:
+		return chain.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 	}
-	return round, nil
 }
 
 func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {
