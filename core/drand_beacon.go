@@ -371,9 +371,13 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	if bp.opts.dbStorageEngine == chain.MemDB {
 		ctx := context.Background()
 		err := bp.storeCurrentFromPeerNetwork(ctx, store)
-		if err != nil && !errors.Is(err, errNoRoundInPeers) {
-			bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
-			return nil, err
+		if err != nil {
+			if errors.Is(err, errNoRoundInPeers) {
+				bp.log.Warnw("failed to find target beacon in peer network. Reverting to synced startup", "err", err)
+			} else {
+				bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
+				return nil, err
+			}
 		}
 	}
 
@@ -451,27 +455,38 @@ var errNoRoundInPeers = errors.New("could not find round")
 
 func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
 	clkNow := bp.opts.clock.Now().Unix()
-	currentRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
-	if currentRound < 1 {
+	if bp.group == nil {
+		return nil
+	}
+
+	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	if targetRound < 1 {
 		// We cannot sync the initial round.
 		// Assume this is a fresh start
 		return nil
 	}
 
 	peers := bp.computePeers(bp.group.Nodes)
-	previousRound, err := bp.loadBeaconFromPeers(ctx, currentRound, peers)
+	targetBeacon, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
+	if errors.Is(err, errNoRoundInPeers) {
+		// If we can't find the desired beacon round, let's try with the previous one
+		if targetRound > 0 {
+			targetBeacon, err = bp.loadBeaconFromPeers(ctx, targetRound-1, peers)
+		}
+	}
+
 	if err != nil {
 		return err
 	}
 
 	verif := chain.NewVerifier(bp.group.Scheme)
-	err = verif.VerifyBeacon(previousRound, bp.group.PublicKey.Key())
+	err = verif.VerifyBeacon(targetBeacon, bp.group.PublicKey.Key())
 	if err != nil {
 		bp.log.Errorw("failed to verify beacon", "err", err)
 		return err
 	}
 
-	err = store.Put(ctx, &previousRound)
+	err = store.Put(ctx, &targetBeacon)
 	if err != nil {
 		bp.log.Errorw("failed to store beacon", "err", err)
 	}
@@ -479,63 +494,62 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 }
 
 func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (chain.Beacon, error) {
-	found := make(chan chain.Beacon)
-	done := make(chan bool)
+	select {
+	case <-ctx.Done():
+		return chain.Beacon{}, ctx.Err()
+	default:
+	}
 
-	ctxFind, cancelFind := context.WithCancel(ctx)
+	type answer struct {
+		peer net.Peer
+		b    chain.Beacon
+		err  error
+	}
+
+	answers := make(chan answer, len(peers))
+
+	// We should search for the beacon for three times the period of the network.
+	ctxFind, cancelFind := context.WithTimeout(ctx, bp.group.Period)
 	defer cancelFind()
 
-	wg := sync.WaitGroup{}
+	prr := drand.PublicRandRequest{
+		Round:    targetRound,
+		Metadata: bp.newMetadata(),
+	}
 
 	for _, peer := range peers {
-		peer := peer
+		go func(peer net.Peer) {
 
-		go func() {
-			wg.Add(1)
-			defer wg.Done()
-
-			select {
-			case <-ctxFind.Done():
-				return
-			default:
+			b := chain.Beacon{}
+			r, err := bp.privGateway.PublicRand(ctxFind, peer, &prr)
+			if err == nil && r != nil {
+				b = chain.Beacon{
+					PreviousSig: r.PreviousSignature,
+					Round:       r.Round,
+					Signature:   r.Signature,
+				}
 			}
-
-			r, err := bp.privGateway.PublicRand(ctxFind, peer, &drand.PublicRandRequest{
-				Round:    targetRound,
-				Metadata: bp.newMetadata(),
-			})
-			if err != nil {
-				bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", err, "peer", peer.Address())
-				return
-			}
-
-			select {
-			case <-ctxFind.Done():
-				return
-			default:
-			}
-
-			cancelFind()
-
-			found <- chain.Beacon{
-				PreviousSig: r.PreviousSignature,
-				Round:       r.Round,
-				Signature:   r.Signature,
-			}
-		}()
+			answers <- answer{peer, b, err}
+		}(peer)
 	}
 
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
+	for i := 0; i < len(peers); i++ {
+		select {
+		case ans := <-answers:
+			if ans.err != nil {
+				bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", ans.err, "peer", ans.peer.Address())
+				continue
+			}
 
-	select {
-	case r := <-found:
-		return r, nil
-	case <-done:
-		return chain.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
+			return ans.b, nil
+		case <-ctxFind.Done():
+			return chain.Beacon{}, ctxFind.Err()
+		case <-ctx.Done():
+			return chain.Beacon{}, ctx.Err()
+		}
 	}
+
+	return chain.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 }
 
 func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {
