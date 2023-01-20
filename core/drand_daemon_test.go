@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common/scheme"
@@ -53,7 +52,7 @@ func TestDrandDaemon_Stop(t *testing.T) {
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
-	assert.NoError(t, store.SaveKeyPair(privs[0]))
+	require.NoError(t, store.SaveKeyPair(privs[0]))
 	proc, err := dd.InstantiateBeaconProcess(t.Name(), store)
 	require.NoError(t, err)
 	require.NotNil(t, proc)

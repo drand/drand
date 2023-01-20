@@ -13,7 +13,6 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -122,11 +121,11 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 			if httpscerts.Check(certPath, keyPath) != nil {
 				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				t.Logf("generate keys for drand %d", i)
 				err = httpscerts.Generate(certPath, keyPath, h)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			certPaths[i] = certPath
 			keyPaths[i] = keyPath
@@ -136,7 +135,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
 
-		assert.NoError(t, s.SaveKeyPair(privs[i]))
+		require.NoError(t, s.SaveKeyPair(privs[i]))
 
 		// give each one their own private folder
 		confOptions := []ConfigOption{
@@ -164,10 +163,10 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		t.Logf("Creating node %d", i)
 
 		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		daemons[i] = daemon
 		drands[i] = bp

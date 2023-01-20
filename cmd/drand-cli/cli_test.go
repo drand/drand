@@ -17,7 +17,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
@@ -1068,14 +1067,14 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 		"--threshold", "2", "--nodes", "3", "--period", "5s",
 	}
 
-	assert.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
+	require.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
 
 	// transition and from flags can't be used together
 	share3 := []string{
 		"drand", "share", "--tls-disable", "--id", beaconID, "--connect", "127.0.0.1:9090", "--transition", "--from", "somepath.txt",
 	}
 
-	assert.EqualError(
+	require.EqualError(
 		t,
 		CLI().Run(share3),
 		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
