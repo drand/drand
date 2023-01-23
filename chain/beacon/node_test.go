@@ -32,12 +32,16 @@ import (
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
+	sync.Mutex
 	disable bool
 	*testnet.EmptyServer
 	h *Handler
 }
 
 func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+	t.Lock()
+	defer t.Unlock()
+
 	if t.disable {
 		return nil, errors.New("disabled server")
 	}
@@ -45,6 +49,9 @@ func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBea
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
+	t.Lock()
+	defer t.Unlock()
+
 	if t.disable {
 		return errors.New("disabled server")
 	}
@@ -339,13 +346,17 @@ func (b *BeaconTest) StopBeacon(i int) {
 
 func (b *BeaconTest) DisableReception(count int) {
 	for i := 0; i < count; i++ {
+		b.nodes[i].server.Lock()
 		b.nodes[i].server.disable = true
+		b.nodes[i].server.Unlock()
 	}
 }
 
 func (b *BeaconTest) EnableReception(count int) {
 	for i := 0; i < count; i++ {
+		b.nodes[i].server.Lock()
 		b.nodes[i].server.disable = false
+		b.nodes[i].server.Unlock()
 	}
 }
 
