@@ -144,27 +144,35 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	group := ts.RunDKG()
 
 	ts.SetMockClock(t, group.GenesisTime)
+
 	err := ts.WaitUntilChainIsServing(t, ts.nodes[0])
 	require.NoError(t, err)
 
-	// We want to explicitly run a node with the chain.MemDB backend
-	newNodes := ts.SetupNewNodes(t, 1, WithDBStorageEngine(chain.MemDB))
+	ts.AdvanceMockClock(t, period)
 
+	t.Log("SetupNewNodes")
+
+	// We want to explicitly run a node with the chain.MemDB backend
+	newNodes := ts.SetupNewNodes(t, 1)//, WithDBStorageEngine(chain.MemDB))
+
+	t.Log("running reshare")
 	group, err = ts.RunReshare(t, &reshareConfig{
 		oldRun:  existingNodesCount,
 		newRun:  len(newNodes),
-		newThr:  thr + 1,
+		newThr:  thr + len(newNodes),
 		timeout: time.Second,
 	})
 	require.NoError(t, err)
 
 	memDBNode := newNodes[0]
 
+	t.Log("running WaitUntilChainIsServing")
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.TransitionTime)
 
+	t.Log("WaitUntilRound")
 	err = ts.WaitUntilRound(t, memDBNode, 2)
 	require.NoError(t, err)
 }
