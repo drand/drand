@@ -158,8 +158,13 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	memDBNode := newNodes[0]
+
+	err = ts.WaitUntilChainIsServing(t, memDBNode)
+	require.NoError(t, err)
+
 	ts.SetMockClock(t, group.TransitionTime)
 
-	err = ts.WaitUntilChainIsServing(t, newNodes[0])
+	err = ts.WaitUntilRound(t, memDBNode, 2)
 	require.NoError(t, err)
 }
