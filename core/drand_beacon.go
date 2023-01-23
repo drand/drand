@@ -469,8 +469,11 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	peers := bp.computePeers(bp.group.Nodes)
 	targetBeacon, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
 	if errors.Is(err, errNoRoundInPeers) {
-		// If we can't find the desired beacon round, let's try with the previous one
-		if targetRound > 0 {
+		// If we can't find the desired beacon round, let's try with the previous one.
+		// We don't want to try round 0 because that won't validate as it doesn't contain
+		// a previous signature.
+		// In this case, we'll just let the beacon sync everything from scratch.
+		if targetRound > 1 {
 			targetBeacon, err = bp.loadBeaconFromPeers(ctx, targetRound-1, peers)
 		}
 	}

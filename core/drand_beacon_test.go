@@ -108,7 +108,6 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 
 func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	ctx := context.Background()
 
 	const existingNodesCount = 3
 	const thr = 4
@@ -127,9 +126,10 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	err := ts.WaitUntilChainIsServing(t, memDBNode)
 	require.NoError(t, err)
 
-	storeLen, err := memDBNode.drand.dbStore.Len(ctx)
+	ts.AdvanceMockClock(t, period)
+
+	err = ts.WaitUntilRound(t, memDBNode, 2)
 	require.NoError(t, err)
-	require.Equal(t, 2, storeLen)
 }
 
 func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
