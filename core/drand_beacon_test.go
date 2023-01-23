@@ -136,6 +136,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 
 	const existingNodesCount = 3
+	const newNodesCount = 1
 	const thr = 3
 	const period = 1 * time.Second
 	beaconName := t.Name()
@@ -153,13 +154,13 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	t.Log("SetupNewNodes")
 
 	// We want to explicitly run a node with the chain.MemDB backend
-	newNodes := ts.SetupNewNodes(t, 1)//, WithDBStorageEngine(chain.MemDB))
+	newNodes := ts.SetupNewNodes(t, newNodesCount)//, WithDBStorageEngine(chain.MemDB))
 
 	t.Log("running reshare")
 	group, err = ts.RunReshare(t, &reshareConfig{
 		oldRun:  existingNodesCount,
-		newRun:  len(newNodes),
-		newThr:  thr + len(newNodes),
+		newRun:  newNodesCount,
+		newThr:  thr + newNodesCount,
 		timeout: time.Second,
 	})
 	require.NoError(t, err)
