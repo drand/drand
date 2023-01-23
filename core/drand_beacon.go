@@ -374,6 +374,8 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		if err != nil {
 			if errors.Is(err, errNoRoundInPeers) {
 				bp.log.Warnw("failed to find target beacon in peer network. Reverting to synced startup", "err", err)
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				bp.log.Warnw("failed to find target beacon in peer network in a reasonable time. Reverting to synced startup", "err", err)
 			} else {
 				bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
 				return nil, err
