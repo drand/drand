@@ -570,13 +570,36 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, sch scheme.
 	d.n += n
 
 	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
-	daemons, drands, _, _, certPaths := BatchNewDrand(t, n, false, sch, beaconID, opts...)
+	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, sch, beaconID, opts...)
 	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
 	var result []*MockNode
 	for i, drandInstance := range drands {
-		node := newNode(d.clock.Now(), certPaths[i], daemons[i], drandInstance)
+		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
 		d.nodes = append(d.nodes, node)
 		result = append(result, node)
+	}
+
+	oldCertPaths := make([]string, len(d.nodes))
+
+	// add certificates of new nodes to the old nodes and populate old cert list
+	for i, node := range d.nodes {
+		oldCertPaths[i] = node.certPath
+		inst := node.drand
+		for _, cp := range newCertPaths {
+			err := inst.opts.certmanager.Add(cp)
+			require.NoError(t, err)
+		}
+	}
+
+	// store new part. and add certificate path of old nodes to the new ones
+	d.newNodes = make([]*MockNode, n)
+	for i, inst := range drands {
+		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
+		d.newNodes[i] = node
+		for _, cp := range oldCertPaths {
+			err := inst.opts.certmanager.Add(cp)
+			require.NoError(t, err)
+		}
 	}
 
 	return result
