@@ -511,8 +511,8 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 	answers := make(chan answer, len(peers))
 
-	// We should search for the beacon for three times the period of the network.
-	ctxFind, cancelFind := context.WithTimeout(ctx, bp.group.Period)
+	//nolint:gomnd //We should search for the beacon for at most 10 seconds.
+	ctxFind, cancelFind := context.WithTimeout(ctx, 10*time.Second)
 	defer cancelFind()
 
 	prr := drand.PublicRandRequest{
