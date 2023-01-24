@@ -169,6 +169,8 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 
 	ts.SetMockClock(t, group.TransitionTime)
 
+	ts.AdvanceMockClock(t, group.Period)
+
 	t.Log("running WaitUntilChainIsServing")
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
 	require.NoError(t, err)
