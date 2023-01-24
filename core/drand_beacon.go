@@ -462,8 +462,9 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	}
 
 	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+
+	//nolint:gomnd // We cannot sync the initial round.
 	if targetRound < 2 {
-		// We cannot sync the initial round.
 		// Assume this is a fresh start
 		return nil
 	}
