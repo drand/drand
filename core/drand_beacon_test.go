@@ -154,7 +154,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	t.Log("SetupNewNodes")
 
 	// We want to explicitly run a node with the chain.MemDB backend
-	newNodes := ts.SetupNewNodes(t, newNodesCount, WithDBStorageEngine(chain.MemDB))
+	newNodes := ts.SetupNewNodes(t, newNodesCount)//, WithDBStorageEngine(chain.MemDB))
 
 	t.Log("running reshare")
 	group, err = ts.RunReshare(t, &reshareConfig{

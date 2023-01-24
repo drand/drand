@@ -49,9 +49,6 @@ func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBea
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
-	t.Lock()
-	defer t.Unlock()
-
 	if t.disable {
 		return errors.New("disabled server")
 	}
@@ -346,9 +343,7 @@ func (b *BeaconTest) StopBeacon(i int) {
 
 func (b *BeaconTest) DisableReception(count int) {
 	for i := 0; i < count; i++ {
-		b.nodes[i].server.Lock()
 		b.nodes[i].server.disable = true
-		b.nodes[i].server.Unlock()
 	}
 }
 
