@@ -378,6 +378,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	select {
 	case <-done:
 	case <-ctx.Done():
+		cancel()
 		require.NoError(d.t, ctx.Err())
 	}
 
