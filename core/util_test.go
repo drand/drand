@@ -292,7 +292,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	var wg sync.WaitGroup
 	wg.Add(totalNodes)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 	done := make(chan bool) // signal we are done with the reshare before the timeout
 
@@ -369,7 +369,6 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		}(node)
 	}
 
-
 	// wait for all to return
 	go func() {
 		wg.Wait()
@@ -381,7 +380,6 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	case <-ctx.Done():
 		require.NoError(d.t, ctx.Err())
 	}
-
 
 	close(errDetector)
 	for e := range errDetector {
