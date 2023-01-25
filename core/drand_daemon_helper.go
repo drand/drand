@@ -14,8 +14,8 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 		chainHash := fmt.Sprintf("%x", chainHashHex)
 
 		dd.state.Lock()
+		defer dd.state.Unlock()
 		beaconIDByHash, isChainHashFound := dd.chainHashes[chainHash]
-		dd.state.Unlock()
 		if isChainHashFound {
 			// check if rcv beacon id on request points to a different id obtained from chain hash
 			// we accept the empty beacon id, since we do a match on the chain hash in that case
@@ -27,8 +27,12 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 			// for the case where our node is still waiting for the chain hash to be set
 			rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
 			for id, bp := range dd.beaconProcesses {
+				bp.state.Lock()
+				group := bp.group
+				bp.state.Unlock()
+
 				// we only accept to proceed with an unknown chain hash if one beacon process hasn't run DKG yet
-				if id == rcvBeaconID && bp.group == nil {
+				if id == rcvBeaconID && group == nil {
 					// we make sure that the beacon id is not empty
 					metadata.BeaconID = rcvBeaconID
 					return id, nil

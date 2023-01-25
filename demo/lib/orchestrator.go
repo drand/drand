@@ -622,23 +622,15 @@ func (e *Orchestrator) PrintLogs() {
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, no := range e.nodes {
-		no := no
 		fmt.Printf("\t- Stop old node %s\n", no.PrivateAddr())
-		go func(n node.Node) {
-			n.Stop()
-			fmt.Println("\t- Successfully stopped Node", n.Index(), "(", n.PrivateAddr(), ")")
-		}(no)
+		no.Stop()
+		fmt.Println("\t- Successfully stopped Node", no.Index(), "(", no.PrivateAddr(), ")")
 	}
 	for _, no := range e.newNodes {
-		no := no
 		fmt.Printf("\t- Stop new node %s\n", no.PrivateAddr())
-		go func(n node.Node) {
-			n.Stop()
-			fmt.Println("\t- Successfully stopped Node", n.Index(), "(", n.PrivateAddr(), ")")
-		}(no)
+		no.Stop()
+		fmt.Println("\t- Successfully stopped Node", no.Index(), "(", no.PrivateAddr(), ")")
 	}
-	// We let some time for the nodes to shutdown graciously before the whole terminates
-	time.Sleep(10 * time.Second)
 }
 
 func runCommand(c *exec.Cmd, add ...string) []byte {

@@ -26,6 +26,10 @@ import (
 // 3. stop an old node, update it to new, restart it, stop 2 other old nodes
 //   if progress doesn't continue, report.
 
+type regressionErrors struct {
+	Startup, Reshare, Upgrade error
+}
+
 var build = flag.String("release", "drand", "path to base build")
 var candidate = flag.String("candidate", "drand", "path to candidate build")
 var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt, postgres, or memdb.")
@@ -95,20 +99,7 @@ func main() {
 		defer stopContainer()
 	}
 
-	c := cfg.Config{
-		N:            n,
-		Thr:          thr,
-		Period:       period,
-		WithTLS:      true,
-		Binary:       *build,
-		WithCurl:     false,
-		Schema:       sch,
-		BeaconID:     beaconID,
-		IsCandidate:  false,
-		DBEngineType: chain.StorageType(*dbEngineType),
-		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
-		MemDBSize:    2000,
-	}
+	c := computeConfig(n, thr, period, sch, beaconID)
 	orch := lib.NewOrchestrator(c)
 	orch.UpdateBinary(*candidate, 2, true)
 
@@ -128,89 +119,41 @@ func main() {
 
 	startupErr := testStartup(orch)
 	if startupErr != nil {
-		// recover with a fully old-node dkg
-		orch.Shutdown()
-
-		c := cfg.Config{
-			N:            n,
-			Thr:          thr,
-			Period:       period,
-			WithTLS:      true,
-			Binary:       *build,
-			WithCurl:     false,
-			Schema:       sch,
-			BeaconID:     beaconID,
-			IsCandidate:  false,
-			DBEngineType: chain.StorageType(*dbEngineType),
-			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
-			MemDBSize:    2000,
-		}
-		orch = lib.NewOrchestrator(c)
-
-		orch.UpdateGlobalBinary(*candidate, true)
-		orch.SetupNewNodes(1)
-
-		defer orch.Shutdown()
-		orch.StartCurrentNodes()
-		orch.RunDKG(4 * time.Second)
-		orch.WaitGenesis()
+		processError(regressionErrors{Startup: startupErr})
+		panic(startupErr)
 	}
 
 	// start the new candidate node and reshare to include it.
 	reshareErr := testReshare(orch)
 	if reshareErr != nil {
-		// recover back to a fully old-node dkg
-		orch.Shutdown()
-
-		c := cfg.Config{
-			N:            n,
-			Thr:          thr,
-			Period:       period,
-			WithTLS:      true,
-			Binary:       *build,
-			WithCurl:     false,
-			Schema:       sch,
-			BeaconID:     beaconID,
-			IsCandidate:  false,
-			DBEngineType: chain.StorageType(*dbEngineType),
-			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
-			MemDBSize:    2000,
-		}
-		orch = lib.NewOrchestrator(c)
-
-		orch.UpdateGlobalBinary(*candidate, true)
-		orch.SetupNewNodes(1)
-
-		defer orch.Shutdown()
-		orch.StartCurrentNodes()
-		orch.RunDKG(4 * time.Second)
-		orch.WaitGenesis()
+		processError(regressionErrors{Reshare: reshareErr})
+		panic(reshareErr)
 	}
 
 	// upgrade a node to the candidate.
 	orch.UpdateBinary(*candidate, 0, true)
 	upgradeErr := testUpgrade(orch)
-
-	if startupErr != nil || reshareErr != nil || upgradeErr != nil {
-		t := template.Must(template.New("report").Parse(reportTemplate))
-		type errors struct {
-			Startup, Reshare, Upgrade error
-		}
-		errs := errors{
-			startupErr, reshareErr, upgradeErr,
-		}
-		f, err := os.OpenFile("report.md", os.O_CREATE|os.O_RDWR, 0777)
-		if err != nil {
-			fmt.Printf("Errors detected. Unable to write report!\n %v\n", errs)
-			os.Exit(2)
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		t.Execute(f, errs)
-		os.Exit(1)
+	if upgradeErr != nil {
+		processError(regressionErrors{Upgrade: upgradeErr})
+		panic(upgradeErr)
 	}
-	os.Exit(0)
+}
+
+func computeConfig(n int, thr int, period string, sch scheme.Scheme, beaconID string) cfg.Config {
+	return cfg.Config{
+		N:            n,
+		Thr:          thr,
+		Period:       period,
+		WithTLS:      true,
+		Binary:       *build,
+		WithCurl:     false,
+		Schema:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  false,
+		DBEngineType: chain.StorageType(*dbEngineType),
+		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		MemDBSize:    2000,
+	}
 }
 
 const reportTemplate = `
@@ -242,6 +185,24 @@ const reportTemplate = `
 
 `
 
+func processError(errs regressionErrors) {
+	t := template.Must(template.New("report").Parse(reportTemplate))
+
+	f, err := os.OpenFile("report.md", os.O_CREATE|os.O_RDWR, 0777)
+	if err != nil {
+		fmt.Printf("Errors detected. Unable to write report!\n %v\n", errs)
+		os.Exit(2)
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	err = t.Execute(f, errs)
+	if err != nil {
+		fmt.Printf("Errors detected. Unable to write report!\n %v\n", err)
+	}
+}
+
 func setSignal(orch *lib.Orchestrator) {
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
@@ -254,5 +215,6 @@ func setSignal(orch *lib.Orchestrator) {
 		fmt.Println("[+] Received signal ", s.String())
 		orch.PrintLogs()
 		orch.Shutdown()
+		os.Exit(1)
 	}()
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
@@ -102,4 +103,76 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 
 	_, ok = <-dd.WaitExit()
 	require.False(t, ok, "Expecting exit channel to be closed")
+}
+
+func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+
+	const existingNodesCount = 3
+	const thr = 4
+	const period = 1 * time.Second
+	beaconName := t.Name()
+
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+
+	// We want to explicitly run a node with the chain.MemDB backend
+	newNodes := ts.AddNodesWithOptions(t, 1, sch, beaconName, WithDBStorageEngine(chain.MemDB))
+	group := ts.RunDKG()
+
+	ts.SetMockClock(t, group.GenesisTime)
+
+	memDBNode := newNodes[0]
+	err := ts.WaitUntilChainIsServing(t, memDBNode)
+	require.NoError(t, err)
+
+	ts.AdvanceMockClock(t, period)
+
+	err = ts.WaitUntilRound(t, memDBNode, 2)
+	require.NoError(t, err)
+}
+
+func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+
+	const existingNodesCount = 3
+	const newNodesCount = 1
+	const thr = 3
+	const period = 1 * time.Second
+	beaconName := "default"
+
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+	group := ts.RunDKG()
+
+	ts.SetMockClock(t, group.GenesisTime)
+
+	err := ts.WaitUntilChainIsServing(t, ts.nodes[0])
+	require.NoError(t, err)
+
+	ts.AdvanceMockClock(t, period)
+
+	t.Log("SetupNewNodes")
+
+	// We want to explicitly run a node with the chain.MemDB backend
+	newNodes := ts.SetupNewNodes(t, newNodesCount, WithDBStorageEngine(chain.MemDB))
+	memDBNode := newNodes[0]
+
+	t.Log("running reshare")
+	newGroup, err := ts.RunReshare(t, &reshareConfig{
+		oldRun:  existingNodesCount,
+		newRun:  newNodesCount,
+		newThr:  thr + newNodesCount,
+		timeout: time.Second,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, newGroup)
+
+	ts.SetMockClock(t, newGroup.TransitionTime)
+	time.Sleep(getSleepDuration())
+
+	ts.AdvanceMockClock(t, newGroup.Period)
+	time.Sleep(getSleepDuration())
+
+	t.Log("running WaitUntilChainIsServing")
+	err = ts.WaitUntilChainIsServing(t, memDBNode)
+	require.NoError(t, err)
 }

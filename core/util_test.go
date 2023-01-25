@@ -176,7 +176,6 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			daemon.Stop(ctx)
-			time.Sleep(3 * time.Second)
 		})
 	}
 
@@ -286,9 +285,15 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
-	errDetector := make(chan error, d.n+1)
+	totalNodes := d.n
+
+	errDetector := make(chan error, totalNodes+1)
 	var wg sync.WaitGroup
-	wg.Add(d.n)
+	wg.Add(totalNodes)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	done := make(chan bool) // signal we are done with the reshare before the timeout
 
 	runLeaderNode := func() {
 		defer wg.Done()
@@ -296,7 +301,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
+			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
 		if err != nil {
 			errDetector <- err
 			return
@@ -364,7 +369,17 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	}
 
 	// wait for all to return
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		cancel()
+		require.NoError(d.t, ctx.Err())
+	}
 
 	close(errDetector)
 	for e := range errDetector {
@@ -424,7 +439,8 @@ func (d *DrandTestScenario) GetMockNode(nodeAddress string, newGroup bool) *Mock
 		}
 	}
 
-	panic("no nodes found at this nodeAddress")
+	require.FailNow(d.t, "no nodes found at this nodeAddress: "+nodeAddress)
+	return nil
 }
 
 // StopMockNode stops a node from the first group
@@ -461,12 +477,15 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 // StartDrand fetches the drand given the id, in the respective group given the
 // newGroup parameter and runs the beacon
-func (d *DrandTestScenario) StartDrand(nodeAddress string, catchup, newGroup bool) {
+func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup, newGroup bool) {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	d.t.Logf("[drand] Start")
-	dr.StartBeacon(catchup)
+	err := dr.StartBeacon(catchup)
+	if err != nil {
+		d.t.Logf("[drand] Start had an error: %v\n", err)
+	}
 	d.t.Logf("[drand] Started")
 }
 
@@ -523,10 +542,10 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
-func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
+func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...ConfigOption) []*MockNode {
 	t.Log("Setup of", newNodes, "new nodes for tests")
-	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
-		WithCallOption(grpc.WaitForReady(false)))
+	opts = append(opts, WithCallOption(grpc.WaitForReady(false)))
+	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID, opts...)
 	d.newDir = newDir
 
 	oldCertPaths := make([]string, len(d.nodes))
@@ -553,6 +572,50 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNod
 	}
 
 	return d.newNodes
+}
+
+// AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
+// The options set will overwrite the existing ones.
+func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, sch scheme.Scheme, beaconID string, opts ...ConfigOption) []*MockNode {
+	t.Logf("Setup of %d new nodes for tests", n)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
+
+	d.n += n
+
+	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
+	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, sch, beaconID, opts...)
+	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
+	var result []*MockNode
+	for i, drandInstance := range drands {
+		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
+		d.nodes = append(d.nodes, node)
+		result = append(result, node)
+	}
+
+	oldCertPaths := make([]string, len(d.nodes))
+
+	// add certificates of new nodes to the old nodes and populate old cert list
+	for i, node := range d.nodes {
+		oldCertPaths[i] = node.certPath
+		inst := node.drand
+		for _, cp := range newCertPaths {
+			err := inst.opts.certmanager.Add(cp)
+			require.NoError(t, err)
+		}
+	}
+
+	// store new part. and add certificate path of old nodes to the new ones
+	d.newNodes = make([]*MockNode, n)
+	for i, inst := range drands {
+		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
+		d.newNodes[i] = node
+		for _, cp := range oldCertPaths {
+			err := inst.opts.certmanager.Add(cp)
+			require.NoError(t, err)
+		}
+	}
+
+	return result
 }
 
 func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round uint64) error {
