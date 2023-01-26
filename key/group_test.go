@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
@@ -17,9 +18,13 @@ import (
 func newIds(n int) []*Node {
 	ids := make([]*Node, n)
 	for i := 0; i < n; i++ {
+		key, err := NewKeyPair("127.0.0.1:3000", nil)
+		if err != nil {
+			panic(err)
+		}
 		ids[i] = &Node{
 			Index:    uint32(i),
-			Identity: NewKeyPair("127.0.0.1:3000").Public,
+			Identity: key.Public,
 		}
 	}
 	return ids
@@ -36,9 +41,10 @@ func TestGroupProtobuf(t *testing.T) {
 	n := 9
 	thr := 5
 	ids := newIds(n)
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
-	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
+	dpub := []kyber.Point{sch.KeyGroup.Point().Pick(random.New())}
 	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
 	group.Threshold = thr
 	group.Period = time.Second * 4
@@ -55,7 +61,7 @@ func TestGroupProtobuf(t *testing.T) {
 
 	var dpub2 []kyber.Point
 	for i := 0; i < thr; i++ {
-		dpub2 = append(dpub2, KeyGroup.Point().Pick(random.New()))
+		dpub2 = append(dpub2, sch.KeyGroup.Point().Pick(random.New()))
 	}
 	group2 := *group
 	group2.PublicKey = &DistPublic{dpub2}
@@ -83,7 +89,7 @@ func TestGroupProtobuf(t *testing.T) {
 			tv.change(protoGroup)
 		}
 
-		loaded, err := GroupFromProto(protoGroup)
+		loaded, err := GroupFromProto(protoGroup, nil)
 		if tv.isErr {
 			require.Error(t, err)
 			continue
@@ -95,7 +101,7 @@ func TestGroupProtobuf(t *testing.T) {
 		seed := tv.group.GetGenesisSeed()
 		require.Equal(t, len(loaded.Nodes), len(tv.group.Nodes), "test %d", i)
 		require.Equal(t, loaded.Threshold, tv.group.Threshold)
-		require.True(t, loaded.PublicKey.Equal(tv.group.PublicKey), "test %d: %v vs %v", i, loaded.PublicKey, group.PublicKey)
+		require.True(t, loaded.PublicKey.Equal(tv.group.PublicKey), "test %d: %v \nvs %v", i, loaded.PublicKey, group.PublicKey)
 		require.Equal(t, loaded.Period, tv.group.Period)
 		require.Equal(t, seed, loaded.GetGenesisSeed())
 		require.Equal(t, genesis, loaded.GenesisTime)
@@ -106,9 +112,10 @@ func TestGroupProtobuf(t *testing.T) {
 
 func TestGroupUnsignedIdentities(t *testing.T) {
 	ids := newIds(5)
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
-	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61, sch, "test_beacon")
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{sch.KeyGroup.Point()}}, 30*time.Second, 61, sch, "test_beacon")
 	require.Nil(t, group.UnsignedIdentities())
 
 	ids[0].Signature = nil
@@ -120,8 +127,10 @@ func TestGroupUnsignedIdentities(t *testing.T) {
 func TestGroupSaveLoad(t *testing.T) {
 	n := 3
 	ids := newIds(n)
-	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+
+	dpub := []kyber.Point{sch.KeyGroup.Point().Pick(random.New())}
 
 	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
 	group.Threshold = 3
@@ -162,10 +171,10 @@ func TestGroupSaveLoad(t *testing.T) {
 // BatchIdentities generates n insecure identities
 func makeGroup(t *testing.T) *Group {
 	t.Helper()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
-	fakeKey := KeyGroup.Point().Pick(random.New())
-	sch := scheme.GetSchemeFromEnv()
-
+	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, sch, "test_beacon")
 	group.Threshold = MinimumT(0)
 	return group
@@ -179,7 +188,7 @@ func TestConvertGroup(t *testing.T) {
 	version := common.GetAppVersion()
 
 	proto := group.ToProto(version)
-	received, err := GroupFromProto(proto)
+	received, err := GroupFromProto(proto, nil)
 	require.NoError(t, err)
 	require.True(t, received.Equal(group))
 }

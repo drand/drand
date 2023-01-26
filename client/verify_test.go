@@ -5,19 +5,23 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/drand/drand/crypto"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
-	"github.com/drand/drand/common/scheme"
 )
 
-func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error) {
-	sch := scheme.GetSchemeFromEnv()
+func mockClientWithVerifiableResults(t *testing.T, n int) (client.Client, []mock.Result) {
+	t.Helper()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	info, results := mock.VerifiableResults(n, sch)
 	mc := client.MockClient{Results: results, StrictRounds: true, OptionalInfo: info}
 
 	var c client.Client
-	var err error
 
 	c, err = client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},
@@ -25,11 +29,9 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
 	)
+	require.NoError(t, err)
 
-	if err != nil {
-		return nil, nil, err
-	}
-	return c, results, nil
+	return c, results
 }
 
 func TestVerify(t *testing.T) {
@@ -41,14 +43,11 @@ func TestVerifyWithOldVerifiedResult(t *testing.T) {
 }
 
 func VerifyFuncTest(t *testing.T, clients, upTo int) {
-	c, results, err := mockClientWithVerifiableResults(clients)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, results := mockClientWithVerifiableResults(t, clients)
+
 	res, err := c.Get(context.Background(), results[upTo].Round())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	if res.Round() != results[upTo].Round() {
 		t.Fatal("expected to get result.", results[upTo].Round(), res.Round(), fmt.Sprintf("%v", c))
 	}

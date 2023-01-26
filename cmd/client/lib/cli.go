@@ -111,12 +111,12 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	var info *chain.Info
 	var err error
 
-	if c.IsSet(GroupConfFlag.Name) {
-		info, err = chainInfoFromGroupTOML(c.Path(GroupConfFlag.Name))
+	if groupPath := c.Path(GroupConfFlag.Name); groupPath != "" {
+		info, err = chainInfoFromGroupTOML(groupPath)
 		if err != nil {
-			info, _ = chainInfoFromChainInfoJSON(c.Path(GroupConfFlag.Name))
+			info, _ = chainInfoFromChainInfoJSON(groupPath)
 			if info == nil {
-				return nil, fmt.Errorf("failed to decode group configuration: %w", err)
+				return nil, fmt.Errorf("failed to decode group configuration (%s) : %w", groupPath, err)
 			}
 		}
 		opts = append(opts, client.WithChainInfo(info))

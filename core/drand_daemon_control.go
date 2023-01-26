@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/common"
@@ -96,17 +97,14 @@ func (dd *DrandDaemon) Status(ctx context.Context, in *drand.StatusRequest) (*dr
 func (dd *DrandDaemon) ListSchemes(ctx context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
 	metadata := common.NewMetadata(dd.version.ToProto())
 
-	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: metadata}, nil
+	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: metadata}, nil
 }
 
-// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
-func (dd *DrandDaemon) Share(ctx context.Context, in *drand.ShareRequest) (*drand.ShareResponse, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.Share(ctx, in)
+// Share is a functionality of Control Service defined in protobuf/control that requests the private share of
+// the drand node running locally
+// Deprecated: no need to export the secret share to a remote client.
+func (dd *DrandDaemon) Share(_ context.Context, _ *drand.ShareRequest) (*drand.ShareResponse, error) {
+	return nil, fmt.Errorf("deprecated function: exporting the Share to a remote client is not supported")
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -122,13 +120,9 @@ func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term private key of the drand node running locally
+// Deprecated: no need to export secret key to a remote client.
 func (dd *DrandDaemon) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.PrivateKey(ctx, in)
+	return nil, fmt.Errorf("deprecated function: exporting the PrivateKey to a remote client is not supported")
 }
 
 // GroupFile replies with the distributed key in the response

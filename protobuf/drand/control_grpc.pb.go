@@ -35,7 +35,9 @@ type ControlClient interface {
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
 	InitReshare(ctx context.Context, in *InitResharePacket, opts ...grpc.CallOption) (*GroupPacket, error)
+	// Deprecated: Do not use.
 	// Share returns the current private share used by the node
+	// Deprecated
 	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
@@ -118,6 +120,7 @@ func (c *controlClient) InitReshare(ctx context.Context, in *InitResharePacket, 
 	return out, nil
 }
 
+// Deprecated: Do not use.
 func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
 	out := new(ShareResponse)
 	err := c.cc.Invoke(ctx, "/drand.Control/Share", in, out, opts...)
@@ -280,7 +283,9 @@ type ControlServer interface {
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
 	InitReshare(context.Context, *InitResharePacket) (*GroupPacket, error)
+	// Deprecated: Do not use.
 	// Share returns the current private share used by the node
+	// Deprecated
 	Share(context.Context, *ShareRequest) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)

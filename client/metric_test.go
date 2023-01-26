@@ -6,7 +6,7 @@ import (
 )
 
 func TestMetricClose(t *testing.T) {
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 

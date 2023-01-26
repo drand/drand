@@ -18,8 +18,8 @@ import (
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -51,7 +51,7 @@ type NodeProc struct {
 	tls         bool
 	groupPath   string
 	binary      string
-	scheme      scheme.Scheme
+	scheme      *crypto.Scheme
 	beaconID    string
 
 	dbEngineType chain.StorageType
@@ -74,7 +74,7 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 		publicPath:   publicPath,
 		groupPath:    groupPath,
 		period:       cfg.Period,
-		scheme:       cfg.Schema,
+		scheme:       cfg.Scheme,
 		binary:       cfg.Binary,
 		beaconID:     cfg.BeaconID,
 		isCandidate:  cfg.IsCandidate,
@@ -118,7 +118,10 @@ func (n *NodeProc) setup() {
 	}
 
 	// call drand binary
-	n.priv = key.NewKeyPair(n.privAddr)
+	n.priv, err = key.NewKeyPair(n.privAddr, nil)
+	if err != nil {
+		panic(err)
+	}
 
 	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
 
@@ -133,7 +136,7 @@ func (n *NodeProc) setup() {
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
-	n.priv, err = n.store.LoadKeyPair()
+	n.priv, err = n.store.LoadKeyPair(nil)
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
 	}
@@ -225,7 +228,7 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout time.Duration, leader bool, le
 		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 		args = append(args, pair("--timeout", timeout.String())...)
 		args = append(args, pair("--period", n.period)...)
-		args = append(args, pair("--scheme", n.scheme.ID)...)
+		args = append(args, pair("--scheme", n.scheme.Name)...)
 
 		// make genesis time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)

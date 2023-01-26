@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -21,14 +22,14 @@ func beaconToProto(b *chain.Beacon) *drand.PublicRandResponse {
 	}
 }
 
-func protoToDKGPacket(d *pdkg.Packet) (dkg.Packet, error) {
+func protoToDKGPacket(d *pdkg.Packet, sch *crypto.Scheme) (dkg.Packet, error) {
 	switch packet := d.GetBundle().(type) {
 	case *pdkg.Packet_Deal:
-		return protoToDeal(packet.Deal)
+		return protoToDeal(packet.Deal, sch)
 	case *pdkg.Packet_Response:
 		return protoToResp(packet.Response), nil
 	case *pdkg.Packet_Justification:
-		return protoToJustif(packet.Justification)
+		return protoToJustif(packet.Justification, sch)
 	default:
 		return nil, errors.New("unknown packet")
 	}
@@ -47,12 +48,12 @@ func dkgPacketToProto(p dkg.Packet) (*pdkg.Packet, error) {
 	}
 }
 
-func protoToDeal(d *pdkg.DealBundle) (*dkg.DealBundle, error) {
+func protoToDeal(d *pdkg.DealBundle, sch *crypto.Scheme) (*dkg.DealBundle, error) {
 	bundle := new(dkg.DealBundle)
 	bundle.DealerIndex = d.DealerIndex
 	publics := make([]kyber.Point, 0, len(d.Commits))
 	for _, c := range d.Commits {
-		coeff := key.KeyGroup.Point()
+		coeff := sch.KeyGroup.Point()
 		if err := coeff.UnmarshalBinary(c); err != nil {
 			return nil, fmt.Errorf("invalid public coeff:%w", err)
 		}
@@ -89,12 +90,12 @@ func protoToResp(r *pdkg.ResponseBundle) *dkg.ResponseBundle {
 	return resp
 }
 
-func protoToJustif(j *pdkg.JustificationBundle) (*dkg.JustificationBundle, error) {
+func protoToJustif(j *pdkg.JustificationBundle, sch *crypto.Scheme) (*dkg.JustificationBundle, error) {
 	just := new(dkg.JustificationBundle)
 	just.DealerIndex = j.DealerIndex
 	just.Justifications = make([]dkg.Justification, len(j.Justifications))
 	for i, j := range j.Justifications {
-		share := key.KeyGroup.Scalar()
+		share := sch.KeyGroup.Scalar()
 		if err := share.UnmarshalBinary(j.Share); err != nil {
 			return nil, fmt.Errorf("invalid share: %w", err)
 		}

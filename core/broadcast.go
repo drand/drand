@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/drand/drand/crypto"
+
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -58,19 +60,20 @@ type echoBroadcast struct {
 	dealCh chan dkg.DealBundle
 	respCh chan dkg.ResponseBundle
 	justCh chan dkg.JustificationBundle
-	verif  verifier
+	verif  verifyPacket
+	scheme *crypto.Scheme
 }
 
 type packet = dkg.Packet
 
 var _ Broadcast = (*echoBroadcast)(nil)
 
-// verifier is a type for  a function that can verify the validity of a dkg
+// verifyPacket is a type for  a function that can verify the validity of a dkg
 // Packet, namely that the signature is correct.
-type verifier func(packet) error
+type verifyPacket func(packet) error
 
 func newEchoBroadcast(l log.Logger, version commonutils.Version, beaconID string,
-	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
+	c net.ProtocolClient, own string, to []*key.Node, v verifyPacket, s *crypto.Scheme) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l.Named("echoBroadcast"),
 		version:    version,
@@ -81,6 +84,7 @@ func newEchoBroadcast(l log.Logger, version commonutils.Version, beaconID string
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
 		hashes:     new(arraySet),
 		verif:      v,
+		scheme:     s,
 	}
 }
 
@@ -116,7 +120,7 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 	defer b.Unlock()
 
 	addr := net.RemoteAddress(c)
-	dkgPacket, err := protoToDKGPacket(p.GetDkg())
+	dkgPacket, err := protoToDKGPacket(p.GetDkg(), b.scheme)
 	if err != nil {
 		b.l.Errorw("received invalid packet DKGPacket", "from", addr, "err", err)
 		return errors.New("invalid DKGPacket")

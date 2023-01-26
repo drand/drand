@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/cache"
+	dcrypto "github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -62,7 +64,7 @@ func fakeRandomData(info *chain.Info) client.RandomData {
 		Rnd:               rnd,
 		Sig:               sig,
 		PreviousSignature: psig,
-		Random:            chain.RandomnessFromSignature(sig),
+		Random:            dcrypto.RandomnessFromSignature(sig),
 	}
 }
 
@@ -197,7 +199,7 @@ func TestRejectsCachedUnequalBeacon(t *testing.T) {
 	res := validate(context.Background(), randomPeerID(t), &msg)
 
 	if res != pubsub.ValidationReject {
-		t.Fatal(errors.New("expected reject for cached but unequal beacon"))
+		t.Fatal(fmt.Errorf("expected reject for cached but unequal beacon, got: %v", res))
 	}
 }
 

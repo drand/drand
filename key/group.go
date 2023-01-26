@@ -12,11 +12,12 @@ import (
 	"sort"
 	"time"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/blake2b"
 
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -33,7 +34,7 @@ type Group struct {
 	// Period to use for the beacon randomness generation
 	Period time.Duration
 	// Scheme indicates a set of values the process will use to act in specific ways
-	Scheme scheme.Scheme
+	Scheme *crypto.Scheme
 	// ID is the unique identifier for this group
 	ID string
 	// CatchupPeriod is a delay to insert while in a catchup mode
@@ -62,6 +63,10 @@ type Group struct {
 func (g *Group) Find(pub *Identity) *Node {
 	for _, pu := range g.Nodes {
 		if pu.Identity.Equal(pub) {
+			// migration path
+			if pu.Scheme != g.Scheme {
+				pu.Scheme = g.Scheme
+			}
 			return pu
 		}
 	}
@@ -164,7 +169,9 @@ func (g *Group) Equal(g2 *Group) bool {
 	if g.TransitionTime != g2.TransitionTime {
 		return false
 	}
-
+	if g.Scheme.Name != g2.Scheme.Name {
+		return false
+	}
 	for i := 0; i < g.Len(); i++ {
 		if !g.Nodes[i].Equal(g2.Nodes[i]) {
 			return false
@@ -201,22 +208,26 @@ type GroupTOML struct {
 }
 
 // FromTOML decodes the group from the toml struct
-func (g *Group) FromTOML(i interface{}) (err error) {
+func (g *Group) FromTOML(i interface{}) error {
 	gt, ok := i.(*GroupTOML)
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
 	}
 	g.Threshold = gt.Threshold
+
+	sch, err := crypto.SchemeFromName(gt.SchemeID)
+	if err != nil {
+		return fmt.Errorf("unable to instantiate group with crypto Scheme named %s", gt.SchemeID)
+	}
+	g.Scheme = sch
+
 	g.Nodes = make([]*Node, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
 		g.Nodes[i] = new(Node)
+		g.Nodes[i].Identity = &Identity{Scheme: sch}
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
 			return fmt.Errorf("group: unwrapping node[%d]: %w", i, err)
 		}
-	}
-
-	if g.Scheme, err = scheme.GetSchemeByIDWithDefault(gt.SchemeID); err != nil {
-		return err
 	}
 
 	if g.Threshold < dkg.MinimumT(len(gt.Nodes)) {
@@ -227,8 +238,8 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 
 	if gt.PublicKey != nil {
 		// dist key only if dkg ran
-		g.PublicKey = &DistPublic{}
-		if err = g.PublicKey.FromTOML(gt.PublicKey); err != nil {
+		g.PublicKey = new(DistPublic)
+		if err = g.PublicKey.FromTOML(sch, gt.PublicKey); err != nil {
 			return fmt.Errorf("group: unwrapping distributed public key: %w", err)
 		}
 	}
@@ -275,7 +286,7 @@ func (g *Group) TOML() interface{} {
 	}
 
 	gtoml.ID = g.ID
-	gtoml.SchemeID = g.Scheme.ID
+	gtoml.SchemeID = g.Scheme.Name
 	gtoml.Period = g.Period.String()
 	gtoml.CatchupPeriod = g.CatchupPeriod.String()
 	gtoml.GenesisTime = g.GenesisTime
@@ -305,7 +316,7 @@ func (g *Group) TOMLValue() interface{} {
 // in a setup or resharing phase. Every identity is map to a Node struct whose
 // index is the position in the list of identity.
 func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration,
-	sch scheme.Scheme, beaconID string) *Group {
+	sch *crypto.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:         copyAndSort(list),
 		Threshold:     threshold,
@@ -323,7 +334,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 // key.
 // Note: only used in tests
 func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration,
-	transition int64, sch scheme.Scheme, beaconID string) *Group {
+	transition int64, sch *crypto.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:          list,
 		Threshold:      len(public.Coefficients),
@@ -357,10 +368,18 @@ func MinimumT(n int) int {
 }
 
 // GroupFromProto converts a protobuf group into a local Group object
-func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
+func GroupFromProto(g *proto.GroupPacket, targetScheme *crypto.Scheme) (*Group, error) {
+	sch, err := crypto.SchemeFromName(g.GetSchemeID())
+	if err != nil {
+		return nil, fmt.Errorf("invalid Scheme name in GroupPacket: %s", g.GetSchemeID())
+	}
+	if targetScheme != nil && targetScheme.Name != sch.Name {
+		return nil, fmt.Errorf("mismatch in Scheme name in GroupPacket: %s != %s", targetScheme.Name, sch.Name)
+	}
+
 	var nodes = make([]*Node, 0, len(g.GetNodes()))
 	for _, pbNode := range g.GetNodes() {
-		kid, err := NodeFromProto(pbNode)
+		kid, err := NodeFromProto(pbNode, sch)
 		if err != nil {
 			return nil, err
 		}
@@ -384,18 +403,12 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		return nil, fmt.Errorf("period time is zero")
 	}
 
-	var sch scheme.Scheme
-	var err error
-	if sch, err = scheme.GetSchemeByIDWithDefault(g.GetSchemeID()); err != nil {
-		return nil, err
-	}
-
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
 	beaconID := g.GetMetadata().GetBeaconID()
 
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
-		c := KeyGroup.Point()
+		c := sch.KeyGroup.Point()
 		if err := c.UnmarshalBinary(coeff); err != nil {
 			return nil, fmt.Errorf("invalid distributed key coefficients:%w", err)
 		}
@@ -452,7 +465,7 @@ func (g *Group) ToProto(version commonutils.Version) *proto.GroupPacket {
 	out.GenesisTime = uint64(g.GenesisTime)
 	out.TransitionTime = uint64(g.TransitionTime)
 	out.GenesisSeed = g.GetGenesisSeed()
-	out.SchemeID = g.Scheme.ID
+	out.SchemeID = g.Scheme.Name
 
 	out.Metadata = common.NewMetadata(version.ToProto())
 	out.Metadata.BeaconID = commonutils.GetCanonicalBeaconID(g.ID)

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/crypto/vault"
+
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -43,11 +45,10 @@ type Handler struct {
 	// to communicate with other drand peers
 	client net.ProtocolClient
 	// keeps the cryptographic info (group share etc)
-	crypto *cryptoStore
+	crypto *vault.Vault
 	// main logic that treats incoming packet / new beacons created
-	chain    *chainStore
-	ticker   *ticker
-	verifier *chain.Verifier
+	chain  *chainStore
+	ticker *ticker
 
 	close   chan bool
 	addr    string
@@ -71,27 +72,29 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
 	addr := conf.Public.Address()
-	crypto := newCryptoStore(conf.Group, conf.Share)
+
+	v := vault.NewVault(conf.Group, conf.Share, conf.Group.Scheme)
 	// insert genesis beacon
-	if err := s.Put(context.Background(), chain.GenesisBeacon(crypto.chain)); err != nil {
+	if err := s.Put(context.Background(), chain.GenesisBeacon(conf.Group.GenesisSeed)); err != nil {
 		return nil, err
 	}
 
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
-	store := newChainStore(l, conf, c, crypto, s, ticker)
-	verifier := chain.NewVerifier(conf.Group.Scheme)
+	store, err := newChainStore(l, conf, c, v, s, ticker)
+	if err != nil {
+		return nil, err
+	}
 
 	handler := &Handler{
-		conf:     conf,
-		client:   c,
-		crypto:   crypto,
-		chain:    store,
-		verifier: verifier,
-		ticker:   ticker,
-		addr:     addr,
-		close:    make(chan bool),
-		l:        l,
-		version:  version,
+		conf:    conf,
+		client:  c,
+		crypto:  v,
+		chain:   store,
+		ticker:  ticker,
+		addr:    addr,
+		close:   make(chan bool),
+		l:       l,
+		version: version,
 	}
 	return handler, nil
 }
@@ -115,9 +118,9 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := h.verifier.DigestMessage(p.GetRound(), p.GetPreviousSig())
+	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: p.GetRound(), PreviousSig: p.GetPreviousSignature()})
 
-	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
+	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
 		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
 	}
@@ -130,10 +133,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 
 	nodeName := node.Address()
 	// verify if request is valid
-	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
+	if err := h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("",
 			"process_partial", addr, "err", err,
-			"prev_sig", shortSigStr(p.GetPreviousSig()),
+			"prev_sig", shortSigStr(p.GetPreviousSignature()),
 			"curr_round", currentRound,
 			"msg_sign", shortSigStr(msg),
 			"from_idx", idx,
@@ -142,7 +145,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 	h.l.Debugw("",
 		"process_partial", addr,
-		"prev_sig", shortSigStr(p.GetPreviousSig()),
+		"prev_sig", shortSigStr(p.GetPreviousSignature()),
 		"curr_round", currentRound,
 		"msg_sign", shortSigStr(msg),
 		"from_node", nodeName,
@@ -185,7 +188,7 @@ func (h *Handler) Start() error {
 	h.Unlock()
 
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-	h.l.Infow("", "beacon", "start")
+	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
 
 	return nil
@@ -374,6 +377,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	round := upon.Round + 1
 	beaconID := commonutils.GetCanonicalBeaconID(h.conf.Group.ID)
 	if current.round == upon.Round {
+		h.l.Debugw("broadcastNextPartial re-broadcasting already stored beacon", "round", current.round)
 		// we already have the beacon of the current round for some reasons - on
 		// CI it happens due to time shifts -
 		// the spec says we should broadcast the current round at the correct
@@ -383,7 +387,10 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		round = current.round
 	}
 
-	msg := h.verifier.DigestMessage(round, previousSig)
+	msg := h.crypto.DigestBeacon(&chain.Beacon{
+		Round:       round,
+		PreviousSig: previousSig,
+	})
 
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
@@ -395,10 +402,10 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	metadata.BeaconID = beaconID
 
 	packet := &proto.PartialBeaconPacket{
-		Round:       round,
-		PreviousSig: previousSig,
-		PartialSig:  currSig,
-		Metadata:    metadata,
+		Round:             round,
+		PreviousSignature: previousSig,
+		PartialSig:        currSig,
+		Metadata:          metadata,
 	}
 
 	h.chain.NewValidPartial(h.addr, packet)

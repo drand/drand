@@ -2,7 +2,7 @@ package cfg
 
 import (
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 )
 
 // Config stores configuration for the orchestrator.
@@ -14,7 +14,7 @@ type Config struct {
 	WithTLS      bool
 	Binary       string
 	WithCurl     bool
-	Schema       scheme.Scheme
+	Scheme       *crypto.Scheme
 	BeaconID     string
 	IsCandidate  bool
 	DBEngineType chain.StorageType

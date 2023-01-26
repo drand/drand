@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +20,8 @@ import (
 const testAddr = "127.0.0.1:80"
 
 func TestKeyPublic(t *testing.T) {
-	kp := NewTLSKeyPair(testAddr)
+	kp, err := NewTLSKeyPair(testAddr, nil)
+	require.NoError(t, err)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
 	require.Equal(t, kp.Public.TLS, ptoml.TLS)
@@ -29,7 +32,7 @@ func TestKeyPublic(t *testing.T) {
 
 	p2 := new(Identity)
 	p2toml := new(PublicTOML)
-	_, err := toml.NewDecoder(&writer).Decode(p2toml)
+	_, err = toml.NewDecoder(&writer).Decode(p2toml)
 	require.NoError(t, err)
 	require.NoError(t, p2.FromTOML(p2toml))
 
@@ -39,7 +42,8 @@ func TestKeyPublic(t *testing.T) {
 }
 
 func TestKeySignature(t *testing.T) {
-	kp := NewTLSKeyPair(testAddr)
+	kp, err := NewTLSKeyPair(testAddr, nil)
+	require.NoError(t, err)
 	validSig := kp.Public.Signature
 	require.NoError(t, kp.Public.ValidSignature())
 	kp.Public.Signature = []byte("no justice, no peace")
@@ -56,11 +60,11 @@ func TestKeySignature(t *testing.T) {
 	require.Error(t, id2.ValidSignature(), id2.Signature)
 
 	protoID := kp.Public.ToProto()
-	decodedID, err := IdentityFromProto(protoID)
+	decodedID, err := IdentityFromProto(protoID, kp.Public.Scheme)
 	require.NoError(t, err)
 	require.NoError(t, decodedID.ValidSignature())
 	protoID.Signature = []byte("I am insane. And you are my insanity")
-	decodedID, err = IdentityFromProto(protoID)
+	decodedID, err = IdentityFromProto(protoID, kp.Public.Scheme)
 	require.NoError(t, err)
 	require.Error(t, decodedID.ValidSignature())
 }
@@ -68,9 +72,11 @@ func TestKeySignature(t *testing.T) {
 func TestKeyDistributedPublic(t *testing.T) {
 	n := 4
 	publics := make([]kyber.Point, n)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	for i := range publics {
-		key := KeyGroup.Scalar().Pick(random.New())
-		publics[i] = KeyGroup.Point().Mul(key, nil)
+		key := sch.KeyGroup.Scalar().Pick(random.New())
+		publics[i] = sch.KeyGroup.Point().Mul(key, nil)
 	}
 
 	distPublic := &DistPublic{Coefficients: publics}
@@ -83,9 +89,9 @@ func TestKeyDistributedPublic(t *testing.T) {
 
 	d2 := new(DistPublic)
 	d2Toml := new(DistPublicTOML)
-	_, err := toml.NewDecoder(&writer).Decode(d2Toml)
+	_, err = toml.NewDecoder(&writer).Decode(d2Toml)
 	require.NoError(t, err)
-	require.NoError(t, d2.FromTOML(d2Toml))
+	require.NoError(t, d2.FromTOML(sch, d2Toml))
 
 	var coeffs []string
 	for i := 0; i < n; i++ {
@@ -95,12 +101,12 @@ func TestKeyDistributedPublic(t *testing.T) {
 	checkTOML := &DistPublicTOML{Coefficients: coeffs}
 
 	check := &DistPublic{}
-	require.NoError(t, check.FromTOML(checkTOML))
+	require.NoError(t, check.FromTOML(sch, checkTOML))
 }
 
 func TestKeyGroup(t *testing.T) {
 	n := 5
-	_, group := BatchIdentities(n)
+	_, group := BatchIdentities(t, n)
 	ids := group.Nodes
 	for _, p := range ids {
 		require.True(t, p.TLS)
@@ -115,13 +121,15 @@ func TestShare(t *testing.T) {
 	n := 5
 	s := new(Share)
 	s.Commits = make([]kyber.Point, n)
+	s.Scheme, _ = crypto.GetSchemeFromEnv()
 	for i := 0; i < n; i++ {
-		s.Commits[i] = KeyGroup.Point().Pick(random.New())
+		s.Commits[i] = s.Scheme.KeyGroup.Point().Pick(random.New())
 	}
-	s.Share = &share.PriShare{V: KeyGroup.Scalar().Pick(random.New()), I: 0}
+	s.Share = &share.PriShare{V: s.Scheme.KeyGroup.Scalar().Pick(random.New()), I: 0}
 
 	stoml := s.TOML()
 	s2 := new(Share)
+	s2.Scheme = s.Scheme
 	require.NoError(t, s2.FromTOML(stoml))
 	poly1 := s.Commits
 	poly2 := s2.Commits
@@ -131,26 +139,30 @@ func TestShare(t *testing.T) {
 	}
 }
 
-func BatchIdentities(n int) ([]*Pair, *Group) {
+func BatchIdentities(t *testing.T, n int) ([]*Pair, *Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
 	privs := make([]*Pair, n)
 	pubs := make([]*Node, n)
+
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
-		privs[i] = NewTLSKeyPair(addr)
+		privs[i], _ = NewTLSKeyPair(addr, sch)
 		pubs[i] = &Node{
 			Index:    uint32(i),
 			Identity: privs[i].Public,
 		}
 	}
-	fakeDistKey := KeyGroup.Point().Pick(random.New())
-	distKey := &DistPublic{[]kyber.Point{fakeDistKey}}
+	fakeDistKey := sch.KeyGroup.Point().Pick(random.New())
+	distKey := &DistPublic{Coefficients: []kyber.Point{fakeDistKey}}
 	group := &Group{
 		Threshold: DefaultThreshold(n),
 		Nodes:     pubs,
 		PublicKey: distKey,
+		Scheme:    sch,
 	}
 	return privs, group
 }

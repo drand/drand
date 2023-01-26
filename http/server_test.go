@@ -8,20 +8,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/crypto"
+
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	nhttp "github.com/drand/drand/client/http"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 )
 
 func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	t.Helper()
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	l, s := mock.NewMockGRPCPublicServer(t, ":0", true, sch)
 	lAddr := l.Addr()

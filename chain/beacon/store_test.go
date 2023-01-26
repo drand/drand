@@ -5,16 +5,18 @@ import (
 	"context"
 	"testing"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test"
 )
 
 func TestSchemeStore(t *testing.T) {
-	sch, _ := scheme.ReadSchemeByEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	dir := t.TempDir()
 	ctx := context.Background()
@@ -23,11 +25,12 @@ func TestSchemeStore(t *testing.T) {
 	bstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 
-	genesisBeacon := chain.GenesisBeacon(&chain.Info{GenesisSeed: []byte("genesis_signature")})
+	genesisBeacon := chain.GenesisBeacon([]byte("genesis_signature"))
 	err = bstore.Put(ctx, genesisBeacon)
 	require.NoError(t, err)
 
-	ss := NewSchemeStore(bstore, sch)
+	ss, err := NewSchemeStore(bstore, sch)
+	require.NoError(t, err)
 
 	newBeacon := &chain.Beacon{
 		Round:       1,
@@ -40,13 +43,16 @@ func TestSchemeStore(t *testing.T) {
 	beaconSaved, err := ss.Last(ctx)
 	require.NoError(t, err)
 
-	// test if store sets to nil prev signature depending on scheme
-	// with chained scheme, it should keep the consistency between prev signature and signature
-	if sch.DecouplePrevSig && beaconSaved.PreviousSig != nil {
-		t.Errorf("previous signature should be nil")
-	} else if !sch.DecouplePrevSig && !bytes.Equal(beaconSaved.PreviousSig, genesisBeacon.Signature) {
-		t.Errorf("previous signature on last beacon [%s] should be equal to previous beacon signature [%s]",
-			beaconSaved.PreviousSig, genesisBeacon.PreviousSig)
+	switch sch.Name {
+	case crypto.DefaultSchemeID: // we're in chained mode it should keep the consistency between prev signature and signature
+		if !bytes.Equal(beaconSaved.PreviousSig, genesisBeacon.Signature) {
+			t.Errorf("previous signature on last beacon [%s] should be equal to previous beacon signature [%s]",
+				beaconSaved.PreviousSig, genesisBeacon.PreviousSig)
+		}
+	default: // we're in unchained mode
+		if beaconSaved.PreviousSig != nil {
+			t.Errorf("previous signature should be nil")
+		}
 	}
 
 	newBeacon = &chain.Beacon{
@@ -56,11 +62,14 @@ func TestSchemeStore(t *testing.T) {
 	}
 
 	err = ss.Put(ctx, newBeacon)
-
-	// test if store checks consistency between signature and prev signature depending on the scheme
-	if sch.DecouplePrevSig && err != nil {
-		t.Errorf("new beacon should be allow to be put on store")
-	} else if !sch.DecouplePrevSig && err == nil {
-		t.Errorf("new beacon should not be allow to be put on store")
+	switch sch.Name {
+	case crypto.DefaultSchemeID: // we're in chained mode
+		if err == nil {
+			t.Errorf("new beacon should not be allow to be put on store")
+		}
+	default: // we're in unchained mode
+		if err != nil {
+			t.Errorf("new beacon should be allow to be put on store")
+		}
 	}
 }

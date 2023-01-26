@@ -40,15 +40,15 @@ message IdentityRequest {
 }
 
 message IdentityResponse {
-    // REMINDER: This fields should be kept in sync with Identity message
     string address = 1;
     bytes key = 2;
     bool tls = 3;
     // BLS signature over the identity to prove possession of the private key
     bytes signature = 4;
     // --------------
-
     common.Metadata metadata = 5;
+    // We need to specify the scheme name to make sure the key is getting probably decoded on the client side
+    string schemeName = 6;
 }
 
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
@@ -86,7 +86,7 @@ message PartialBeaconPacket {
     uint64 round = 1;
     // signature of the previous round - could be removed at some point but now
     // is used to verify the signature even before accessing the store
-    bytes previous_sig = 2;
+    bytes previous_signature = 2;
     // partial signature - a threshold of them needs to be aggregated to produce
     // the final beacon at the given round.
     bytes partial_sig = 3;
@@ -111,7 +111,7 @@ message SyncRequest {
 }
 
 message BeaconPacket {
-    bytes previous_sig = 1;
+    bytes previous_signature = 1;
     uint64 round = 2;
     bytes signature = 3;
     common.Metadata metadata = 4;

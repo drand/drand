@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
@@ -25,7 +25,6 @@ func installDrand() {
 	install := exec.Command("go", "install")
 	runCommand(install)
 	checkErr(os.Chdir(curr))
-
 }
 
 var build = flag.Bool("build", false, "Build the drand binary first.")
@@ -53,7 +52,11 @@ func main() {
 	nRound, n := 2, 6
 	thr, newThr := 4, 5
 	period := "10s"
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	if err != nil {
+		panic(err)
+	}
+	beaconID := test.GetBeaconIDFromEnv()
 
 	c := cfg.Config{
 		N:            n,
@@ -62,7 +65,7 @@ func main() {
 		WithTLS:      *tls,
 		Binary:       *binaryF,
 		WithCurl:     !*noCurl,
-		Schema:       sch,
+		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  true,
 		DBEngineType: chain.StorageType(*dbEngineType),

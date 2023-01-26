@@ -8,13 +8,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
 
 func TestBeaconProcess_Stop(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
 
 	port := test.FreePort()
@@ -53,7 +54,8 @@ func TestBeaconProcess_Stop(t *testing.T) {
 }
 
 func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
 
 	port := test.FreePort()
@@ -106,17 +108,15 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
-
 	const existingNodesCount = 3
 	const thr = 4
 	const period = 1 * time.Second
 	beaconName := t.Name()
 
-	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
 
 	// We want to explicitly run a node with the chain.MemDB backend
-	newNodes := ts.AddNodesWithOptions(t, 1, sch, beaconName, WithDBStorageEngine(chain.MemDB))
+	newNodes := ts.AddNodesWithOptions(t, 1, beaconName, WithDBStorageEngine(chain.MemDB))
 	group := ts.RunDKG()
 
 	ts.SetMockClock(t, group.GenesisTime)
@@ -132,15 +132,13 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
-
 	const existingNodesCount = 3
 	const newNodesCount = 1
 	const thr = 3
 	const period = 1 * time.Second
 	beaconName := "default"
 
-	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, sch, beaconName)
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
 	group := ts.RunDKG()
 
 	ts.SetMockClock(t, group.GenesisTime)

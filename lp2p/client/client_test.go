@@ -8,6 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/drand/drand/crypto"
+
 	bds "github.com/ipfs/go-ds-badger2"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -18,7 +22,6 @@ import (
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
@@ -28,7 +31,8 @@ import (
 func TestGRPCClientTestFunc(t *testing.T) {
 	t.Skip("TestGRPCClientTestFunc is flaky")
 	// start mock drand node
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	grpcLis, svc := mock.NewMockGRPCPublicServer(t, ":0", false, sch)
 	grpcAddr := grpcLis.Addr()
@@ -111,7 +115,8 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 
 func TestHTTPClientTestFunc(t *testing.T) {
 	t.Skip("TestHTTPClientTestFunc is flaky")
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer stop()

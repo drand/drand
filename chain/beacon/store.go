@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/crypto"
+
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -34,12 +35,15 @@ type appendStore struct {
 	sync.Mutex
 }
 
-func newAppendStore(s chain.Store) chain.Store {
-	last, _ := s.Last(context.Background())
+func newAppendStore(s chain.Store) (chain.Store, error) {
+	last, err := s.Last(context.Background())
+	if err != nil {
+		return nil, err
+	}
 	return &appendStore{
 		Store: s,
 		last:  last,
-	}
+	}, nil
 }
 
 func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
@@ -58,18 +62,21 @@ func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
 // schemeStore is a store that run different checks depending on what scheme is being used.
 type schemeStore struct {
 	chain.Store
-	sch  scheme.Scheme
+	sch  *crypto.Scheme
 	last *chain.Beacon
 	sync.Mutex
 }
 
-func NewSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
-	last, _ := s.Last(context.Background())
+func NewSchemeStore(s chain.Store, sch *crypto.Scheme) (chain.Store, error) {
+	last, err := s.Last(context.Background())
+	if err != nil {
+		return nil, err
+	}
 	return &schemeStore{
 		Store: s,
 		last:  last,
 		sch:   sch,
-	}
+	}, nil
 }
 
 func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
@@ -79,19 +86,22 @@ func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
 	// If the scheme is unchained, previous signature is set to nil. In that case,
 	// relationship between signature in the previous beacon and previous signature
 	// on the actual beacon is not necessary. Otherwise, it will be checked.
-	if a.sch.DecouplePrevSig {
-		b.PreviousSig = nil
-	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		if pb, err := a.Get(ctx, b.Round-1); err != nil || !bytes.Equal(pb.Signature, b.PreviousSig) {
-			return fmt.Errorf("invalid previous signature for %d or "+
-				"previous beacon not found in database. Err: %w", b.Round, err)
+	switch a.sch.Name {
+	case crypto.DefaultSchemeID: // in chained mode it should keep the consistency between prev signature and signature
+		if !bytes.Equal(a.last.Signature, b.PreviousSig) {
+			return fmt.Errorf("invalid previous signature for %d: %x != %x",
+				b.Round,
+				a.last.Signature,
+				b.PreviousSig)
 		}
+	default: // we're in unchained mode, we don't need the previous signature
+		b.PreviousSig = nil
 	}
 
 	if err := a.Store.Put(ctx, b); err != nil {
 		return err
 	}
-
+	// we update the last beacon as being this one. Note that this kinda assume we're operating on an appendStore...
 	a.last = b
 	return nil
 }

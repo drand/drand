@@ -5,24 +5,23 @@ import (
 	"io"
 	"time"
 
+	"github.com/drand/drand/crypto"
+
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common/scheme"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 // InfoFromProto returns a Info from the protocol description
 func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
-	public := key.KeyGroup.Point()
-	if err := public.UnmarshalBinary(p.PublicKey); err != nil {
-		return nil, err
-	}
-
-	sch, err := scheme.GetSchemeByIDWithDefault(p.SchemeID)
+	sch, err := crypto.GetSchemeByIDWithDefault(p.SchemeID)
 	if err != nil {
 		return nil, fmt.Errorf("scheme id received is not valid. Err: %w", err)
+	}
+	public := sch.KeyGroup.Point()
+	if err := public.UnmarshalBinary(p.PublicKey); err != nil {
+		return nil, err
 	}
 
 	return &Info{
@@ -30,7 +29,7 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 		GenesisTime: p.GenesisTime,
 		Period:      time.Duration(p.Period) * time.Second,
 		GenesisSeed: p.GroupHash,
-		Scheme:      sch,
+		Scheme:      sch.Name,
 		ID:          p.GetMetadata().GetBeaconID(),
 	}, nil
 }
@@ -51,7 +50,7 @@ func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
 		Period:      uint32(c.Period.Seconds()),
 		Hash:        c.Hash(),
 		GroupHash:   c.GenesisSeed,
-		SchemeID:    c.Scheme.ID,
+		SchemeID:    c.Scheme,
 		Metadata:    metadata,
 	}
 }

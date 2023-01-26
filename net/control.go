@@ -267,13 +267,6 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 	return c.client.InitDKG(ctx.Background(), request)
 }
 
-// Share returns the share of the remote node
-func (c *ControlClient) Share(beaconID string) (*control.ShareResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: &metadata})
-}
-
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
@@ -476,14 +469,6 @@ func (s *DefaultControlServer) RemoteStatus(c ctx.Context, in *control.RemoteSta
 		return &control.RemoteStatusResponse{}, nil
 	}
 	return s.C.RemoteStatus(c, in)
-}
-
-// Share initiates a share request
-func (s *DefaultControlServer) Share(c ctx.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
-	if s.C == nil {
-		return &control.ShareResponse{}, nil
-	}
-	return s.C.Share(c, in)
 }
 
 // PublicKey gets the node's public key

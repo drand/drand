@@ -19,13 +19,14 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/drand/drand/crypto"
+
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/core/migration"
 	"github.com/drand/drand/fs"
@@ -292,8 +293,9 @@ var syncNodeFlag = &cli.StringFlag{
 }
 
 var followFlag = &cli.BoolFlag{
-	Name:    "follow",
-	Usage:   "Indicates whether we want to follow another daemon, if not we perform a check of our local DB.",
+	Name: "follow",
+	Usage: "Indicates whether we want to follow another daemon, if not we perform a check of our local DB. " +
+		"Requires to specify the chain-hash using the '" + hashInfoNoReq.Name + "' flag.",
 	EnvVars: []string{"DRAND_FOLLOW"},
 }
 
@@ -308,7 +310,7 @@ var upToFlag = &cli.IntFlag{
 var schemeFlag = &cli.StringFlag{
 	Name:    "scheme",
 	Usage:   "Indicates a set of values drand will use to configure the randomness generation process",
-	Value:   scheme.DefaultSchemeID,
+	Value:   crypto.DefaultSchemeID,
 	EnvVars: []string{"DRAND_SCHEME"},
 }
 
@@ -403,8 +405,9 @@ var appCommands = []*cli.Command{
 		Action: loadCmd,
 	},
 	{
-		Name:  "sync",
-		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
+		Name: "sync",
+		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain. To follow a " +
+			"remote node, it requires the use of the '" + followFlag.Name + "' flag.",
 		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
 		Action: syncCmd,
@@ -414,7 +417,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag),
+		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			err := keygenCmd(c)
@@ -549,12 +552,6 @@ var appCommands = []*cli.Command{
 			"respectively.\n",
 		Flags: toArray(folderFlag, controlFlag),
 		Subcommands: []*cli.Command{
-			{
-				Name:   "share",
-				Usage:  "shows the private share\n",
-				Flags:  toArray(controlFlag, beaconIDFlag),
-				Action: showShareCmd,
-			},
 			{
 				Name: "group",
 				Usage: "shows the current group.toml used. The group.toml " +
@@ -743,24 +740,32 @@ func keygenCmd(c *cli.Context) error {
 	addr := args.First()
 	var validID = regexp.MustCompile(`:\d+$`)
 	if !validID.MatchString(addr) {
-		fmt.Println("Invalid port.")
+		fmt.Println("Invalid port:", addr)
 		addr = addr + ":" + askPort(c)
+	}
+
+	sch, err := crypto.SchemeFromName(c.String(schemeFlag.Name))
+	if err != nil {
+		return err
 	}
 
 	var priv *key.Pair
 	if c.Bool(insecureFlag.Name) {
 		fmt.Println("Generating private / public key pair without TLS.")
-		priv = key.NewKeyPair(addr)
+		priv, err = key.NewKeyPair(addr, sch)
 	} else {
 		fmt.Println("Generating private / public key pair with TLS indication")
-		priv = key.NewTLSKeyPair(addr)
+		priv, err = key.NewTLSKeyPair(addr, sch)
+	}
+	if err != nil {
+		return err
 	}
 
 	config := contextToConfig(c)
 	beaconID := getBeaconID(c)
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
-	if _, err := fileStore.LoadKeyPair(); err == nil {
+	if _, err := fileStore.LoadKeyPair(sch); err == nil {
 		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
 		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
 		return nil
@@ -898,8 +903,17 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID str
 		return err
 	}
 
-	identity := &drand.Identity{Signature: identityResp.Signature, Tls: identityResp.Tls, Address: identityResp.Address, Key: identityResp.Key}
-	id, err := key.IdentityFromProto(identity)
+	identity := &drand.Identity{
+		Signature: identityResp.Signature,
+		Tls:       identityResp.Tls,
+		Address:   identityResp.Address,
+		Key:       identityResp.Key,
+	}
+	sch, err := crypto.SchemeFromName(identityResp.SchemeName)
+	if err != nil {
+		return err
+	}
+	id, err := key.IdentityFromProto(identity, sch)
 	if err != nil {
 		return err
 	}
