@@ -321,7 +321,8 @@ func (s *Share) FromTOML(i interface{}) error {
 	}
 	sch, err := crypto.SchemeFromName(t.SchemeName)
 	if err != nil {
-		return err
+		// we don't handle this error as it is a migration path for unspecified share's scheme
+		sch = nil
 	}
 
 	if sch != nil && s.Scheme != nil && sch.Name != s.Scheme.Name {
