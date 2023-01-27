@@ -14,14 +14,8 @@ import (
 )
 
 func TestSchemeStore(t *testing.T) {
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-
 	dir := t.TempDir()
-	ctx := context.Background()
-	if sch.Name == crypto.DefaultSchemeID {
-		ctx = chain.SetPreviousRequiredOnContext(ctx)
-	}
+	ctx, sch, _ := test.PrevSignatureMatersOnContext(t, context.Background())
 
 	l := test.Logger(t)
 	bstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)

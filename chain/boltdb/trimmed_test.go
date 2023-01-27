@@ -9,16 +9,14 @@ import (
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
 func TestTrimmedStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := context.Background()
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-	prevMatters := sch.Name == crypto.DefaultSchemeID
+
+	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+
 	if prevMatters {
 		// This test stores b2 then b1. However, when the beacon order matters, the correct
 		// and expected order to store beacons in is b1 then b2.
@@ -33,9 +31,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 		//  implementation of the Store interface.
 		t.Skipf("This test does not make sense from a chained beacon perspective.")
 	}
-	if prevMatters {
-		ctx = chain.SetPreviousRequiredOnContext(ctx)
-	}
+
 	l := test.Logger(t)
 	store, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
@@ -86,13 +82,9 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 //nolint:funlen // This function has the right length
 func TestTrimmedStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := context.Background()
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-	prevMatters := sch.Name == crypto.DefaultSchemeID
-	if prevMatters {
-		ctx = chain.SetPreviousRequiredOnContext(ctx)
-	}
+
+	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+
 	l := test.Logger(t)
 
 	var sig0 = []byte{0x00, 0x01, 0x02}
@@ -208,13 +200,9 @@ func TestTrimmedStoreBolt(t *testing.T) {
 
 func TestTrimmedStore_Cursor(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := context.Background()
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-	prevMatters := sch.Name == crypto.DefaultSchemeID
-	if prevMatters {
-		ctx = chain.SetPreviousRequiredOnContext(ctx)
-	}
+
+	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+
 	l := test.Logger(t)
 	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)

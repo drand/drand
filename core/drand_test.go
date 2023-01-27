@@ -16,7 +16,6 @@ import (
 
 	"github.com/drand/drand/chain"
 	derrors "github.com/drand/drand/chain/errors"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -954,9 +953,8 @@ func TestDrandCheckChain(t *testing.T) {
 	if cfg.dbStorageEngine == chain.MemDB {
 		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
 	}
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-	prevMatters := sch.Name == crypto.DefaultSchemeID
+
+	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
 
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
@@ -967,7 +965,7 @@ func TestDrandCheckChain(t *testing.T) {
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	err = dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
 	require.NoError(t, err)
 
 	// do a few periods
@@ -981,7 +979,7 @@ func TestDrandCheckChain(t *testing.T) {
 	}
 
 	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	// get last round first
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))

@@ -9,18 +9,12 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
-	ctx := context.Background()
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-	if sch.Name == crypto.DefaultSchemeID {
-		ctx = chain.SetPreviousRequiredOnContext(ctx)
-	}
+	ctx, _, _ := test.PrevSignatureMatersOnContext(t, context.Background())
 	l := test.Logger(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)

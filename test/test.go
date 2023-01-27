@@ -3,13 +3,18 @@
 package test
 
 import (
+	"context"
 	"encoding/hex"
 	n "net"
 	"os"
 	"strconv"
 	"sync"
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
@@ -177,8 +182,28 @@ func StringToPoint(s string) (kyber.Point, error) {
 	return p, p.UnmarshalBinary(buff)
 }
 
-// GetBeaconIDFromEnv read beacon id from an environmental variable.
+// GetBeaconIDFromEnv read beacon id from an environment variable.
 func GetBeaconIDFromEnv() string {
 	beaconID := os.Getenv("BEACON_ID")
 	return commonutils.GetCanonicalBeaconID(beaconID)
+}
+
+// PrevSignatureMatersOnContext checks if the previous signature matters or not for future operations
+// based on the used schema.
+// If it matters, then it's also set on the passed context.
+func PrevSignatureMatersOnContext(t *testing.T, ctx context.Context) (context.Context, *crypto.Scheme, bool) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+
+	prevMatters := true
+	if sch.Name == crypto.UnchainedSchemeID ||
+		sch.Name == crypto.ShortSigSchemeID {
+		prevMatters = false
+	}
+
+	if prevMatters {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
+
+	return ctx, sch, prevMatters
 }
