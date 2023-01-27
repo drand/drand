@@ -1090,3 +1090,15 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
 	)
 }
+
+func TestScheme(t *testing.T) {
+	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
+
+	args := []string{
+		"drand", "share", "--tls-disable", "--id", "banana2", "--leader", "--control", "127.0.0.1:8081",
+		"--threshold", "2", "--nodes", "3", "--period", "5s", "--scheme", "bls-unchained-on-g1",
+	}
+
+	err := CLI().Run(args)
+	require.NoError(t, err)
+}

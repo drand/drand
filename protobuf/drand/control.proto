@@ -105,8 +105,8 @@ message InitDKGPacket {
     uint32 beacon_period = 3;
     // the minimum beacon period when in catchup.
     uint32 catchup_period = 4;
-    // indicates a set of values the process will use to act in specific ways
-    string schemeID = 5;
+    // since v1.5.0 this must be passed upon key generation
+    // string schemeID = 5;
     common.Metadata metadata = 6;
 }
 

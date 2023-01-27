@@ -224,7 +224,6 @@ func (c *ControlClient) InitDKGLeader(
 	entropy *control.EntropyInfo,
 	secret string,
 	offset int,
-	schemeID string,
 	beaconID string) (*control.GroupPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
@@ -241,7 +240,6 @@ func (c *ControlClient) InitDKGLeader(
 		Entropy:       entropy,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
-		SchemeID:      schemeID,
 		Metadata:      &metadata,
 	}
 
