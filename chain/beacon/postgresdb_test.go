@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	context2 "github.com/drand/drand/test/context"
 )
 
 var c *test.Container
@@ -31,7 +32,7 @@ func createStore(t *testing.T, l log.Logger, _ *BeaconTest, _ int) (chain.Store,
 	dbName := test.ComputeDBName()
 	_, dbConn := test.NewUnit(t, c, dbName)
 
-	ctx, _, _ := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, _ := context2.PrevSignatureMatersOnContext(t, context.Background())
 
 	return pgdb.NewStore(ctx, l, dbConn, dbName)
 }

@@ -9,10 +9,10 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/test"
+	context2 "github.com/drand/drand/test/context"
 )
 
 func createStore(t *testing.T, l log.Logger, b *BeaconTest, idx int) (chain.Store, error) {
-	ctx, _, _ := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, _ := context2.PrevSignatureMatersOnContext(t, context.Background())
 	return boltdb.NewBoltStore(ctx, l, b.paths[idx], nil)
 }

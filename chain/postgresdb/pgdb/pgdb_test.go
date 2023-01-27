@@ -16,6 +16,7 @@ import (
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	context2 "github.com/drand/drand/test/context"
 )
 
 var c *test.Container
@@ -33,7 +34,7 @@ func TestMain(m *testing.M) {
 }
 
 func Test_OrderStorePG(t *testing.T) {
-	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
 
 	if prevMatters {
 		// This test stores b2 then b1. However, when the beacon order matters, the correct
@@ -100,7 +101,7 @@ func Test_OrderStorePG(t *testing.T) {
 }
 
 func TestStore_Cursor(t *testing.T) {
-	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
 
 	l, db := test.NewUnit(t, c, t.Name())
 
@@ -174,7 +175,7 @@ func TestStore_Cursor(t *testing.T) {
 }
 
 func Test_StorePG(t *testing.T) {
-	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
 
 	l, db := test.NewUnit(t, c, t.Name())
 
@@ -189,7 +190,7 @@ func Test_StorePG(t *testing.T) {
 }
 
 func Test_WithReservedIdentifier(t *testing.T) {
-	ctx, _, prevMatters := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
 
 	l, db := test.NewUnit(t, c, t.Name())
 

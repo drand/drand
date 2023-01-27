@@ -10,11 +10,12 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/test"
+	context2 "github.com/drand/drand/test/context"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
-	ctx, _, _ := test.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, _ := context2.PrevSignatureMatersOnContext(t, context.Background())
 	l := test.Logger(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
