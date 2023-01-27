@@ -214,9 +214,10 @@ func (g *Group) FromTOML(i interface{}) error {
 	}
 	g.Threshold = gt.Threshold
 
-	sch, err := crypto.SchemeFromName(gt.SchemeID)
+	// migration path from < v1.4, gt.SchemeID might not be contained in the group file, in which case it's the default
+	sch, err := crypto.GetSchemeByIDWithDefault(gt.SchemeID)
 	if err != nil {
-		return fmt.Errorf("unable to instantiate group with crypto Scheme named %s", gt.SchemeID)
+		return fmt.Errorf("unable to instantiate group with crypto Scheme named '%s'", gt.SchemeID)
 	}
 	g.Scheme = sch
 
