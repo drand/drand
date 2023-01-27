@@ -16,6 +16,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	derrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -953,6 +954,10 @@ func TestDrandCheckChain(t *testing.T) {
 	if cfg.dbStorageEngine == chain.MemDB {
 		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
 	}
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	prevMatters := sch.Name == crypto.DefaultSchemeID
+
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -962,7 +967,7 @@ func TestDrandCheckChain(t *testing.T) {
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err = dt.WaitUntilChainIsServing(t, dt.nodes[0])
 	require.NoError(t, err)
 
 	// do a few periods
@@ -1057,6 +1062,10 @@ func TestDrandCheckChain(t *testing.T) {
 	// the next beacon too. The storage layer cannot compose the chain correctly and a
 	// database heal is now required.
 	incorrectBeacons := uint64(2)
+	if !prevMatters {
+		incorrectBeacons = 1
+	}
+
 	consumeProgress(t, progress, errCh, incorrectBeacons, false)
 
 	// we wait to make sure everything is done on the sync manager side before testing.
