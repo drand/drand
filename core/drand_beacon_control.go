@@ -39,12 +39,13 @@ var errPreempted = errors.New("time out: pre-empted")
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	bp.state.Lock()
+	bp.state.RLock()
 	if bp.dkgDone {
-		bp.state.Unlock()
+		bp.state.RUnlock()
 		return nil, errors.New("dkg phase already done - call reshare")
 	}
-	bp.state.Unlock()
+	logger := bp.log
+	bp.state.RUnlock()
 
 	isLeader := in.GetInfo().GetLeader()
 
@@ -58,7 +59,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
 	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
 
-	bp.log.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "scheme", bp.priv.Public.Scheme.Name, "leader", true)
+	logger.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "scheme", bp.priv.Public.Scheme.Name, "leader", true)
 
 	// setup the manager
 	newSetup := func(d *BeaconProcess) (*setupManager, error) {
@@ -79,7 +80,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	// expect the group
 	group, err := bp.leaderRunSetup(newSetup)
 	if err != nil {
-		bp.log.Errorw("", "init_dkg", "leader setup", "err", err)
+		logger.Errorw("", "init_dkg", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
 	}
 
@@ -88,9 +89,11 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	// if there hasn't been a DKG yet, it's 0
 	currentThreshold := 0
 	// otherwise we set it to the current threshold
+	bp.state.RLock()
 	if bp.beacon != nil {
 		currentThreshold = bp.beacon.GetConfg().Group.Threshold
 	}
+	bp.state.RUnlock()
 
 	if err := bp.pushDKGInfo([]*key.Node{}, nodes, currentThreshold, group,
 		in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
@@ -203,6 +206,10 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 
 	finalGroup, err := bp.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
 	if err != nil {
+		bp.state.Lock()
+		bp.index = oldIdx
+		bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
+		bp.state.Unlock()
 		return nil, err
 	}
 
@@ -214,8 +221,8 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
 func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
+	bp.state.RLock()
+	defer bp.state.RUnlock()
 
 	keyPair, err := bp.store.LoadKeyPair(nil)
 	if err != nil {
@@ -232,8 +239,8 @@ func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*d
 
 // GroupFile replies with the distributed key in the response
 func (bp *BeaconProcess) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
+	bp.state.RLock()
+	defer bp.state.RUnlock()
 
 	if bp.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
@@ -246,13 +253,13 @@ func (bp *BeaconProcess) GroupFile(context.Context, *drand.GroupRequest) (*drand
 
 // BackupDatabase triggers a backup of the primary database.
 func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
-	bp.state.Lock()
+	bp.state.RLock()
 	if bp.beacon == nil {
-		bp.state.Unlock()
+		bp.state.RUnlock()
 		return nil, errors.New("drand: beacon not setup yet")
 	}
 	inst := bp.beacon
-	bp.state.Unlock()
+	bp.state.RUnlock()
 
 	w, err := fs.CreateSecureFile(req.OutputFile)
 	if err != nil {
@@ -268,7 +275,6 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
 	bp.state.Lock()
-
 	if bp.manager != nil {
 		bp.log.Infow("", "reshare", "already_in_progress", "reshare", "restart")
 		fmt.Println("\n\n PREEMPTIVE STOP") //nolint
@@ -442,8 +448,8 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		Log:          bp.log,
 	}
 	err := func() error {
-		bp.state.Lock()
-		defer bp.state.Unlock()
+		bp.state.RLock()
+		defer bp.state.RUnlock()
 		// gives the share to the dkg if we are a current node
 		if oldPresent {
 			if bp.dkgInfo != nil {
@@ -750,8 +756,8 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 }
 
 func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (*key.Group, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
+	bp.state.RLock()
+	defer bp.state.RUnlock()
 
 	if oldGroup, err := extractGroup(old); err == nil {
 		return oldGroup, nil
@@ -812,8 +818,8 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 //
 //nolint:funlen,gocyclo
 func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
+	bp.state.RLock()
+	defer bp.state.RUnlock()
 
 	bp.log.Debugw("Processing incoming Status request")
 

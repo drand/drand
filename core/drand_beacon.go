@@ -62,7 +62,7 @@ type BeaconProcess struct {
 	log dlog.Logger
 
 	// global state lock
-	state  sync.Mutex
+	state  sync.RWMutex
 	exitCh chan bool
 
 	// that cancel function is set when the drand process is following a chain
@@ -165,10 +165,10 @@ func (bp *BeaconProcess) Load() (bool, error) {
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
 func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
-	bp.state.Lock()
+	bp.state.RLock()
 
 	if bp.dkgInfo == nil {
-		bp.state.Unlock()
+		bp.state.RUnlock()
 		return nil, errors.New("no dkg info set")
 	}
 
@@ -182,7 +182,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	waitCh := bp.dkgInfo.proto.WaitEnd()
 	bp.log.Infow("", "waiting_dkg_end", time.Now())
 
-	bp.state.Unlock()
+	bp.state.RUnlock()
 
 	res := <-waitCh
 	if res.Error != nil {
@@ -284,10 +284,10 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 		return
 	}
 
-	bp.state.Lock()
+	bp.state.RLock()
 	newGroup := bp.group
 	newShare := bp.share
-	bp.state.Unlock()
+	bp.state.RUnlock()
 
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
