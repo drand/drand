@@ -10,10 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
+	"github.com/drand/drand/crypto"
 )
 
 func TestHTTPClient(t *testing.T) {

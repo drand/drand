@@ -29,8 +29,9 @@ type Info struct {
 // NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
 	schemeName := g.Scheme.Name
-	if len(schemeName) < 1 {
-		schemeName = crypto.DefaultSchemeID
+	if sch, err := crypto.GetSchemeByIDWithDefault(schemeName); err == nil {
+		// if there is an error we keep the provided name, otherwise we set it
+		schemeName = sch.Name
 	}
 	return &Info{
 		ID:          g.ID,

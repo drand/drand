@@ -12,13 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"

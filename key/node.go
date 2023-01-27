@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 
 	"github.com/drand/drand/crypto"
-
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 )

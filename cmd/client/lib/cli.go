@@ -114,8 +114,8 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if groupPath := c.Path(GroupConfFlag.Name); groupPath != "" {
 		info, err = chainInfoFromGroupTOML(groupPath)
 		if err != nil {
-			info, _ = chainInfoFromChainInfoJSON(groupPath)
-			if info == nil {
+			info, err = chainInfoFromChainInfoJSON(groupPath)
+			if info == nil || err != nil {
 				return nil, fmt.Errorf("failed to decode group configuration (%s) : %w", groupPath, err)
 			}
 		}

@@ -12,12 +12,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/blake2b"
 
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"

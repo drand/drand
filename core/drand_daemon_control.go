@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/common"

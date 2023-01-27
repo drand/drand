@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"

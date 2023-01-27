@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/crypto"
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"

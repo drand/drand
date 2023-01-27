@@ -7,10 +7,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/crypto"
 )
 
 func mockClientWithVerifiableResults(t *testing.T, n int) (client.Client, []mock.Result) {

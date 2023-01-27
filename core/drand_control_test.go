@@ -4,12 +4,10 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/crypto"
-
-	clock "github.com/jonboulle/clockwork"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/kyber"

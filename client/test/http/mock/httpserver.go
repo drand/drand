@@ -2,7 +2,6 @@ package mock
 
 import (
 	"context"
-	"github.com/drand/drand/crypto"
 	"net"
 	"net/http"
 	"testing"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/crypto"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"

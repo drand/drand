@@ -4,7 +4,6 @@ package test
 
 import (
 	"encoding/hex"
-	"github.com/drand/drand/crypto"
 	n "net"
 	"os"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber"

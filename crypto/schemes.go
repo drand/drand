@@ -5,10 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"os"
 
-	"github.com/drand/kyber"
+	"golang.org/x/crypto/blake2b"
 
+	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/sign"
@@ -23,11 +25,7 @@ import (
 	signBls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"
-
 	"github.com/drand/kyber/util/random"
-	"golang.org/x/crypto/blake2b"
-
-	"hash"
 )
 
 type hashableBeacon interface {

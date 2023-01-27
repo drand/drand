@@ -8,14 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"

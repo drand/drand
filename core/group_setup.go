@@ -10,12 +10,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"

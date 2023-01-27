@@ -19,8 +19,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 
@@ -29,6 +27,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/core/migration"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"

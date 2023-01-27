@@ -5,12 +5,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 

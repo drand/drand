@@ -6,10 +6,10 @@ import (
 	_ "embed" // Calls init function.
 	"fmt"
 
-	"github.com/drand/drand/chain/postgresdb/database"
-
 	"github.com/ardanlabs/darwin/v2"
 	"github.com/jmoiron/sqlx"
+
+	"github.com/drand/drand/chain/postgresdb/database"
 )
 
 var (

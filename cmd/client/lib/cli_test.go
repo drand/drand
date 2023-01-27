@@ -11,14 +11,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/drand/drand/crypto"
-
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test/mock"
 )
 

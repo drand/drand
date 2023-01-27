@@ -5,13 +5,12 @@ import (
 	"path"
 	"testing"
 
-	"github.com/drand/kyber/share/dkg"
-
 	"github.com/stretchr/testify/require"
 
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 )
 
 func TestKeysSaveLoad(t *testing.T) {

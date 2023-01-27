@@ -14,9 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/kyber/share/dkg"
-
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
@@ -26,11 +23,13 @@ import (
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
 

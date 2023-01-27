@@ -3,7 +3,6 @@ package beacon
 import (
 	"testing"
 
-	"github.com/drand/kyber/share"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
@@ -11,6 +10,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/share"
 )
 
 var fakeKey, _ = key.NewKeyPair("127.0.0.1:8080", nil)

@@ -8,7 +8,6 @@ import (
 	"net"
 
 	"github.com/drand/drand/crypto"
-
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"

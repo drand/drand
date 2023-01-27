@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/briandowns/spinner"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
@@ -20,6 +18,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/core/migration"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"

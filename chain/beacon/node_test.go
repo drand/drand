@@ -10,14 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/kyber/share/dkg"
-
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -27,6 +25,7 @@ import (
 	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
 

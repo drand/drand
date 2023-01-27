@@ -5,13 +5,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 )
 

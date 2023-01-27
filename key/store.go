@@ -6,11 +6,10 @@ import (
 	"path"
 	"reflect"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 )
 

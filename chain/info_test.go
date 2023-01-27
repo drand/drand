@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 )

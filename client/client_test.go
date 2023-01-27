@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
@@ -15,6 +13,7 @@ import (
 	"github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
