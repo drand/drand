@@ -85,8 +85,9 @@ func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 	l := test.Logger(t)
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	if sch.ID == scheme.DefaultSchemeID {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	if sch.Name == crypto.DefaultSchemeID {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
 	tmp := path.Join(t.TempDir(), "drand")

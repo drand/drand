@@ -9,15 +9,16 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	if sch.ID == scheme.DefaultSchemeID {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	if sch.Name == crypto.DefaultSchemeID {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
 	l := test.Logger(t)

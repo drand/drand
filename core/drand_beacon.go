@@ -335,7 +335,7 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 	var err error
 
 	if bp.group != nil &&
-		bp.group.Scheme.ID == scheme.DefaultSchemeID {
+		bp.group.Scheme.Name == crypto.DefaultSchemeID {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
 

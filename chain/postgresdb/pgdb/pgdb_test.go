@@ -14,7 +14,7 @@ import (
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
@@ -35,8 +35,9 @@ func TestMain(m *testing.M) {
 
 func Test_OrderStorePG(t *testing.T) {
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	prevMatters := sch.ID == scheme.DefaultSchemeID
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	prevMatters := sch.Name == crypto.DefaultSchemeID
 	if prevMatters {
 		// This test stores b2 then b1. However, when the beacon order matters, the correct
 		// and expected order to store beacons in is b1 then b2.
@@ -105,8 +106,9 @@ func Test_OrderStorePG(t *testing.T) {
 
 func TestStore_Cursor(t *testing.T) {
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	prevMatters := sch.ID == scheme.DefaultSchemeID
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	prevMatters := sch.Name == crypto.DefaultSchemeID
 	if prevMatters {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
@@ -183,8 +185,9 @@ func TestStore_Cursor(t *testing.T) {
 
 func Test_StorePG(t *testing.T) {
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	prevMatters := sch.ID == scheme.DefaultSchemeID
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	prevMatters := sch.Name == crypto.DefaultSchemeID
 	if prevMatters {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
@@ -202,8 +205,9 @@ func Test_StorePG(t *testing.T) {
 
 func Test_WithReservedIdentifier(t *testing.T) {
 	ctx := context.Background()
-	sch := scheme.GetSchemeFromEnv()
-	prevMatters := sch.ID == scheme.DefaultSchemeID
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	prevMatters := sch.Name == crypto.DefaultSchemeID
 	if prevMatters {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}

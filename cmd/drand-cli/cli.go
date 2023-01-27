@@ -949,8 +949,11 @@ func deleteBeaconCmd(c *cli.Context) error {
 	l := log.NewLogger(nil, level)
 
 	ctx := c.Context
-	sch := scheme.GetSchemeFromEnv()
-	if sch.ID == scheme.DefaultSchemeID {
+	sch, err := crypto.GetSchemeFromEnv()
+	if err != nil {
+		return err
+	}
+	if sch.Name == crypto.DefaultSchemeID {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
 
