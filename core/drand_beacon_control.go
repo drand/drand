@@ -398,10 +398,9 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	//  correctly or not.
 	//  Is there a better way to handle this?
 
-	//nolint:errcheck // This should be handled, see the above comment
-	go bp.StartBeacon(false)
+	err = bp.StartBeacon(false)
 
-	return finalGroup, nil
+	return finalGroup, err
 }
 
 func (bp *BeaconProcess) cleanupDKG() {
