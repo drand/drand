@@ -117,12 +117,13 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 
 	// We want to explicitly run a node with the chain.MemDB backend
 	newNodes := ts.AddNodesWithOptions(t, 1, beaconName, WithDBStorageEngine(chain.MemDB))
-	group, _ := ts.RunDKG()
+	group, err := ts.RunDKG()
+	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
 
 	memDBNode := newNodes[0]
-	err := ts.WaitUntilChainIsServing(t, memDBNode)
+	err = ts.WaitUntilChainIsServing(t, memDBNode)
 	require.NoError(t, err)
 
 	ts.AdvanceMockClock(t, period)
