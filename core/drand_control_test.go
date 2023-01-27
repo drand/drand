@@ -5,7 +5,9 @@ import (
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/kyber"
@@ -20,12 +22,7 @@ func TestValidateGroupTransitionGenesisTime(t *testing.T) {
 	newgrp = key.Group{GenesisTime: 1}
 
 	err := d.validateGroupTransition(&oldgrp, &newgrp)
-	if err == nil {
-		t.Fatal("expected error validating group genesis time")
-	}
-	if err.Error() != "control: old and new group have different genesis time" {
-		t.Fatal("unexpected validation error", err)
-	}
+	require.ErrorContains(t, err, "control: old and new group have different genesis time", "error validating group genesis time")
 }
 
 func TestValidateGroupTransitionPeriod(t *testing.T) {
@@ -36,12 +33,7 @@ func TestValidateGroupTransitionPeriod(t *testing.T) {
 	newgrp = key.Group{Period: 20}
 
 	err := d.validateGroupTransition(&oldgrp, &newgrp)
-	if err == nil {
-		t.Fatal("expected error validating group period")
-	}
-	if err.Error() != "control: old and new group have different period - unsupported feature at the moment" {
-		t.Fatal("unexpected validation error", err)
-	}
+	require.ErrorContains(t, err, "control: old and new group have different period", "error validating group period")
 }
 
 func TestValidateGroupTransitionBeaconID(t *testing.T) {
@@ -52,23 +44,19 @@ func TestValidateGroupTransitionBeaconID(t *testing.T) {
 	newgrp = key.Group{ID: "beacon_test_2"}
 
 	err := d.validateGroupTransition(&oldgrp, &newgrp)
-	if err == nil {
-		t.Fatal("expected error validating group period")
-	}
-	if err.Error() != "control: old and new group have different ID - unsupported feature at the moment" {
-		t.Fatal("unexpected validation error", err)
-	}
+	require.ErrorContains(t, err, "control: old and new group have different ID", "error validating group period")
 }
 
 func TestValidateGroupTransitionGenesisSeed(t *testing.T) {
 	d := BeaconProcess{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
-
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	randomDistPublic := func(n int) *key.DistPublic {
 		publics := make([]kyber.Point, n)
 		for i := range publics {
-			k := key.KeyGroup.Scalar().Pick(random.New())
-			publics[i] = key.KeyGroup.Point().Mul(k, nil)
+			k := sch.KeyGroup.Scalar().Pick(random.New())
+			publics[i] = sch.KeyGroup.Point().Mul(k, nil)
 		}
 		return &key.DistPublic{Coefficients: publics}
 	}
@@ -76,13 +64,8 @@ func TestValidateGroupTransitionGenesisSeed(t *testing.T) {
 	oldgrp = key.Group{PublicKey: randomDistPublic(4)}
 	newgrp = key.Group{PublicKey: randomDistPublic(3)}
 
-	err := d.validateGroupTransition(&oldgrp, &newgrp)
-	if err == nil {
-		t.Fatal("expected error validating group genesis seed")
-	}
-	if err.Error() != "control: old and new group have different genesis seed" {
-		t.Fatal("unexpected validation error", err)
-	}
+	err = d.validateGroupTransition(&oldgrp, &newgrp)
+	require.ErrorContains(t, err, "control: old and new group have different genesis seed", "error validating group genesis seed")
 }
 
 func TestValidateGroupTransitionTime(t *testing.T) {
@@ -96,10 +79,5 @@ func TestValidateGroupTransitionTime(t *testing.T) {
 	newgrp = key.Group{TransitionTime: time.Now().Unix() - 1, GenesisSeed: oldgrp.GetGenesisSeed()}
 
 	err := d.validateGroupTransition(&oldgrp, &newgrp)
-	if err == nil {
-		t.Fatal("expected error validating group period")
-	}
-	if err.Error() != "control: new group with transition time in the past" {
-		t.Fatal("unexpected validation error", err)
-	}
+	require.ErrorContains(t, err, "control: new group with transition time in the past", "error validating group period")
 }

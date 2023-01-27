@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
@@ -33,7 +33,8 @@ func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 }
 
 func TestDrandDaemon_Stop(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
 
 	port := test.FreePort()

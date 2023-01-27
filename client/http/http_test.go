@@ -8,17 +8,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 )
 
 func TestHTTPClient(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, sch)
 	defer cancel()
 
-	err := IsServerReady(addr)
+	err = IsServerReady(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,11 +57,12 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	err := IsServerReady(addr)
+	err = IsServerReady(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,11 +93,12 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestForURLsCreation(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	err := IsServerReady(addr)
+	err = IsServerReady(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,11 +112,12 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	err := IsServerReady(addr)
+	err = IsServerReady(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,12 +143,13 @@ func TestHTTPWatch(t *testing.T) {
 }
 
 func TestHTTPClientClose(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	err := IsServerReady(addr)
+	err = IsServerReady(addr)
 	if err != nil {
 		t.Fatal(err)
 	}

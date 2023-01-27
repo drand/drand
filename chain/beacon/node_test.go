@@ -15,7 +15,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -25,10 +25,9 @@ import (
 	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
-
-// TODO make beacon tests not dependent on key.Scheme
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
@@ -49,19 +48,22 @@ func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBea
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
+	t.Lock()
 	if t.disable {
+		t.Unlock()
 		return errors.New("disabled server")
 	}
+	t.Unlock()
 	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
-func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
+func dkgShares(_ *testing.T, n, t int, sch *crypto.Scheme) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
 	var err error
 	for i := 0; i < n; i++ {
-		pri := share.NewPriPoly(key.KeyGroup, t, key.KeyGroup.Scalar().Pick(random.New()), random.New())
-		pub := pri.Commit(key.KeyGroup.Point().Base())
+		pri := share.NewPriPoly(sch.KeyGroup, t, sch.KeyGroup.Scalar().Pick(random.New()), random.New())
+		pub := pri.Commit(sch.KeyGroup.Point().Base())
 		if priPoly == nil {
 			priPoly = pri
 			pubPoly = pub
@@ -77,7 +79,7 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 		}
 	}
 	shares := priPoly.Shares(n)
-	secret, err := share.RecoverSecret(key.KeyGroup, shares, t, n)
+	secret, err := share.RecoverSecret(sch.KeyGroup, shares, t, n)
 	if err != nil {
 		panic(err)
 	}
@@ -90,21 +92,17 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	_, commits := pubPoly.Info()
 	dkgShares := make([]*key.Share, n)
 	for i := 0; i < n; i++ {
-		sigs[i], err = key.Scheme.Sign(shares[i], msg)
+		sigs[i], err = sch.ThresholdScheme.Sign(shares[i], msg)
 		if err != nil {
 			panic(err)
 		}
-		dkgShares[i] = &key.Share{
-			Share:   shares[i],
-			Commits: commits,
-		}
+		dkgShares[i] = &key.Share{DistKeyShare: dkg.DistKeyShare{Share: shares[i], Commits: commits}, Scheme: sch}
 	}
-	sig, err := key.Scheme.Recover(pubPoly, msg, sigs, t, n)
+	sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, sigs, t, n)
 	if err != nil {
 		panic(err)
 	}
-
-	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
+	if err = sch.ThresholdScheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
 		panic(err)
 	}
 	return dkgShares, commits
@@ -135,13 +133,15 @@ type BeaconTest struct {
 	nodes    map[int]*node
 	time     clock.FakeClock
 	prefix   string
-	scheme   scheme.Scheme
+	scheme   *crypto.Scheme
 }
 
-func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
+func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, beaconID string) *BeaconTest {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	prefix := t.TempDir()
 	paths := createBoltStores(prefix, n)
-	shares, commits := dkgShares(t, n, thr)
+	shares, commits := dkgShares(t, n, thr, sch)
 	privs, group := test.BatchIdentities(n, sch, beaconID)
 	group.Threshold = thr
 	group.Period = period
@@ -159,7 +159,7 @@ func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime i
 		paths:    paths,
 		shares:   shares,
 		group:    group,
-		dpublic:  group.PublicKey.PubPoly().Commit(),
+		dpublic:  group.PublicKey.PubPoly(sch).Commit(),
 		nodes:    make(map[int]*node),
 		time:     clock.NewFakeClock(),
 	}
@@ -218,9 +218,9 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 		panic("createNode address mismatch")
 	}
 
-	currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
+	currSig, err := b.scheme.ThresholdScheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
 	checkErr(err)
-	sigIndex, _ := key.Scheme.IndexOf(currSig)
+	sigIndex, _ := b.scheme.ThresholdScheme.IndexOf(currSig)
 	if sigIndex != idx {
 		panic("invalid index")
 	}
@@ -343,7 +343,9 @@ func (b *BeaconTest) StopBeacon(i int) {
 
 func (b *BeaconTest) DisableReception(count int) {
 	for i := 0; i < count; i++ {
+		b.nodes[i].server.Lock()
 		b.nodes[i].server.disable = true
+		b.nodes[i].server.Unlock()
 	}
 }
 
@@ -393,16 +395,14 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-
-	verifier := chain.NewVerifier(sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
-			err := verifier.VerifyBeacon(*b, bt.dpublic)
+			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 			require.NoError(t, err)
 
 			t.Logf("round %d done for %s\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
@@ -435,9 +435,9 @@ func TestBeaconSync(t *testing.T) {
 
 	// do some rounds
 	for i := 0; i < 2; i++ {
-		t.Logf("round %d starting", i)
+		t.Logf("round %d starting", i+2)
 		doRound(n, period)
-		t.Logf("round %d done", i)
+		t.Logf("round %d done", i+2)
 	}
 
 	t.Log("disable reception")
@@ -471,17 +471,15 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-
-	verifier := chain.NewVerifier(sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
 	myCallBack := func(b *chain.Beacon) {
 		// verify partial sig
-		err := verifier.VerifyBeacon(*b, bt.dpublic)
+		err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 		require.NoError(t, err)
 
 		counter.Done()
@@ -531,11 +529,9 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-
-	verifier := chain.NewVerifier(sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, beaconID)
 
 	currentRound := uint64(0)
 	var counter sync.WaitGroup
@@ -543,8 +539,7 @@ func TestBeaconThreshold(t *testing.T) {
 		return func(b *chain.Beacon) {
 			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
-
-			err := verifier.VerifyBeacon(*b, bt.dpublic)
+			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 			require.NoError(t, err)
 
 			// callbacks are called for syncing up as well so we only decrease
@@ -605,13 +600,12 @@ func TestBeaconThreshold(t *testing.T) {
 }
 
 func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T) {
-	bls, _ := scheme.GetSchemeByID(scheme.DefaultSchemeID)
-	bt := NewBeaconTest(t, 3, 2, 30*time.Second, 0, bls, "default")
+	bt := NewBeaconTest(t, 3, 2, 30*time.Second, 0, "default")
 
 	packet := drand.PartialBeaconPacket{
-		Round:       1,
-		PreviousSig: []byte("deadbeef"),
-		PartialSig:  []byte("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+		Round:             1,
+		PreviousSignature: []byte("deadbeef"),
+		PartialSig:        []byte("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
 	}
 	_, err := bt.nodes[0].handler.ProcessPartialBeacon(context.Background(), &packet)
 	require.Error(t, err, "attempted to process beacon from node of index 25958, but it was not in the group file")

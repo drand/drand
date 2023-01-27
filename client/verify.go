@@ -6,29 +6,9 @@ import (
 	"sync"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 )
-
-type Opts struct {
-	strict bool
-
-	// scheme holds a set of values the verifying process will use to act in specific ways, regarding signature verification, etc
-	scheme scheme.Scheme
-}
-
-// newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
-func newVerifyingClient(c Client, previousResult Result, opts Opts) Client {
-	verifier := chain.NewVerifier(opts.scheme)
-
-	return &verifyingClient{
-		Client:         c,
-		indirectClient: c,
-		pointOfTrust:   previousResult,
-		opts:           opts,
-		verifier:       verifier,
-	}
-}
 
 type verifyingClient struct {
 	// Client is the wrapped client. calls to `get` and `watch` return results proxied from this client's fetch
@@ -40,15 +20,27 @@ type verifyingClient struct {
 
 	pointOfTrust Result
 	potLk        sync.Mutex
-	opts         Opts
+	strict       bool
 
-	verifier *chain.Verifier
-	log      log.Logger
+	scheme *crypto.Scheme
+	log    log.Logger
+}
+
+// newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
+func newVerifyingClient(c Client, previousResult Result, strict bool, sch *crypto.Scheme) Client {
+	return &verifyingClient{
+		Client:         c,
+		indirectClient: c,
+		pointOfTrust:   previousResult,
+		strict:         strict,
+		scheme:         sch,
+		log:            log.DefaultLogger(),
+	}
 }
 
 // SetLog configures the client log output.
 func (v *verifyingClient) SetLog(l log.Logger) {
-	v.log = l
+	v.log = l.Named("verifyingClient")
 }
 
 // Get returns a requested round of randomness
@@ -127,7 +119,6 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 	trustRound := uint64(1)
 	var trustPrevSig []byte
-	b := chain.Beacon{}
 
 	v.potLk.Lock()
 	if v.pointOfTrust == nil || v.pointOfTrust.Round() > round {
@@ -152,14 +143,15 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
-		b.PreviousSig = trustPrevSig
-		b.Round = trustRound
-		b.Signature = next.Signature()
+		b := &chain.Beacon{
+			PreviousSig: trustPrevSig,
+			Round:       trustRound,
+			Signature:   next.Signature(),
+		}
 
 		ipk := info.PublicKey.Clone()
 
-		err = v.verifier.VerifyBeacon(b, ipk)
-
+		err = v.scheme.VerifyBeacon(b, ipk)
 		if err != nil {
 			v.log.Warnw("", "verifying_client", "failed to verify value", "b", b, "err", err)
 			return []byte{}, fmt.Errorf("verifying beacon: %w", err)
@@ -179,31 +171,30 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 }
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
-	checkPrevSignature := v.opts.strict || (v.verifier.IsPrevSigMeaningful() && r.PreviousSignature == nil)
+	fetchPrevSignature := v.strict // only useful for chained schemes
 	ps := r.PreviousSignature
 
-	if checkPrevSignature {
+	if fetchPrevSignature {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
 		if err != nil {
 			return
 		}
 	}
 
-	b := chain.Beacon{
-		PreviousSig: ps,
+	b := &chain.Beacon{
+		PreviousSig: ps, // for unchained schemes, this is not used in the VerifyBeacon function and can be nil
 		Round:       r.Round(),
 		Signature:   r.Signature(),
 	}
 
 	ipk := info.PublicKey.Clone()
 
-	err = v.verifier.VerifyBeacon(b, ipk)
-
+	err = v.scheme.VerifyBeacon(b, ipk)
 	if err != nil {
 		return fmt.Errorf("verification of %v failed: %w", b, err)
 	}
 
-	r.Random = chain.RandomnessFromSignature(r.Sig)
+	r.Random = crypto.RandomnessFromSignature(r.Sig)
 	return nil
 }
 

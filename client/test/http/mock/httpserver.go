@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/crypto"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Scheme) (string, *chain.Info, context.CancelFunc, func(bool)) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 
 	server := mock.NewMockServer(t, badSecondRound, sch)

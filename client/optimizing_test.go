@@ -92,7 +92,7 @@ func TestOptimizingWatch(t *testing.T) {
 
 	c0 := MockClientWithResults(0, 5)
 	c1 := MockClientWithResults(5, 8)
-	c2 := MockClientWithInfo(fakeChainInfo())
+	c2 := MockClientWithInfo(fakeChainInfo(t))
 
 	wc1 := make(chan Result, 5)
 	c1.WatchCh = wc1
@@ -167,7 +167,7 @@ func TestOptimizingWatchRetryOnClose(t *testing.T) {
 func TestOptimizingWatchFailover(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 
 	var rndlk sync.Mutex
 	var rnd uint64 = 1
@@ -249,7 +249,7 @@ func TestOptimizingIsCloser(t *testing.T) {
 }
 
 func TestOptimizingInfo(t *testing.T) {
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo)}, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)

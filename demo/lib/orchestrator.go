@@ -17,7 +17,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/node"
 	"github.com/drand/drand/key"
@@ -40,7 +40,7 @@ type Orchestrator struct {
 	newThr            int
 	beaconID          string
 	period            string
-	scheme            scheme.Scheme
+	scheme            *crypto.Scheme
 	periodD           time.Duration
 	basePath          string
 	groupPath         string
@@ -84,7 +84,7 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 	e := &Orchestrator{
 		n:                 c.N,
 		thr:               c.Thr,
-		scheme:            c.Schema,
+		scheme:            c.Scheme,
 		basePath:          c.BasePath,
 		groupPath:         path.Join(c.BasePath, "group.toml"),
 		newGroupPath:      path.Join(c.BasePath, "group2.toml"),
@@ -400,7 +400,7 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		CertFolder:   e.certFolder,
 		WithTLS:      e.tls,
 		Binary:       e.binary,
-		Schema:       e.scheme,
+		Scheme:       e.scheme,
 		BeaconID:     e.beaconID,
 		IsCandidate:  e.isBinaryCandidate,
 		DBEngineType: e.dbEngineType,

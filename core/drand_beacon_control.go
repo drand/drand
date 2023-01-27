@@ -17,7 +17,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -58,7 +58,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
 	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
 
-	bp.log.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "leader", true)
+	bp.log.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "scheme", bp.priv.Public.Scheme.Name, "leader", true)
 
 	// setup the manager
 	newSetup := func(d *BeaconProcess) (*setupManager, error) {
@@ -70,7 +70,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 				in.GetBeaconPeriod(),
 				in.GetCatchupPeriod(),
 				bp.getBeaconID(),
-				in.GetSchemeID(),
+				bp.priv.Public.Scheme,
 				in.GetInfo(),
 			},
 		)
@@ -149,7 +149,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(in.Info.Nodes))
 	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(in.Info.Threshold))
 
-	bp.log.Infow("", "init_reshare", "begin", "leader", true, "time", bp.opts.clock.Now())
+	bp.log.Infow("", "init_reshare", "begin", "leader", true, "time", bp.opts.clock.Now(), "scheme", bp.priv.Public.Scheme)
 
 	newSetup := func(d *BeaconProcess) (*setupManager, error) {
 		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
@@ -211,29 +211,13 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	return response, nil
 }
 
-// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
-func (bp *BeaconProcess) Share(context.Context, *drand.ShareRequest) (*drand.ShareResponse, error) {
-	share, err := bp.store.LoadShare()
-	if err != nil {
-		return nil, err
-	}
-
-	id := uint32(share.Share.I)
-	buff, err := share.Share.V.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &drand.ShareResponse{Index: id, Share: buff, Metadata: bp.newMetadata()}, nil
-}
-
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
 func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	keyPair, err := bp.store.LoadKeyPair()
+	keyPair, err := bp.store.LoadKeyPair(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,25 +228,6 @@ func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*d
 	}
 
 	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: bp.newMetadata()}, nil
-}
-
-// PrivateKey is a functionality of Control Service defined in protobuf/control
-// that requests the long term private key of the drand node running locally
-func (bp *BeaconProcess) PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
-
-	keyPair, err := bp.store.LoadKeyPair()
-	if err != nil {
-		return nil, err
-	}
-
-	protoKey, err := keyPair.Key.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &drand.PrivateKeyResponse{PriKey: protoKey, Metadata: bp.newMetadata()}, nil
 }
 
 // GroupFile replies with the distributed key in the response
@@ -363,8 +328,9 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	beaconID := commonutils.GetCanonicalBeaconID(group.ID)
 
 	reader, user := extractEntropy(randomness)
+	sch := bp.priv.Scheme()
 	config := &dkg.Config{
-		Suite:          key.KeyGroup.(dkg.Suite),
+		Suite:          sch.KeyGroup.(dkg.Suite),
 		NewNodes:       group.DKGNodes(),
 		Longterm:       bp.priv.Key,
 		Reader:         reader,
@@ -372,14 +338,14 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		FastSync:       true,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
-		Auth:           key.DKGAuthScheme,
+		Auth:           sch.DKGAuthScheme,
 		Log:            bp.log,
 	}
 	phaser := bp.getPhaser(timeout)
 	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
 		bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
-		})
+		}, sch)
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
@@ -460,11 +426,11 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		bp.log.Errorw("", "run_reshare", "invalid", "leader", leader, "old_present", oldPresent)
 		return nil, errors.New("can not be a leader if not present in the old group")
 	}
-
+	sch := bp.priv.Scheme()
 	newNode := newGroup.Find(bp.priv.Public)
 	newPresent := newNode != nil
 	config := &dkg.Config{
-		Suite:        key.KeyGroup.(dkg.Suite),
+		Suite:        sch.KeyGroup.(dkg.Suite),
 		NewNodes:     newGroup.DKGNodes(),
 		OldNodes:     oldGroup.DKGNodes(),
 		Longterm:     bp.priv.Key,
@@ -472,7 +438,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		OldThreshold: oldGroup.Threshold,
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
-		Auth:         key.DKGAuthScheme,
+		Auth:         sch.DKGAuthScheme,
 		Log:          bp.log,
 	}
 	err := func() error {
@@ -486,8 +452,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 			if bp.share == nil {
 				return errors.New("control: can't reshare without a share")
 			}
-			dkgShare := dkg.DistKeyShare(*bp.share)
-			config.Share = &dkgShare
+			config.Share = &dkg.DistKeyShare{Commits: bp.share.Commits, Share: bp.share.Share}
 		} else {
 			// we are a new node, we want to make sure we reshare from the old
 			// group public key
@@ -503,7 +468,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	var board Broadcast = newEchoBroadcast(bp.log, bp.version, oldBeaconID, bp.privGateway.ProtocolClient,
 		bp.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
-		})
+		}, sch)
 
 	if bp.dkgBoardSetup != nil {
 		board = bp.dkgBoardSetup(board)
@@ -573,7 +538,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 		bp.log.Infow("", "dkg_setup", "already_in_progress", "restart", "dkg")
 		bp.receiver.stop()
 	}
-	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo())
+	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo(), bp.priv.Scheme())
 	if err != nil {
 		bp.log.Errorw("", "setup", "fail", "err", err)
 		bp.state.Unlock()
@@ -671,7 +636,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 		bp.receiver = nil
 	}
 
-	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo())
+	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo(), bp.priv.Scheme())
 	if err != nil {
 		bp.log.Errorw("", "setup", "fail", "err", err)
 		bp.state.Unlock()
@@ -951,7 +916,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 }
 
 func (bp *BeaconProcess) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
-	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: bp.newMetadata()}, nil
+	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) ListBeaconIDs(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
@@ -1038,7 +1003,7 @@ func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThr
 	secret []byte, timeout uint32,
 ) error {
 	// sign the group to prove you are the leader
-	signature, err := key.DKGAuthScheme.Sign(bp.priv.Key, group.Hash())
+	signature, err := bp.priv.Scheme().DKGAuthScheme.Sign(bp.priv.Key, group.Hash())
 	if err != nil {
 		bp.log.Errorw("", "setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)
@@ -1117,7 +1082,7 @@ func getNonce(g *key.Group) []byte {
 
 // StartFollowChain syncs up with a chain from other nodes
 //
-//nolint:funlen
+//nolint:funlen,gocyclo
 func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
@@ -1183,14 +1148,21 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	}
 
 	// TODO find a better place to put that
-	if err := store.Put(ctx, chain.GenesisBeacon(info)); err != nil {
+	if err := store.Put(ctx, chain.GenesisBeacon(info.GenesisSeed)); err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
 		store.Close(ctx)
 		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
 
-	// add scheme store to handle scheme configuration on beacon storing process correctly
-	ss := beacon.NewSchemeStore(store, info.Scheme)
+	// add sch store to handle sch configuration on beacon storing process correctly
+	sch, err := crypto.SchemeFromName(info.GetSchemeName())
+	if err != nil {
+		return err
+	}
+	ss, err := beacon.NewSchemeStore(store, sch)
+	if err != nil {
+		return err
+	}
 
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(ss)
@@ -1202,7 +1174,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 
-	syncer := beacon.NewSyncManager(&beacon.SyncConfig{
+	syncer, err := beacon.NewSyncManager(&beacon.SyncConfig{
 		Log:         bp.log,
 		Store:       cbStore,
 		BoltdbStore: store,
@@ -1211,6 +1183,10 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		Clock:       bp.opts.clock,
 		NodeAddr:    bp.priv.Public.Address(),
 	})
+	if err != nil {
+		return err
+	}
+
 	go syncer.Run()
 	defer syncer.Stop()
 

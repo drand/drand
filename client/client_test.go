@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/client/test/result/mock"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
@@ -32,7 +32,7 @@ func TestClientConstraints(t *testing.T) {
 
 	c := client.MockClientWithResults(0, 5)
 	// As we will run is insecurely, we will set chain info so client can fetch it
-	c.OptionalInfo = fakeChainInfo()
+	c.OptionalInfo = fakeChainInfo(t)
 
 	if _, e := client.New(client.From(c), client.Insecurely()); e != nil {
 		t.Fatal(e)
@@ -40,7 +40,8 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
@@ -79,6 +80,7 @@ func TestClientWithChainInfo(t *testing.T) {
 		PublicKey:   id.Public.Key,
 		GenesisTime: 100,
 		Period:      time.Second,
+		Scheme:      crypto.DefaultSchemeID,
 	}
 	hc, _ := http.NewWithInfo("http://nxdomain.local/", chainInfo, nil)
 	c, err := client.New(client.WithChainInfo(chainInfo),
@@ -94,7 +96,8 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
@@ -131,7 +134,8 @@ func TestClientCache(t *testing.T) {
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
@@ -165,7 +169,8 @@ func TestClientWithoutCache(t *testing.T) {
 
 func TestClientWithWatcher(t *testing.T) {
 	t.Skipf("Skip flaky test")
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	info, results := mock.VerifiableResults(2, sch)
 
 	ch := make(chan client.Result, len(results))
@@ -179,7 +184,6 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	var c client.Client
-	var err error
 	c, err = client.New(
 		client.WithChainInfo(info),
 		client.WithWatcher(watcherCtor),
@@ -206,7 +210,7 @@ func TestClientWithWatcherCtorError(t *testing.T) {
 
 	// constructor should return error returned by watcherCtor
 	_, err := client.New(
-		client.WithChainInfo(fakeChainInfo()),
+		client.WithChainInfo(fakeChainInfo(t)),
 		client.WithWatcher(watcherCtor),
 	)
 	if !errors.Is(err, watcherErr) {
@@ -215,11 +219,11 @@ func TestClientWithWatcherCtorError(t *testing.T) {
 }
 
 func TestClientChainHashOverrideError(t *testing.T) {
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 	_, err := client.Wrap(
 		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
 		client.WithChainInfo(chainInfo),
-		client.WithChainHash(fakeChainInfo().Hash()),
+		client.WithChainHash(fakeChainInfo(t).Hash()),
 	)
 	if err == nil {
 		t.Fatal("expected error, received no error")
@@ -230,11 +234,11 @@ func TestClientChainHashOverrideError(t *testing.T) {
 }
 
 func TestClientChainInfoOverrideError(t *testing.T) {
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 	_, err := client.Wrap(
 		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
 		client.WithChainHash(chainInfo.Hash()),
-		client.WithChainInfo(fakeChainInfo()),
+		client.WithChainInfo(fakeChainInfo(t)),
 	)
 	if err == nil {
 		t.Fatal("expected error, received no error")
@@ -245,7 +249,8 @@ func TestClientChainInfoOverrideError(t *testing.T) {
 }
 
 func TestClientAutoWatch(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
@@ -271,7 +276,6 @@ func TestClientAutoWatch(t *testing.T) {
 	}
 
 	var c client.Client
-	var err error
 	c, err = client.New(
 		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
@@ -294,7 +298,8 @@ func TestClientAutoWatch(t *testing.T) {
 }
 
 func TestClientAutoWatchRetry(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	info, results := mock.VerifiableResults(5, sch)
 	resC := make(chan client.Result)
@@ -332,7 +337,6 @@ func TestClientAutoWatchRetry(t *testing.T) {
 	}
 
 	var c client.Client
-	var err error
 	c, err = client.New(
 		client.From(&failer, client.MockClientWithInfo(info)),
 		client.WithChainInfo(info),
@@ -374,10 +378,14 @@ func compareResults(t *testing.T, expected, actual client.Result) {
 }
 
 // fakeChainInfo creates a chain info object for use in tests.
-func fakeChainInfo() *chain.Info {
+func fakeChainInfo(t *testing.T) *chain.Info {
+	t.Helper()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	return &chain.Info{
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+		Scheme:      sch.Name,
 	}
 }

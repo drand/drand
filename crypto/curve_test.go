@@ -1,4 +1,4 @@
-package key
+package crypto
 
 import (
 	"encoding/hex"
@@ -8,6 +8,7 @@ import (
 )
 
 func TestBLS12381Compatv112(t *testing.T) {
+	scheme := NewPedersenBLSChained()
 	privHex := "643d6c704505385387a20d98aba19664e3ee81c600d21a0da910cc87f5dc4ab3"
 	privBuff, err := hex.DecodeString(privHex)
 	require.NoError(t, err)
@@ -20,11 +21,11 @@ func TestBLS12381Compatv112(t *testing.T) {
 
 	require.NoError(t, err)
 
-	priv := KeyGroup.Scalar()
+	priv := scheme.KeyGroup.Scalar()
 	require.NoError(t, priv.UnmarshalBinary(privBuff))
-	pub := KeyGroup.Point().Mul(priv, nil)
-	sig, err := AuthScheme.Sign(priv, msg)
+	pub := scheme.KeyGroup.Point().Mul(priv, nil)
+	sig, err := scheme.AuthScheme.Sign(priv, msg)
 	require.NoError(t, err)
-	require.NoError(t, AuthScheme.Verify(pub, msg, sig))
+	require.NoError(t, scheme.AuthScheme.Verify(pub, msg, sig))
 	require.Equal(t, sig, sigExp)
 }

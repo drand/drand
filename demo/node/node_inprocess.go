@@ -13,8 +13,8 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client/grpc"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -30,7 +30,7 @@ type LocalNode struct {
 	i          int
 	period     string
 	beaconID   string
-	scheme     scheme.Scheme
+	scheme     *crypto.Scheme
 	logPath    string
 	privAddr   string
 	pubAddr    string
@@ -71,7 +71,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		pubAddr:      test.FreeBind(bindAddr),
 		privAddr:     test.FreeBind(bindAddr),
 		ctrlAddr:     test.FreeBind("localhost"),
-		scheme:       cfg.Schema,
+		scheme:       cfg.Scheme,
 		beaconID:     cfg.BeaconID,
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
@@ -80,9 +80,12 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 
 	var priv *key.Pair
 	if l.tls {
-		priv = key.NewTLSKeyPair(l.privAddr)
+		priv, err = key.NewTLSKeyPair(l.privAddr, nil)
 	} else {
-		priv = key.NewKeyPair(l.privAddr)
+		priv, err = key.NewKeyPair(l.privAddr, nil)
+	}
+	if err != nil {
+		panic(err)
 	}
 
 	l.priv = priv
@@ -222,7 +225,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout time.Duration, leader bool, l
 	}
 	var grp *drand.GroupPacket
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, timeout, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, timeout, nil, secretDKG, beaconOffset, l.scheme.Name, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
 		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
@@ -231,7 +234,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout time.Duration, leader bool, l
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return nil, err
 	}
-	return key.GroupFromProto(grp)
+	return key.GroupFromProto(grp, nil)
 }
 
 func (l *LocalNode) GetGroup() *key.Group {
@@ -242,7 +245,7 @@ func (l *LocalNode) GetGroup() *key.Group {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
-	group, err := key.GroupFromProto(grp)
+	group, err := key.GroupFromProto(grp, nil)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil
@@ -266,7 +269,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 		l.log.Errorw("", "drand", "reshare failed", "err", err)
 		return nil
 	}
-	kg, _ := key.GroupFromProto(grp)
+	kg, _ := key.GroupFromProto(grp, nil)
 	return kg
 }
 

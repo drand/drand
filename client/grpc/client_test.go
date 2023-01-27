@@ -7,15 +7,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test/mock"
 )
 
 func TestClient(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	l, server := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch)
 	addr := l.Addr()
 
@@ -64,7 +66,8 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	l, _ := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch)
 	addr := l.Addr()
 

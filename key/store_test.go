@@ -10,11 +10,12 @@ import (
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/share/dkg"
 )
 
 func TestKeysSaveLoad(t *testing.T) {
 	n := 4
-	ps, group := BatchIdentities(n)
+	ps, group := BatchIdentities(t, n)
 	// we don't use the function from the test package here to avoid a circular dependency
 	beaconID := commonutils.GetCanonicalBeaconID(os.Getenv("BEACON_ID"))
 
@@ -26,11 +27,12 @@ func TestKeysSaveLoad(t *testing.T) {
 	// test loading saving private public key
 	ps[0].Public.TLS = true
 	require.NoError(t, store.SaveKeyPair(ps[0]))
-	loadedKey, err := store.LoadKeyPair()
+	loadedKey, err := store.LoadKeyPair(nil)
 	require.NoError(t, err)
 
 	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())
+	require.Equal(t, loadedKey.Public.Scheme.Name, ps[0].Public.Scheme.Name)
 	require.Equal(t, loadedKey.Public.Address(), ps[0].Public.Address())
 	require.True(t, loadedKey.Public.IsTLS())
 
@@ -61,11 +63,14 @@ func TestKeysSaveLoad(t *testing.T) {
 
 	// test share / dist key
 	testShare := &Share{
-		Commits: []kyber.Point{ps[0].Public.Key, ps[1].Public.Key},
-		Share:   &share.PriShare{V: ps[0].Key, I: 0},
+		DistKeyShare: dkg.DistKeyShare{
+			Commits: []kyber.Point{ps[0].Public.Key, ps[1].Public.Key},
+			Share:   &share.PriShare{V: ps[0].Key, I: 0},
+		},
+		Scheme: group.Scheme,
 	}
 	require.Nil(t, store.SaveShare(testShare))
-	loadedShare, err := store.LoadShare()
+	loadedShare, err := store.LoadShare(group.Scheme)
 
 	require.NoError(t, err)
 	require.Equal(t, testShare.Share.V, loadedShare.Share.V)

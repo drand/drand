@@ -7,7 +7,7 @@ import (
 
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 )
@@ -20,7 +20,11 @@ type TestJSON struct {
 }
 
 func main() {
-	listener, server := mock.NewMockGRPCPublicServer(nil, serve, true, scheme.GetSchemeFromEnv())
+	sch, err := crypto.GetSchemeFromEnv()
+	if err != nil {
+		panic(err)
+	}
+	listener, server := mock.NewMockGRPCPublicServer(nil, serve, true, sch)
 	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
 	if err != nil {
 		panic(err)

@@ -12,8 +12,8 @@ import (
 // After releasing: Increase the Patch number and set Prerelease to "-pre"
 var version = Version{
 	Major:      1,
-	Minor:      4,
-	Patch:      7,
+	Minor:      5,
+	Patch:      0,
 	Prerelease: "",
 }
 

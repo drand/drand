@@ -11,13 +11,14 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub.ValidatorEx {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
-		var rand drand.PublicRandResponse
-		err := proto.Unmarshal(m.Data, &rand)
+		rand := &drand.PublicRandResponse{}
+		err := proto.Unmarshal(m.Data, rand)
 		if err != nil {
 			return pubsub.ValidationReject
 		}
@@ -27,14 +28,8 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 			return pubsub.ValidationAccept
 		}
 
-		b := chain.Beacon{
-			Round:       rand.GetRound(),
-			Signature:   rand.GetSignature(),
-			PreviousSig: rand.GetPreviousSignature(),
-		}
-
 		// Unwilling to relay beacons in the future.
-		if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, b.Round), 0).After(time.Now()) {
+		if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, rand.GetRound()), 0).After(time.Now()) {
 			return pubsub.ValidationReject
 		}
 
@@ -45,27 +40,26 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 					// Note: this shouldn't happen in practice, but if we have a
 					// degraded cache entry we can't validate the full byte
 					// sequence.
-					if bytes.Equal(b.Signature, current.Signature()) {
+					if bytes.Equal(rand.GetSignature(), current.Signature()) {
 						return pubsub.ValidationIgnore
 					}
 					return pubsub.ValidationReject
 				}
-				curB := chain.Beacon{
-					Round:       current.Round(),
-					Signature:   current.Signature(),
-					PreviousSig: currentFull.PreviousSignature,
-				}
-				if b.Equal(&curB) {
+				if current.Round() == rand.GetRound() &&
+					bytes.Equal(current.Randomness(), rand.GetRandomness()) &&
+					bytes.Equal(current.Signature(), rand.GetSignature()) &&
+					bytes.Equal(currentFull.PreviousSignature, rand.GetPreviousSignature()) {
 					return pubsub.ValidationIgnore
 				}
 				return pubsub.ValidationReject
 			}
 		}
+		scheme, err := crypto.SchemeFromName(info.Scheme)
+		if err != nil {
+			return pubsub.ValidationReject
+		}
 
-		verifier := chain.NewVerifier(info.Scheme)
-
-		err = verifier.VerifyBeacon(b, info.PublicKey)
-
+		err = scheme.VerifyBeacon(rand, info.PublicKey)
 		if err != nil {
 			return pubsub.ValidationReject
 		}

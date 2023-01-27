@@ -27,7 +27,10 @@ service Control {
     // proceeed during the next resharing protocol.
     rpc InitReshare(InitResharePacket) returns (drand.GroupPacket) { }
     // Share returns the current private share used by the node
-    rpc Share(ShareRequest) returns (ShareResponse) { }
+    // Deprecated
+    rpc Share(ShareRequest) returns (ShareResponse) {
+        option deprecated = true;
+    }
     // PublicKey returns the longterm public key of the drand node
     rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
     // PrivateKey returns the longterm private key of the drand node

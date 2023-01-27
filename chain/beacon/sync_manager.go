@@ -15,6 +15,7 @@ import (
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -32,8 +33,8 @@ type SyncManager struct {
 	insecureStore chain.Store
 	info          *chain.Info
 	client        net.ProtocolClient
-	// verifies the incoming beacon according to chain scheme
-	verifier *chain.Verifier
+	// to verify the incoming beacon according to chain scheme
+	scheme *crypto.Scheme
 	// period of the randomness generation
 	period time.Duration
 	// sync manager will renew sync if nothing happens for factor*period time
@@ -69,7 +70,12 @@ type SyncConfig struct {
 
 // NewSyncManager returns a sync manager that will use the given store to store
 // newly synced beacon.
-func NewSyncManager(c *SyncConfig) *SyncManager {
+func NewSyncManager(c *SyncConfig) (*SyncManager, error) {
+	sch, err := crypto.SchemeFromName(c.Info.GetSchemeName())
+	if err != nil {
+		return nil, err
+	}
+
 	return &SyncManager{
 		log:           c.Log.Named("SyncManager"),
 		clock:         c.Clock,
@@ -78,13 +84,13 @@ func NewSyncManager(c *SyncConfig) *SyncManager {
 		info:          c.Info,
 		client:        c.Client,
 		period:        c.Info.Period,
-		verifier:      c.Info.Verifier(),
+		scheme:        sch,
 		nodeAddr:      c.NodeAddr,
 		factor:        syncExpiryFactor,
 		newReq:        make(chan requestInfo, syncQueueRequest),
 		newSync:       make(chan *chain.Beacon, 1),
 		done:          make(chan bool, 1),
-	}
+	}, nil
 }
 
 func (s *SyncManager) Stop() {
@@ -206,7 +212,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 			continue
 		}
 		// verify the signature validity
-		if err = s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
+		if err = s.scheme.VerifyBeacon(b, s.info.PublicKey); err != nil {
 			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
 			faultyBeacons = append(faultyBeacons, b.Round)
 		} else if i%commonutils.LogsToSkip == 0 { // we do some rate limiting on the logging
@@ -392,7 +398,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			beacon := protoToBeacon(beaconPacket)
 
 			// verify the signature validity
-			if err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey); err != nil {
+			if err := s.scheme.VerifyBeacon(beacon, s.info.PublicKey); err != nil {
 				logger.Debugw("Invalid_beacon", "from_peer", peer.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
 				return false
 			}

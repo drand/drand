@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
@@ -65,7 +64,9 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
 	//nolint:dogsled
 	_, drands, group, _, _ := BatchNewDrand(t, n, true, sch, beaconID)
 
@@ -81,7 +82,7 @@ func TestBroadcast(t *testing.T) {
 		id := d.priv.Public.Address()
 		version := common.GetAppVersion()
 		b := newEchoBroadcast(d.log, version, beaconID, d.privGateway.ProtocolClient,
-			id, group.Nodes, func(dkg.Packet) error { return nil })
+			id, group.Nodes, func(dkg.Packet) error { return nil }, sch)
 
 		d.dkgInfo = &dkgInfo{
 			board:   withCallback(id, b, callback),
@@ -117,7 +118,7 @@ func TestBroadcast(t *testing.T) {
 
 	// try again to broadcast but it shouldn't actually do it because the first
 	// node (the one we ask to send first) already has the hash registered.
-	err := broads[0].BroadcastDKG(context.Background(), dealPacket)
+	err = broads[0].BroadcastDKG(context.Background(), dealPacket)
 	require.NoError(t, err)
 	checkEmpty(t, incPackets)
 	require.Len(t, broads[0].dealCh, 0)
@@ -146,7 +147,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func sendNewDeal(t *testing.T, b *echoBroadcast) (packet *drand.DKGPacket, hash []byte) {
-	deal := fakeDeal()
+	deal := fakeDeal(t)
 	dealProto, err := dkgPacketToProto(deal)
 	require.NoError(t, err)
 	packet = &drand.DKGPacket{
@@ -179,10 +180,13 @@ func drain(t *testing.T, ch chan dkg.DealBundle) int {
 	}
 }
 
-func fakeDeal() *dkg.DealBundle {
+func fakeDeal(t *testing.T) *dkg.DealBundle {
+	t.Helper()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	return &dkg.DealBundle{
 		DealerIndex: 0,
-		Public:      []kyber.Point{key.KeyGroup.Point().Pick(random.New())},
+		Public:      []kyber.Point{sch.KeyGroup.Point().Pick(random.New())},
 		Deals: []dkg.Deal{{
 			ShareIndex:     1,
 			EncryptedShare: []byte("HelloWorld"),

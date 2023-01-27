@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -25,8 +26,7 @@ type chainStore struct {
 	conf        *Config
 	client      net.ProtocolClient
 	syncm       *SyncManager
-	verifier    *chain.Verifier
-	crypto      *cryptoStore
+	crypto      *vault.Vault
 	ticker      *ticker
 	done        chan bool
 	newPartials chan partialInfo
@@ -38,32 +38,38 @@ type chainStore struct {
 	beaconStoredAgg chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) *chainStore {
+func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vault, store chain.Store, t *ticker) (*chainStore, error) {
 	// we make sure the chain is increasing monotonically
-	as := newAppendStore(store)
+	as, err := newAppendStore(store)
+	if err != nil {
+		return nil, err
+	}
 
 	// we add a store to run some checks depending on scheme-related config
-	ss := NewSchemeStore(as, cf.Group.Scheme)
-
+	ss, err := NewSchemeStore(as, cf.Group.Scheme)
+	if err != nil {
+		return nil, err
+	}
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(ss, l, c.GetGroup(), cf.Clock)
+	ds := newDiscrepancyStore(ss, l, v.GetGroup(), cf.Clock)
 
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 
 	// we give the final append store to the sync manager
-	syncm := NewSyncManager(&SyncConfig{
+	syncm, err := NewSyncManager(&SyncConfig{
 		Log:         l,
 		Store:       cbs,
 		BoltdbStore: store,
-		Info:        c.chain,
+		Info:        v.GetInfo(),
 		Client:      cl,
 		Clock:       cf.Clock,
 		NodeAddr:    cf.Public.Address(),
 	})
+	if err != nil {
+		return nil, err
+	}
 	go syncm.Run()
-
-	verifier := chain.NewVerifier(cf.Group.Scheme)
 
 	cs := &chainStore{
 		CallbackStore:   cbs,
@@ -71,8 +77,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		conf:            cf,
 		client:          cl,
 		syncm:           syncm,
-		verifier:        verifier,
-		crypto:          c,
+		crypto:          v,
 		ticker:          t,
 		done:            make(chan bool, 1),
 		newPartials:     make(chan partialInfo, defaultPartialChanBuffer),
@@ -86,7 +91,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	})
 	// TODO maybe look if it's worth having multiple workers there
 	go cs.runAggregator()
-	return cs
+	return cs, nil
 }
 
 func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) {
@@ -115,14 +120,14 @@ func (c *chainStore) runAggregator() {
 	case <-c.done:
 		return
 	default:
+		c.l.Debugw("starting chain_aggregator")
 	}
-
 	lastBeacon, err := c.Last(context.Background())
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
 	}
 
-	var cache = newPartialCache(c.l)
+	var cache = newPartialCache(c.l, c.crypto.Scheme)
 	for {
 		select {
 		case <-c.done:
@@ -149,7 +154,7 @@ func (c *chainStore) runAggregator() {
 			thr := c.crypto.GetGroup().Threshold
 			n := c.crypto.GetGroup().Len()
 			cache.Append(partial.p)
-			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
+			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSignature())
 			if roundCache == nil {
 				c.l.Errorw("", "store_partial", partial.addr, "no_round_cache", partial.p.GetRound())
 				break
@@ -161,14 +166,14 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			msg := c.verifier.DigestMessage(roundCache.round, roundCache.prev)
+			msg := c.crypto.DigestBeacon(roundCache)
 
-			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
+			finalSig, err := c.crypto.Scheme.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Errorw("invalid_recovery", "error", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				break
 			}
-			if err := key.Scheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
+			if err := c.crypto.Scheme.ThresholdScheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
 				c.l.Errorw("invalid_sig", "error", err, "round", pRound)
 				break
 			}

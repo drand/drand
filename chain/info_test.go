@@ -6,13 +6,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 )
 
 func TestChainInfo(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	beaconID := "test_beacon"
 
 	_, g1 := test.BatchIdentities(5, sch, beaconID)
@@ -47,7 +48,7 @@ func TestChainInfo(t *testing.T) {
 	var c12Buff bytes.Buffer
 	var c2Buff bytes.Buffer
 
-	err := c1.ToJSON(&c1Buff, nil)
+	err = c1.ToJSON(&c1Buff, nil)
 	require.NoError(t, err)
 
 	err = c12.ToJSON(&c12Buff, nil)

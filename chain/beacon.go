@@ -2,11 +2,12 @@ package chain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
 	json "github.com/nikkolasg/hexjson"
+
+	"github.com/drand/drand/crypto"
 )
 
 // Beacon holds the randomness as well as the info to verify it.
@@ -36,21 +37,30 @@ func (b *Beacon) Unmarshal(buff []byte) error {
 	return json.Unmarshal(buff, b)
 }
 
-// Randomness returns the hashed signature. It is an example that uses sha256,
-// but it could use blake2b for example.
+// Randomness returns the hashed signature. The choice of the hash determines the size of the output.
 func (b *Beacon) Randomness() []byte {
-	return RandomnessFromSignature(b.Signature)
+	return crypto.RandomnessFromSignature(b.Signature)
+}
+
+// GetPreviousSignature returns the previous signature if it's non-nil or nil otherwise
+func (b *Beacon) GetPreviousSignature() []byte {
+	if b.PreviousSig != nil {
+		return b.PreviousSig
+	}
+	return nil
+}
+
+// GetSignature returns the signature if it's non-nil or nil otherwise
+func (b *Beacon) GetSignature() []byte {
+	if b.Signature != nil {
+		return b.Signature
+	}
+	return nil
 }
 
 // GetRound provides the round of the beacon
 func (b *Beacon) GetRound() uint64 {
 	return b.Round
-}
-
-// RandomnessFromSignature derives the round randomness from its signature
-func RandomnessFromSignature(sig []byte) []byte {
-	out := sha256.Sum256(sig)
-	return out[:]
 }
 
 func (b *Beacon) String() string {

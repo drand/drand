@@ -10,12 +10,13 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test/mock"
 )
 
@@ -51,7 +52,8 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("need to specify a connection method.", err)
 	}
 
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
@@ -105,7 +107,8 @@ func TestClientLibGroupConfTOML(t *testing.T) {
 }
 
 func TestClientLibGroupConfJSON(t *testing.T) {
-	sch := scheme.GetSchemeFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 
 	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
@@ -115,7 +118,7 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 
 	infoPath := filepath.Join(t.TempDir(), "info.json")
 
-	err := os.WriteFile(infoPath, b.Bytes(), 0644)
+	err = os.WriteFile(infoPath, b.Bytes(), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,5 +156,5 @@ func groupTOMLPath() string {
 	if !ok {
 		return ""
 	}
-	return filepath.Join(filepath.Dir(file), "..", "..", "..", "deploy", "latest", "group.toml")
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "test", "default.toml")
 }

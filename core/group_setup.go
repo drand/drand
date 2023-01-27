@@ -14,7 +14,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
-	common2 "github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -51,7 +51,7 @@ type setupManager struct {
 	catchupPeriod time.Duration
 	beaconPeriod  time.Duration
 	beaconID      string
-	scheme        common2.Scheme
+	scheme        *crypto.Scheme
 	dkgTimeout    time.Duration
 	clock         clock.Clock
 	leaderKey     *key.Identity
@@ -75,7 +75,7 @@ type setupConfig struct {
 	beaconPeriod  uint32
 	catchupPeriod uint32
 	beaconID      string
-	schemeID      string
+	scheme        *crypto.Scheme
 	info          *drand.SetupInfoPacket
 }
 
@@ -95,18 +95,13 @@ func newDKGSetup(c *setupConfig) (*setupManager, error) {
 		offset = DefaultGenesisOffset
 	}
 
-	sch, ok := common2.GetSchemeByID(c.schemeID)
-	if !ok {
-		return nil, fmt.Errorf("scheme id received is not valid")
-	}
-
 	sm := &setupManager{
 		expected:      n,
 		thr:           thr,
 		beaconOffset:  offset,
 		beaconPeriod:  time.Duration(c.beaconPeriod) * time.Second,
 		catchupPeriod: time.Duration(c.catchupPeriod) * time.Second,
-		scheme:        sch,
+		scheme:        c.scheme,
 		beaconID:      c.beaconID,
 		dkgTimeout:    dkgTimeout,
 		l:             c.l,
@@ -130,7 +125,6 @@ func newReshareSetup(
 ) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
-	schemeID := oldGroup.Scheme.ID
 	// we know it was properly set and verified earlier
 	beaconID := oldGroup.ID
 
@@ -143,7 +137,7 @@ func newReshareSetup(
 		l.Named("ResharingDKGSetup"),
 		c, leaderKey, beaconPeriod,
 		catchupPeriod, beaconID,
-		schemeID, in.GetInfo(),
+		oldGroup.Scheme, in.GetInfo(),
 	})
 	if err != nil {
 		return nil, err
@@ -182,7 +176,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 		}
 	}
 
-	newID, err := key.IdentityFromProto(p.GetNode())
+	newID, err := key.IdentityFromProto(p.GetNode(), s.scheme)
 	if err != nil {
 		s.l.Errorw("error decoding in ReceivedKey", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %w", err)
@@ -314,10 +308,11 @@ type setupReceiver struct {
 	done     bool
 	version  commonutils.Version
 	beaconID string
+	scheme   *crypto.Scheme
 }
 
 func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
-	client net.ProtocolClient, in *drand.SetupInfoPacket,
+	client net.ProtocolClient, in *drand.SetupInfoPacket, sch *crypto.Scheme,
 ) (*setupReceiver, error) {
 	beaconID := commonutils.GetCanonicalBeaconID(in.GetMetadata().GetBeaconID())
 
@@ -330,6 +325,7 @@ func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 		secret:   hashSecret(in.GetSecret()),
 		version:  version,
 		beaconID: beaconID,
+		scheme:   sch,
 	}
 
 	if err := setup.fetchLeaderKey(); err != nil {
@@ -346,8 +342,13 @@ func (r *setupReceiver) fetchLeaderKey() error {
 		return err
 	}
 
-	identity := &drand.Identity{Signature: protoID.Signature, Tls: protoID.Tls, Address: protoID.Address, Key: protoID.Key}
-	id, err := key.IdentityFromProto(identity)
+	identity := &drand.Identity{
+		Signature: protoID.Signature,
+		Tls:       protoID.Tls,
+		Address:   protoID.Address,
+		Key:       protoID.Key,
+	}
+	id, err := key.IdentityFromProto(identity, r.scheme)
 	if err != nil {
 		return err
 	}
@@ -370,11 +371,11 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 		return errors.New("invalid secret")
 	}
 	// verify things are all in order
-	group, err := key.GroupFromProto(pg.NewGroup)
+	group, err := key.GroupFromProto(pg.NewGroup, r.scheme)
 	if err != nil {
 		return fmt.Errorf("group from leader invalid: %w", err)
 	}
-	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
+	if err := r.leaderID.Scheme.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
 		r.l.Errorw("", "received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %w", err)
 	}

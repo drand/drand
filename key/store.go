@@ -9,6 +9,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 )
 
@@ -21,9 +22,9 @@ type Store interface {
 	SaveKeyPair(p *Pair) error
 	// LoadKeyPair loads the private/public key pair associated with the drand
 	// operator
-	LoadKeyPair() (*Pair, error)
+	LoadKeyPair(targetScheme *crypto.Scheme) (*Pair, error)
 	SaveShare(share *Share) error
-	LoadShare() (*Share, error)
+	LoadShare(scheme *crypto.Scheme) (*Share, error)
 	SaveGroup(*Group) error
 	LoadGroup() (*Group, error)
 	Reset(...ResetOption) error
@@ -121,8 +122,12 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 }
 
 // LoadKeyPair decode private key first then public
-func (f *fileStore) LoadKeyPair() (*Pair, error) {
+func (f *fileStore) LoadKeyPair(targetScheme *crypto.Scheme) (*Pair, error) {
 	p := new(Pair)
+	if targetScheme != nil {
+		p.Public = new(Identity)
+		p.Public.Scheme = targetScheme
+	}
 	if err := Load(f.privateKeyFile, p); err != nil {
 		return nil, err
 	}
@@ -143,8 +148,12 @@ func (f *fileStore) SaveShare(share *Share) error {
 	return Save(f.shareFile, share, true)
 }
 
-func (f *fileStore) LoadShare() (*Share, error) {
+func (f *fileStore) LoadShare(sch *crypto.Scheme) (*Share, error) {
 	s := new(Share)
+	// migration path for when a specific scheme is already known for the share
+	if sch != nil {
+		s.Scheme = sch
+	}
 	return s, Load(f.shareFile, s)
 }
 

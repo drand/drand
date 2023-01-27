@@ -8,6 +8,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -73,7 +74,7 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	}
 	if err != nil || beaconResp == nil {
 		bp.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
-		return nil, fmt.Errorf("can't retrieve beacon: %w %s", err, beaconResp)
+		return nil, fmt.Errorf("can't retrieve beacon: %w", err)
 	}
 	bp.log.Debugw("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
@@ -102,8 +103,8 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 	return p.Public_PublicRandStreamServer.Send(&drand.PublicRandResponse{
 		Round:             b.Round,
 		Signature:         b.Signature,
-		PreviousSignature: b.PreviousSig,
-		Randomness:        chain.RandomnessFromSignature(b.Signature),
+		PreviousSignature: b.PreviousSignature,
+		Randomness:        crypto.RandomnessFromSignature(b.Signature),
 		Metadata:          b.Metadata,
 	})
 }

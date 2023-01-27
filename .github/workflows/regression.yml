@@ -19,6 +19,7 @@ env:
 jobs:
   regression:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       # Deps
@@ -84,6 +85,7 @@ jobs:
 
   regression-memdb:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       # Deps
@@ -149,6 +151,7 @@ jobs:
 
   regression-postgres:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       # Deps

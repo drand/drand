@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
+	"github.com/stretchr/testify/require"
+
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
@@ -32,7 +34,9 @@ func TestLocalOrchestration(t *testing.T) {
 }
 
 func testLocalOrchestration(t *testing.T) {
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
 
 	c := cfg.Config{
 		N:            3,
@@ -41,7 +45,7 @@ func testLocalOrchestration(t *testing.T) {
 		WithTLS:      true,
 		Binary:       "",
 		WithCurl:     false,
-		Schema:       sch,
+		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  true,
 		DBEngineType: withTestDB(),

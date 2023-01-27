@@ -19,7 +19,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -60,7 +60,7 @@ type DrandTestScenario struct {
 	newThr        int
 	period        time.Duration
 	catchupPeriod time.Duration
-	scheme        scheme.Scheme
+	scheme        *crypto.Scheme
 	beaconID      string
 
 	// only set after the DKG
@@ -85,7 +85,7 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
-func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
+func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
 	t.Logf("Creating %d nodes for beaconID %s", n, beaconID)
@@ -194,17 +194,21 @@ func CloseAllDrands(drands []*BeaconProcess) {
 
 // Deprecated: do not use sleeps in your tests
 func getSleepDuration() time.Duration {
-	if os.Getenv("CIRCLE_CI") != "" {
-		fmt.Println("--- Sleeping on CIRCLECI")
-		return time.Duration(600) * time.Millisecond
+	if os.Getenv("CI") != "" {
+		fmt.Println("--- Sleeping on CI")
+		return time.Duration(800) * time.Millisecond
 	}
-	return time.Duration(500) * time.Millisecond
+	return time.Duration(100) * time.Millisecond
 }
 
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch scheme.Scheme, beaconID string) *DrandTestScenario {
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string) *DrandTestScenario {
+	sch, err := crypto.GetSchemeFromEnv()
+	if err != nil {
+		panic(err)
+	}
 	dt := new(DrandTestScenario)
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
@@ -301,14 +305,14 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
+			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.Name, d.beaconID)
 		if err != nil {
 			errDetector <- err
 			return
 		}
 
 		d.t.Log("[RunDKG] Leader obtain group")
-		group, err := key.GroupFromProto(groupPacket)
+		group, err := key.GroupFromProto(groupPacket, nil)
 		if err != nil {
 			errDetector <- err
 			return
@@ -351,7 +355,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 				errDetector <- err
 				return
 			}
-			group, err := key.GroupFromProto(groupPacket)
+			group, err := key.GroupFromProto(groupPacket, nil)
 			if err != nil {
 				errDetector <- err
 				return
@@ -392,7 +396,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	groupProto, err := controlClient.GroupFile(d.beaconID)
 	require.NoError(d.t, err)
 	d.t.Logf("[-------] Leader %s FINISHED", leaderNode.addr)
-	group, err := key.GroupFromProto(groupProto)
+	group, err := key.GroupFromProto(groupProto, nil)
 	require.NoError(d.t, err)
 
 	// we check all nodes are included in the group
@@ -576,14 +580,14 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...Co
 
 // AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
 // The options set will overwrite the existing ones.
-func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, sch scheme.Scheme, beaconID string, opts ...ConfigOption) []*MockNode {
+func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID string, opts ...ConfigOption) []*MockNode {
 	t.Logf("Setup of %d new nodes for tests", n)
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	d.n += n
 
 	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
-	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, sch, beaconID, opts...)
+	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, d.scheme, beaconID, opts...)
 	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
 	var result []*MockNode
 	for i, drandInstance := range drands {
@@ -711,7 +715,7 @@ func (d *DrandTestScenario) runLeaderReshare(
 	}
 
 	d.t.Logf("[reshare:leader] reshare finished - got group")
-	fg, err := key.GroupFromProto(finalGroup)
+	fg, err := key.GroupFromProto(finalGroup, nil)
 	if err != nil {
 		errCh <- err
 		return
@@ -799,7 +803,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	outgoingChan := make(chan packet, 100)
 	incomingChan := make(chan packet, 100)
 	broadcastSetup := func(b Broadcast) Broadcast {
-		return newTestBroadcast(b, outgoingChan, incomingChan)
+		return newTestBroadcast(t, b, outgoingChan, incomingChan)
 	}
 	leader.drand.dkgBoardSetup = broadcastSetup
 
@@ -992,14 +996,16 @@ type testBroadcast struct {
 	outgoing chan packet
 	incoming chan packet
 	hashes   set
+	t        *testing.T
 }
 
-func newTestBroadcast(b Broadcast, ingoing, outgoing chan packet) Broadcast {
+func newTestBroadcast(t *testing.T, b Broadcast, ingoing, outgoing chan packet) Broadcast {
 	return &testBroadcast{
 		hashes:        new(arraySet),
 		echoBroadcast: b.(*echoBroadcast),
 		outgoing:      outgoing,
 		incoming:      ingoing,
+		t:             t,
 	}
 }
 
@@ -1020,11 +1026,12 @@ func (b *testBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 
 func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
 	err := b.echoBroadcast.BroadcastDKG(c, p)
-	if err != nil {
-		return err
-	}
+	require.NoError(b.t, err)
 
-	dkgPacket, _ := protoToDKGPacket(p.GetDkg())
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(b.t, err)
+	dkgPacket, err := protoToDKGPacket(p.GetDkg(), sch)
+	require.NoError(b.t, err)
 	hash := hash(dkgPacket.Hash())
 	b.Lock()
 	if !b.hashes.exists(hash) {

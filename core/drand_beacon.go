@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
@@ -81,7 +82,7 @@ type BeaconProcess struct {
 
 func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *Config, privGateway *net.PrivateGateway,
 	pubGateway *net.PublicGateway) (*BeaconProcess, error) {
-	priv, err := store.LoadKeyPair()
+	priv, err := store.LoadKeyPair(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -124,13 +125,23 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, nil
 	}
 
+	// this is a migration path to mitigate for the shares being loaded before the group file
+	if bp.priv.Public.Scheme.Name == crypto.DefaultSchemeID && crypto.DefaultSchemeID != bp.group.Scheme.Name {
+		bp.log.Warnw("Invalid public scheme loaded, reloading key with group's scheme",
+			"priv", bp.priv.Public.Scheme.Name, "group", bp.group.Scheme.Name)
+		// we need to reload the keypair with the correct scheme
+		if bp.priv, err = bp.store.LoadKeyPair(bp.group.Scheme); err != nil {
+			return false, err
+		}
+	}
+
 	bp.state.Lock()
 	info := chain.NewChainInfo(bp.group)
 	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
 
-	bp.share, err = bp.store.LoadShare()
+	bp.share, err = bp.store.LoadShare(bp.group.Scheme)
 	if err != nil {
 		return false, err
 	}
@@ -197,7 +208,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		}
 	}
 
-	s := key.Share(*res.Result.Key)
+	s := key.Share{DistKeyShare: *res.Result.Key, Scheme: bp.priv.Scheme()}
 	bp.share = &s
 	if err := bp.store.SaveShare(bp.share); err != nil {
 		return nil, err
@@ -424,8 +435,8 @@ func (bp *BeaconProcess) StopBeacon() {
 }
 
 func (bp *BeaconProcess) isFreshRun() bool {
-	_, errG := bp.store.LoadGroup()
-	_, errS := bp.store.LoadShare()
+	grp, errG := bp.store.LoadGroup()
+	_, errS := bp.store.LoadShare(grp.Scheme)
 
 	isFresh := errG != nil || errS != nil
 
@@ -487,8 +498,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		return err
 	}
 
-	verif := chain.NewVerifier(bp.group.Scheme)
-	err = verif.VerifyBeacon(targetBeacon, bp.group.PublicKey.Key())
+	err = bp.group.Scheme.VerifyBeacon(&targetBeacon, bp.group.PublicKey.Key())
 	if err != nil {
 		bp.log.Errorw("failed to verify beacon", "err", err)
 		return err

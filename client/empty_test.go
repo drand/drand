@@ -10,7 +10,7 @@ import (
 )
 
 func TestEmptyClient(t *testing.T) {
-	chainInfo := fakeChainInfo()
+	chainInfo := fakeChainInfo(t)
 	c := EmptyClientWithInfo(chainInfo)
 
 	// should be able to retrieve Info

@@ -6,16 +6,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
 )
 
 // fakeChainInfo creates a chain info object for use in tests.
-func fakeChainInfo() *chain.Info {
-	sch := scheme.GetSchemeFromEnv()
+func fakeChainInfo(t *testing.T) *chain.Info {
+	t.Helper()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	return &chain.Info{
-		Scheme:      sch,
+		Scheme:      sch.Name,
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
@@ -23,6 +27,7 @@ func fakeChainInfo() *chain.Info {
 }
 
 func latestResult(t *testing.T, c Client) Result {
+	t.Helper()
 	r, err := c.Get(context.Background(), 0)
 	if err != nil {
 		t.Fatal("getting latest result", err)

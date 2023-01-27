@@ -9,7 +9,7 @@ type RandomData struct {
 	PreviousSignature []byte `json:"previous_signature,omitempty"`
 }
 
-// Round provides access to the round associatted with this random data.
+// Round provides access to the round associated with this random data.
 func (r *RandomData) Round() uint64 {
 	return r.Rnd
 }

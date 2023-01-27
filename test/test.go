@@ -11,7 +11,7 @@ import (
 	"time"
 
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber"
@@ -120,20 +120,21 @@ func GenerateIDs(n int) []*key.Pair {
 	keys := make([]*key.Pair, n)
 	addrs := Addresses(n)
 	for i := range addrs {
-		priv := key.NewKeyPair(addrs[i])
+		priv, _ := key.NewKeyPair(addrs[i], nil)
 		keys[i] = priv
 	}
 	return keys
 }
 
 // BatchIdentities generates n insecure identities
-func BatchIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
+func BatchIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
 	beaconID = commonutils.GetCanonicalBeaconID(beaconID)
 	privs := GenerateIDs(n)
+
 	thr := key.MinimumT(n)
 	var dpub []kyber.Point
 	for i := 0; i < thr; i++ {
-		dpub = append(dpub, key.KeyGroup.Point().Pick(random.New()))
+		dpub = append(dpub, sch.KeyGroup.Point().Pick(random.New()))
 	}
 
 	dp := &key.DistPublic{Coefficients: dpub}
@@ -143,7 +144,7 @@ func BatchIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *k
 }
 
 // BatchTLSIdentities generates n secure (TLS) identities
-func BatchTLSIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
+func BatchTLSIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
 	pairs, group := BatchIdentities(n, sch, beaconID)
 	for i := 0; i < n; i++ {
 		pairs[i].Public.TLS = true

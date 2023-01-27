@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
@@ -92,7 +92,11 @@ func main() {
 	n := 5
 	thr := 4
 	period := "10s"
-	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+	sch, err := crypto.GetSchemeFromEnv()
+	if err != nil {
+		panic(err)
+	}
+	beaconID := test.GetBeaconIDFromEnv()
 
 	if chain.StorageType(*dbEngineType) == chain.PostgreSQL {
 		stopContainer := cfg.BootContainer()
@@ -139,7 +143,7 @@ func main() {
 	}
 }
 
-func computeConfig(n int, thr int, period string, sch scheme.Scheme, beaconID string) cfg.Config {
+func computeConfig(n int, thr int, period string, sch *crypto.Scheme, beaconID string) cfg.Config {
 	return cfg.Config{
 		N:            n,
 		Thr:          thr,
@@ -147,7 +151,7 @@ func computeConfig(n int, thr int, period string, sch scheme.Scheme, beaconID st
 		WithTLS:      true,
 		Binary:       *build,
 		WithCurl:     false,
-		Schema:       sch,
+		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  false,
 		DBEngineType: chain.StorageType(*dbEngineType),

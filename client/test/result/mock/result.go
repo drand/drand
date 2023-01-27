@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/common/scheme"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
@@ -23,7 +22,7 @@ func NewMockResult(round uint64) Result {
 	return Result{
 		Rnd:  round,
 		Sig:  sig,
-		Rand: chain.RandomnessFromSignature(sig),
+		Rand: crypto.RandomnessFromSignature(sig),
 	}
 }
 
@@ -63,7 +62,7 @@ func (r *Result) AssertValid(t *testing.T) {
 	if !bytes.Equal(r.Sig, sigTarget) {
 		t.Fatalf("expected sig: %x, got %x", sigTarget, r.Sig)
 	}
-	randTarget := chain.RandomnessFromSignature(sigTarget)
+	randTarget := crypto.RandomnessFromSignature(sigTarget)
 	if !bytes.Equal(r.Rand, randTarget) {
 		t.Fatalf("expected rand: %x, got %x", randTarget, r.Rand)
 	}
@@ -82,9 +81,9 @@ func roundToBytes(r int) []byte {
 }
 
 // VerifiableResults creates a set of results that will pass a `chain.Verify` check.
-func VerifiableResults(count int, sch scheme.Scheme) (*chain.Info, []Result) {
-	secret := key.KeyGroup.Scalar().Pick(random.New())
-	public := key.KeyGroup.Point().Mul(secret, nil)
+func VerifiableResults(count int, sch *crypto.Scheme) (*chain.Info, []Result) {
+	secret := sch.KeyGroup.Scalar().Pick(random.New())
+	public := sch.KeyGroup.Point().Mul(secret, nil)
 	previous := make([]byte, 32)
 	if _, err := rand.Reader.Read(previous); err != nil {
 		panic(err)
@@ -94,14 +93,14 @@ func VerifiableResults(count int, sch scheme.Scheme) (*chain.Info, []Result) {
 	for i := range out {
 
 		var msg []byte
-		if !sch.DecouplePrevSig {
+		if sch.Name == crypto.DefaultSchemeID {
 			msg = sha256Hash(append(previous[:], roundToBytes(i+1)...))
 		} else {
 			msg = sha256Hash(roundToBytes(i + 1))
 		}
 
 		sshare := share.PriShare{I: 0, V: secret}
-		tsig, err := key.Scheme.Sign(&sshare, msg)
+		tsig, err := sch.ThresholdScheme.Sign(&sshare, msg)
 		if err != nil {
 			panic(err)
 		}
@@ -112,7 +111,7 @@ func VerifiableResults(count int, sch scheme.Scheme) (*chain.Info, []Result) {
 			Sig:  sig,
 			PSig: previous,
 			Rnd:  uint64(i + 1),
-			Rand: chain.RandomnessFromSignature(sig),
+			Rand: crypto.RandomnessFromSignature(sig),
 		}
 		previous = make([]byte, len(sig))
 		copy(previous[:], sig)
@@ -122,7 +121,7 @@ func VerifiableResults(count int, sch scheme.Scheme) (*chain.Info, []Result) {
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix() - int64(count),
 		GenesisSeed: out[0].PSig,
-		Scheme:      sch,
+		Scheme:      sch.Name,
 	}
 
 	return &info, out

@@ -16,9 +16,9 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/core/migration"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -135,7 +135,7 @@ func shareCmd(c *cli.Context) error {
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
-	group, err := key.GroupFromProto(groupP)
+	group, err := key.GroupFromProto(groupP, nil)
 	if err != nil {
 		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
@@ -194,8 +194,8 @@ func leadShareCmd(c *cli.Context) error {
 		return fmt.Errorf("catchup period given is invalid: %w", err)
 	}
 
-	var sch scheme.Scheme
-	if sch, err = scheme.GetSchemeByIDWithDefault(c.String(schemeFlag.Name)); err != nil {
+	var sch *crypto.Scheme
+	if sch, err = crypto.GetSchemeByIDWithDefault(c.String(schemeFlag.Name)); err != nil {
 		return fmt.Errorf("scheme given is invalid: %w", err)
 	}
 
@@ -216,12 +216,12 @@ func leadShareCmd(c *cli.Context) error {
 	// new line
 	fmt.Fprintln(output, "")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
-		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.ID, beaconID)
+		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.Name, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
-	group, err := key.GroupFromProto(groupP)
+	group, err := key.GroupFromProto(groupP, nil)
 	if err != nil {
 		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
@@ -297,7 +297,7 @@ func reshareCmd(c *cli.Context) error {
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
-	group, err := key.GroupFromProto(groupP)
+	group, err := key.GroupFromProto(groupP, nil)
 	if err != nil {
 		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
@@ -365,7 +365,7 @@ func leadReshareCmd(c *cli.Context) error {
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
-	group, err := key.GroupFromProto(groupP)
+	group, err := key.GroupFromProto(groupP, nil)
 	if err != nil {
 		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
@@ -569,7 +569,7 @@ func showGroupCmd(c *cli.Context) error {
 		return fmt.Errorf("fetching group file error: %w", err)
 	}
 
-	group, err := key.GroupFromProto(r)
+	group, err := key.GroupFromProto(r, nil)
 	if err != nil {
 		return err
 	}
@@ -624,20 +624,6 @@ func showPublicCmd(c *cli.Context) error {
 		return fmt.Errorf("drand: could not request drand.public: %w", err)
 	}
 
-	return printJSON(resp)
-}
-
-func showShareCmd(c *cli.Context) error {
-	client, err := controlClient(c)
-	if err != nil {
-		return err
-	}
-
-	beaconID := getBeaconID(c)
-	resp, err := client.Share(beaconID)
-	if err != nil {
-		return fmt.Errorf("could not request drand.share: %w", err)
-	}
 	return printJSON(resp)
 }
 
@@ -706,7 +692,7 @@ func selfSign(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 
 	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
-	pair, err := fs.LoadKeyPair()
+	pair, err := fs.LoadKeyPair(nil)
 
 	if err != nil {
 		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
@@ -716,12 +702,14 @@ func selfSign(c *cli.Context) error {
 		return nil
 	}
 
-	pair.SelfSign()
+	if err := pair.SelfSign(); err != nil {
+		return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
+	}
 	if err := fs.SaveKeyPair(pair); err != nil {
 		return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
 	}
 
-	fmt.Fprintf(output, "beacon id [%s] - Public identity self signed", beaconID)
+	fmt.Fprintf(output, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
 	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
 	return nil
 }
