@@ -58,7 +58,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: go get -v -t -d ${{ matrix.db_type }} ./...
+      - run: go get -v -t -d -tags ${{ matrix.db_type }} ./...
       - name: Unit tests
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
