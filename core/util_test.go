@@ -278,14 +278,15 @@ func (d *DrandTestScenario) waitFor(
 // RunDKG runs the DKG with the initial nodes created during NewDrandTest
 //
 //nolint:funlen
-func (d *DrandTestScenario) RunDKG() *key.Group {
+func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	// common secret between participants
 	secret := "thisisdkg"
 
 	leaderNode := d.nodes[0]
 	controlClient, err := net.NewControlClient(leaderNode.drand.opts.controlPort)
-	required := require.New(d.t)
-	required.NoError(err)
+	if err != nil {
+		return nil, err
+	}
 
 	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
@@ -305,7 +306,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.Name, d.beaconID)
+			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.beaconID)
 		if err != nil {
 			errDetector <- err
 			return
@@ -379,25 +380,28 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	}()
 
 	select {
+	case e := <-errDetector:
+		if e != nil {
+			return nil, e
+		}
 	case <-done:
 	case <-ctx.Done():
 		cancel()
 		require.NoError(d.t, ctx.Err())
 	}
 
-	close(errDetector)
-	for e := range errDetector {
-		required.NoError(e)
-	}
-
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
 	// we check that we can fetch the group using control functionalities on the leaderNode node
 	groupProto, err := controlClient.GroupFile(d.beaconID)
-	require.NoError(d.t, err)
+	if err != nil {
+		return nil, err
+	}
 	d.t.Logf("[-------] Leader %s FINISHED", leaderNode.addr)
 	group, err := key.GroupFromProto(groupProto, nil)
-	require.NoError(d.t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	// we check all nodes are included in the group
 	for _, node := range d.nodes {
@@ -407,11 +411,14 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	// we check the group has the right threshold
 	require.Len(d.t, group.PublicKey.Coefficients, d.thr)
 	require.Equal(d.t, d.thr, group.Threshold)
-	require.NoError(d.t, key.Save(d.groupPath, group, false))
+	err = key.Save(d.groupPath, group, false)
+	if err != nil {
+		return nil, err
+	}
 
 	d.group = group
 	d.t.Log("[RunDKG] READY!")
-	return group
+	return group, nil
 }
 
 // GetBeacon returns the beacon of the given round for the specified drand id

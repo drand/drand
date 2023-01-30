@@ -18,7 +18,6 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/core/migration"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -194,11 +193,6 @@ func leadShareCmd(c *cli.Context) error {
 		return fmt.Errorf("catchup period given is invalid: %w", err)
 	}
 
-	var sch *crypto.Scheme
-	if sch, err = crypto.GetSchemeByIDWithDefault(c.String(schemeFlag.Name)); err != nil {
-		return fmt.Errorf("scheme given is invalid: %w", err)
-	}
-
 	offset := int(core.DefaultGenesisOffset.Seconds())
 	if c.IsSet(beaconOffset.Name) {
 		offset = c.Int(beaconOffset.Name)
@@ -216,7 +210,7 @@ func leadShareCmd(c *cli.Context) error {
 	// new line
 	fmt.Fprintln(output, "")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
-		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.Name, beaconID)
+		catchupPeriod, args.timeout, args.entropy, args.secret, offset, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)

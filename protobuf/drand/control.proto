@@ -13,130 +13,130 @@ import "common/common.proto";
 import "drand/common.proto";
 
 service Control {
-    // PingPong returns an empty message. Purpose is to test the control port.
-    rpc PingPong(Ping) returns (Pong) { }
-    // Status responds with the actual status of drand process
-    rpc Status(StatusRequest) returns (StatusResponse) { }
-    // ListSchemes responds with the list of ids for the available schemes
-    rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) { }
-    // ListBeaconIDs responds with the list of ids for the running networks on the node
-    rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) { }
-    // InitDKG sends information to daemon to start a fresh DKG protocol
-    rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
-    // InitReshares sends all informations so that the drand node knows how to
-    // proceeed during the next resharing protocol.
-    rpc InitReshare(InitResharePacket) returns (drand.GroupPacket) { }
-    // Share returns the current private share used by the node
-    // Deprecated
-    rpc Share(ShareRequest) returns (ShareResponse) {
-        option deprecated = true;
-    }
-    // PublicKey returns the longterm public key of the drand node
-    rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
-    // PrivateKey returns the longterm private key of the drand node
-    rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
-    // CollectiveKey returns the distributed public key used by the node
-    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) { }
-    // GroupFile returns the TOML-encoded group file
-    // similar to public.Group method but needed for ease of use of the
-    // control functionalities
-    rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) { }
+  // PingPong returns an empty message. Purpose is to test the control port.
+  rpc PingPong(Ping) returns (Pong) {}
+  // Status responds with the actual status of drand process
+  rpc Status(StatusRequest) returns (StatusResponse) {}
+  // ListSchemes responds with the list of ids for the available schemes
+  rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) {}
+  // ListBeaconIDs responds with the list of ids for the running networks on the node
+  rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
+  // InitDKG sends information to daemon to start a fresh DKG protocol
+  rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) {}
+  // InitReshares sends all informations so that the drand node knows how to
+  // proceeed during the next resharing protocol.
+  rpc InitReshare(InitResharePacket) returns (drand.GroupPacket) {}
+  // Share returns the current private share used by the node
+  // Deprecated
+  rpc Share(ShareRequest) returns (ShareResponse) {
+    option deprecated = true;
+  }
+  // PublicKey returns the longterm public key of the drand node
+  rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) {}
+  // PrivateKey returns the longterm private key of the drand node
+  rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) {}
+  // CollectiveKey returns the distributed public key used by the node
+  rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) {}
+  // GroupFile returns the TOML-encoded group file
+  // similar to public.Group method but needed for ease of use of the
+  // control functionalities
+  rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) {}
 
-    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
 
-    rpc LoadBeacon(LoadBeaconRequest) returns (LoadBeaconResponse) { }
+  rpc LoadBeacon(LoadBeaconRequest) returns (LoadBeaconResponse) {}
 
-    rpc StartFollowChain(StartSyncRequest) returns (stream SyncProgress) { }
+  rpc StartFollowChain(StartSyncRequest) returns (stream SyncProgress) {}
 
-    rpc StartCheckChain(StartSyncRequest) returns (stream SyncProgress) { }
+  rpc StartCheckChain(StartSyncRequest) returns (stream SyncProgress) {}
 
-    rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
+  rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) {}
 
-    // RemoteStatus request the status of some remote drand nodes
-    rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) { }
+  // RemoteStatus request the status of some remote drand nodes
+  rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) {}
 }
 
 // SetupInfoPacket contains all information necessary to run an "automatic"
 // setup phase where the designated leader acts as a coordinator as to what is
 // the group file and when does the chain starts.
 message SetupInfoPacket {
-    bool leader = 1;
-    // LeaderAddress is only used by non-leader
-    string leader_address = 2;
-    // LeaderTls is only used by non-leader
-    bool leader_tls = 3;
-    // the expected number of nodes the group must have
-    uint32 nodes = 4;
-    // the threshold to set to the group
-    uint32 threshold = 5;
-    // timeout of the dkg - it is used for transitioning to the different phases of
-    // the dkg (deal, responses and justifications if needed). Unit is in seconds.
-    uint32 timeout = 6;
-    // This field is used by the coordinator to set a genesis time or transition
-    // time for the beacon to start. It normally takes time.Now() +
-    // beacon_offset.  This offset MUST be superior to the time it takes to
-    // run the DKG, even under "malicious case" when the dkg takes longer.
-    // In such cases, the dkg takes 3 * timeout time to finish because of the
-    // three phases: deal, responses and justifications.
-    // XXX: should find a way to designate the time *after* the DKG - beacon
-    // generation and dkg should be more separated.
-    uint32 beacon_offset = 7;
-    // dkg_offset is used to set the time for which nodes should start the DKG.
-    // To avoid any concurrency / networking effect where nodes start the DKG
-    // while some others still haven't received the group configuration, the
-    // coordinator do this in two steps: first, send the group configuration to
-    // every node, and then every node start at the specified time. This offset
-    // is set to be sufficiently large such that with high confidence all nodes
-    // received the group file by then.
-    uint32 dkg_offset = 8;
-    // the secret used to authentify group members
-    bytes secret = 9;
-    // indicating to the node that this (re)share operation should be started
-    // even if there is already one in progress.
-    bool force = 10;
-    common.Metadata metadata = 11;
+  bool leader = 1;
+  // LeaderAddress is only used by non-leader
+  string leader_address = 2;
+  // LeaderTls is only used by non-leader
+  bool leader_tls = 3;
+  // the expected number of nodes the group must have
+  uint32 nodes = 4;
+  // the threshold to set to the group
+  uint32 threshold = 5;
+  // timeout of the dkg - it is used for transitioning to the different phases of
+  // the dkg (deal, responses and justifications if needed). Unit is in seconds.
+  uint32 timeout = 6;
+  // This field is used by the coordinator to set a genesis time or transition
+  // time for the beacon to start. It normally takes time.Now() +
+  // beacon_offset.  This offset MUST be superior to the time it takes to
+  // run the DKG, even under "malicious case" when the dkg takes longer.
+  // In such cases, the dkg takes 3 * timeout time to finish because of the
+  // three phases: deal, responses and justifications.
+  // XXX: should find a way to designate the time *after* the DKG - beacon
+  // generation and dkg should be more separated.
+  uint32 beacon_offset = 7;
+  // dkg_offset is used to set the time for which nodes should start the DKG.
+  // To avoid any concurrency / networking effect where nodes start the DKG
+  // while some others still haven't received the group configuration, the
+  // coordinator do this in two steps: first, send the group configuration to
+  // every node, and then every node start at the specified time. This offset
+  // is set to be sufficiently large such that with high confidence all nodes
+  // received the group file by then.
+  uint32 dkg_offset = 8;
+  // the secret used to authentify group members
+  bytes secret = 9;
+  // indicating to the node that this (re)share operation should be started
+  // even if there is already one in progress.
+  bool force = 10;
+  common.Metadata metadata = 11;
 }
 
 message InitDKGPacket {
-    SetupInfoPacket info = 1;
-    EntropyInfo entropy = 2;
-    // the period time of the beacon in seconds.
-    // used only in a fresh dkg
-    uint32 beacon_period = 3;
-    // the minimum beacon period when in catchup.
-    uint32 catchup_period = 4;
-    // indicates a set of values the process will use to act in specific ways
-    string schemeID = 5;
-    common.Metadata metadata = 6;
+  SetupInfoPacket info = 1;
+  EntropyInfo entropy = 2;
+  // the period time of the beacon in seconds.
+  // used only in a fresh dkg
+  uint32 beacon_period = 3;
+  // the minimum beacon period when in catchup.
+  uint32 catchup_period = 4;
+  // since v1.5.0 this must be passed upon key generation
+  string schemeID = 5 [deprecated = true] ;
+  common.Metadata metadata = 6;
 }
 
 message InitDKGPacketResponse{
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // EntropyInfo contains information about external entropy sources
 // can be optional
 message EntropyInfo {
-    // the path to the script to run that returns random bytes when called
-    string script = 1;
-    // do we only take this entropy source or mix it with /dev/urandom
-    bool userOnly = 10;
-    common.Metadata metadata = 11;
+  // the path to the script to run that returns random bytes when called
+  string script = 1;
+  // do we only take this entropy source or mix it with /dev/urandom
+  bool userOnly = 10;
+  common.Metadata metadata = 11;
 }
 
 // ReshareRequest contains references to the old and new group to perform the
 // resharing protocol.
 message InitResharePacket {
-    // Old group that needs to issue the shares for the new group
-    // NOTE: It can be empty / nil. In that case, the drand node will try to
-    // load the group he belongs to at the moment, if any, and use it as the old
-    // group.
-    GroupInfo old = 1;
-    SetupInfoPacket info = 2;
-    // the minimum beacon period when in catchup.
-    bool catchup_period_changed = 3;
-    uint32 catchup_period = 4;
-    common.Metadata metadata = 5;
+  // Old group that needs to issue the shares for the new group
+  // NOTE: It can be empty / nil. In that case, the drand node will try to
+  // load the group he belongs to at the moment, if any, and use it as the old
+  // group.
+  GroupInfo old = 1;
+  SetupInfoPacket info = 2;
+  // the minimum beacon period when in catchup.
+  bool catchup_period_changed = 3;
+  uint32 catchup_period = 4;
+  common.Metadata metadata = 5;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes
@@ -146,147 +146,147 @@ message InitResharePacket {
 // the URL that returns a group definition, for example at one of the currently
 // running node.
 message GroupInfo {
-    oneof location {
-        string path = 1;
-        // XXX not implemented
-        string url = 2;
-    }
+  oneof location {
+    string path = 1;
+    // XXX not implemented
+    string url = 2;
+  }
 }
 
 // ShareRequest requests the private share of a drand node
 message ShareRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // ShareResponse holds the private share of a drand node
 message ShareResponse {
-    uint32 index = 2;
-    bytes share = 3;
-    common.Metadata metadata = 4;
+  uint32 index = 2;
+  bytes share = 3;
+  common.Metadata metadata = 4;
 }
 
 message Ping {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message Pong {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // RemoteStatusRequest contains the list of addresses that the local drand node
 // process should ask the status to.
 message RemoteStatusRequest {
-    common.Metadata metadata = 1;
-    repeated Address addresses = 2;
+  common.Metadata metadata = 1;
+  repeated Address addresses = 2;
 }
 
 // RemoteStatusResponse contains the statuses reponses of all nodes given in the
 // requests. If a node did not reply, then the address key is absent from the
 // map
 message RemoteStatusResponse {
-    map<string,StatusResponse> statuses = 1;
+  map<string, StatusResponse> statuses = 1;
 }
 
 message ListSchemesRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message ListSchemesResponse {
-    repeated string ids = 1;
-    common.Metadata metadata = 2;
+  repeated string ids = 1;
+  common.Metadata metadata = 2;
 }
 
 message ListBeaconIDsRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message ListBeaconIDsResponse {
-    repeated string ids = 1;
-    common.Metadata metadata = 2;
+  repeated string ids = 1;
+  common.Metadata metadata = 2;
 }
 
 // PublicKeyRequest requests the public key of a drand node
 message PublicKeyRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
-    bytes pubKey = 2;
-    common.Metadata metadata = 3;
+  bytes pubKey = 2;
+  common.Metadata metadata = 3;
 }
 
 // PrivateKeyRequest requests the private key of a drand node
 message PrivateKeyRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // PrivateKeyResponse holds the private key of a drand node
 message PrivateKeyResponse {
-    bytes priKey = 2;
-    common.Metadata metadata = 3;
+  bytes priKey = 2;
+  common.Metadata metadata = 3;
 }
 
 // CokeyRequest requests the collective key of a drand node
 message CokeyRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
-    bytes coKey = 2;
-    common.Metadata metadata = 3;
+  bytes coKey = 2;
+  common.Metadata metadata = 3;
 }
 
 message GroupTOMLResponse {
-    // TOML-encoded group file
-    string group_toml = 1;
-    common.Metadata metadata = 2;
+  // TOML-encoded group file
+  string group_toml = 1;
+  common.Metadata metadata = 2;
 }
 
 message ShutdownRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message ShutdownResponse {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message LoadBeaconRequest {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message LoadBeaconResponse {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
 
 message StartSyncRequest {
-    // hex format
-    // Note: use instead the chain-hash from the metadata field.
-    string info_hash = 1 [deprecated = true];
-    // nodes to contact to
-    repeated string nodes = 2;
-    // is TLS enabled on these nodes or not
-    // NOTE currently drand either supports syncing from all TLS or all
-    // non-tls nodes
-    bool is_tls = 3;
-    // up_to tells the drand daemon to not sync up after the given round.
-    // if up_to is 0, the sync operation continues until it is cancelled.
-    uint64 up_to = 4;
-    common.Metadata metadata = 5;
+  // hex format
+  // Note: use instead the chain-hash from the metadata field.
+  string info_hash = 1 [deprecated = true];
+  // nodes to contact to
+  repeated string nodes = 2;
+  // is TLS enabled on these nodes or not
+  // NOTE currently drand either supports syncing from all TLS or all
+  // non-tls nodes
+  bool is_tls = 3;
+  // up_to tells the drand daemon to not sync up after the given round.
+  // if up_to is 0, the sync operation continues until it is cancelled.
+  uint64 up_to = 4;
+  common.Metadata metadata = 5;
 }
 
 message SyncProgress {
-    uint64 current = 1;
-    uint64 target = 2;
-    common.Metadata metadata = 3;
+  uint64 current = 1;
+  uint64 target = 2;
+  common.Metadata metadata = 3;
 }
 
 message BackupDBRequest {
-    string output_file = 1;
-    common.Metadata metadata = 2;
+  string output_file = 1;
+  common.Metadata metadata = 2;
 }
 
 message BackupDBResponse {
-    common.Metadata metadata = 1;
+  common.Metadata metadata = 1;
 }
