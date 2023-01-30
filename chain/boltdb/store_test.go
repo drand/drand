@@ -230,6 +230,7 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		"with context set and old db":   {IsATest(context.Background()), "./testdata/untrimmed.db", false},
 		"with context unset and new db": {context.Background(), "./testdata/trimmed.db", true},
 		"with context unset and old db": {context.Background(), "./testdata/untrimmed.db", false},
+		"with context unset and db is missing": {context.Background(), "./testdata/missing.db", true},
 	}
 	for name, tt := range tests {
 		name := name
