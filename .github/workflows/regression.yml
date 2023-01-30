@@ -44,7 +44,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
+        run: make build && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
@@ -110,7 +110,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
+        run: make build && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
@@ -176,7 +176,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
+        run: make build && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
