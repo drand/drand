@@ -1,4 +1,10 @@
-.PHONY: test test-unit test-unit-memdb test-unit-postgres test-unit-cover test-unit-memdb-cover test-unit-postgres-cover test-integration test-integration-memdb test-integration-postgres demo demo-memdb demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
+.PHONY: test test-unit test-unit-boltdb test-unit-memdb test-unit-postgres
+.PHONY: test-unit-cover test-unit-boltdb-cover test-unit-memdb-cover test-unit-postgres-cover
+.PHONY: coverage coverage-boltdb coverage-memdb coverage-postgres
+.PHONY: test-integration test-integration-boltdb test-integration-memdb test-integration-postgres
+.PHONY: demo demo-boltdb demo-memdb demo-postgres
+.PHONY: deploy-local linter install build client drand relay-http relay-gossip relay-s3
+.PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
@@ -48,6 +54,8 @@ test: test-unit test-integration
 test-unit:
 	go test -failfast -race -short -v ./...
 
+test-unit-boltdb: test-unit
+
 test-unit-memdb:
 	go test -failfast -race -tags memdb -short -v ./...
 
@@ -56,6 +64,8 @@ test-unit-postgres:
 
 test-unit-cover:
 	go test -failfast -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+
+test-unit-boltdb-cover: test-unit-cover
 
 test-unit-memdb-cover:
 	go test -failfast -short -tags memdb -v -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
@@ -66,6 +76,8 @@ test-unit-postgres-cover:
 test-integration:
 	go test -failfast -v ./demo
 	cd demo && go build && ./demo -build -test -debug
+
+test-integration-boltdb: test-integration
 
 test-integration-memdb:
 	go test -failfast -race -short -tags memdb -v ./...
@@ -79,6 +91,8 @@ coverage:
 	go get -v -t -d ./...
 	go test -failfast -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
+coverage-boltdb: coverage
+
 coverage-memdb:
 	go get -tags=memdb -v -t -d ./...
 	go test -failfast -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
@@ -90,6 +104,8 @@ coverage-postgres:
 demo:
 	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
+
+demo-boltdb: demo
 
 demo-memdb:
 	cd demo && go build && ./demo -dbtype=memdb -build
