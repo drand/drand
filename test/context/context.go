@@ -10,10 +10,10 @@ import (
 	"github.com/drand/drand/crypto"
 )
 
-// PrevSignatureMatersOnContext checks if the previous signature matters or not for future operations
+// PrevSignatureMattersOnContext checks if the previous signature matters or not for future operations
 // based on the used schema.
 // If it matters, then it's also set on the passed context.
-func PrevSignatureMatersOnContext(t *testing.T, ctx context.Context) (context.Context, *crypto.Scheme, bool) {
+func PrevSignatureMattersOnContext(t *testing.T, ctx context.Context) (context.Context, *crypto.Scheme, bool) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 

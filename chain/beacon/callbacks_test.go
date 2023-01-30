@@ -15,7 +15,7 @@ import (
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
-	ctx, _, _ := context2.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
 	l := test.Logger(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)

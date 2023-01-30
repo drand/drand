@@ -955,7 +955,7 @@ func TestDrandCheckChain(t *testing.T) {
 		t.Skip(`This test does not work with in-memory database. See the "// Skip why: " comment for details.`)
 	}
 
-	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()

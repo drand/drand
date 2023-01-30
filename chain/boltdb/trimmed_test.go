@@ -16,7 +16,7 @@ import (
 func TestTrimmedStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
 
-	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	if prevMatters {
 		// This test stores b2 then b1. However, when the beacon order matters, the correct
@@ -84,7 +84,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 func TestTrimmedStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
 
-	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	l := test.Logger(t)
 
@@ -202,7 +202,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 func TestTrimmedStore_Cursor(t *testing.T) {
 	tmp := t.TempDir()
 
-	ctx, _, prevMatters := context2.PrevSignatureMatersOnContext(t, context.Background())
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	l := test.Logger(t)
 	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
