@@ -2,10 +2,13 @@ package boltdb
 
 import (
 	"context"
+	"errors"
 	"io"
+	"os"
 	"path"
 	"sync"
 
+	json "github.com/nikkolasg/hexjson"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/drand/drand/chain"
@@ -33,9 +36,27 @@ const BoltFileName = "drand.db"
 // BoltStoreOpenPerm is the permission we will use to read bolt store file from disk
 const BoltStoreOpenPerm = 0660
 
+type newDBFormat bool
+
+var useNewDBFormat newDBFormat = true
+
+func IsATest(ctx context.Context) context.Context {
+	return context.WithValue(ctx, useNewDBFormat, useNewDBFormat)
+}
+
+func isThisATest(ctx context.Context) bool {
+	_, ok := ctx.Value(useNewDBFormat).(newDBFormat)
+	return ok
+}
+
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
-func NewBoltStore(l log.Logger, folder string, opts *bolt.Options) (*BoltStore, error) {
+func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (chain.Store, error) {
 	dbPath := path.Join(folder, BoltFileName)
+
+	if shouldUseTrimmedBolt(ctx, l, dbPath, opts) {
+		return newTrimmedStore(ctx, l, folder, opts)
+	}
+
 	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
 	if err != nil {
 		return nil, err
@@ -50,6 +71,36 @@ func NewBoltStore(l log.Logger, folder string, opts *bolt.Options) (*BoltStore, 
 		log: l,
 		db:  db,
 	}, err
+}
+
+func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath string, opts *bolt.Options) bool {
+	if isThisATest(ctx) {
+		return false
+	}
+
+	// New beacons stores should use the trimmed version
+	if _, err := os.Stat(sourceBeaconPath); errors.Is(err, os.ErrNotExist) {
+		return true
+	}
+
+	// Existing beacon stores should use the format that's suitable
+	existingDB, err := bolt.Open(sourceBeaconPath, BoltStoreOpenPerm, opts)
+	if err != nil {
+		l.Errorw("while trying to open existing bolt database", "err", err)
+		return true
+	}
+	defer func() {
+		_ = existingDB.Close()
+	}()
+
+	err = existingDB.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(beaconBucket)
+		_, value := bucket.Cursor().First()
+		b := chain.Beacon{}
+		return json.Unmarshal(value, &b)
+	})
+
+	return err != nil
 }
 
 // Len performs a big scan over the bucket and is _very_ slow - use sparingly!

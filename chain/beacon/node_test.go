@@ -380,12 +380,15 @@ func checkWait(t *testing.T, counter *sync.WaitGroup) {
 		counter.Wait()
 		doneCh <- true
 	}()
-	select {
-	case <-doneCh:
-		break
-	case <-time.After(30 * time.Second):
-		t.Fatal("outdated beacon time")
-	}
+	require.Conditionf(t, func() bool {
+		select {
+		case <-doneCh:
+			return true
+		case <-time.After(30 * time.Second):
+			t.Error("outdated beacon time")
+			return false
+		}
+	}, "outdated beacon time")
 }
 
 func TestBeaconSync(t *testing.T) {

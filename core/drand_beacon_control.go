@@ -404,10 +404,9 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	//  correctly or not.
 	//  Is there a better way to handle this?
 
-	//nolint:errcheck // This should be handled, see the above comment
-	go bp.StartBeacon(false)
+	err = bp.StartBeacon(false)
 
-	return finalGroup, nil
+	return finalGroup, err
 }
 
 func (bp *BeaconProcess) cleanupDKG() {
@@ -1147,7 +1146,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := bp.createDBStore()
+	store, err := bp.createDBStore(context.Background())
 	if err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)

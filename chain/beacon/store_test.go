@@ -11,17 +11,15 @@ import (
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test"
+	context2 "github.com/drand/drand/test/context"
 )
 
 func TestSchemeStore(t *testing.T) {
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(t, err)
-
 	dir := t.TempDir()
-	ctx := context.Background()
+	ctx, sch, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	l := test.Logger(t)
-	bstore, err := boltdb.NewBoltStore(l, dir, nil)
+	bstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 
 	genesisBeacon := chain.GenesisBeacon([]byte("genesis_signature"))

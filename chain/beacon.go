@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 
@@ -68,9 +69,29 @@ func (b *Beacon) String() string {
 }
 
 func shortSigStr(sig []byte) string {
+	if sig == nil {
+		return "nil"
+	}
+	if len(sig) == 0 {
+		return ""
+	}
+
 	max := 3
 	if len(sig) < max {
 		max = len(sig)
 	}
 	return hex.EncodeToString(sig[0:max])
+}
+
+type previousBeaconNeeded bool
+
+var requiresPreviousBeacon previousBeaconNeeded = true
+
+func SetPreviousRequiredOnContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, requiresPreviousBeacon, requiresPreviousBeacon)
+}
+
+func PreviousRequiredFromContext(ctx context.Context) bool {
+	_, ok := ctx.Value(requiresPreviousBeacon).(previousBeaconNeeded)
+	return ok
 }

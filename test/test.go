@@ -177,8 +177,9 @@ func StringToPoint(s string) (kyber.Point, error) {
 	return p, p.UnmarshalBinary(buff)
 }
 
-// GetBeaconIDFromEnv read beacon id from an environmental variable.
+// GetBeaconIDFromEnv read beacon id from an environment variable.
 func GetBeaconIDFromEnv() string {
 	beaconID := os.Getenv("BEACON_ID")
 	return commonutils.GetCanonicalBeaconID(beaconID)
 }
+

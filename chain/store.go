@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -80,9 +79,15 @@ func MetricsStorageType(st StorageType) int {
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
-	var buff bytes.Buffer
-	_ = binary.Write(&buff, binary.BigEndian, r)
-	return buff.Bytes()
+	//nolint:gomnd // a uint64 to bytes is 8 bytes long
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, r)
+	return key
+}
+
+// BytesToRound unserializes a round number from bytes (8 bytes fixed length big-endian) to uint64.
+func BytesToRound(r []byte) uint64 {
+	return binary.BigEndian.Uint64(r)
 }
 
 // GenesisBeacon returns the first beacon inserted in the chain

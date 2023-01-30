@@ -238,7 +238,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (bp *BeaconProcess) StartBeacon(catchup bool) error {
-	b, err := bp.newBeacon()
+	ctx := context.Background()
+	b, err := bp.newBeacon(ctx)
 	if err != nil {
 		bp.log.Errorw("", "init_beacon", err)
 		return err
@@ -271,7 +272,7 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	// the same time as the new node
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
-
+	ctx := context.Background()
 	timeToStop := bp.group.TransitionTime - 1
 
 	if !newPresent {
@@ -293,7 +294,7 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	if oldPresent {
 		bp.beacon.TransitionNewGroup(newShare, newGroup)
 	} else {
-		b, err := bp.newBeacon()
+		b, err := bp.newBeacon(ctx)
 		if err != nil {
 			bp.log.Fatalw("", "transition", "new_node", "err", err)
 		}
@@ -328,22 +329,27 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
+func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error) {
 	beaconName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 	var dbStore chain.Store
 	var err error
+
+	if bp.group != nil &&
+		bp.group.Scheme.Name == crypto.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 
 	switch bp.opts.dbStorageEngine {
 	case chain.BoltDB:
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
-		dbStore, err = boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath, bp.opts.boltOpts)
 
 	case chain.MemDB:
 		dbStore, err = memdb.NewStore(bp.opts.memDBSize), nil
 
 	case chain.PostgreSQL:
-		dbStore, err = pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
+		dbStore, err = pgdb.NewStore(ctx, bp.log, bp.opts.pgConn, beaconName)
 
 	default:
 		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
@@ -351,14 +357,14 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 
-		dbStore, err = boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath, bp.opts.boltOpts)
 	}
 
 	bp.dbStore = dbStore
 	return dbStore, err
 }
 
-func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
+func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -369,7 +375,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
 
-	store, err := bp.createDBStore()
+	store, err := bp.createDBStore(ctx)
 	if err != nil {
 		return nil, err
 	}

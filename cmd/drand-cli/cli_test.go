@@ -85,12 +85,17 @@ func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 	l := test.Logger(t)
 	ctx := context.Background()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	if sch.Name == crypto.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 	tmp := path.Join(t.TempDir(), "drand")
 
 	opt := core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
-	store, err := boltdb.NewBoltStore(l, conf.DBFolder(beaconID), conf.BoltOptions())
+	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
 	err = store.Put(ctx, &chain.Beacon{
 		Round:     1,
@@ -127,7 +132,7 @@ func TestDeleteBeacon(t *testing.T) {
 	app := CLI()
 	require.NoError(t, app.Run(args))
 
-	store, err = boltdb.NewBoltStore(l, conf.DBFolder(beaconID), conf.BoltOptions())
+	store, err = boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
