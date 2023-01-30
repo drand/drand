@@ -236,7 +236,8 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		name := name
 		tt := tt
 		t.Run(name, func(t *testing.T) {
-			got := shouldUseTrimmedBolt(tt.ctx, tt.sourceBeaconPath, nil)
+			logger := test.Logger(t)
+			got := shouldUseTrimmedBolt(tt.ctx, logger,  tt.sourceBeaconPath, nil)
 			require.Equal(t, tt.want, got)
 		})
 	}

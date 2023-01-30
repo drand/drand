@@ -53,7 +53,7 @@ func isThisATest(ctx context.Context) bool {
 func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (chain.Store, error) {
 	dbPath := path.Join(folder, BoltFileName)
 
-	if shouldUseTrimmedBolt(ctx, dbPath, opts) {
+	if shouldUseTrimmedBolt(ctx, l, dbPath, opts) {
 		return newTrimmedStore(ctx, l, folder, opts)
 	}
 
@@ -73,7 +73,7 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	}, err
 }
 
-func shouldUseTrimmedBolt(ctx context.Context, sourceBeaconPath string, opts *bolt.Options) bool {
+func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath string, opts *bolt.Options) bool {
 	if isThisATest(ctx) {
 		return false
 	}
@@ -86,6 +86,7 @@ func shouldUseTrimmedBolt(ctx context.Context, sourceBeaconPath string, opts *bo
 	// Existing beacon stores should use the format that's suitable
 	existingDB, err := bolt.Open(sourceBeaconPath, BoltStoreOpenPerm, opts)
 	if err != nil {
+		l.Errorw("while trying to open existing bolt database", "err", err)
 		return true
 	}
 	defer func() {
