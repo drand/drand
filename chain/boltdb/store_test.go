@@ -226,10 +226,10 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		sourceBeaconPath string
 		want             bool
 	}{
-		"with context set and new db":   {IsATest(context.Background()), "./testdata/trimmed.db", false},
-		"with context set and old db":   {IsATest(context.Background()), "./testdata/untrimmed.db", false},
-		"with context unset and new db": {context.Background(), "./testdata/trimmed.db", true},
-		"with context unset and old db": {context.Background(), "./testdata/untrimmed.db", false},
+		"with context set and new db":          {IsATest(context.Background()), "./testdata/trimmed.db", false},
+		"with context set and old db":          {IsATest(context.Background()), "./testdata/untrimmed.db", false},
+		"with context unset and new db":        {context.Background(), "./testdata/trimmed.db", true},
+		"with context unset and old db":        {context.Background(), "./testdata/untrimmed.db", false},
 		"with context unset and db is missing": {context.Background(), "./testdata/missing.db", true},
 	}
 	for name, tt := range tests {
@@ -237,7 +237,7 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			logger := test.Logger(t)
-			got := shouldUseTrimmedBolt(tt.ctx, logger,  tt.sourceBeaconPath, nil)
+			got := shouldUseTrimmedBolt(tt.ctx, logger, tt.sourceBeaconPath, nil)
 			require.Equal(t, tt.want, got)
 		})
 	}
