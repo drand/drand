@@ -27,9 +27,9 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 			// for the case where our node is still waiting for the chain hash to be set
 			rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
 			for id, bp := range dd.beaconProcesses {
-				bp.state.Lock()
+				bp.state.RLock()
 				group := bp.group
-				bp.state.Unlock()
+				bp.state.RUnlock()
 
 				// we only accept to proceed with an unknown chain hash if one beacon process hasn't run DKG yet
 				if id == rcvBeaconID && group == nil {
