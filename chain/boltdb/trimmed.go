@@ -104,7 +104,7 @@ func (b *trimmedStore) Last(context.Context) (*chain.Beacon, error) {
 
 // Get returns the beacon saved at this round
 func (b *trimmedStore) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
-	beacon := chain.Beacon{}
+	var beacon *chain.Beacon
 	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
 		b, err := b.getBeacon(bucket, round, true)
@@ -112,12 +112,37 @@ func (b *trimmedStore) Get(_ context.Context, round uint64) (*chain.Beacon, erro
 			return err
 		}
 
-		beacon.Round = b.Round
-		beacon.Signature = b.Signature
-		beacon.PreviousSig = b.PreviousSig
+		beacon = b
 		return nil
 	})
-	return &beacon, err
+	return beacon, err
+}
+
+func (b *trimmedStore) getBeacon(bucket *bolt.Bucket, round uint64, canFetchPrevious bool) (*chain.Beacon, error) {
+	sig := bucket.Get(chain.RoundToBytes(round))
+	if sig == nil {
+		return nil, chainerrors.ErrNoBeaconStored
+	}
+
+	beacon := chain.Beacon{
+		Round:     round,
+		Signature: make([]byte, len(sig)),
+	}
+	copy(beacon.Signature, sig)
+
+	if canFetchPrevious &&
+		b.requiresPrevious &&
+		beacon.Round > 0 {
+		prevSig := bucket.Get(chain.RoundToBytes(round - 1))
+		if prevSig == nil {
+			b.log.Errorw("missing previous beacon from database", "round", beacon.Round-1)
+			return nil, chainerrors.ErrNoBeaconStored
+		}
+		beacon.PreviousSig = make([]byte, len(prevSig))
+		copy(beacon.PreviousSig, prevSig)
+	}
+
+	return &beacon, nil
 }
 
 func (b *trimmedStore) Del(_ context.Context, round uint64) error {
@@ -189,33 +214,6 @@ func (c *trimmedBoltCursor) Last(context.Context) (*chain.Beacon, error) {
 }
 
 type beaconCursorGetter func() (key []byte, value []byte)
-
-func (b *trimmedStore) getBeacon(bucket *bolt.Bucket, round uint64, canFetchPrevious bool) (*chain.Beacon, error) {
-	sig := bucket.Get(chain.RoundToBytes(round))
-	if sig == nil {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-
-	beacon := chain.Beacon{
-		Round:     round,
-		Signature: make([]byte, len(sig)),
-	}
-	copy(beacon.Signature, sig)
-
-	if canFetchPrevious &&
-		b.requiresPrevious &&
-		beacon.Round > 0 {
-		prevSig := bucket.Get(chain.RoundToBytes(round - 1))
-		if prevSig == nil {
-			b.log.Errorw("missing previous beacon from database", "round", beacon.Round-1)
-			return nil, chainerrors.ErrNoBeaconStored
-		}
-		beacon.PreviousSig = make([]byte, len(prevSig))
-		copy(beacon.PreviousSig, prevSig)
-	}
-
-	return &beacon, nil
-}
 
 func (b *trimmedStore) getCursorBeacon(bucket *bolt.Bucket, get beaconCursorGetter) (*chain.Beacon, error) {
 	key, sig := get()
