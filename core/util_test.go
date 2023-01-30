@@ -300,7 +300,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	defer cancel()
 	done := make(chan bool) // signal we are done with the reshare before the timeout
 
-	runLeaderNode := func() error {
+	runLeaderNode := func() {
 		defer wg.Done()
 		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
 
@@ -308,13 +308,15 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 		groupPacket, err := controlClient.InitDKGLeader(
 			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.beaconID)
 		if err != nil {
-			return err
+			errDetector <- err
+			return
 		}
 
 		d.t.Log("[RunDKG] Leader obtain group")
 		group, err := key.GroupFromProto(groupPacket, nil)
 		if err != nil {
-			return err
+			errDetector <- err
+			return
 		}
 
 		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
@@ -325,7 +327,6 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 			return r.Beacon.IsRunning
 		})
 		d.t.Logf("[DEBUG] leader node %s Status: isRunning", leaderNode.GetAddr())
-		return nil
 	}
 
 	// first run the leader and then run the other nodes
