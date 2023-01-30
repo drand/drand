@@ -10,6 +10,9 @@ concurrency:
 
 jobs:
   golangci:
+    strategy:
+      matrix:
+        db_type: [ "boltdb", "memdb", "postgres" ]
     name: lint
     runs-on: ubuntu-latest
     steps:
@@ -22,14 +25,4 @@ jobs:
       uses: golangci/golangci-lint-action@v3.3.1
       with:
         version: v1.50
-        args: --timeout 5m
-    - name: golangci-lint-memdb
-      uses: golangci/golangci-lint-action@v3.3.1
-      with:
-        version: v1.50
-        args: --build-tags memdb --timeout 5m
-    - name: golangci-lint-postgres
-      uses: golangci/golangci-lint-action@v3.3.1
-      with:
-        version: v1.50
-        args: --build-tags postgres --timeout 5m
+        args: --build-tags ${{ matrix.db_type }} --timeout 5m
