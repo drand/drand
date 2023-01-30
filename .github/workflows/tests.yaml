@@ -39,8 +39,11 @@ jobs:
           make drand-relay-gossip
           make drand-relay-s3
 
-
-  test_chained:
+  test:
+    strategy:
+      matrix:
+        db_type: [ "boltdb", "memdb", "postgres" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -55,229 +58,23 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
+      - run: go get -v -t -d ${{ matrix.db_type }} ./...
       - name: Unit tests
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-unit
+          SCHEME_ID: ${{ matrix.scheme_id }}
+        run: make test-unit-${{ matrix.db_type }}
       - name: Integration tests
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-integration
-
-  test_chained-memdb:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-unit-memdb
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-integration-memdb
-
-  test_chained-postgres:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-unit-postgres
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: make test-integration-postgres
-
-  test_unchained:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-unit
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-integration
-
-  test_unchained-memdb:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-unit-memdb
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-integration-memdb
-
-  test_unchained-postgres:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-unit-postgres
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=pedersen-bls-unchained make test-integration-postgres
-
-  test_shortsigs:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-unit
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-integration
-
-  test_shortsigs-memdb:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-unit-memdb
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-integration-memdb
-
-  test_shortsigs-postgres:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-        with:
-          submodules: true
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -v -t -d ./...
-      - name: Unit tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-unit-postgres
-      - name: Integration tests
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-        run: SCHEME_ID=bls-unchained-on-g1 make test-integration-postgres
+          SCHEME_ID: ${{ matrix.scheme_id }}
+        run: make test-integration-${{ matrix.db_type }}
 
   coverage:
+    strategy:
+      matrix:
+        db_type: [ "boltdb", "memdb", "postgres" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
     runs-on: ubuntu-latest
     env:
       CI: "true"
@@ -294,51 +91,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: make coverage
+      - run: make coverage-${{ matrix.db_type }}
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-      - run: bash <(curl -s https://codecov.io/bash)
-
-  coverage-memdb:
-    runs-on: ubuntu-latest
-    env:
-      CI: "true"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: make coverage-memdb
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
-      - run: bash <(curl -s https://codecov.io/bash)
-
-  coverage-postgres:
-    runs-on: ubuntu-latest
-    env:
-      CI: "true"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: make coverage-postgres
-        env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+          SCHEME_ID: ${{ matrix.scheme_id }}
       - run: bash <(curl -s https://codecov.io/bash)
