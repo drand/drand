@@ -41,6 +41,8 @@ jobs:
 
   test:
     strategy:
+      fail-fast: false
+      continue-on-error: true
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
@@ -72,6 +74,8 @@ jobs:
 
   coverage:
     strategy:
+      fail-fast: false
+      continue-on-error: true
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]

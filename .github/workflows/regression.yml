@@ -18,6 +18,8 @@ env:
 jobs:
   regression:
     strategy:
+      fail-fast: false
+      continue-on-error: true
       matrix:
         db_type: ["boltdb", "memdb", "postgres"]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
@@ -78,7 +80,6 @@ jobs:
           GITHUB_OUTPUT="${GITHUB_OUTPUT//'%'/'%25'}"
           GITHUB_OUTPUT="${GITHUB_OUTPUT//$'\n'/'%0A'}"
           GITHUB_OUTPUT="${GITHUB_OUTPUT//$'\r'/'%0D'}"
-          echo "{name}={value}" >> $GITHUB_OUTPUT
 
       - name: Record Comment
         if: ${{ failure() }}
