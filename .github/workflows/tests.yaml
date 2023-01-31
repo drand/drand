@@ -40,13 +40,13 @@ jobs:
           make drand-relay-s3
 
   test:
+    runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
-      continue-on-error: true
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
@@ -73,13 +73,13 @@ jobs:
         run: make test-integration-${{ matrix.db_type }}
 
   coverage:
+    runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
-      continue-on-error: true
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
-    runs-on: ubuntu-latest
     env:
       CI: "true"
     steps:

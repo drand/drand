@@ -17,14 +17,14 @@ env:
 
 jobs:
   regression:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 15
     strategy:
       fail-fast: false
-      continue-on-error: true
       matrix:
         db_type: ["boltdb", "memdb", "postgres"]
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       # Deps
       - name: Install Go
