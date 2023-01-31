@@ -65,10 +65,11 @@ jobs:
         run: make build && cp drand ~/go/bin/drand-candidate
 
       # Regression test
-      - name: Run regression with BoltDB backend
-        id: regression-bolt
+      - name: Run regression with ${{ matrix.db_type }} database
+        id: regression
         env:
           SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
         run: go run ./demo/regression -db=${{ matrix.db_type }} -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
 
       # Report

@@ -65,11 +65,13 @@ jobs:
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
         run: make test-unit-${{ matrix.db_type }}
       - name: Integration tests
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
         run: make test-integration-${{ matrix.db_type }}
 
   coverage:
@@ -99,4 +101,5 @@ jobs:
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
       - run: bash <(curl -s https://codecov.io/bash)
