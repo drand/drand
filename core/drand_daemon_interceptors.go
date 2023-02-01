@@ -45,7 +45,10 @@ func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{}
 		Prerelease: prerelease,
 	}
 	if !dd.version.IsCompatible(rcvVer) {
-		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+		dd.log.Named("node_version_interceptor").Warnw(
+			"node version rcv is no compatible --> rejecting message",
+			"received", rcvVer,
+			"our node", dd.version)
 		msg := fmt.Sprintf("Incompatible node version. Current: %v, received: %v", dd.version, rcvVer)
 		return nil, status.Error(codes.PermissionDenied, msg)
 	}

@@ -29,7 +29,7 @@ func TestLocalOrchestration(t *testing.T) {
 	select {
 	case <-testFinished:
 	case <-ctx.Done():
-		t.Fatal("[DEBUG]", "Deadline reached")
+		t.Fatal("[DEBUG]", time.Now().String(), "Deadline reached")
 	}
 }
 
