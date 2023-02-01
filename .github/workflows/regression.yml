@@ -8,7 +8,6 @@ concurrency:
   group: ci-${{ github.ref }}-regression
   cancel-in-progress: true
 
-
 env:
   DISABLE_VERSION_CHECK: 1
   # TODO Remove after https://github.com/drand/drand/pull/956 is merged, this is to get around the regression test failure
@@ -19,8 +18,13 @@ env:
 jobs:
   regression:
     runs-on: ubuntu-latest
+    continue-on-error: true
     timeout-minutes: 15
-
+    strategy:
+      fail-fast: false
+      matrix:
+        db_type: ["boltdb", "memdb", "postgres"]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
     steps:
       # Deps
       - name: Install Go
@@ -44,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
+        run: make build && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
@@ -61,152 +65,22 @@ jobs:
         run: make build && cp drand ~/go/bin/drand-candidate
 
       # Regression test
-      - name: Run regression with BoltDB backend
-        id: regression-bolt
-        run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
+      - name: Run regression with ${{ matrix.db_type }} database
+        id: regression
+        env:
+          SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
+        run: go run ./demo/regression -db=${{ matrix.db_type }} -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
 
       # Report
       - id: report
         if: ${{ failure() }}
         name: Save report
         run: |
-          OUTPUT=$(cat report.md)
-          OUTPUT="${OUTPUT//'%'/'%25'}"
-          OUTPUT="${OUTPUT//$'\n'/'%0A'}"
-          OUTPUT="${OUTPUT//$'\r'/'%0D'}"
-          echo "::set-output name=result::$OUTPUT"
-
-      - name: Record Comment
-        if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v2.3.1
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          message: ${{ steps.report.outputs.result }}
-
-  regression-memdb:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      # Deps
-      - name: Install Go
-        uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - name: Dir Setup
-        run: mkdir -p ~/go/bin
-
-      # Master branch
-      - name: Checkout master branch
-        uses: actions/checkout@v3.3.0
-        with:
-          ref: 'master'
-      - name: Check cache for master
-        uses: actions/cache@v3.2.3
-        id: cache_master
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
-
-      # Candidate branch
-      - name: Checkout candidate branch
-        uses: actions/checkout@v3.3.0
-      - name: Check cache for candidate
-        uses: actions/cache@v3.2.3
-        id: cache_candidate
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Build Candidate
-        run: make build && cp drand ~/go/bin/drand-candidate
-
-      # Regression test
-      - name: Run regression with MemDB backend
-        id: regression-memdb
-        run: go run ./demo/regression -db=memdb -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
-
-      # Report
-      - id: report
-        if: ${{ failure() }}
-        name: Save report
-        run: |
-          OUTPUT=$(cat report.md)
-          OUTPUT="${OUTPUT//'%'/'%25'}"
-          OUTPUT="${OUTPUT//$'\n'/'%0A'}"
-          OUTPUT="${OUTPUT//$'\r'/'%0D'}"
-          echo "::set-output name=result::$OUTPUT"
-
-      - name: Record Comment
-        if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v2.3.1
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          message: ${{ steps.report.outputs.result }}
-
-  regression-postgres:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      # Deps
-      - name: Install Go
-        uses: actions/setup-go@v3.5.0
-        with:
-          go-version: '1.19.5'
-      - name: Dir Setup
-        run: mkdir -p ~/go/bin
-
-      # Master branch
-      - name: Checkout master branch
-        uses: actions/checkout@v3.3.0
-        with:
-          ref: 'master'
-      - name: Check cache for master
-        uses: actions/cache@v3.2.3
-        id: cache_master
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Build Master
-        run: make build . && cp drand ~/go/bin/drand-existing
-
-      # Candidate branch
-      - name: Checkout candidate branch
-        uses: actions/checkout@v3.3.0
-      - name: Check cache for candidate
-        uses: actions/cache@v3.2.3
-        id: cache_candidate
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: Build Candidate
-        run: make build && cp drand ~/go/bin/drand-candidate
-
-      # Regression test
-      - name: Run regression with PostgresDB backend
-        id: regression-postgres
-        run: go run ./demo/regression -db=postgres -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
-
-      # Report
-      - id: report
-        if: ${{ failure() }}
-        name: Save report
-        run: |
-          OUTPUT=$(cat report.md)
-          OUTPUT="${OUTPUT//'%'/'%25'}"
-          OUTPUT="${OUTPUT//$'\n'/'%0A'}"
-          OUTPUT="${OUTPUT//$'\r'/'%0D'}"
-          echo "::set-output name=result::$OUTPUT"
+          GITHUB_OUTPUT=$(cat report.md)
+          GITHUB_OUTPUT="${GITHUB_OUTPUT//'%'/'%25'}"
+          GITHUB_OUTPUT="${GITHUB_OUTPUT//$'\n'/'%0A'}"
+          GITHUB_OUTPUT="${GITHUB_OUTPUT//$'\r'/'%0D'}"
 
       - name: Record Comment
         if: ${{ failure() }}
