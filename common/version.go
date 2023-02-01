@@ -46,7 +46,12 @@ func (v Version) IsCompatible(verRcv Version) bool {
 
 	// Hardcoded the latest potential breakage of network packets.
 	// Since v1.4.0 we are now using GRPC deprecation warnings to handle network packet changes.
-	if verRcv.Major >= 1 && verRcv.Minor >= 4 {
+	switch {
+	case verRcv.Major == 1 && verRcv.Minor >= 4:
+		return true
+	case v.Major == 2 && verRcv.Major == 1 && verRcv.Minor >= 5:
+		return true
+	case v.Major > 1 && v.Major == verRcv.Major:
 		return true
 	}
 
