@@ -13,7 +13,7 @@ import (
 var version = Version{
 	Major:      1,
 	Minor:      5,
-	Patch:      0,
+	Patch:      1,
 	Prerelease: "testnet",
 }
 
@@ -44,7 +44,16 @@ func (v Version) IsCompatible(verRcv Version) bool {
 		return true
 	}
 
-	if v.Major == verRcv.Major && v.Minor == verRcv.Minor {
+	// Hardcoded the latest potential breakage of network packets.
+	// Since v1.4.0 we are now using GRPC deprecation warnings to handle network packet changes.
+	switch {
+	case v.Major == verRcv.Major && v.Minor == verRcv.Minor:
+		return true
+	case verRcv.Major == 1 && verRcv.Minor >= 4:
+		return true
+	case v.Major == 2 && verRcv.Major == 1 && verRcv.Minor >= 5:
+		return true
+	case v.Major > 1 && v.Major == verRcv.Major:
 		return true
 	}
 

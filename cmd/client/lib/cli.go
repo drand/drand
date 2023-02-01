@@ -116,7 +116,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		if err != nil {
 			info, err = chainInfoFromChainInfoJSON(groupPath)
 			if info == nil || err != nil {
-				return nil, fmt.Errorf("failed to decode group configuration (%s) : %w", groupPath, err)
+				return nil, fmt.Errorf("failed to decode group (%s) : %w", groupPath, err)
 			}
 		}
 		opts = append(opts, client.WithChainInfo(info))
