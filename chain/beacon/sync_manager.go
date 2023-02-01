@@ -368,8 +368,10 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		target = upTo
 	}
 
-	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo)
-	s.log.Debugw("sync log rate limiting", "skipping logs", commonutils.LogsToSkip)
+	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo, "Resync", isResync)
+	if target-from > commonutils.LogsToSkip {
+		s.log.Debugw("sync logging will use rate limiting", "skipping logs", commonutils.LogsToSkip)
+	}
 
 	for {
 		select {
@@ -419,7 +421,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			// TODO: fix the fact that we currently never send beacons on newSync and always restart the sync
 			// 		 when receiving new sync requests. See #1020.
 			// we let know the sync manager that we received a beacon
-			// s.newSync <- beacon
+			s.newSync <- beacon
 
 			last = beacon
 			if last.Round == upTo {
@@ -431,11 +433,6 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			// it can be the remote note that stopped the syncing or a network error with it
 			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
 			// we still go on with the other peers
-			return false
-		case <-global.Done():
-			// or a cancellation of the syncing process itself, maybe because it's stuck
-			logger.Debugw("sync canceled", "source", "global", "err?", global.Err())
-			// we stop
 			return false
 		}
 	}
