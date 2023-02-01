@@ -49,7 +49,7 @@ func (v Version) IsCompatible(verRcv Version) bool {
 	switch {
 	case v.Major == verRcv.Major && v.Minor == verRcv.Minor:
 		return true
-	case verRcv.Major == 1 && verRcv.Minor >= 4:
+	case v.Major == 1 && verRcv.Major == 1 && verRcv.Minor >= 4:
 		return true
 	case v.Major == 2 && verRcv.Major == 1 && verRcv.Minor >= 5:
 		return true

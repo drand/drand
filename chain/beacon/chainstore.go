@@ -33,7 +33,7 @@ type chainStore struct {
 	// catchupBeacons is used to notify the Handler when a node has aggregated a
 	// beacon.
 	catchupBeacons chan *chain.Beacon
-	// all beacons finally inserted into the store are sent over this cannel for
+	// all beacons finally inserted into the store are sent over this channel for
 	// the aggregation loop to know
 	beaconStoredAgg chan *chain.Beacon
 }
