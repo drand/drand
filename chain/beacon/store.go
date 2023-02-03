@@ -220,8 +220,10 @@ func (c *callbackStore) RemoveCallback(id string) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.callbacks, id)
-	close(c.newJob[id])
-	delete(c.newJob, id)
+	if _, exists := c.newJob[id]; exists {
+		close(c.newJob[id])
+		delete(c.newJob, id)
+	}
 }
 
 func (c *callbackStore) Close(ctx context.Context) error {
