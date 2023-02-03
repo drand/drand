@@ -240,6 +240,18 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	default:
 		dd.log.Infow("Stopping DrandDaemon")
 	}
+
+	dd.log.Debugw("waiting for dd.exitCh to finish")
+
+	select {
+	case dd.exitCh <- true:
+		dd.log.Debugw("signaled dd.exitCh")
+		close(dd.exitCh)
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
+	}
+
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
 		bp.Stop(ctx)
@@ -280,17 +292,6 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 			dd.log.Debugw("control stopped successfully")
 		}()
 	}()
-
-	dd.log.Debugw("waiting for dd.exitCh to finish")
-
-	select {
-	case dd.exitCh <- true:
-		dd.log.Debugw("signaled dd.exitCh")
-		close(dd.exitCh)
-	case <-ctx.Done():
-		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
-		close(dd.exitCh)
-	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations
