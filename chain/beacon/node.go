@@ -463,7 +463,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 }
 
 // AddCallback is a proxy method to register a callback on the backend store
-func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
+func (h *Handler) AddCallback(id string, fn CallbackFunc) {
 	h.chain.AddCallback(id, fn)
 }
 

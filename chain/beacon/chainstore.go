@@ -102,9 +102,10 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) Stop() {
-	c.syncm.Stop()
-	c.CallbackStore.Close(context.Background())
 	close(c.done)
+	c.syncm.Stop()
+	c.RemoveCallback("chainstore")
+	c.CallbackStore.Close(context.Background())
 }
 
 // we store partials that are up to this amount of rounds more than the last

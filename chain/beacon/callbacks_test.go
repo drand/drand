@@ -30,6 +30,7 @@ func TestStoreCallback(t *testing.T) {
 		Round: 1,
 	})
 	require.True(t, checkOne(doneCh))
+
 	cb.AddCallback(id1, func(*chain.Beacon) {})
 	cb.Put(ctx, &chain.Beacon{
 		Round: 1,

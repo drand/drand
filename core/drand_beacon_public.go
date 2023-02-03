@@ -214,7 +214,6 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	// we cannot just defer Unlock because beacon.SyncChain can run for a long time
 	bp.state.RUnlock()
 
-	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
 	return beacon.SyncChain(logger, store, req, stream)
 }
 

@@ -407,7 +407,6 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 		return nil, err
 	}
 	bp.beacon = b
-	bp.beacon.AddCallback("opts", bp.opts.callbacks)
 	// cancel any sync operations
 	if bp.syncerCancel != nil {
 		bp.syncerCancel()

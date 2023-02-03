@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -154,7 +155,6 @@ func (s *SyncManager) Run() {
 				//nolint
 				go s.Sync(ctx, request)
 			}
-
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
@@ -452,13 +452,16 @@ type SyncStream interface {
 	Send(*proto.BeaconPacket) error
 }
 
-// SyncChain holds the receiver logic to reply to a sync request
+// SyncChain holds the receiver logic to reply to a sync request, recommended timeouts are 2 or 3 times the period
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
+	id := addr + "SyncChain" + strconv.Itoa(rand.Int()) //nolint:gosec
 
 	logger := l.Named("SyncChain")
+	logger.Infow("Starting SyncChain", "for", addr)
+	defer l.Info("Stopping SyncChain", "for", id)
 
 	beaconID := beaconIDToSync(l, req, addr)
 
@@ -472,6 +475,11 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	send := func(b *chain.Beacon) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
 		err := stream.Send(packet)
@@ -516,23 +524,29 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// Register a callback to process all new incoming beacons until an error happens.
 	// The callback happens in a separate goroutine.
 	errChan := make(chan error)
-	// we only want one callback per remote node
-	id := addr + "SyncChain"
 	logger.Debugw("Attaching callback to store", "id", id)
+	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
+	// because the chan alive will stop sending on the old one
 	store.AddCallback(id, func(b *chain.Beacon) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		if err := send(b); err != nil {
-			logger.Debugw("Error while sending beacon", "syncer", "callback")
 			store.RemoveCallback(id)
+			logger.Debugw("Error while sending beacon", "callback", id)
 			errChan <- err
 		}
 	})
 
-	// Wait until the request cancels or until an error happens in the callback.
 	select {
 	case <-ctx.Done():
 		store.RemoveCallback(id)
 		return ctx.Err()
 	case err := <-errChan:
+		// the send will remove itself upon error
 		return err
 	}
 }

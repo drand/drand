@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -18,11 +17,13 @@ import (
 	"github.com/drand/drand/metrics"
 )
 
+type CallbackFunc func(*chain.Beacon)
+
 // CallbackStore is an interface that allows to register callbacks that gets
 // called each time a new beacon is inserted
 type CallbackStore interface {
 	chain.Store
-	AddCallback(id string, fn func(*chain.Beacon))
+	AddCallback(id string, fn CallbackFunc)
 	RemoveCallback(id string)
 }
 
@@ -155,13 +156,13 @@ func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
 type callbackStore struct {
 	chain.Store
 	sync.RWMutex
-	done      chan bool
-	callbacks map[string]func(*chain.Beacon)
-	newJob    chan cbPair
+	stopping  chan bool
+	callbacks map[string]CallbackFunc
+	newJob    map[string]chan cbPair
 }
 
 type cbPair struct {
-	cb func(*chain.Beacon)
+	cb CallbackFunc
 	b  *chain.Beacon
 }
 
@@ -171,11 +172,10 @@ type cbPair struct {
 func NewCallbackStore(s chain.Store) CallbackStore {
 	cbs := &callbackStore{
 		Store:     s,
-		callbacks: make(map[string]func(*chain.Beacon)),
-		newJob:    make(chan cbPair, CallbackWorkerQueue),
-		done:      make(chan bool, 1),
+		callbacks: make(map[string]CallbackFunc),
+		newJob:    make(map[string]chan cbPair),
+		stopping:  make(chan bool, 1),
 	}
-	cbs.runWorkers(runtime.NumCPU())
 	return cbs
 }
 
@@ -187,8 +187,13 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 	if b.Round != 0 {
 		c.RLock()
 		defer c.RUnlock()
-		for _, cb := range c.callbacks {
-			c.newJob <- cbPair{
+		for id, cb := range c.callbacks {
+			j, ok := c.newJob[id]
+			if !ok {
+				continue
+			}
+
+			j <- cbPair{
 				cb: cb,
 				b:  b,
 			}
@@ -198,35 +203,41 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 }
 
 // AddCallback registers a function to call
-func (c *callbackStore) AddCallback(id string, fn func(*chain.Beacon)) {
+func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
+	_, ok := c.callbacks[id]
+	if ok {
+		close(c.newJob[id])
+		delete(c.newJob, id)
+	}
 	c.callbacks[id] = fn
+	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
+	go c.runWorker(c.newJob[id])
 }
 
 func (c *callbackStore) RemoveCallback(id string) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.callbacks, id)
+	close(c.newJob[id])
+	delete(c.newJob, id)
 }
 
 func (c *callbackStore) Close(ctx context.Context) error {
-	defer close(c.done)
+	close(c.stopping)
 	return c.Store.Close(ctx)
 }
 
-func (c *callbackStore) runWorkers(n int) {
-	for i := 0; i < n; i++ {
-		go c.runWorker()
-	}
-}
-
-func (c *callbackStore) runWorker() {
+func (c *callbackStore) runWorker(jobChan chan cbPair) {
 	for {
 		select {
-		case newJob := <-c.newJob:
+		case newJob, ok := <-jobChan:
+			if !ok {
+				return
+			}
 			newJob.cb(newJob.b)
-		case <-c.done:
+		case <-c.stopping:
 			return
 		}
 	}

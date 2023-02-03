@@ -112,7 +112,6 @@ type node struct {
 	index    int // group index
 	private  *key.Pair
 	shares   *key.Share
-	callback func(*chain.Beacon)
 	handler  *Handler
 	listener net.Listener
 	clock    clock.FakeClock
@@ -210,9 +209,6 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	version := common.GetAppVersion()
 	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, logger, version)
 	checkErr(err)
-	if node.callback != nil {
-		node.handler.AddCallback(priv.Public.Address(), node.callback)
-	}
 
 	if node.handler.addr != node.private.Public.Address() {
 		panic("createNode address mismatch")
