@@ -206,8 +206,7 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
-	_, ok := c.callbacks[id]
-	if ok {
+	if _, exists := c.newJob[id]; exists {
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}
