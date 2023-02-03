@@ -3,9 +3,13 @@ package beacon
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/peer"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
@@ -13,7 +17,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	dcontext "github.com/drand/drand/test/context"
-	"github.com/stretchr/testify/require"
 )
 
 type testSyncStream struct {
@@ -66,9 +69,8 @@ func createTestCBStore(t *testing.T) CallbackStore {
 
 	for i := uint64(0); i < 10; i++ {
 		err := cb.Put(context.Background(), &chain.Beacon{
-			PreviousSig: []byte("some sig"),
-			Round:       i,
-			Signature:   []byte("some sig"),
+
+			Round: i,
 		})
 		require.NoError(t, err)
 	}
@@ -76,15 +78,41 @@ func createTestCBStore(t *testing.T) CallbackStore {
 	return cb
 }
 
+func peerCtx(t *testing.T, ctx context.Context, addr string) context.Context {
+	_, p1Addr, err := net.ParseCIDR(addr)
+	require.NoError(t, err)
+
+	p := peer.Peer{Addr: p1Addr}
+	return peer.NewContext(ctx, &p)
+}
+
+func TestSyncChainSinglePeer(t *testing.T) {
+	// t.Skip("skip testing with a single peer as context.Cancel does not produce the expected behaviors")
+	addr1 := "192.168.0.11/32"
+
+	doTest(t, addr1, addr1)
+}
+
+func TestSyncChainTwoPeers(t *testing.T) {
+	addr1 := "192.168.0.11/32"
+	addr2 := "192.168.0.12/32"
+
+	doTest(t, addr1, addr2)
+}
+
 //nolint:funlen
-func TestSyncChain(t *testing.T) {
+func doTest(t *testing.T, addr1, addr2 string) {
 	t.Run("Running once", func(t *testing.T) {
 		cb := createTestCBStore(t)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		l := test.Logger(t)
-		stream := &testSyncStream{ctx: ctx, l: l.Named("1"), counterMtx: &sync.Mutex{}, counter: 0}
+		stream := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr1),
+			l:          l.Named("1"),
+			counterMtx: &sync.Mutex{},
+		}
 		errChan := make(chan error)
 
 		go func() {
@@ -108,7 +136,11 @@ func TestSyncChain(t *testing.T) {
 		defer cancel()
 
 		l := test.Logger(t)
-		stream := &testSyncStream{ctx: ctx, l: l.Named("1"), counterMtx: &sync.Mutex{}, counter: 0}
+		stream := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr1),
+			l:          l.Named("1"),
+			counterMtx: &sync.Mutex{},
+		}
 		errChan := make(chan error)
 
 		go func() {
@@ -121,9 +153,7 @@ func TestSyncChain(t *testing.T) {
 		case <-time.After(50 * time.Millisecond):
 			for i := uint64(10); i < 15; i++ {
 				err := cb.Put(context.Background(), &chain.Beacon{
-					PreviousSig: []byte("some sig"),
-					Round:       i,
-					Signature:   []byte("some sig"),
+					Round: i,
 				})
 				require.NoError(t, err)
 			}
@@ -143,8 +173,16 @@ func TestSyncChain(t *testing.T) {
 		defer cancel()
 
 		l := test.Logger(t)
-		stream1 := &testSyncStream{ctx: ctx, l: l.Named("1"), counterMtx: &sync.Mutex{}, counter: 0}
-		stream2 := &testSyncStream{ctx: ctx, l: l.Named("2"), counterMtx: &sync.Mutex{}, counter: 0}
+		stream1 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr1),
+			l:          l.Named("1"),
+			counterMtx: &sync.Mutex{},
+		}
+		stream2 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr2),
+			l:          l.Named("2"),
+			counterMtx: &sync.Mutex{},
+		}
 
 		errChan1 := make(chan error)
 		go func() {
@@ -165,9 +203,7 @@ func TestSyncChain(t *testing.T) {
 		case <-time.After(50 * time.Millisecond):
 			for i := uint64(10); i < 17; i++ {
 				err := cb.Put(context.Background(), &chain.Beacon{
-					PreviousSig: []byte("some sig"),
-					Round:       i,
-					Signature:   []byte("some sig"),
+					Round: i,
 				})
 				require.NoError(t, err)
 			}
@@ -178,6 +214,9 @@ func TestSyncChain(t *testing.T) {
 		err := <-errChan1
 		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, 16, stream1.GetCounter())
+
+		err = <-errChan2
+		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, 16, stream2.GetCounter())
 	})
 
@@ -188,8 +227,17 @@ func TestSyncChain(t *testing.T) {
 		defer cancel()
 
 		l := test.Logger(t)
-		stream1 := &testSyncStream{ctx: ctx, l: l.Named("1"), counterMtx: &sync.Mutex{}, counter: 0, failOn: 8}
-		stream2 := &testSyncStream{ctx: ctx, l: l.Named("2"), counterMtx: &sync.Mutex{}, counter: 0}
+		stream1 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr1),
+			l:          l.Named("1"),
+			counterMtx: &sync.Mutex{},
+			failOn:     8,
+		}
+		stream2 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr2),
+			l:          l.Named("2"),
+			counterMtx: &sync.Mutex{},
+		}
 
 		errChan1 := make(chan error)
 		go func() {
@@ -212,6 +260,9 @@ func TestSyncChain(t *testing.T) {
 		err := <-errChan1
 		require.ErrorIs(t, err, errShouldFail)
 		require.Equal(t, 8, stream1.GetCounter())
+
+		err = <-errChan2
+		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, 9, stream2.GetCounter())
 	})
 
@@ -222,8 +273,17 @@ func TestSyncChain(t *testing.T) {
 		defer cancel()
 
 		l := test.Logger(t)
-		stream1 := &testSyncStream{ctx: ctx, l: l.Named("1"), counterMtx: &sync.Mutex{}, counter: 0, failOn: 13}
-		stream2 := &testSyncStream{ctx: ctx, l: l.Named("2"), counterMtx: &sync.Mutex{}, counter: 0}
+		stream1 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr1),
+			l:          l.Named("1"),
+			counterMtx: &sync.Mutex{},
+			failOn:     13,
+		}
+		stream2 := &testSyncStream{
+			ctx:        peerCtx(t, ctx, addr2),
+			l:          l.Named("2"),
+			counterMtx: &sync.Mutex{},
+		}
 
 		errChan1 := make(chan error)
 		go func() {
@@ -243,9 +303,7 @@ func TestSyncChain(t *testing.T) {
 		case <-time.After(50 * time.Millisecond):
 			for i := uint64(10); i < 17; i++ {
 				err := cb.Put(context.Background(), &chain.Beacon{
-					PreviousSig: []byte("some sig"),
-					Round:       i,
-					Signature:   []byte("some sig"),
+					Round: i,
 				})
 				require.NoError(t, err)
 				// TODO: make sure the callbacks are not able to "keep running" after being removed
@@ -254,9 +312,13 @@ func TestSyncChain(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 			cancel()
 		}
+
 		err := <-errChan1
 		require.ErrorIs(t, err, errShouldFail)
 		require.Equal(t, 13, stream1.GetCounter())
+
+		err = <-errChan2
+		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, 16, stream2.GetCounter())
 	})
 }
