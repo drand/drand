@@ -285,10 +285,10 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 		return
 	}
 
-	bp.state.RLock()
+	bp.state.Lock()
 	newGroup := bp.group
 	newShare := bp.share
-	bp.state.RUnlock()
+	bp.state.Unlock()
 
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
