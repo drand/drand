@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -416,10 +415,8 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				}
 			}
 
-			// TODO: fix the fact that we currently never send beacons on newSync and always restart the sync
-			// 		 when receiving new sync requests. See #1020.
 			// we let know the sync manager that we received a beacon
-			// s.newSync <- beacon
+			s.newSync <- beacon
 
 			last = beacon
 			if last.Round == upTo {
@@ -460,7 +457,6 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
-	id := addr + strconv.Itoa(rand.Int()) //nolint
 
 	logger := l.Named("SyncChain")
 
@@ -520,6 +516,9 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// Register a callback to process all new incoming beacons until an error happens.
 	// The callback happens in a separate goroutine.
 	errChan := make(chan error)
+	// we only want one callback per remote node
+	id := addr + "SyncChain"
+	logger.Debugw("Attaching callback to store", "id", id)
 	store.AddCallback(id, func(b *chain.Beacon) {
 		if err := send(b); err != nil {
 			logger.Debugw("Error while sending beacon", "syncer", "callback")
@@ -528,11 +527,10 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		}
 	})
 
-	defer store.RemoveCallback(id)
-
 	// Wait until the request cancels or until an error happens in the callback.
 	select {
 	case <-ctx.Done():
+		store.RemoveCallback(id)
 		return ctx.Err()
 	case err := <-errChan:
 		return err

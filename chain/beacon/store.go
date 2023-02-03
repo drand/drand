@@ -154,7 +154,7 @@ func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
 // callbackStores keeps a list of functions to notify on new beacons
 type callbackStore struct {
 	chain.Store
-	sync.Mutex
+	sync.RWMutex
 	done      chan bool
 	callbacks map[string]func(*chain.Beacon)
 	newJob    chan cbPair
@@ -185,8 +185,8 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 		return err
 	}
 	if b.Round != 0 {
-		c.Lock()
-		defer c.Unlock()
+		c.RLock()
+		defer c.RUnlock()
 		for _, cb := range c.callbacks {
 			c.newJob <- cbPair{
 				cb: cb,
