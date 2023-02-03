@@ -78,7 +78,7 @@ func createTestCBStore(t *testing.T) CallbackStore {
 	return cb
 }
 
-func peerCtx(t *testing.T, ctx context.Context, addr string) context.Context {
+func peerCtx(ctx context.Context, t *testing.T, addr string) context.Context {
 	_, p1Addr, err := net.ParseCIDR(addr)
 	require.NoError(t, err)
 
@@ -87,7 +87,6 @@ func peerCtx(t *testing.T, ctx context.Context, addr string) context.Context {
 }
 
 func TestSyncChainSinglePeer(t *testing.T) {
-	// t.Skip("skip testing with a single peer as context.Cancel does not produce the expected behaviors")
 	addr1 := "192.168.0.11/32"
 
 	doTest(t, addr1, addr1)
@@ -100,7 +99,7 @@ func TestSyncChainTwoPeers(t *testing.T) {
 	doTest(t, addr1, addr2)
 }
 
-//nolint:funlen
+//nolint:funlen,maintidx
 func doTest(t *testing.T, addr1, addr2 string) {
 	t.Run("Running once", func(t *testing.T) {
 		cb := createTestCBStore(t)
@@ -109,7 +108,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 
 		l := test.Logger(t)
 		stream := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr1),
+			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
 			counterMtx: &sync.Mutex{},
 		}
@@ -137,7 +136,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 
 		l := test.Logger(t)
 		stream := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr1),
+			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
 			counterMtx: &sync.Mutex{},
 		}
@@ -174,12 +173,12 @@ func doTest(t *testing.T, addr1, addr2 string) {
 
 		l := test.Logger(t)
 		stream1 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr1),
+			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
 			counterMtx: &sync.Mutex{},
 		}
 		stream2 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr2),
+			ctx:        peerCtx(ctx, t, addr2),
 			l:          l.Named("2"),
 			counterMtx: &sync.Mutex{},
 		}
@@ -196,8 +195,6 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		}()
 
 		select {
-		case err := <-errChan1:
-			require.NoError(t, err)
 		case err := <-errChan2:
 			require.NoError(t, err)
 		case <-time.After(50 * time.Millisecond):
@@ -212,15 +209,31 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		}
 
 		err := <-errChan1
-		require.ErrorIs(t, err, context.Canceled)
-		require.Equal(t, 16, stream1.GetCounter())
+		// Here we expect all peers to complete the full sync.
+		// However, when we test a single peer exclusively, the following events will happen:
+		// - the first stream will start consuming everything as soon as possible, meaning all values
+		// - the second stream joins, replacing the first stream, consuming everything as soon as possible
+		// - then, we start producing new value for beacons
+		// - because the first stream was replaced by the second one, we won't receive any new values.
+		//
+		// This is the correct/expected behavior.
+		if addr1 == addr2 {
+			require.ErrorIs(t, err, ErrCallbackReplaced)
+		} else {
+			require.ErrorIs(t, err, context.Canceled)
+		}
+		expected := 16
+		if addr1 == addr2 {
+			expected = 9
+		}
+		require.Equal(t, expected, stream1.GetCounter())
 
 		err = <-errChan2
 		require.ErrorIs(t, err, context.Canceled)
 		require.Equal(t, 16, stream2.GetCounter())
 	})
 
-	t.Run("Running concurrently one stream fails", func(t *testing.T) {
+	t.Run("Running concurrently one stream fails with no new values produced", func(t *testing.T) {
 		cb := createTestCBStore(t)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -228,13 +241,13 @@ func doTest(t *testing.T, addr1, addr2 string) {
 
 		l := test.Logger(t)
 		stream1 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr1),
+			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
 			counterMtx: &sync.Mutex{},
 			failOn:     8,
 		}
 		stream2 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr2),
+			ctx:        peerCtx(ctx, t, addr2),
 			l:          l.Named("2"),
 			counterMtx: &sync.Mutex{},
 		}
@@ -274,13 +287,13 @@ func doTest(t *testing.T, addr1, addr2 string) {
 
 		l := test.Logger(t)
 		stream1 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr1),
+			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
 			counterMtx: &sync.Mutex{},
 			failOn:     13,
 		}
 		stream2 := &testSyncStream{
-			ctx:        peerCtx(t, ctx, addr2),
+			ctx:        peerCtx(ctx, t, addr2),
 			l:          l.Named("2"),
 			counterMtx: &sync.Mutex{},
 		}
@@ -314,8 +327,25 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		}
 
 		err := <-errChan1
-		require.ErrorIs(t, err, errShouldFail)
-		require.Equal(t, 13, stream1.GetCounter())
+		// Here we expect all peers to complete the full sync.
+		// However, when we test a single peer exclusively, the following events will happen:
+		// - the first stream will start consuming everything as soon as possible, meaning all values
+		// - the second stream joins, replacing the first stream, consuming everything as soon as possible
+		// - then, we start producing new value for beacons
+		// - because the first stream was replaced by the second one, we won't receive any new values.
+		//
+		// This is the correct/expected behavior.
+		if addr1 == addr2 {
+			require.ErrorIs(t, err, ErrCallbackReplaced)
+		} else {
+			require.ErrorIs(t, err, errShouldFail)
+		}
+
+		expected := 13
+		if addr1 == addr2 {
+			expected = 9
+		}
+		require.Equal(t, expected, stream1.GetCounter())
 
 		err = <-errChan2
 		require.ErrorIs(t, err, context.Canceled)

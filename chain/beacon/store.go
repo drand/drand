@@ -17,7 +17,8 @@ import (
 	"github.com/drand/drand/metrics"
 )
 
-type CallbackFunc func(*chain.Beacon)
+// CallbackFunc defines the callback type that's accepted by CallbackStore
+type CallbackFunc func(b *chain.Beacon, closing bool)
 
 // CallbackStore is an interface that allows to register callbacks that gets
 // called each time a new beacon is inserted
@@ -162,8 +163,9 @@ type callbackStore struct {
 }
 
 type cbPair struct {
-	cb CallbackFunc
-	b  *chain.Beacon
+	cb    CallbackFunc
+	b     *chain.Beacon
+	close bool
 }
 
 // NewCallbackStore returns a Store that uses a pool of worker to dispatch the
@@ -207,9 +209,15 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
 	if _, exists := c.newJob[id]; exists {
+		c.newJob[id] <- cbPair{
+			cb:    c.callbacks[id],
+			b:     nil,
+			close: true, // Signal we close this job
+		}
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}
+
 	c.callbacks[id] = fn
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
 	go c.runWorker(c.newJob[id])
@@ -237,7 +245,7 @@ func (c *callbackStore) runWorker(jobChan chan cbPair) {
 			if !ok {
 				return
 			}
-			newJob.cb(newJob.b)
+			newJob.cb(newJob.b, newJob.close)
 		case <-c.stopping:
 			return
 		}

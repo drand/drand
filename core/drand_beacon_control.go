@@ -1340,7 +1340,7 @@ func sendProgressCallback(
 	info *chain.Info,
 	clk clock.Clock,
 	l log.Logger,
-) (cb func(b *chain.Beacon), done chan struct{}) {
+) (cb beacon.CallbackFunc, done chan struct{}) {
 	logger := l.Named("progressCb")
 	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
@@ -1349,7 +1349,11 @@ func sendProgressCallback(
 
 	var plainProgressCb func(a, b uint64)
 	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
-	cb = func(b *chain.Beacon) {
+	cb = func(b *chain.Beacon, closing bool) {
+		if closing {
+			return
+		}
+
 		plainProgressCb(b.Round, targ)
 	}
 

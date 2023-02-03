@@ -451,7 +451,12 @@ type SyncStream interface {
 	Send(*proto.BeaconPacket) error
 }
 
+// ErrCallbackReplaced flags when the callback was replaced for the caller node with a newer callback
+var ErrCallbackReplaced = errors.New("callback replaced")
+
 // SyncChain holds the receiver logic to reply to a sync request, recommended timeouts are 2 or 3 times the period
+//
+//nolint:funlen,gocyclo // This has the right length
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
@@ -524,13 +529,20 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// The callback happens in a separate goroutine.
 	errChan := make(chan error)
 	logger.Debugw("Attaching callback to store", "id", id)
+
 	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
 	// because the chan alive will stop sending on the old one
-	store.AddCallback(id, func(b *chain.Beacon) {
+	store.AddCallback(id, func(b *chain.Beacon, closing bool) {
 		select {
 		case <-ctx.Done():
 			return
 		default:
+		}
+
+		if closing {
+			errChan <- ErrCallbackReplaced
+			logger.Debugw("callback replaced", "err", ErrCallbackReplaced)
+			return
 		}
 
 		if err := send(b); err != nil {

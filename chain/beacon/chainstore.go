@@ -86,7 +86,10 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 	}
 	// we add callbacks to notify each time a final beacon is stored on the
 	// database so to update the latest view
-	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
+	cbs.AddCallback("chainstore", func(b *chain.Beacon, closing bool) {
+		if closing {
+			return
+		}
 		cs.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there

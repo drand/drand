@@ -399,8 +399,12 @@ func TestBeaconSync(t *testing.T) {
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
+	myCallBack := func(i int) CallbackFunc {
+		return func(b *chain.Beacon, closing bool) {
+			if closing {
+				return
+			}
+
 			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 			require.NoError(t, err)
 
@@ -476,7 +480,11 @@ func TestBeaconSimple(t *testing.T) {
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
-	myCallBack := func(b *chain.Beacon) {
+	myCallBack := func(b *chain.Beacon, closing bool) {
+		if closing {
+			return
+		}
+
 		// verify partial sig
 		err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 		require.NoError(t, err)
@@ -534,8 +542,12 @@ func TestBeaconThreshold(t *testing.T) {
 
 	currentRound := uint64(0)
 	var counter sync.WaitGroup
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
+	myCallBack := func(i int) CallbackFunc {
+		return func(b *chain.Beacon, closing bool) {
+			if closing {
+				return
+			}
+
 			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
 			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
@@ -639,7 +651,7 @@ func (t TestSyncRequest) GetMetadata() *pbCommon.Metadata {
 	return t.metadata
 }
 
-func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
+func (b *BeaconTest) CallbackFor(i int, fn CallbackFunc) {
 	j := b.searchNode(i)
 	b.nodes[j].handler.AddCallback(b.nodes[j].private.Public.Address(), fn)
 }

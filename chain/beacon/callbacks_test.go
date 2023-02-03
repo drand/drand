@@ -22,7 +22,10 @@ func TestStoreCallback(t *testing.T) {
 	cb := NewCallbackStore(bbstore)
 	id1 := "superid"
 	doneCh := make(chan bool, 1)
-	cb.AddCallback(id1, func(b *chain.Beacon) {
+	cb.AddCallback(id1, func(b *chain.Beacon, closing bool) {
+		if closing {
+			return
+		}
 		doneCh <- true
 	})
 
@@ -31,7 +34,7 @@ func TestStoreCallback(t *testing.T) {
 	})
 	require.True(t, checkOne(doneCh))
 
-	cb.AddCallback(id1, func(*chain.Beacon) {})
+	cb.AddCallback(id1, func(*chain.Beacon, bool) {})
 	cb.Put(ctx, &chain.Beacon{
 		Round: 1,
 	})

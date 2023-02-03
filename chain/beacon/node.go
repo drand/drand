@@ -250,8 +250,9 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
-	h.chain.AddCallback("transition", func(b *chain.Beacon) {
-		if b.Round < targetRound {
+	h.chain.AddCallback("transition", func(b *chain.Beacon, closing bool) {
+		if closing ||
+			b.Round < targetRound {
 			return
 		}
 		h.crypto.SetInfo(newGroup, newShare)
