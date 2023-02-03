@@ -69,6 +69,13 @@ func (s *Scheme) VerifyBeacon(b signedBeacon, pubkey kyber.Point) error {
 	return s.ThresholdScheme.VerifyRecovered(pubkey, s.DigestBeacon(b), b.GetSignature())
 }
 
+func (s *Scheme) String() string {
+	if s != nil {
+		return s.Name
+	}
+	return ""
+}
+
 type schnorrSuite struct {
 	kyber.Group
 }
