@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -457,7 +456,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
-	id := addr + "SyncChain" + strconv.Itoa(rand.Int()) //nolint:gosec
+	id := addr + "SyncChain"
 
 	logger := l.Named("SyncChain")
 	logger.Infow("Starting SyncChain", "for", addr)
