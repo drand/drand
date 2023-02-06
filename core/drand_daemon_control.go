@@ -240,6 +240,18 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	default:
 		dd.log.Infow("Stopping DrandDaemon")
 	}
+
+	dd.log.Debugw("waiting for dd.exitCh to finish")
+
+	select {
+	case dd.exitCh <- true:
+		dd.log.Debugw("signaled dd.exitCh")
+		close(dd.exitCh)
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
+	}
+
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
 		bp.Stop(ctx)
@@ -268,29 +280,16 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	}
 	dd.privGateway.StopAll(ctx)
 	dd.log.Debugw("privGateway stopped successfully")
-	// we defer the stop of the ControlListener to avoid canceling our context already
-	defer func() {
-		// We launch this in a goroutine to allow the stop connection to exit successfully.
-		// If we wouldn't launch it in a goroutine the Stop call itself would block the shutdown
-		// procedure and we'd be in a loop.
-		// By default, the Stop call will try to terminate all connections nicely.
-		// However, after a timeout, it will forcefully close all connections and terminate.
-		go func() {
-			dd.control.Stop()
-			dd.log.Debugw("control stopped successfully")
-		}()
+
+	// We launch this in a goroutine to allow the stop connection to exit successfully.
+	// If we wouldn't launch it in a goroutine the Stop call itself would block the shutdown
+	// procedure and we'd be in a loop.
+	// By default, the Stop call will try to terminate all connections nicely.
+	// However, after a timeout, it will forcefully close all connections and terminate.
+	go func() {
+		dd.control.Stop()
+		dd.log.Debugw("control stopped successfully")
 	}()
-
-	dd.log.Debugw("waiting for dd.exitCh to finish")
-
-	select {
-	case dd.exitCh <- true:
-		dd.log.Debugw("signaled dd.exitCh")
-		close(dd.exitCh)
-	case <-ctx.Done():
-		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
-		close(dd.exitCh)
-	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations

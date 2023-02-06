@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -128,6 +127,10 @@ func (s *SyncManager) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	for {
 		select {
+		case <-s.done:
+			s.log.Infow("", "sync_manager", "exits")
+			cancel()
+			return
 		case request := <-s.newReq:
 			// check if the request is still valid
 			last, err := s.store.Last(ctx)
@@ -155,14 +158,9 @@ func (s *SyncManager) Run() {
 				//nolint
 				go s.Sync(ctx, request)
 			}
-
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
-		case <-s.done:
-			s.log.Infow("", "sync_manager", "exits")
-			cancel()
-			return
 		}
 	}
 }
@@ -373,6 +371,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	for {
 		select {
+		// if global is Done, then so is cnode
+		case <-cnode.Done():
+			// it can be the remote note that stopped the syncing or a network error with it
+			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
+			// we still go on with the other peers
+			return false
 		case beaconPacket, ok := <-beaconCh:
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -416,10 +420,8 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				}
 			}
 
-			// TODO: fix the fact that we currently never send beacons on newSync and always restart the sync
-			// 		 when receiving new sync requests. See #1020.
 			// we let know the sync manager that we received a beacon
-			// s.newSync <- beacon
+			s.newSync <- beacon
 
 			last = beacon
 			if last.Round == upTo {
@@ -427,16 +429,6 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return true
 			}
 			// else, we keep waiting for the next beacons
-		case <-cnode.Done():
-			// it can be the remote note that stopped the syncing or a network error with it
-			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
-			// we still go on with the other peers
-			return false
-		case <-global.Done():
-			// or a cancellation of the syncing process itself, maybe because it's stuck
-			logger.Debugw("sync canceled", "source", "global", "err?", global.Err())
-			// we stop
-			return false
 		}
 	}
 }
@@ -455,14 +447,21 @@ type SyncStream interface {
 	Send(*proto.BeaconPacket) error
 }
 
-// SyncChain holds the receiver logic to reply to a sync request
+// ErrCallbackReplaced flags when the callback was replaced for the caller node with a newer callback
+var ErrCallbackReplaced = errors.New("callback replaced")
+
+// SyncChain holds the receiver logic to reply to a sync request, recommended timeouts are 2 or 3 times the period
+//
+//nolint:funlen,gocyclo // This has the right length
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
-	id := addr + strconv.Itoa(rand.Int()) //nolint
+	id := addr + "SyncChain"
 
 	logger := l.Named("SyncChain")
+	logger.Infow("Starting SyncChain", "for", addr)
+	defer l.Info("Stopping SyncChain", "for", id)
 
 	beaconID := beaconIDToSync(l, req, addr)
 
@@ -476,6 +475,11 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	send := func(b *chain.Beacon) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
 		err := stream.Send(packet)
@@ -520,21 +524,36 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// Register a callback to process all new incoming beacons until an error happens.
 	// The callback happens in a separate goroutine.
 	errChan := make(chan error)
-	store.AddCallback(id, func(b *chain.Beacon) {
+	logger.Debugw("Attaching callback to store", "id", id)
+
+	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
+	// because the chan alive will stop sending on the old one
+	store.AddCallback(id, func(b *chain.Beacon, closed bool) {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if closed {
+			errChan <- ErrCallbackReplaced
+			logger.Debugw("callback replaced", "err", ErrCallbackReplaced)
+			return
+		}
+
 		if err := send(b); err != nil {
-			logger.Debugw("Error while sending beacon", "syncer", "callback")
 			store.RemoveCallback(id)
+			logger.Debugw("Error while sending beacon", "callback", id)
 			errChan <- err
 		}
 	})
 
-	defer store.RemoveCallback(id)
-
-	// Wait until the request cancels or until an error happens in the callback.
 	select {
 	case <-ctx.Done():
+		store.RemoveCallback(id)
 		return ctx.Err()
 	case err := <-errChan:
+		// the send will remove itself upon error
 		return err
 	}
 }

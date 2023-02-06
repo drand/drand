@@ -335,6 +335,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 
 	reader, user := extractEntropy(randomness)
 	sch := bp.priv.Scheme()
+	bp.log.Debugw("Starting runDKG", "scheme", sch)
 	config := &dkg.Config{
 		Suite:          sch.KeyGroup.(dkg.Suite),
 		NewNodes:       group.DKGNodes(),
@@ -1340,7 +1341,7 @@ func sendProgressCallback(
 	info *chain.Info,
 	clk clock.Clock,
 	l log.Logger,
-) (cb func(b *chain.Beacon), done chan struct{}) {
+) (cb beacon.CallbackFunc, done chan struct{}) {
 	logger := l.Named("progressCb")
 	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
@@ -1349,7 +1350,11 @@ func sendProgressCallback(
 
 	var plainProgressCb func(a, b uint64)
 	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
-	cb = func(b *chain.Beacon) {
+	cb = func(b *chain.Beacon, closed bool) {
+		if closed {
+			return
+		}
+
 		plainProgressCb(b.Round, targ)
 	}
 

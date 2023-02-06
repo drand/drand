@@ -38,7 +38,6 @@ type Config struct {
 	pgDSN             string
 	pgConn            *sqlx.DB
 	memDBSize         int
-	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
 	keyPath           string
@@ -118,12 +117,6 @@ func (d *Config) ControlPort() string {
 // Logger returns the logger associated with this config.
 func (d *Config) Logger() log.Logger {
 	return d.logger
-}
-
-func (d *Config) callbacks(b *chain.Beacon) {
-	for _, fn := range d.beaconCbs {
-		fn(b)
-	}
 }
 
 func (d *Config) applyDkgCallback(share *key.Share, group *key.Group) {
@@ -221,22 +214,6 @@ func WithMemDBSize(bufferSize int) ConfigOption {
 func WithConfigFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.configFolder = folder
-	}
-}
-
-// WithBeaconCallback sets a function that is called each time a new random
-// beacon is generated.
-func WithBeaconCallback(fn func(*chain.Beacon)) ConfigOption {
-	return func(d *Config) {
-		d.beaconCbs = append(d.beaconCbs, fn)
-	}
-}
-
-// WithDKGCallback sets a function that is called when the DKG finishes. It
-// passes in the share of this node and the distributed public key generated.
-func WithDKGCallback(fn func(*key.Share, *key.Group)) ConfigOption {
-	return func(d *Config) {
-		d.dkgCallback = fn
 	}
 }
 

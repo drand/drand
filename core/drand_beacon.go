@@ -314,7 +314,7 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	default:
 		bp.log.Debugw("Stopping BeaconProcess", "id", bp.getBeaconID())
 	}
-	bp.StopBeacon()
+
 	// we wait until we can send on the channel or the context got canceled
 	select {
 	case bp.exitCh <- true:
@@ -322,6 +322,8 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	case <-ctx.Done():
 		bp.log.Warnw("Context canceled, BeaconProcess exitCh probably blocked")
 	}
+
+	bp.StopBeacon()
 }
 
 // WaitExit returns a channel that signals when drand stops its operations
@@ -407,7 +409,6 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 		return nil, err
 	}
 	bp.beacon = b
-	bp.beacon.AddCallback("opts", bp.opts.callbacks)
 	// cancel any sync operations
 	if bp.syncerCancel != nil {
 		bp.syncerCancel()

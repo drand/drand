@@ -250,8 +250,9 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
-	h.chain.AddCallback("transition", func(b *chain.Beacon) {
-		if b.Round < targetRound {
+	h.chain.AddCallback("transition", func(b *chain.Beacon, closed bool) {
+		if closed ||
+			b.Round < targetRound {
 			return
 		}
 		h.crypto.SetInfo(newGroup, newShare)
@@ -312,6 +313,9 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
+		case <-h.close:
+			h.l.Debugw("", "beacon_loop", "finished")
+			return
 		case current = <-chanTick:
 
 			setRunning.Do(func() {
@@ -369,9 +373,6 @@ func (h *Handler) run(startTime int64) {
 					"current round", current.round,
 				)
 			}
-		case <-h.close:
-			h.l.Debugw("", "beacon_loop", "finished")
-			return
 		}
 	}
 }
@@ -469,7 +470,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 }
 
 // AddCallback is a proxy method to register a callback on the backend store
-func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
+func (h *Handler) AddCallback(id string, fn CallbackFunc) {
 	h.chain.AddCallback(id, fn)
 }
 

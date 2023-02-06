@@ -112,7 +112,6 @@ type node struct {
 	index    int // group index
 	private  *key.Pair
 	shares   *key.Share
-	callback func(*chain.Beacon)
 	handler  *Handler
 	listener net.Listener
 	clock    clock.FakeClock
@@ -210,9 +209,6 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	version := common.GetAppVersion()
 	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, logger, version)
 	checkErr(err)
-	if node.callback != nil {
-		node.handler.AddCallback(priv.Public.Address(), node.callback)
-	}
 
 	if node.handler.addr != node.private.Public.Address() {
 		panic("createNode address mismatch")
@@ -403,8 +399,12 @@ func TestBeaconSync(t *testing.T) {
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
+	myCallBack := func(i int) CallbackFunc {
+		return func(b *chain.Beacon, closed bool) {
+			if closed {
+				return
+			}
+
 			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 			require.NoError(t, err)
 
@@ -480,7 +480,11 @@ func TestBeaconSimple(t *testing.T) {
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
-	myCallBack := func(b *chain.Beacon) {
+	myCallBack := func(b *chain.Beacon, closed bool) {
+		if closed {
+			return
+		}
+
 		// verify partial sig
 		err := bt.scheme.VerifyBeacon(b, bt.dpublic)
 		require.NoError(t, err)
@@ -538,8 +542,12 @@ func TestBeaconThreshold(t *testing.T) {
 
 	currentRound := uint64(0)
 	var counter sync.WaitGroup
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
+	myCallBack := func(i int) CallbackFunc {
+		return func(b *chain.Beacon, closed bool) {
+			if closed {
+				return
+			}
+
 			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
 			err := bt.scheme.VerifyBeacon(b, bt.dpublic)
@@ -643,7 +651,7 @@ func (t TestSyncRequest) GetMetadata() *pbCommon.Metadata {
 	return t.metadata
 }
 
-func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
+func (b *BeaconTest) CallbackFor(i int, fn CallbackFunc) {
 	j := b.searchNode(i)
 	b.nodes[j].handler.AddCallback(b.nodes[j].private.Public.Address(), fn)
 }

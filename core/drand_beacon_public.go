@@ -23,8 +23,10 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 
 	if bp.dkgInfo == nil {
 		bp.state.Unlock()
-		// TODO: make sure the DKG refactor removes this racy Broadcast issue
-		bp.opts.clock.Sleep(time.Millisecond)
+		// TODO: make sure the DKG refactor removes this racy Broadcast issue.
+		// We do want to use time.Sleep and not the fakeClock here, since this is a workaround for
+		// the locking vs packet arrival happening concurrently
+		time.Sleep(time.Millisecond)
 		bp.state.Lock()
 		if bp.dkgInfo == nil {
 			return nil, fmt.Errorf("drand: no dkg running and yet received a DKGPacket for beacon %s from node %s", bp.beaconID, addr)
@@ -214,7 +216,6 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	// we cannot just defer Unlock because beacon.SyncChain can run for a long time
 	bp.state.RUnlock()
 
-	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
 	return beacon.SyncChain(logger, store, req, stream)
 }
 

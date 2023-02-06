@@ -86,7 +86,10 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 	}
 	// we add callbacks to notify each time a final beacon is stored on the
 	// database so to update the latest view
-	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
+	cbs.AddCallback("chainstore", func(b *chain.Beacon, closed bool) {
+		if closed {
+			return
+		}
 		cs.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there
@@ -102,9 +105,10 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) Stop() {
-	c.syncm.Stop()
-	c.CallbackStore.Close(context.Background())
 	close(c.done)
+	c.syncm.Stop()
+	c.RemoveCallback("chainstore")
+	c.CallbackStore.Close(context.Background())
 }
 
 // we store partials that are up to this amount of rounds more than the last
