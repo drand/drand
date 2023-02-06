@@ -362,6 +362,12 @@ func (h *Handler) run(startTime int64) {
 						"last_is", latest.Round)
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
+			} else {
+				h.l.Warnw(
+					"tried catching up, but catchup beacons were newer than the current round",
+					"catchup round", b.Round,
+					"current round", current.round,
+				)
 			}
 		case <-h.close:
 			h.l.Debugw("", "beacon_loop", "finished")
