@@ -1349,8 +1349,8 @@ func sendProgressCallback(
 
 	var plainProgressCb func(a, b uint64)
 	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
-	cb = func(b *chain.Beacon, closing bool) {
-		if closing {
+	cb = func(b *chain.Beacon, closed bool) {
+		if closed {
 			return
 		}
 

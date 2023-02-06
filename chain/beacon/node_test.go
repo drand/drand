@@ -400,8 +400,8 @@ func TestBeaconSync(t *testing.T) {
 
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) CallbackFunc {
-		return func(b *chain.Beacon, closing bool) {
-			if closing {
+		return func(b *chain.Beacon, closed bool) {
+			if closed {
 				return
 			}
 
@@ -480,8 +480,8 @@ func TestBeaconSimple(t *testing.T) {
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
-	myCallBack := func(b *chain.Beacon, closing bool) {
-		if closing {
+	myCallBack := func(b *chain.Beacon, closed bool) {
+		if closed {
 			return
 		}
 
@@ -543,8 +543,8 @@ func TestBeaconThreshold(t *testing.T) {
 	currentRound := uint64(0)
 	var counter sync.WaitGroup
 	myCallBack := func(i int) CallbackFunc {
-		return func(b *chain.Beacon, closing bool) {
-			if closing {
+		return func(b *chain.Beacon, closed bool) {
+			if closed {
 				return
 			}
 

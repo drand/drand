@@ -250,8 +250,8 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
-	h.chain.AddCallback("transition", func(b *chain.Beacon, closing bool) {
-		if closing ||
+	h.chain.AddCallback("transition", func(b *chain.Beacon, closed bool) {
+		if closed ||
 			b.Round < targetRound {
 			return
 		}
@@ -313,6 +313,9 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
+		case <-h.close:
+			h.l.Debugw("", "beacon_loop", "finished")
+			return
 		case current = <-chanTick:
 
 			setRunning.Do(func() {
@@ -364,9 +367,6 @@ func (h *Handler) run(startTime int64) {
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
 			}
-		case <-h.close:
-			h.l.Debugw("", "beacon_loop", "finished")
-			return
 		}
 	}
 }

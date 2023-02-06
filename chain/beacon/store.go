@@ -18,7 +18,7 @@ import (
 )
 
 // CallbackFunc defines the callback type that's accepted by CallbackStore
-type CallbackFunc func(b *chain.Beacon, closing bool)
+type CallbackFunc func(b *chain.Beacon, closed bool)
 
 // CallbackStore is an interface that allows to register callbacks that gets
 // called each time a new beacon is inserted
@@ -208,13 +208,13 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
-	if _, exists := c.newJob[id]; exists {
-		c.newJob[id] <- cbPair{
+	if jobChan, exists := c.newJob[id]; exists {
+		jobChan <- cbPair{
 			cb:    c.callbacks[id],
 			b:     nil,
 			close: true, // Signal we close this job
 		}
-		close(c.newJob[id])
+		close(jobChan)
 		delete(c.newJob, id)
 	}
 
@@ -241,13 +241,13 @@ func (c *callbackStore) Close(ctx context.Context) error {
 func (c *callbackStore) runWorker(jobChan chan cbPair) {
 	for {
 		select {
+		case <-c.stopping:
+			return
 		case newJob, ok := <-jobChan:
 			if !ok {
 				return
 			}
 			newJob.cb(newJob.b, newJob.close)
-		case <-c.stopping:
-			return
 		}
 	}
 }

@@ -127,6 +127,10 @@ func (s *SyncManager) Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	for {
 		select {
+		case <-s.done:
+			s.log.Infow("", "sync_manager", "exits")
+			cancel()
+			return
 		case request := <-s.newReq:
 			// check if the request is still valid
 			last, err := s.store.Last(ctx)
@@ -157,10 +161,6 @@ func (s *SyncManager) Run() {
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
-		case <-s.done:
-			s.log.Infow("", "sync_manager", "exits")
-			cancel()
-			return
 		}
 	}
 }
@@ -371,6 +371,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	for {
 		select {
+		// if global is Done, then so is cnode
+		case <-cnode.Done():
+			// it can be the remote note that stopped the syncing or a network error with it
+			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
+			// we still go on with the other peers
+			return false
 		case beaconPacket, ok := <-beaconCh:
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -423,16 +429,6 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return true
 			}
 			// else, we keep waiting for the next beacons
-		case <-cnode.Done():
-			// it can be the remote note that stopped the syncing or a network error with it
-			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
-			// we still go on with the other peers
-			return false
-		case <-global.Done():
-			// or a cancellation of the syncing process itself, maybe because it's stuck
-			logger.Debugw("sync canceled", "source", "global", "err?", global.Err())
-			// we stop
-			return false
 		}
 	}
 }
@@ -532,14 +528,14 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
 	// because the chan alive will stop sending on the old one
-	store.AddCallback(id, func(b *chain.Beacon, closing bool) {
+	store.AddCallback(id, func(b *chain.Beacon, closed bool) {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		if closing {
+		if closed {
 			errChan <- ErrCallbackReplaced
 			logger.Debugw("callback replaced", "err", ErrCallbackReplaced)
 			return
