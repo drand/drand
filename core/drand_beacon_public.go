@@ -23,8 +23,10 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 
 	if bp.dkgInfo == nil {
 		bp.state.Unlock()
-		// TODO: make sure the DKG refactor removes this racy Broadcast issue
-		bp.opts.clock.Sleep(time.Millisecond)
+		// TODO: make sure the DKG refactor removes this racy Broadcast issue.
+		// We do want to use time.Sleep and not the fakeClock here, since this is a workaround for
+		// the locking vs packet arrival happening concurrently
+		time.Sleep(time.Millisecond)
 		bp.state.Lock()
 		if bp.dkgInfo == nil {
 			return nil, fmt.Errorf("drand: no dkg running and yet received a DKGPacket for beacon %s from node %s", bp.beaconID, addr)

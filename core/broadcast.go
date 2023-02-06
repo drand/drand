@@ -133,7 +133,7 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 		return nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "err", err)
+		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "scheme", b.scheme, "err", err)
 		return errors.New("invalid DKGPacket")
 	}
 

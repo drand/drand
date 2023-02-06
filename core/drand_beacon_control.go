@@ -335,6 +335,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 
 	reader, user := extractEntropy(randomness)
 	sch := bp.priv.Scheme()
+	bp.log.Debugw("Starting runDKG", "scheme", sch)
 	config := &dkg.Config{
 		Suite:          sch.KeyGroup.(dkg.Suite),
 		NewNodes:       group.DKGNodes(),
