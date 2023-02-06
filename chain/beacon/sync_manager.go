@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -456,11 +455,10 @@ type SyncStream interface {
 }
 
 // SyncChain holds the receiver logic to reply to a sync request
-func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
+func SyncChain(l log.Logger, store WatchStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
 	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
-	id := addr + strconv.Itoa(rand.Int()) //nolint
 
 	logger := l.Named("SyncChain")
 
@@ -484,58 +482,27 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		}
 		return err
 	}
-
-	// we know that last.Round >= fromRound from the above if
-	if fromRound != 0 {
-		// TODO (dlsniper): During the loop below, we can receive new data
-		//  which may not be observed as the callback is added after the loop ends.
-		//  Investigate if how the storage view updates while the cursor runs.
-
-		// first sync up from the store itself
-		err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
-			bb, err := c.Seek(ctx, fromRound)
-			for ; bb != nil; bb, err = c.Next(ctx) {
-				// This is needed since send will use a pointer and could result in pointer reassignment
-				bb := bb
-				if err != nil {
-					return err
-				}
-				// Force send the correct
-				if err := send(bb); err != nil {
-					logger.Debugw("Error while sending beacon", "syncer", "cursor_seek")
-					return err
-				}
-			}
-			return err
-		})
-		if err != nil {
-			// We always have ErrNoBeaconStored returned as last value
-			// so let's ignore it and not send it back to the client
-			if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
-				return err
-			}
-		}
+	allBeacons, err := store.AllStream(ctx)
+	if err != nil {
+		return err
 	}
 
-	// Register a callback to process all new incoming beacons until an error happens.
-	// The callback happens in a separate goroutine.
-	errChan := make(chan error)
-	store.AddCallback(id, func(b *chain.Beacon) {
-		if err := send(b); err != nil {
-			logger.Debugw("Error while sending beacon", "syncer", "callback")
-			store.RemoveCallback(id)
-			errChan <- err
+	for {
+		select {
+		case b := <-allBeacons:
+			if b.Round < fromRound {
+				continue
+			}
+			if b.Round > last.Round {
+				return nil
+			}
+			err = send(&b)
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-	})
-
-	defer store.RemoveCallback(id)
-
-	// Wait until the request cancels or until an error happens in the callback.
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-errChan:
-		return err
 	}
 }
 

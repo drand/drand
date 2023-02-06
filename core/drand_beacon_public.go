@@ -125,7 +125,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	}
 	bp.state.RUnlock()
 
-	store := bp.beacon.Store()
+	store := beacon.NewWatchStore(bp.beacon.Store())
 	proxyReq := &proxyRequest{
 		req,
 	}
@@ -210,7 +210,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 		bp.state.RUnlock()
 		return fmt.Errorf("no beacon handler available")
 	}
-	store := b.Store()
+	store := beacon.NewWatchStore(b.Store())
 	// we cannot just defer Unlock because beacon.SyncChain can run for a long time
 	bp.state.RUnlock()
 
