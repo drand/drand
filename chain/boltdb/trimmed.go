@@ -74,6 +74,10 @@ func (b *trimmedStore) Close(context.Context) error {
 func (b *trimmedStore) Put(_ context.Context, beacon *chain.Beacon) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
+
+		// We know this will be an append-only workload, so let's use a compact db.
+		bucket.FillPercent = 1.0
+
 		key := chain.RoundToBytes(beacon.Round)
 		err := bucket.Put(key, beacon.Signature)
 		if err != nil {
