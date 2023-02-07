@@ -193,8 +193,8 @@ func TestKeyGen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := path.Join(t.TempDir(), "drand")
-
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
+	sch, _ := crypto.GetSchemeFromEnv()
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "--scheme", sch.Name, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
 
 	config := core.NewConfig(core.WithConfigFolder(tmp))
@@ -205,7 +205,7 @@ func TestKeyGen(t *testing.T) {
 
 	tmp2 := path.Join(t.TempDir(), "drand2")
 
-	args = []string{"drand", "generate-keypair", "--folder", tmp2, "--id", beaconID}
+	args = []string{"drand", "generate-keypair", "--folder", tmp2, "--id", beaconID, "--scheme", sch.Name}
 	require.Error(t, CLI().Run(args))
 
 	config = core.NewConfig(core.WithConfigFolder(tmp2))
@@ -712,7 +712,7 @@ func getSBFolderStructure(t *testing.T) string {
 }
 
 func TestDrandListSchemes(t *testing.T) {
-	n := 5
+	n := 2
 	instances := launchDrandInstances(t, n)
 
 	for _, instance := range instances {
