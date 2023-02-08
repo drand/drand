@@ -181,7 +181,7 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
 	// the expected beacon from above due to lock contention on bh.pendingLk.
-	time.Sleep(10*time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	done := make(chan time.Time)
 	before := time.Now()
