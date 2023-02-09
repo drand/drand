@@ -366,7 +366,7 @@ func (h *Handler) run(startTime int64) {
 						"last_is", latest.Round)
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
-			} else {
+			} else if b.Round > current.round {
 				h.l.Warnw(
 					"tried catching up, but catchup beacons were newer than the current round",
 					"catchup round", b.Round,
