@@ -26,7 +26,7 @@ func BootContainer() func() {
 	}
 }
 
-const defaultPgDSN = "postgres://postgres:postgres@%s/%s?sslmode=disable&timeout=5&connect_timeout=5"
+const defaultPgDSN = "postgres://postgres:postgres@%s/%s?sslmode=disable&connect_timeout=5"
 
 func ComputePgDSN(dbEngineType chain.StorageType) func() string {
 	return func() string {

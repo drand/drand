@@ -593,7 +593,10 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		// Here we send the nil values to the start method to allow the node to reconnect to the same database
-		foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		err := foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		if err != nil {
+			panic(fmt.Errorf("[-] Could not start node %s error: %v", foundNode.PrivateAddr(), err))
+		}
 		var started bool
 		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {

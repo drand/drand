@@ -33,7 +33,7 @@ func withPgDSN(t *testing.T) func() string {
 		dbName := test.ComputeDBName()
 
 		dsn := fmt.Sprintf(
-			"postgres://postgres:postgres@%s/%s?sslmode=disable&timeout=5&connect_timeout=5",
+			"postgres://postgres:postgres@%s/%s?sslmode=disable&connect_timeout=5",
 			c.Host,
 			dbName,
 		)
