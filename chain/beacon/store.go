@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
+	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -145,11 +146,14 @@ func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
 	metrics.LastBeaconRound.WithLabelValues(beaconID).Set(float64(b.GetRound()))
 	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(d.group.Len()))
 	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(d.group.Threshold))
-	d.l.Infow("",
-		"NEW_BEACON_STORED", b.String(),
-		"time_discrepancy_ms", discrepancy,
-		"storage_time_ms", storageTime.Sub(actual).Milliseconds(),
-	)
+	// in order to avoid spamming the logs, e.g. during syncing
+	if !dcontext.IsSkipLogsFromContext(ctx) {
+		d.l.Infow("",
+			"NEW_BEACON_STORED", b.String(),
+			"time_discrepancy_ms", discrepancy,
+			"storage_time_ms", storageTime.Sub(actual).Milliseconds(),
+		)
+	}
 	return nil
 }
 

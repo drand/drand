@@ -821,6 +821,39 @@ func TestDrandPublicStream(t *testing.T) {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)
 		require.Equal(t, maxRound, resp.GetRound())
+	case <-time.After(50 * time.Millisecond):
+		require.False(t, true, "should have gotten a round after time went by")
+	}
+
+	t.Logf("Streaming for past rounds starting from %d until %d", 1, maxRound+2)
+
+	respCh, err = client.PublicRandStream(ctx, root.drand.priv.Public, &drand.PublicRandRequest{
+		Round: 1,
+	})
+	require.NoError(t, err)
+
+	for i := uint64(1); i < maxRound+1; i++ {
+		select {
+		case resp := <-respCh:
+			require.Equal(t, i, resp.GetRound())
+		case <-time.After(50 * time.Millisecond):
+			require.False(t, true, "should have gotten all past rounds")
+		}
+	}
+
+	dt.AdvanceMockClock(t, group.Period)
+	select {
+	case resp := <-respCh:
+		t.Logf("Round %d rcv \n", maxRound)
+		require.Equal(t, maxRound+1, resp.GetRound())
+
+	case <-time.After(50 * time.Millisecond):
+		require.False(t, true, "should have gotten a round after time went by")
+	}
+
+	select {
+	case <-respCh:
+		require.False(t, true, "shouldn't get a round if time doesn't go by")
 
 	case <-time.After(50 * time.Millisecond):
 		// correct
