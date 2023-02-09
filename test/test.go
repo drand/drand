@@ -80,7 +80,7 @@ func FreeBind(a string) string {
 			if fileMtxUnlock != nil {
 				break
 			}
-			time.Sleep(3*time.Millisecond)
+			time.Sleep(3 * time.Millisecond)
 		}
 		defer fileMtxUnlock()
 
@@ -217,4 +217,3 @@ func GetBeaconIDFromEnv() string {
 	beaconID := os.Getenv("BEACON_ID")
 	return commonutils.GetCanonicalBeaconID(beaconID)
 }
-
