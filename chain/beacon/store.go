@@ -83,6 +83,15 @@ func NewSchemeStore(s chain.Store, sch *crypto.Scheme) (chain.Store, error) {
 func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
+	if b.Round == a.last.Round {
+		if bytes.Equal(a.last.Signature, b.Signature) {
+			if bytes.Equal(a.last.PreviousSig, b.PreviousSig) {
+				return nil
+			}
+			return fmt.Errorf("tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
+		}
+		return fmt.Errorf("tried to store a duplicate beacon for round %d but the signature was different", b.Round)
+	}
 
 	// If the scheme is unchained, previous signature is set to nil. In that case,
 	// relationship between signature in the previous beacon and previous signature
