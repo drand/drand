@@ -6,9 +6,13 @@ import (
 	"encoding/hex"
 	n "net"
 	"os"
+	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/rogpeppe/go-internal/lockedfile"
 
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
@@ -66,6 +70,37 @@ func LocalHost() string {
 func FreeBind(a string) string {
 	globalLock.Lock()
 	defer globalLock.Unlock()
+
+	if os.Getenv("CI") == "true" {
+		var fileMtxPath = path.Join(os.TempDir(), ".drand_test_ports")
+		fileMtx := lockedfile.MutexAt(fileMtxPath)
+		var fileMtxUnlock func()
+		for {
+			fileMtxUnlock, _ = fileMtx.Lock()
+			if fileMtxUnlock != nil {
+				break
+			}
+			time.Sleep(3*time.Millisecond)
+		}
+		defer fileMtxUnlock()
+
+		// First, let's update the existing ports list
+		contents, err := os.ReadFile(fileMtxPath)
+		if err != nil {
+			panic(err)
+		}
+		allPorts = strings.Fields(string(contents))
+
+		// Finally, we update the list of ports before we return
+		defer func() {
+			contents := strings.Join(allPorts, "\n")
+			err := os.WriteFile(fileMtxPath, []byte(contents), 0600)
+			if err != nil {
+				panic(err)
+			}
+		}()
+	}
+
 	for {
 		addr, err := n.ResolveTCPAddr("tcp", a+":0")
 		if err != nil {
