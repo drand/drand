@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	dcontext "github.com/drand/drand/internal/context"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
+
+	dcontext "github.com/drand/drand/internal/context"
 
 	cl "github.com/jonboulle/clockwork"
 

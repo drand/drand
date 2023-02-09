@@ -1214,7 +1214,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		case <-errChan:
 			syncCancel()
 			bp.log.Errorw("Error while trying to follow chain, trying again in 2 periods")
-			// in case of error we retry after a period elapsed, since follow must run until cancelled
+			// in case of error we retry after a period elapsed, since follow must run until canceled
 			time.Sleep(info.Period)
 			continue
 		}
