@@ -9,14 +9,13 @@ import (
 	"sync"
 	"time"
 
-	dcontext "github.com/drand/drand/internal/context"
-
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
+	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -438,7 +437,6 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			// we still go on with the other peers
 			return false
 		}
-
 	}
 }
 

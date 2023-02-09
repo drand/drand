@@ -11,13 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 	"github.com/weaveworks/common/fs"
 
 	"github.com/drand/drand/chain"
 	derrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
