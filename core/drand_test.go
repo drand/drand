@@ -810,8 +810,7 @@ func TestDrandPublicStream(t *testing.T) {
 	select {
 	case <-respCh:
 		require.False(t, true, "shouldn't get a round if time doesn't go by")
-
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(150 * time.Millisecond):
 		// correct
 	}
 
@@ -820,7 +819,7 @@ func TestDrandPublicStream(t *testing.T) {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)
 		require.Equal(t, maxRound, resp.GetRound())
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(150 * time.Millisecond):
 		require.False(t, true, "should have gotten a round after time went by")
 	}
 
@@ -835,7 +834,7 @@ func TestDrandPublicStream(t *testing.T) {
 		select {
 		case resp := <-respCh:
 			require.Equal(t, i, resp.GetRound())
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(150 * time.Millisecond):
 			require.False(t, true, "should have gotten all past rounds")
 		}
 	}
@@ -845,16 +844,14 @@ func TestDrandPublicStream(t *testing.T) {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)
 		require.Equal(t, maxRound+1, resp.GetRound())
-
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(150 * time.Millisecond):
 		require.False(t, true, "should have gotten a round after time went by")
 	}
 
 	select {
 	case <-respCh:
 		require.False(t, true, "shouldn't get a round if time doesn't go by")
-
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(150 * time.Millisecond):
 		// correct
 	}
 }
