@@ -1160,18 +1160,8 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
 
-	// add sch store to handle sch configuration on beacon storing process correctly
-	sch, err := crypto.SchemeFromName(info.GetSchemeName())
-	if err != nil {
-		return err
-	}
-	ss, err := beacon.NewSchemeStore(store, sch)
-	if err != nil {
-		return err
-	}
-
 	// register callback to notify client of progress
-	cbStore := beacon.NewCallbackStore(ss)
+	cbStore := beacon.NewCallbackStore(bp.log, store)
 	defer cbStore.Close(ctx)
 
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
@@ -1180,9 +1170,19 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 
+	// add sch store to handle sch configuration on beacon storing process correctly
+	sch, err := crypto.SchemeFromName(info.GetSchemeName())
+	if err != nil {
+		return err
+	}
+	ss, err := beacon.NewSchemeStore(cbStore, sch)
+	if err != nil {
+		return err
+	}
+
 	syncer, err := beacon.NewSyncManager(&beacon.SyncConfig{
 		Log:         bp.log,
-		Store:       cbStore,
+		Store:       ss,
 		BoltdbStore: store,
 		Info:        info,
 		Client:      bp.privGateway,

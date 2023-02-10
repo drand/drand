@@ -88,9 +88,9 @@ func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
 			if bytes.Equal(a.last.PreviousSig, b.PreviousSig) {
 				return nil
 			}
-			return fmt.Errorf("tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
+			return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
 		}
-		return fmt.Errorf("tried to store a duplicate beacon for round %d but the signature was different", b.Round)
+		return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the signature was different", b.Round)
 	}
 
 	// If the scheme is unchained, previous signature is set to nil. In that case,
@@ -166,6 +166,7 @@ func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
 type callbackStore struct {
 	chain.Store
 	sync.RWMutex
+	l         log.Logger
 	stopping  chan bool
 	callbacks map[string]CallbackFunc
 	newJob    map[string]chan cbPair
@@ -180,9 +181,10 @@ type cbPair struct {
 // NewCallbackStore returns a Store that uses a pool of worker to dispatch the
 // beacon to the registered callbacks. The callbacks are not called if the "Put"
 // operations failed.
-func NewCallbackStore(s chain.Store) CallbackStore {
+func NewCallbackStore(l log.Logger, s chain.Store) CallbackStore {
 	cbs := &callbackStore{
 		Store:     s,
+		l:         l,
 		callbacks: make(map[string]CallbackFunc),
 		newJob:    make(map[string]chan cbPair),
 		stopping:  make(chan bool, 1),
@@ -195,6 +197,7 @@ func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
 	if err := c.Store.Put(ctx, b); err != nil {
 		return err
 	}
+	// c.l.Debugw(string(debug.Stack()), "msg", "florin: callbackStore.Put()", "round", b.Round)
 	if b.Round != 0 {
 		c.RLock()
 		defer c.RUnlock()
@@ -218,6 +221,7 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
 	if jobChan, exists := c.newJob[id]; exists {
+		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "to add a new one")
 		jobChan <- cbPair{
 			cb:    c.callbacks[id],
 			b:     nil,
@@ -226,6 +230,8 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 		close(jobChan)
 		delete(c.newJob, id)
 	}
+
+	c.l.Debugw("florin: adding callback", "id", id)
 
 	c.callbacks[id] = fn
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
@@ -237,6 +243,7 @@ func (c *callbackStore) RemoveCallback(id string) {
 	defer c.Unlock()
 	delete(c.callbacks, id)
 	if _, exists := c.newJob[id]; exists {
+		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "to add a new one")
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}
