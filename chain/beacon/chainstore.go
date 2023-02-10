@@ -45,11 +45,8 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 		return nil, err
 	}
 
-	// we can register callbacks on it
-	cbs := NewCallbackStore(l, as)
-
 	// we add a store to run some checks depending on scheme-related config
-	ss, err := NewSchemeStore(cbs, cf.Group.Scheme)
+	ss, err := NewSchemeStore(as, cf.Group.Scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +54,13 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 	// we write some stats about the timing when new beacon is saved
 	ds := newDiscrepancyStore(ss, l, v.GetGroup(), cf.Clock)
 
+	// we can register callbacks on it
+	cbs := NewCallbackStore(l, ds)
+
 	// we give the final append store to the sync manager
 	syncm, err := NewSyncManager(&SyncConfig{
 		Log:         l,
-		Store:       ds,
+		Store:       cbs,
 		BoltdbStore: store,
 		Info:        v.GetInfo(),
 		Client:      cl,
