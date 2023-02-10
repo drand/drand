@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  drand:
+    container_name: drand
+    image: drandorg/go-drand:v1.5.2-testnet
+    command: start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
+    volumes:
+      - drand:/data/drand
+    restart: always
+    ports:
+      - 8080:8080
+      - 8888:8888
+      - 9080:9080
+    environment:
+      PORT: 8080
+volumes:
+  drand:
+    external: true
+    name: drand
+

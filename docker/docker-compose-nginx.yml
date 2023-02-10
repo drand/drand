@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  drand:
+    container_name: drand
+    image: drandorg/go-drand:v1.5.2-testnet
+    command: start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
+    volumes:
+      - drand:/data/drand
+    restart: always
+    ports:
+      - 8080:8080
+      - 8888:8888
+      - 9080:9080
+    environment:
+      PORT: 8080
+  nginx:
+    container_name: nginx
+    image: nginx:1.23.0-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - 80:80
+      - 443:443
+    links:
+      - drand
+
+volumes:
+  drand:
+    external: true
+    name: drand
+  nginx:
+    external: true
+    name: nginx
+
