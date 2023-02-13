@@ -247,7 +247,9 @@ func (e *Orchestrator) WaitGenesis() {
 
 func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
-	fmt.Printf("[+] Sleeping %s until transition happens\n", to)
+	currentRound := chain.CurrentRound(e.transition, e.periodD, e.genesis)
+
+	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d\n", to, e.transition, currentRound)
 	time.Sleep(to)
 	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", afterPeriodWait)
 	time.Sleep(afterPeriodWait)
