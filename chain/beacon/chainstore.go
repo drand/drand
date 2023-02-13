@@ -29,7 +29,8 @@ type chainStore struct {
 	syncm       *SyncManager
 	crypto      *vault.Vault
 	ticker      *ticker
-	done        chan bool
+	ctx         context.Context
+	ctxCancel   context.CancelFunc
 	newPartials chan partialInfo
 	// catchupBeacons is used to notify the Handler when a node has aggregated a
 	// beacon.
@@ -73,6 +74,8 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 	}
 	go syncm.Run()
 
+	ctx, ctxCancel := context.WithCancel(context.Background())
+
 	cs := &chainStore{
 		CallbackStore:   cbs,
 		l:               l,
@@ -81,7 +84,8 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vau
 		syncm:           syncm,
 		crypto:          v,
 		ticker:          t,
-		done:            make(chan bool, 1),
+		ctx:             ctx,
+		ctxCancel:       ctxCancel,
 		newPartials:     make(chan partialInfo, defaultPartialChanBuffer),
 		catchupBeacons:  make(chan *chain.Beacon, 1),
 		beaconStoredAgg: make(chan *chain.Beacon, defaultNewBeaconBuffer),
@@ -107,7 +111,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) Stop() {
-	close(c.done)
+	c.ctxCancel()
 	c.syncm.Stop()
 	c.RemoveCallback("chainstore")
 	c.CallbackStore.Close(context.Background())
@@ -121,14 +125,13 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	// TODO (dlsniper): This should be flagged in a different way
 	select {
-	case <-c.done:
+	case <-c.ctx.Done():
 		return
 	default:
 		c.l.Debugw("starting chain_aggregator")
 	}
-	lastBeacon, err := c.Last(context.Background())
+	lastBeacon, err := c.Last(c.ctx)
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
 	}
@@ -136,7 +139,7 @@ func (c *chainStore) runAggregator() {
 	var cache = newPartialCache(c.l, c.crypto.Scheme)
 	for {
 		select {
-		case <-c.done:
+		case <-c.ctx.Done():
 			return
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
@@ -159,6 +162,13 @@ func (c *chainStore) runAggregator() {
 			// crypto store.
 			thr := c.crypto.GetGroup().Threshold
 			n := c.crypto.GetGroup().Len()
+
+			select {
+			case <-c.ctx.Done():
+				return
+			default:
+			}
+
 			cache.Append(partial.p)
 			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSignature())
 			if roundCache == nil {
@@ -192,7 +202,7 @@ func (c *chainStore) runAggregator() {
 			}
 
 			c.l.Infow("", "aggregated_beacon", newBeacon.Round)
-			if c.tryAppend(lastBeacon, newBeacon) {
+			if c.tryAppend(c.ctx, lastBeacon, newBeacon) {
 				lastBeacon = newBeacon
 				break
 			}
@@ -206,13 +216,19 @@ func (c *chainStore) runAggregator() {
 	}
 }
 
-func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
+func (c *chainStore) tryAppend(ctx context.Context, last, newB *chain.Beacon) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
 	if last.Round+1 != newB.Round {
 		// quick check before trying to compare bytes
 		return false
 	}
 
-	if err := c.CallbackStore.Put(context.Background(), newB); err != nil {
+	if err := c.CallbackStore.Put(ctx, newB); err != nil {
 		// if round is ok but bytes are different, error will be raised
 		if errors.Is(err, ErrBeaconAlreadyStored) {
 			c.l.Debugw("Put: race with SyncManager", "err", err)

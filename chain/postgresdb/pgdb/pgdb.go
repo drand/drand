@@ -49,6 +49,12 @@ func (p *Store) Close(context.Context) error {
 
 // AddBeaconID adds the beacon to the database if it does not exist.
 func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	default:
+	}
+
 	const create = `
 	INSERT INTO beacons
 		(name)
@@ -92,6 +98,12 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error)
 
 // Len returns the number of beacons in the configured beacon table.
 func (p *Store) Len(ctx context.Context) (int, error) {
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		COUNT(*)
@@ -125,6 +137,12 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 
 // Put adds the specified beacon to the database.
 func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	const query = `
 	INSERT INTO beacon_details
 		(beacon_id, round, signature)
@@ -149,6 +167,12 @@ func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 
 // BatchPut is useful if you want to write a lot of beacons to the database at once.
 func (p *Store) BatchPut(ctx context.Context, bs []chain.Beacon) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	qry := strings.Builder{}
 	qry.WriteString(`
 	INSERT INTO beacon_details
@@ -188,6 +212,12 @@ func (p *Store) BatchPut(ctx context.Context, bs []chain.Beacon) error {
 
 // Last returns the last beacon stored in the configured beacon table.
 func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		round,
@@ -215,6 +245,12 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 }
 
 func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		round,
@@ -239,6 +275,12 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(ctx context.Context, round uint64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	const query = `
 	DELETE FROM
 		beacon_details
@@ -260,6 +302,12 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 
 // Cursor returns a cursor for iterating over the beacon table.
 func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	c := cursor{
 		store: p,
 		pos:   0,
@@ -276,6 +324,12 @@ func (p *Store) SaveTo(context.Context, io.Writer) error {
 // DropFK is used to optimize the calls to Store.BatchPut and should be called before it.
 // It drops the relation between beacons and beacon_details tables.
 func (p *Store) DropFK(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	const query = `
 		ALTER TABLE beacon_details
 		DROP CONSTRAINT fk_beacon_id`
@@ -286,6 +340,12 @@ func (p *Store) DropFK(ctx context.Context) error {
 
 // AddFK reconstructs the relation between beacons and beacon_details tables after Store.DropFK was called.
 func (p *Store) AddFK(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	const query = `
 		ALTER TABLE beacon_details
 		ADD CONSTRAINT fk_beacon_id FOREIGN KEY (beacon_id) REFERENCES beacons(id) ON DELETE CASCADE`
@@ -304,6 +364,12 @@ type cursor struct {
 
 // First returns the first beacon from the configured beacon table.
 func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	defer func() {
 		c.pos = 0
 	}()
@@ -330,6 +396,12 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 
 // Next returns the next beacon from the configured beacon table.
 func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	defer func() {
 		c.pos++
 	}()
@@ -359,6 +431,12 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 
 // Seek searches the beacon table for the specified round
 func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		round,
@@ -389,6 +467,12 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 
 // Last returns the last beacon from the configured beacon table.
 func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		round,
@@ -418,6 +502,12 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 
 // seekPosition updates the cursor position in the database for the next operation to work
 func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	const query = `
 	SELECT
 		count(beacon_id) as round_offset
@@ -454,6 +544,12 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 }
 
 func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query string, data interface{}) (*chain.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	var ret dbBeacon
 	rows, err := p.db.NamedQueryContext(ctx, query, data)
 	if err != nil {
