@@ -123,7 +123,9 @@ func (c *chainStore) Stop() {
 var partialCacheStoreLimit = 3
 
 // runAggregator runs a continuous loop that tries to aggregate partial
-// signatures when it can
+// signatures when it can.
+//
+//nolint:gocyclo // This function should be simplified, if possible.
 func (c *chainStore) runAggregator() {
 	select {
 	case <-c.ctx.Done():

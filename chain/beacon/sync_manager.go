@@ -417,7 +417,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				if err := s.store.Put(cnode, beacon); err != nil {
 					if errors.Is(err, ErrBeaconAlreadyStored) {
 						logger.Debugw("Put: race with aggregation", "with_peer", peer.Address(), "err", err)
-						return true
+						return beacon.Round == upTo
 					}
 
 					logger.Errorw("Put: unable to save", "with_peer", peer.Address(), "err", err)
