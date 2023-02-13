@@ -187,7 +187,11 @@ func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.C
 		return fn(ctx, &boltCursor{Cursor: c})
 	})
 	if err != nil {
-		b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
+		// We omit the ErrNoBeaconStored error as it is noisy and cursor.Next() will use it as flag value
+		// for reaching the end of the database.
+		if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
+			b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
+		}
 	}
 	return err
 }
@@ -214,6 +218,8 @@ func (c *boltCursor) First(context.Context) (*chain.Beacon, error) {
 	return b, err
 }
 
+// Next returns the next value in the database for the given cursor.
+// When reaching the end of the database, it emits the ErrNoBeaconStored error to flag that it finished the iteration.
 func (c *boltCursor) Next(context.Context) (*chain.Beacon, error) {
 	k, v := c.Cursor.Next()
 	if k == nil {

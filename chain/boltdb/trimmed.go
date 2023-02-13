@@ -2,6 +2,7 @@ package boltdb
 
 import (
 	"context"
+	"errors"
 	"io"
 	"path"
 	"sync"
@@ -163,7 +164,11 @@ func (b *trimmedStore) Cursor(ctx context.Context, fn func(context.Context, chai
 		return fn(ctx, &trimmedBoltCursor{Cursor: c, store: b})
 	})
 	if err != nil {
-		b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
+		// We omit the ErrNoBeaconStored error as it is noisy and cursor.Next() will use it as flag value
+		// for reaching the end of the database.
+		if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
+			b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
+		}
 	}
 	return err
 }
@@ -185,6 +190,8 @@ func (c *trimmedBoltCursor) First(context.Context) (*chain.Beacon, error) {
 	return c.store.getCursorBeacon(c.Bucket(), c.Cursor.First)
 }
 
+// Next returns the next value in the database for the given cursor.
+// When reaching the end of the database, it emits the ErrNoBeaconStored error to flag that it finished the iteration.
 func (c *trimmedBoltCursor) Next(context.Context) (*chain.Beacon, error) {
 	return c.store.getCursorBeacon(c.Bucket(), c.Cursor.Next)
 }
@@ -221,7 +228,7 @@ type beaconCursorGetter func() (key []byte, value []byte)
 
 func (b *trimmedStore) getCursorBeacon(bucket *bolt.Bucket, get beaconCursorGetter) (*chain.Beacon, error) {
 	key, sig := get()
-	if sig == nil {
+	if key == nil {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
