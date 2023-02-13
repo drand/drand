@@ -39,23 +39,23 @@ type chainStore struct {
 }
 
 func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vault, store chain.Store, t *ticker) (*chainStore, error) {
-	// we make sure the chain is increasing monotonically
-	as, err := newAppendStore(store)
-	if err != nil {
-		return nil, err
-	}
+	// we write some stats about the timing when new beacon is saved
+	ds := newDiscrepancyStore(store, l, v.GetGroup(), cf.Clock)
 
 	// we add a store to run some checks depending on scheme-related config
-	ss, err := NewSchemeStore(as, cf.Group.Scheme)
+	ss, err := NewSchemeStore(ds, cf.Group.Scheme)
 	if err != nil {
 		return nil, err
 	}
 
-	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(ss, l, v.GetGroup(), cf.Clock)
+	// we make sure the chain is increasing monotonically
+	as, err := newAppendStore(ss)
+	if err != nil {
+		return nil, err
+	}
 
 	// we can register callbacks on it
-	cbs := NewCallbackStore(l, ds)
+	cbs := NewCallbackStore(l, as)
 
 	// we give the final append store to the sync manager
 	syncm, err := NewSyncManager(&SyncConfig{

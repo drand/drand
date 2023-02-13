@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -47,16 +48,32 @@ func newAppendStore(s chain.Store) (chain.Store, error) {
 	}, nil
 }
 
+// ErrBeaconAlreadyStored is returned when we already have the value in the store
+var ErrBeaconAlreadyStored = errors.New("beacon value already stored")
+
 func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
+
+	if b.Round == a.last.Round {
+		if bytes.Equal(a.last.Signature, b.Signature) {
+			if bytes.Equal(a.last.PreviousSig, b.PreviousSig) {
+				return fmt.Errorf("%w round %d", ErrBeaconAlreadyStored, b.Round)
+			}
+			return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
+		}
+		return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the signature was different", b.Round)
+	}
+
 	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
 	if err := a.Store.Put(ctx, b); err != nil {
+		log.DefaultLogger().Debugw("florin: calling appendStore.Put()", "last", a.last)
 		return err
 	}
 	a.last = b
+	log.DefaultLogger().Debugw("florin: calling appendStore.Put()", "last", a.last)
 	return nil
 }
 
@@ -234,7 +251,7 @@ func (c *callbackStore) RemoveCallback(id string) {
 	defer c.Unlock()
 	delete(c.callbacks, id)
 	if _, exists := c.newJob[id]; exists {
-		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "to add a new one")
+		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "called RemoveCallback")
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}

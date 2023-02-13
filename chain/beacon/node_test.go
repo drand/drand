@@ -654,5 +654,6 @@ func (t TestSyncRequest) GetMetadata() *pbCommon.Metadata {
 
 func (b *BeaconTest) CallbackFor(i int, fn CallbackFunc) {
 	j := b.searchNode(i)
-	b.nodes[j].handler.AddCallback(b.nodes[j].private.Public.Address(), fn)
+	address := b.nodes[j].private.Public.Address()
+	b.nodes[j].handler.AddCallback(fmt.Sprintf("%s - node %d", address, i), fn)
 }
