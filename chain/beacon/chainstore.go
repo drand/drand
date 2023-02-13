@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/drand/drand/chain"
@@ -213,6 +214,18 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 
 	if err := c.CallbackStore.Put(context.Background(), newB); err != nil {
 		// if round is ok but bytes are different, error will be raised
+		if errors.Is(err, ErrBeaconAlreadyStored) {
+			c.l.Debugw("Put: race with SyncManager", "err", err)
+			select {
+			// only send if it's not full already
+			case c.catchupBeacons <- newB:
+			default:
+				c.l.Debugw("", "chain_store", "catchup", "channel", "full")
+			}
+
+			return true
+		}
+
 		c.l.Errorw("", "chain_store", "error storing beacon", "err", err)
 		return false
 	}

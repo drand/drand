@@ -60,20 +60,18 @@ func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
 			if bytes.Equal(a.last.PreviousSig, b.PreviousSig) {
 				return fmt.Errorf("%w round %d", ErrBeaconAlreadyStored, b.Round)
 			}
-			return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
+			return fmt.Errorf("tried to store a duplicate beacon for round %d but the previous signature was different", b.Round)
 		}
-		return fmt.Errorf("florin: tried to store a duplicate beacon for round %d but the signature was different", b.Round)
+		return fmt.Errorf("tried to store a duplicate beacon for round %d but the signature was different", b.Round)
 	}
 
 	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
 	if err := a.Store.Put(ctx, b); err != nil {
-		log.DefaultLogger().Debugw("florin: calling appendStore.Put()", "last", a.last)
 		return err
 	}
 	a.last = b
-	log.DefaultLogger().Debugw("florin: calling appendStore.Put()", "last", a.last)
 	return nil
 }
 
@@ -229,7 +227,7 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
 	if jobChan, exists := c.newJob[id]; exists {
-		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "to add a new one")
+		c.l.Debugw("removing existing call back", "id", id, "reason", "to add a new one")
 		jobChan <- cbPair{
 			cb:    c.callbacks[id],
 			b:     nil,
@@ -239,7 +237,7 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 		delete(c.newJob, id)
 	}
 
-	c.l.Debugw("florin: adding callback", "id", id)
+	c.l.Debugw("adding callback", "id", id)
 
 	c.callbacks[id] = fn
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
@@ -251,7 +249,7 @@ func (c *callbackStore) RemoveCallback(id string) {
 	defer c.Unlock()
 	delete(c.callbacks, id)
 	if _, exists := c.newJob[id]; exists {
-		c.l.Debugw("florin: removing existing call back", "id", id, "reason", "called RemoveCallback")
+		c.l.Debugw("removing existing call back", "id", id, "reason", "called RemoveCallback")
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}

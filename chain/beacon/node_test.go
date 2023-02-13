@@ -556,7 +556,7 @@ func TestBeaconThreshold(t *testing.T) {
 			// callbacks are called for syncing up as well so we only decrease
 			// waitgroup when it's the current round
 			if b.Round == currentRound {
-				t.Logf("florin: node %d got b.Round(%d) == currentRound(%d)", i, b.Round, currentRound)
+				t.Logf("node %d got b.Round(%d) == currentRound(%d)", i, b.Round, currentRound)
 				counter.Done()
 			}
 		}
