@@ -49,14 +49,15 @@ type Handler struct {
 	chain  *chainStore
 	ticker *ticker
 
-	close   chan bool
-	addr    string
-	started bool
-	running bool
-	serving bool
-	stopped bool
-	version commonutils.Version
-	l       log.Logger
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	addr      string
+	started   bool
+	running   bool
+	serving   bool
+	stopped   bool
+	version   commonutils.Version
+	l         log.Logger
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -84,16 +85,19 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 		return nil, err
 	}
 
+	ctx, ctxCancel := context.WithCancel(context.Background())
+
 	handler := &Handler{
-		conf:    conf,
-		client:  c,
-		crypto:  v,
-		chain:   store,
-		ticker:  ticker,
-		addr:    addr,
-		close:   make(chan bool),
-		l:       l,
-		version: version,
+		conf:      conf,
+		client:    c,
+		crypto:    v,
+		chain:     store,
+		ticker:    ticker,
+		addr:      addr,
+		ctx:       ctx,
+		ctxCancel: ctxCancel,
+		l:         l,
+		version:   version,
 	}
 	return handler, nil
 }
@@ -313,8 +317,8 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
-		case <-h.close:
-			h.l.Debugw("", "beacon_loop", "finished")
+		case <-h.ctx.Done():
+			h.l.Debugw("", "beacon_loop", "finished", "err", h.ctx.Err())
 			return
 		case current = <-chanTick:
 
@@ -324,13 +328,13 @@ func (h *Handler) run(startTime int64) {
 				h.Unlock()
 			})
 
-			lastBeacon, err := h.chain.Last(context.Background())
+			lastBeacon, err := h.chain.Last(h.ctx)
 			if err != nil {
 				h.l.Errorw("", "beacon_loop", "loading_last", "err", err)
 				break
 			}
 			h.l.Debugw("", "beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
-			h.broadcastNextPartial(current, lastBeacon)
+			h.broadcastNextPartial(h.ctx, current, lastBeacon)
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
 			// words, the chain has halted for that amount of rounds or our
@@ -361,10 +365,18 @@ func (h *Handler) run(startTime int64) {
 					h.l.Debugw("sleeping now", "beacon_loop", "catchupmode",
 						"last_is", latest.Round,
 						"sleep_for", h.conf.Group.CatchupPeriod)
+
 					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
+
+					select {
+					case <-h.ctx.Done():
+						return
+					default:
+					}
+
 					h.l.Debugw("broadcast next partial", "beacon_loop", "catchupmode",
 						"last_is", latest.Round)
-					h.broadcastNextPartial(c, latest)
+					h.broadcastNextPartial(h.ctx, c, latest)
 				}(current, b)
 			} else if b.Round > current.round {
 				h.l.Warnw(
@@ -377,8 +389,7 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
-	ctx := context.Background()
+func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, upon *chain.Beacon) {
 	previousSig := upon.Signature
 	round := upon.Round + 1
 	beaconID := commonutils.GetCanonicalBeaconID(h.conf.Group.ID)
@@ -442,7 +453,7 @@ func (h *Handler) Stop() {
 	if h.stopped {
 		return
 	}
-	close(h.close)
+	h.ctxCancel()
 
 	h.ticker.Stop()
 	h.chain.Stop()
