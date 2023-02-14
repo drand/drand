@@ -133,13 +133,8 @@ func (c *chainStore) runAggregator() {
 	default:
 		c.l.Debugw("starting chain_aggregator")
 	}
-	lastBeacon, err := c.Last(c.ctx)
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
-			return
-		}
-		c.l.Fatalw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+	lastBeacon := &chain.Beacon{
+		Round: -1,
 	}
 
 	var cache = newPartialCache(c.l, c.crypto.Scheme)
@@ -150,6 +145,22 @@ func (c *chainStore) runAggregator() {
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
 		case partial := <-c.newPartials:
+			var err error
+			if lastBeacon.Round == -1 {
+				lastBeacon, err = c.Last(c.ctx)
+				if err != nil {
+					if errors.Is(err, context.Canceled) {
+						c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+						return
+					}
+					if err.Error() == "sql: database is closed" {
+						c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+						return
+					}
+					c.l.Fatalw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+				}
+			}
+
 			// look if we have info for this round first
 			pRound := partial.p.GetRound()
 			// look if we want to store ths partial anyway
@@ -212,6 +223,13 @@ func (c *chainStore) runAggregator() {
 				lastBeacon = newBeacon
 				break
 			}
+
+			select {
+			case <-c.ctx.Done():
+				return
+			default:
+			}
+
 			// XXX store them for future usage if it's a later round than what we have
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
