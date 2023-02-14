@@ -785,12 +785,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	d.t.Log("[reshare] LOCK")
 	d.t.Logf("[reshare] old: %d/%d | new: %d/%d", c.oldRun, len(d.nodes), c.newRun, len(d.newNodes))
 
-	// stop the excluded nodes
-	for i, node := range d.nodes[c.oldRun:] {
-		d.t.Logf("[reshare] stop old %d | %s", i, node.addr)
-		d.StopMockNode(node.addr, false)
-	}
-
 	if len(d.newNodes) > 0 {
 		for _, node := range d.newNodes[c.newRun:] {
 			d.t.Logf("[reshare] stop new %s", node.addr)
@@ -867,6 +861,12 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted
 		}
+	}
+
+	// stop the excluded nodes
+	for i, node := range d.nodes[c.oldRun:] {
+		d.t.Logf("[reshare] stop old %d | %s", i, node.addr)
+		d.StopMockNode(node.addr, false)
 	}
 
 	// wait for the return of the clients

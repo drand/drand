@@ -125,7 +125,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
-		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, p.GetRound())
 	}
 
 	node := h.crypto.GetGroup().Node(uint32(idx))
@@ -141,6 +141,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSignature()),
 			"curr_round", currentRound,
+			"partial_round", p.GetRound(),
 			"msg_sign", shortSigStr(msg),
 			"from_idx", idx,
 			"from_node", nodeName)
@@ -150,6 +151,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSignature()),
 		"curr_round", currentRound,
+		"partial_round", p.GetRound(),
 		"msg_sign", shortSigStr(msg),
 		"from_node", nodeName,
 		"status", "OK")
@@ -247,7 +249,7 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Errorw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)

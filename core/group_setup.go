@@ -261,7 +261,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme, s.beaconID)
-		group.TransitionTime = transition
+		group.TransitionTime = transition + int64(s.beaconPeriod.Seconds())
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
 	s.l.Debugw("", "setup", "created_group")
