@@ -46,8 +46,6 @@ func Test_OrderStorePG(t *testing.T) {
 		// yet could be fully retrieved.
 		// However, now that we rely on the previous value actually existing in the database,
 		// this test will fail.
-		// TODO (dlsniper): Agree that this test needs to be updated to reflect the new
-		//  implementation of the Store interface.
 		t.Skipf("This test does not make sense from a chained beacon perspective.")
 	}
 

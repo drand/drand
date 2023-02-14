@@ -247,7 +247,9 @@ func (e *Orchestrator) WaitGenesis() {
 
 func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
-	fmt.Printf("[+] Sleeping %s until transition happens\n", to)
+	currentRound := chain.CurrentRound(e.transition, e.periodD, e.genesis)
+
+	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d\n", to, e.transition, currentRound)
 	time.Sleep(to)
 	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", afterPeriodWait)
 	time.Sleep(afterPeriodWait)
@@ -593,7 +595,10 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		// Here we send the nil values to the start method to allow the node to reconnect to the same database
-		foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		err := foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		if err != nil {
+			panic(fmt.Errorf("[-] Could not start node %s error: %v", foundNode.PrivateAddr(), err))
+		}
 		var started bool
 		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {

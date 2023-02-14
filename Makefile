@@ -12,6 +12,12 @@ CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
+ifneq ($(CI),)
+SHORTTEST :=
+else
+SHORTTEST := -short
+endif
+
 drand: build
 
 ####################  Lint and fmt process ##################
@@ -52,54 +58,54 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	go test -failfast -race -short -v ./...
+	go test -failfast $(SHORTTEST) -race -v ./...
 
 test-unit-boltdb: test-unit
 
 test-unit-memdb:
-	go test -failfast -race -tags memdb -short -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
 
 test-unit-postgres:
-	go test -failfast -race -tags postgres -short -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
 
 test-unit-cover:
-	go test -failfast -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-boltdb-cover: test-unit-cover
 
 test-unit-memdb-cover:
-	go test -failfast -short -tags memdb -v -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-postgres-cover:
-	go test -failfast -short -tags postgres -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -failfast -v ./demo
+	go test -failfast $(SHORTTEST) -race -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
 test-integration-boltdb: test-integration
 
 test-integration-memdb:
-	go test -failfast -race -short -tags memdb -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
 	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
 
 test-integration-postgres:
-	go test -failfast -race -short -tags postgres -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
 	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
 
 coverage:
 	go get -v -t -d ./...
-	go test -failfast -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -failfast $(SHORTTEST) -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 coverage-boltdb: coverage
 
 coverage-memdb:
 	go get -tags=memdb -v -t -d ./...
-	go test -failfast -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
 
 coverage-postgres:
 	go get -tags=postgres -v -t -d ./...
-	go test -failfast -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build

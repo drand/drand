@@ -16,6 +16,7 @@ import (
 	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
 )
 
@@ -49,7 +50,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	c, _ := withClient(t)
 
-	handler, err := New(ctx, "", nil)
+	handler, err := New(ctx, "", test.Logger(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,12 +149,11 @@ func validateEndpoint(endpoint string, round float64) error {
 }
 
 func TestHTTPWaiting(t *testing.T) {
-	t.Skipf("this test fails too often with: server_test.go:193: shouldn't be done. unexpected status: 404")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c, push := withClient(t)
 
-	handler, err := New(ctx, "", nil)
+	handler, err := New(ctx, "", test.Logger(t))
 	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
@@ -178,6 +178,11 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
+
+	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
+	// the expected beacon from above due to lock contention on bh.pendingLk.
+	time.Sleep(10 * time.Millisecond)
+
 	done := make(chan time.Time)
 	before := time.Now()
 	go func() {
@@ -218,7 +223,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	defer cancel()
 	c, _ := withClient(t)
 
-	handler, err := New(ctx, "", nil)
+	handler, err := New(ctx, "", test.Logger(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -254,7 +259,7 @@ func TestHTTPHealth(t *testing.T) {
 	defer cancel()
 	c, push := withClient(t)
 
-	handler, err := New(ctx, "", nil)
+	handler, err := New(ctx, "", test.Logger(t))
 	if err != nil {
 		t.Fatal(err)
 	}

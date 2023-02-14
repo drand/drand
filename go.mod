@@ -33,6 +33,7 @@ require (
 	github.com/nikkolasg/hexjson v0.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
+	github.com/rogpeppe/go-internal v1.9.1-0.20230118214834-e3815afac6ff
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.19.2
 	github.com/weaveworks/common v0.0.0-20221201103051-7c2720a9024d

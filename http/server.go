@@ -327,6 +327,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 
 	// make sure we aren't going to ask for a round that doesn't exist yet.
 	if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0).After(time.Now()) {
+		h.log.Warnw("requested round is in the future")
 		return nil, nil
 	}
 

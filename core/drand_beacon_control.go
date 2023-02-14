@@ -1171,7 +1171,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	}
 
 	// register callback to notify client of progress
-	cbStore := beacon.NewCallbackStore(ss)
+	cbStore := beacon.NewCallbackStore(bp.log, ss)
 	defer cbStore.Close(ctx)
 
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
