@@ -136,10 +136,10 @@ func (c *chainStore) runAggregator() {
 	lastBeacon, err := c.Last(c.ctx)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			c.l.Errorw("", "chain_aggregator", "loading", "last_beacon", err)
+			c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
 			return
 		}
-		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
+		c.l.Fatalw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
 	}
 
 	var cache = newPartialCache(c.l, c.crypto.Scheme)
