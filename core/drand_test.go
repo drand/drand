@@ -11,12 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	derrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -776,7 +775,7 @@ func TestDrandPublicStream(t *testing.T) {
 		t.Logf("First round rcv %d \n", beacon.GetRound())
 		require.Equal(t, resp.GetRound(), beacon.GetRound())
 
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(300 * time.Millisecond):
 		t.Logf("First round NOT rcv. Timeout has passed \n")
 		require.True(t, false, "too late for the first round, it didn't reply in time")
 	}
@@ -810,8 +809,7 @@ func TestDrandPublicStream(t *testing.T) {
 	select {
 	case <-respCh:
 		require.False(t, true, "shouldn't get a round if time doesn't go by")
-
-	case <-time.After(50 * time.Millisecond):
+	case <-time.After(300 * time.Millisecond):
 		// correct
 	}
 
@@ -820,8 +818,39 @@ func TestDrandPublicStream(t *testing.T) {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)
 		require.Equal(t, maxRound, resp.GetRound())
+	case <-time.After(300 * time.Millisecond):
+		require.False(t, true, "should have gotten a round after time went by")
+	}
 
-	case <-time.After(50 * time.Millisecond):
+	t.Logf("Streaming for past rounds starting from %d until %d", 1, maxRound+2)
+
+	respCh, err = client.PublicRandStream(ctx, root.drand.priv.Public, &drand.PublicRandRequest{
+		Round: 1,
+	})
+	require.NoError(t, err)
+
+	for i := uint64(1); i < maxRound+1; i++ {
+		select {
+		case resp := <-respCh:
+			require.Equal(t, i, resp.GetRound())
+		case <-time.After(300 * time.Millisecond):
+			require.False(t, true, "should have gotten all past rounds")
+		}
+	}
+
+	dt.AdvanceMockClock(t, group.Period)
+	select {
+	case resp := <-respCh:
+		t.Logf("Round %d rcv \n", maxRound)
+		require.Equal(t, maxRound+1, resp.GetRound())
+	case <-time.After(300 * time.Millisecond):
+		require.False(t, true, "should have gotten a round after time went by")
+	}
+
+	select {
+	case <-respCh:
+		require.False(t, true, "shouldn't get a round if time doesn't go by")
+	case <-time.After(300 * time.Millisecond):
 		// correct
 	}
 }

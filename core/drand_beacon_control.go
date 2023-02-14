@@ -1196,17 +1196,26 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	go syncer.Run()
 	defer syncer.Stop()
 
+	bp.log.Debugw("Launching follow now")
+	var errChan chan error
+
 	for {
-		syncer.RequestSync(req.GetUpTo(), peers)
-		// wait for all the callbacks to be called and progress sent before returning
+		syncCtx, syncCancel := context.WithCancel(ctx)
+		go func() {
+			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(req.GetUpTo(), peers))
+		}() // wait for all the callbacks to be called and progress sent before returning
 		select {
 		case <-done:
+			syncCancel()
 			return nil
 		case <-ctx.Done():
+			syncCancel()
 			return ctx.Err()
-		// we re-send a sync request every 10 periods in case the process got staled and let the sync manager handle
-		case <-time.After(info.Period * 10): //nolint:gomnd
-			bp.log.Debugw("Sending follow sync request again")
+		case <-errChan:
+			syncCancel()
+			bp.log.Errorw("Error while trying to follow chain, trying again in 2 periods")
+			// in case of error we retry after a period elapsed, since follow must run until canceled
+			time.Sleep(info.Period)
 			continue
 		}
 	}

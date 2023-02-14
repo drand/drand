@@ -15,6 +15,7 @@ import (
 	chainerrors "github.com/drand/drand/chain/errors"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
+	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -39,7 +40,7 @@ type SyncManager struct {
 	// sync manager will renew sync if nothing happens for factor*period time
 	factor int
 	// receives new requests of sync
-	newReq chan requestInfo
+	newReq chan RequestInfo
 	// updated with each new beacon we receive from sync
 	newSync chan *chain.Beacon
 	done    chan bool
@@ -86,7 +87,7 @@ func NewSyncManager(c *SyncConfig) (*SyncManager, error) {
 		scheme:        sch,
 		nodeAddr:      c.NodeAddr,
 		factor:        syncExpiryFactor,
-		newReq:        make(chan requestInfo, syncQueueRequest),
+		newReq:        make(chan RequestInfo, syncQueueRequest),
 		newSync:       make(chan *chain.Beacon, 1),
 		done:          make(chan bool, 1),
 	}, nil
@@ -98,21 +99,22 @@ func (s *SyncManager) Stop() {
 	close(s.done)
 }
 
-type requestInfo struct {
+type RequestInfo struct {
 	nodes []net.Peer
 	from  uint64
 	upTo  uint64
 }
 
-// RequestSync asks the sync manager to sync up with those peers up to the given
+// SendSyncRequest asks the sync manager to sync up with those peers up to the given
 // round. Depending on the current state of the syncing process, there might not
 // be a new process starting (for example if we already have the round
 // requested). upTo == 0 means the syncing process goes on forever.
-func (s *SyncManager) RequestSync(upTo uint64, nodes []net.Peer) {
-	s.newReq <- requestInfo{
-		nodes: nodes,
-		upTo:  upTo,
-	}
+func (s *SyncManager) SendSyncRequest(upTo uint64, nodes []net.Peer) {
+	s.newReq <- NewRequestInfo(upTo, nodes)
+}
+
+func NewRequestInfo(upTo uint64, nodes []net.Peer) RequestInfo {
+	return RequestInfo{upTo: upTo, nodes: nodes}
 }
 
 // Run handles non-blocking sync requests coming from the regular operation of the daemon
@@ -275,7 +277,7 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 
 	// we always do it and we block while doing it if it's a resync. Notice that the regular sync will
 	// keep running in the background in their own go routine.
-	err := s.Sync(ctx, requestInfo{
+	err := s.Sync(ctx, RequestInfo{
 		nodes: nodes,
 		from:  from,
 		upTo:  to,
@@ -283,7 +285,7 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 
 	if errors.Is(err, ErrFailedAll) {
 		s.log.Warnw("All node have failed resync once, retrying one time")
-		err = s.Sync(ctx, requestInfo{
+		err = s.Sync(ctx, RequestInfo{
 			nodes: nodes,
 			from:  from,
 			upTo:  to,
@@ -294,7 +296,7 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 }
 
 // Sync will launch the requested sync with the requested peers and returns once done, even if it failed
-func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
+func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
@@ -366,17 +368,13 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		target = upTo
 	}
 
-	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo)
-	s.log.Debugw("sync log rate limiting", "skipping logs", commonutils.LogsToSkip)
+	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo, "Resync", isResync)
+	if target-from > commonutils.LogsToSkip {
+		s.log.Debugw("sync logging will use rate limiting", "skipping logs", commonutils.LogsToSkip)
+	}
 
 	for {
 		select {
-		// if global is Done, then so is cnode
-		case <-cnode.Done():
-			// it can be the remote note that stopped the syncing or a network error with it
-			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
-			// we still go on with the other peers
-			return false
 		case beaconPacket, ok := <-beaconCh:
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -397,6 +395,9 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 					"with_peer", peer.Address(),
 					"from_round", from,
 					"got_round", idx)
+				cnode = dcontext.SetSkipLogs(cnode, false)
+			} else {
+				cnode = dcontext.SetSkipLogs(cnode, true)
 			}
 
 			beacon := protoToBeacon(beaconPacket)
@@ -434,6 +435,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return true
 			}
 			// else, we keep waiting for the next beacons
+		case <-cnode.Done():
+			// if global is Done, then so is cnode
+			// it can be the remote note that stopped the syncing or a network error with it
+			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
+			// we still go on with the other peers
+			return false
 		}
 	}
 }
@@ -485,8 +492,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 			return ctx.Err()
 		default:
 		}
-		packet := beaconToProto(b)
-		packet.Metadata = &common.Metadata{BeaconID: beaconID}
+		packet := beaconToProto(b, beaconID)
 		err := stream.Send(packet)
 		if err != nil {
 			logger.Debugw("", "syncer", "streaming_send", "err", err)

@@ -126,6 +126,7 @@ func (g *grpcClient) PublicRandStream(
 	go func() {
 		for {
 			resp, err := stream.Recv()
+			// EOF means the stream was closed "properly"
 			if errors.Is(err, io.EOF) {
 				close(outCh)
 				return
@@ -133,7 +134,7 @@ func (g *grpcClient) PublicRandStream(
 			if err != nil {
 				// XXX should probably do stg different here but since we are
 				// continuously stream, if stream stops, it means stg went
-				// wrong; it should never EOF
+				// wrong
 				close(outCh)
 				return
 			}
