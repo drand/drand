@@ -14,7 +14,6 @@ import (
 	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
-	"github.com/weaveworks/common/fs"
 
 	"github.com/drand/drand/chain"
 	derrors "github.com/drand/drand/chain/errors"
@@ -1287,7 +1286,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	groupPath := path.Join(dir, beaconID, key.GroupFolderName, "drand_group.toml")
 
 	// read
-	groupFileReader, err := fs.Open(groupPath)
+	groupFileReader, err := os.Open(groupPath)
 	require.NoError(t, err)
 	groupFile, err := io.ReadAll(groupFileReader)
 	require.NoError(t, err)
