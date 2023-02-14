@@ -226,7 +226,9 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	bp.state.Lock()
 	if bp.syncerCancel != nil {
 		bp.state.Unlock()
-		return errors.New("syncing is already in progress")
+		err := errors.New("syncing is already in progress")
+		bp.log.Debugw("beacon_process", "err", err)
+		return err
 	}
 
 	// context given to the syncer

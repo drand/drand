@@ -46,7 +46,7 @@ func Test_OrderStorePG(t *testing.T) {
 		// yet could be fully retrieved.
 		// However, now that we rely on the previous value actually existing in the database,
 		// this test will fail.
-		t.Skipf("This test does not make sense from a chained beacon perspective.")
+		t.Skip("This test does not make sense from a chained beacon perspective.")
 	}
 
 	l, db := test.NewUnit(t, c, t.Name())

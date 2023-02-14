@@ -38,8 +38,6 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
-const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-
 func TestMigrate(t *testing.T) {
 	tmp := getSBFolderStructure(t)
 
@@ -222,7 +220,6 @@ func TestKeyGen(t *testing.T) {
 
 // tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
-	t.Skipf("test is broken, doesn't check for errors.")
 	tmpPath := t.TempDir()
 
 	n := 5
@@ -234,12 +231,14 @@ func TestStartAndStop(t *testing.T) {
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, "127.0.0.1:8080"}
+	privateAddr := test.Addresses(1)[0]
+
+	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, privateAddr}
 	require.NoError(t, CLI().Run(args))
 
 	startCh := make(chan bool)
 	go func() {
-		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath}
+		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath, "--private-listen", privateAddr}
 		// Allow the rest of the test to start
 		// Any error will be caught in the error check below
 		startCh <- true
@@ -559,7 +558,7 @@ func testStatus(t *testing.T, ctrlPort, beaconID string) {
 
 	var err error
 
-	t.Logf(" + running STATUS command with %s on beacon [%s]", ctrlPort, beaconID)
+	t.Logf(" + running STATUS command with %s on beacon [%s]\n", ctrlPort, beaconID)
 	for i := 0; i < 3; i++ {
 		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
@@ -576,7 +575,7 @@ func testFailStatus(t *testing.T, ctrlPort, beaconID string) {
 
 	var err error
 
-	t.Logf(" + running STATUS command with %s on beacon [%s]", ctrlPort, beaconID)
+	t.Logf(" + running STATUS command with %s on beacon [%s]\n", ctrlPort, beaconID)
 	for i := 0; i < 3; i++ {
 		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
@@ -604,13 +603,12 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 
 //nolint:funlen //This is a test
 func TestClientTLS(t *testing.T) {
-	t.Skipf("test fails when error checking commands")
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(t.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0o740)
+	require.NoError(t, os.Mkdir(tmpPath, 0o740))
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	certPath := path.Join(tmpPath, "server.pem")
@@ -696,7 +694,6 @@ func TestClientTLS(t *testing.T) {
 	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-//nolint:unused // We want to provide convenience functions
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
 
@@ -707,9 +704,6 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, grou
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)
 	testCommand(t, chainInfoCmd, expectedOutput)
-
-	showCmd := []string{"drand", "show", "share", "--control", ctrlPort}
-	testCommand(t, showCmd, expectedShareOutput)
 
 	showPublic := []string{"drand", "show", "public", "--control", ctrlPort}
 	b, _ := priv.Public.Key.MarshalBinary()
@@ -880,7 +874,6 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 }
 
 func TestDrandStatus(t *testing.T) {
-	t.Skipf("test fails when error checking commands")
 	n := 4
 	instances := genAndLaunchDrandInstances(t, n)
 	allAddresses := make([]string, 0, n)

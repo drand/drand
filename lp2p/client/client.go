@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"sync"
 
+	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/proto"
@@ -18,16 +19,21 @@ import (
 
 // Client is a concrete pubsub client implementation
 type Client struct {
-	cancel func()
-	latest uint64
-	cache  client.Cache
-	log    log.Logger
+	cancel     func()
+	latest     uint64
+	cache      client.Cache
+	bufferSize int
+	log        log.Logger
 
 	subs struct {
 		sync.Mutex
 		M map[*int]chan drand.PublicRandResponse
 	}
 }
+
+// defaultBufferSize controls how many incoming messages can be in-flight until they start
+// to be dropped by the library
+const defaultBufferSize = 100
 
 // SetLog configures the client log output
 func (c *Client) SetLog(l log.Logger) {
@@ -37,8 +43,14 @@ func (c *Client) SetLog(l log.Logger) {
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
 func WithPubsub(ps *pubsub.PubSub) client.Option {
+	return WithPubsubWithOptions(ps, clock.NewRealClock(), defaultBufferSize)
+}
+
+// WithPubsubWithOptions provides an option for integrating pubsub notification
+// into a drand client.
+func WithPubsubWithOptions(ps *pubsub.PubSub, clk clock.Clock, bufferSize int) client.Option {
 	return client.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
-		c, err := NewWithPubsub(ps, info, cache)
+		c, err := NewWithPubsubWithOptions(ps, info, cache, clk, bufferSize)
 		if err != nil {
 			return nil, err
 		}
@@ -48,20 +60,28 @@ func WithPubsub(ps *pubsub.PubSub) client.Option {
 
 // NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
+	return NewWithPubsubWithOptions(ps, info, cache, clock.NewRealClock(), defaultBufferSize)
+}
+
+// NewWithPubsubWithOptions creates a gossip randomness client.
+//
+//nolint:funlen // THis is the correct function length
+func NewWithPubsubWithOptions(ps *pubsub.PubSub, info *chain.Info, cache client.Cache, clk clock.Clock, bufferSize int) (*Client, error) {
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
-		cancel: cancel,
-		cache:  cache,
-		log:    log.DefaultLogger(),
+		cancel:     cancel,
+		cache:      cache,
+		bufferSize: bufferSize,
+		log:        log.DefaultLogger(),
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())
 	topic := lp2p.PubSubTopic(chainHash)
-	if err := ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c)); err != nil {
+	if err := ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c, clk)); err != nil {
 		cancel()
 		return nil, xerrors.Errorf("creating topic: %w", err)
 	}
@@ -82,20 +102,27 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 		for {
 			msg, err := s.Next(ctx)
 			if ctx.Err() != nil {
+				c.log.Debugw("NewPubSub closing because context was canceled", "msg", msg, "err", ctx.Err())
+
+				s.Cancel()
+				err := t.Close()
+				if err != nil {
+					c.log.Errorw("NewPubSub closing goroutine for topic", "err", err)
+				}
+
 				c.subs.Lock()
 				for _, ch := range c.subs.M {
 					close(ch)
 				}
 				c.subs.M = make(map[*int]chan drand.PublicRandResponse)
 				c.subs.Unlock()
-				t.Close()
-				s.Cancel()
 				return
 			}
 			if err != nil {
 				c.log.Warnw("", "gossip client", "topic.Next error", "err", err)
 				continue
 			}
+
 			var rand drand.PublicRandResponse
 			err = proto.Unmarshal(msg.Data, &rand)
 			if err != nil {
@@ -106,10 +133,12 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 			// TODO: verification, need to pass drand network public key in
 
 			if c.latest >= rand.Round {
+				c.log.Debugw("received round older than the latest previously received one", "latest", c.latest, "round", rand.Round)
 				continue
 			}
 			c.latest = rand.Round
 
+			c.log.Debugw("newPubSub broadcasting round to listeners", "round", rand.Round)
 			c.subs.Lock()
 			for _, ch := range c.subs.M {
 				select {
@@ -119,6 +148,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				}
 			}
 			c.subs.Unlock()
+			c.log.Debugw("newPubSub finished broadcasting round to listeners", "round", rand.Round)
 		}
 	}()
 
@@ -142,6 +172,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	c.subs.M[id] = ch
 	c.subs.Unlock()
 	return func() {
+		c.log.Debugw("closing sub")
 		c.subs.Lock()
 		delete(c.subs.M, id)
 		close(ch)
@@ -151,8 +182,8 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 
 // Watch implements the client.Watcher interface
 func (c *Client) Watch(ctx context.Context) <-chan client.Result {
-	innerCh := make(chan drand.PublicRandResponse)
-	outerCh := make(chan client.Result)
+	innerCh := make(chan drand.PublicRandResponse, c.bufferSize)
+	outerCh := make(chan client.Result, c.bufferSize)
 	end := c.Sub(innerCh)
 
 	w := sync.WaitGroup{}
@@ -183,7 +214,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 				case outerCh <- dat:
 					c.log.Debugw("processed random beacon", "round", dat.Round())
 				default:
-					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel")
+					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel", "round", dat.Round())
 				}
 			case <-ctx.Done():
 				c.log.Debugw("client.Watch done")

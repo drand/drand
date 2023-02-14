@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/protobuf/proto"
@@ -15,13 +16,16 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub.ValidatorEx {
+func randomnessValidator(info *chain.Info, cache client.Cache, c *Client, clk clock.Clock) pubsub.ValidatorEx {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		rand := &drand.PublicRandResponse{}
 		err := proto.Unmarshal(m.Data, rand)
 		if err != nil {
+			c.log.Warnw("", "gossip validator", "Not validating received randomness due to proto.Unmarshal error", "err", err)
 			return pubsub.ValidationReject
 		}
+
+		c.log.Debugw("", "gossip validator", "Received new round", "round", rand.GetRound())
 
 		if info == nil {
 			c.log.Warnw("", "gossip validator", "Not validating received randomness due to lack of trust root.")
@@ -29,7 +33,18 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 		}
 
 		// Unwilling to relay beacons in the future.
-		if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, rand.GetRound()), 0).After(time.Now()) {
+		timeNow := clk.Now()
+		timeOfRound := chain.TimeOfRound(info.Period, info.GenesisTime, rand.GetRound())
+		if time.Unix(timeOfRound, 0).After(timeNow) {
+			c.log.Warnw("",
+				"gossip validator", "Not validating received randomness due to time of round",
+				"err", err,
+				"timeOfRound", timeOfRound,
+				"time.Now", timeNow.Unix(),
+				"info.Period", info.Period,
+				"info.Genesis", info.GenesisTime,
+				"round", rand.GetRound(),
+			)
 			return pubsub.ValidationReject
 		}
 
@@ -41,26 +56,32 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 					// degraded cache entry we can't validate the full byte
 					// sequence.
 					if bytes.Equal(rand.GetSignature(), current.Signature()) {
+						c.log.Warnw("", "gossip validator", "ignore")
 						return pubsub.ValidationIgnore
 					}
+					c.log.Warnw("", "gossip validator", "reject")
 					return pubsub.ValidationReject
 				}
 				if current.Round() == rand.GetRound() &&
 					bytes.Equal(current.Randomness(), rand.GetRandomness()) &&
 					bytes.Equal(current.Signature(), rand.GetSignature()) &&
 					bytes.Equal(currentFull.PreviousSignature, rand.GetPreviousSignature()) {
+					c.log.Warnw("", "gossip validator", "ignore")
 					return pubsub.ValidationIgnore
 				}
+				c.log.Warnw("", "gossip validator", "reject")
 				return pubsub.ValidationReject
 			}
 		}
 		scheme, err := crypto.SchemeFromName(info.Scheme)
 		if err != nil {
+			c.log.Warnw("", "gossip validator", "reject", "err", err)
 			return pubsub.ValidationReject
 		}
 
 		err = scheme.VerifyBeacon(rand, info.PublicKey)
 		if err != nil {
+			c.log.Warnw("", "gossip validator", "reject", "err", err)
 			return pubsub.ValidationReject
 		}
 		return pubsub.ValidationAccept

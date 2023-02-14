@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/client"
@@ -18,7 +19,8 @@ import (
 func TestHTTPClient(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, sch, clk)
 	defer cancel()
 
 	err = IsServerReady(addr)
@@ -59,7 +61,8 @@ func TestHTTPClient(t *testing.T) {
 func TestHTTPGetLatest(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	err = IsServerReady(addr)
@@ -95,7 +98,8 @@ func TestHTTPGetLatest(t *testing.T) {
 func TestForURLsCreation(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	err = IsServerReady(addr)
@@ -114,7 +118,8 @@ func TestForURLsCreation(t *testing.T) {
 func TestHTTPWatch(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	err = IsServerReady(addr)
@@ -145,8 +150,8 @@ func TestHTTPWatch(t *testing.T) {
 func TestHTTPClientClose(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	err = IsServerReady(addr)

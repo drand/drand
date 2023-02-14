@@ -80,7 +80,7 @@ func BatchNewDrand(
 ) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
-	t.Logf("Creating %d nodes for beaconID %s", n, beaconID)
+	t.Logf("Creating %d nodes for beaconID %s\n", n, beaconID)
 	var privs []*key.Pair
 	if insecure {
 		privs, group = test.BatchIdentities(n, sch, beaconID)
@@ -117,7 +117,7 @@ func BatchNewDrand(
 				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
 				require.NoError(t, err)
 
-				t.Logf("generate keys for drand %d", testNodeIndex)
+				t.Logf("generate keys for drand %d\n", testNodeIndex)
 				err = httpscerts.Generate(certPath, keyPath, h)
 				require.NoError(t, err)
 			}
@@ -159,7 +159,7 @@ func BatchNewDrand(
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
-		t.Logf("Creating node %d", i)
+		t.Logf("Creating node %d\n", i)
 
 		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
 		require.NoError(t, err)
@@ -181,23 +181,13 @@ func BatchNewDrand(
 	return daemons, drands, group, dir, certPaths
 }
 
-// Deprecated: do not use sleeps in your tests
-func getSleepDuration() time.Duration {
-	if os.Getenv("CI") != "" {
-		fmt.Println("--- Sleeping on CI")
-		return time.Duration(800) * time.Millisecond
-	}
-	return time.Duration(500) * time.Millisecond
-}
 
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, opts ...ConfigOption) *DrandTestScenario {
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clk clock.FakeClock, opts ...ConfigOption) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	dt := new(DrandTestScenario)
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
@@ -215,7 +205,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt.beaconID = beaconID
 	dt.thr = thr
 	dt.period = period
-	dt.clock = clock.NewFakeClock()
+	dt.clock = clk
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
@@ -287,7 +277,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	dr.Stop(context.Background())
 	<-dr.WaitExit()
 
-	d.t.Logf("[drand] stop %s", dr.priv.Public.Address())
+	d.t.Logf("[drand] stop %s\n", dr.priv.Public.Address())
 
 	controlClient, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
@@ -295,7 +285,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	retryCount := 1
 	maxRetries := 5
 	for range time.Tick(100 * time.Millisecond) {
-		d.t.Logf("[drand] ping %s: %d/%d", dr.priv.Public.Address(), retryCount, maxRetries)
+		d.t.Logf("[drand] ping %s: %d/%d\n", dr.priv.Public.Address(), retryCount, maxRetries)
 		response, err := controlClient.Status(d.beaconID)
 		if err != nil {
 			break
@@ -308,7 +298,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 		require.LessOrEqual(d.t, retryCount, maxRetries)
 	}
 
-	d.t.Logf("[drand] stopped %s", dr.priv.Public.Address())
+	d.t.Logf("[drand] stopped %s\n", dr.priv.Public.Address())
 }
 
 // StartDrand fetches the drand given the id, in the respective group given the
@@ -317,12 +307,12 @@ func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
-	d.t.Logf("[drand] Start")
+	d.t.Log("[drand] Start")
 	err := dr.StartBeacon(catchup)
 	if err != nil {
 		d.t.Logf("[drand] Start had an error: %v\n", err)
 	}
-	d.t.Logf("[drand] Started")
+	d.t.Log("[drand] Started")
 }
 
 func (d *DrandTestScenario) Now() time.Time {
@@ -335,10 +325,10 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 	if now := d.Now().Unix(); now < targetUnixTime {
 		d.AdvanceMockClock(t, time.Duration(targetUnixTime-now)*time.Second)
 	} else {
-		d.t.Logf("ALREADY PASSED")
+		d.t.Log("ALREADY PASSED")
 	}
 
-	t.Logf("Set time to genesis time: %d", d.Now().Unix())
+	t.Logf("Set time to genesis time: %d\n", d.Now().Unix())
 }
 
 // AdvanceMockClock advances the clock of all drand by the given duration
@@ -630,7 +620,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		require.NoError(t, err)
 
 		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound >= round {
-			t.Logf("node %s has reached expected round (%d)", node.addr, status.ChainStore.LastRound)
+			t.Logf("node %s has reached expected round (%d)\n", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
 
@@ -639,7 +629,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 			return fmt.Errorf("timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
-		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...", node.addr, status.ChainStore.LastRound, round)
+		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...\n", node.addr, status.ChainStore.LastRound, round)
 		time.Sleep(d.period)
 	}
 }
@@ -655,7 +645,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 		require.NoError(t, err)
 
 		if status.Beacon.IsServing {
-			t.Logf("node %s has its beacon chain running on round %d", node.addr, status.ChainStore.LastRound)
+			t.Logf("node %s has its beacon chain running on round %d\n", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
 

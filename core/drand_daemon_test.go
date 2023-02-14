@@ -63,31 +63,20 @@ func TestDrandDaemon_Stop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	t.Logf("running dd.Stop()")
+	t.Log("running dd.Stop()")
 	dd.Stop(ctx)
 
-	t.Logf("running dd.WaitExit()")
+	t.Log("running dd.WaitExit()")
 	closing, ok := <-dd.WaitExit()
 	require.True(t, ok, "Expecting to receive from exit channel")
 	require.True(t, closing, "Expecting to receive from exit channel")
 
-	t.Logf("running dd.WaitExit()")
+	t.Log("running dd.WaitExit()")
 	_, ok = <-dd.WaitExit()
 	require.False(t, ok, "Expecting to receive from exit channel")
 
-	t.Logf("running proc.WaitExit()")
+	t.Log("running proc.WaitExit()")
 	_, ok = <-proc.WaitExit()
 	require.False(t, ok, "If we block the exit of drandDaemon by waiting for all beacons to exit,"+
 		"then this should return false as we consume the value already")
-
-	//nolint:gocritic // Dear linter, I do want to have this code commented at least during code review. I know what I'm doing.
-	/*
-		// Uncomment all the code below if we do not block on exit of drandDaemon
-		t.Logf("running proc.WaitExit()")
-		_, ok = <-proc.WaitExit()
-		require.False(t, ok, "Expecting exit channel to be closed")
-
-		t.Logf("running proc.Stop()")
-		proc.Stop(ctx)
-	*/
 }
