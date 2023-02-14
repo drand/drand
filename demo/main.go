@@ -148,7 +148,7 @@ func main() {
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {
-		limit = 4
+		limit = 5
 	}
 	// look if beacon is still up even with the nodeToExclude being offline
 	for i := 0; i < limit; i++ {
