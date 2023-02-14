@@ -125,7 +125,7 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can.
 //
-//nolint:gocyclo // This function should be simplified, if possible.
+//nolint:gocyclo,funlen // This function should be simplified, if possible.
 func (c *chainStore) runAggregator() {
 	select {
 	case <-c.ctx.Done():
@@ -133,9 +133,7 @@ func (c *chainStore) runAggregator() {
 	default:
 		c.l.Debugw("starting chain_aggregator")
 	}
-	lastBeacon := &chain.Beacon{
-		Round: -1,
-	}
+	var lastBeacon *chain.Beacon
 
 	var cache = newPartialCache(c.l, c.crypto.Scheme)
 	for {
@@ -146,7 +144,7 @@ func (c *chainStore) runAggregator() {
 			cache.FlushRounds(lastBeacon.Round)
 		case partial := <-c.newPartials:
 			var err error
-			if lastBeacon.Round == -1 {
+			if lastBeacon == nil {
 				lastBeacon, err = c.Last(c.ctx)
 				if err != nil {
 					if errors.Is(err, context.Canceled) {
