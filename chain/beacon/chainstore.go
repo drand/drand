@@ -135,6 +135,10 @@ func (c *chainStore) runAggregator() {
 	}
 	lastBeacon, err := c.Last(c.ctx)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			c.l.Errorw("", "chain_aggregator", "loading", "last_beacon", err)
+			return
+		}
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
 	}
 
