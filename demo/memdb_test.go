@@ -1,4 +1,4 @@
-//go:build memdb
+//go:build integration && memdb
 
 package main_test
 

@@ -2,6 +2,7 @@
 .PHONY: test-unit-cover test-unit-boltdb-cover test-unit-memdb-cover test-unit-postgres-cover
 .PHONY: coverage coverage-boltdb coverage-memdb coverage-postgres
 .PHONY: test-integration test-integration-boltdb test-integration-memdb test-integration-postgres
+.PHONY: test-integration-run-demo test-integration-run-demo-boltdb test-integration-run-demo-memdb test-integration-run-demo-postgres
 .PHONY: demo demo-boltdb demo-memdb demo-postgres
 .PHONY: deploy-local linter install build client drand relay-http relay-gossip relay-s3
 .PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
@@ -80,18 +81,27 @@ test-unit-postgres-cover:
 	go test -failfast $(SHORTTEST) -v -tags postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -failfast $(SHORTTEST) -race -v ./demo
-	cd demo && go build && ./demo -build -test -debug
+	go test -failfast $(SHORTTEST) -race -v -tags integration ./demo/
 
 test-integration-boltdb: test-integration
 
 test-integration-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
-	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+	go test -failfast $(SHORTTEST) -race -v -tags integration,memdb ./demo/
 
 test-integration-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
+	go test -failfast $(SHORTTEST) -race -v -tags integration,postgres ./demo/
+
+test-integration-run-demo:
+	cd demo && go build && ./demo -build -test -debug
+
+test-integration-run-demo-boltdb: test-integration-run-demo
+
+test-integration-run-demo-memdb:
+	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+
+test-integration-run-demo-postgres:
 	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
+
 
 coverage:
 	go get -v -t -d ./...

@@ -67,12 +67,64 @@ jobs:
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
         run: make test-unit-${{ matrix.db_type }}
+
+  test-integration:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        db_type: [ "boltdb", "memdb", "postgres" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+      - uses: actions/setup-go@v3.5.0
+        with:
+          go-version: '1.19.5'
+      - uses: actions/cache@v3.2.3
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
       - name: Integration tests
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
         run: make test-integration-${{ matrix.db_type }}
+
+  test-integration-run-demo:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        db_type: [ "boltdb", "memdb", "postgres" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+      - uses: actions/setup-go@v3.5.0
+        with:
+          go-version: '1.19.5'
+      - uses: actions/cache@v3.2.3
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
+      - name: Integration tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+          SCHEME_ID: ${{ matrix.scheme_id }}
+          CI: "true"
+        run: make test-integration-run-demo-${{ matrix.db_type }}
 
   coverage:
     runs-on: ubuntu-latest
