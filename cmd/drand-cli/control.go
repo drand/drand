@@ -591,21 +591,6 @@ func showChainInfo(c *cli.Context) error {
 	return printChainInfo(c, ci)
 }
 
-func showPrivateCmd(c *cli.Context) error {
-	client, err := controlClient(c)
-	if err != nil {
-		return err
-	}
-
-	beaconID := getBeaconID(c)
-	resp, err := client.PrivateKey(beaconID)
-	if err != nil {
-		return fmt.Errorf("could not request drand.private: %w", err)
-	}
-
-	return printJSON(resp)
-}
-
 func showPublicCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
