@@ -41,6 +41,8 @@ type signedBeacon interface {
 // Scheme represents the cryptographic schemes supported by drand. It currently assumes the usage of pairings and
 // it is important that the SigGroup and KeyGroup are properly set with respect to the ThresholdScheme, the AuthScheme
 // also needs to be compatible with the KeyGroup, since it will use it to self-sign its own public key.
+//
+// Note: Scheme is not meant to be marshaled directly. Instead use the SchemeFromName
 type Scheme struct {
 	// The name of the scheme
 	Name string
@@ -59,9 +61,9 @@ type Scheme struct {
 	// Pairing is the underlying pairing Suite.
 	Pairing pairing.Suite
 	// the hash function used by this scheme
-	IdentityHash func() hash.Hash
+	IdentityHash func() hash.Hash `toml:"-"`
 	// the DigestBeacon is used to generate the bytes that are getting signed
-	DigestBeacon func(hashableBeacon) []byte
+	DigestBeacon func(hashableBeacon) []byte `toml:"-"`
 }
 
 // VerifyBeacon is verifying the aggregated beacon against the provided group public key
