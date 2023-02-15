@@ -448,7 +448,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	testStatus(t, ctrlPort, beaconID)
 	testListSchemes(t, ctrlPort)
 
-	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
+	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group.TOML()))
 
 	t.Log("Running CHAIN-INFO command")
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
