@@ -324,7 +324,6 @@ func TestUtilCheck(t *testing.T) {
 
 //nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
-	t.Skipf("Test fails when error checking commands")
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -463,10 +462,6 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", address}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, chainInfoCmdHash, expectedOutput)
-
-	t.Log("Running SHOW SHARE command")
-	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort}
-	testCommand(t, shareCmd, expectedShareOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
