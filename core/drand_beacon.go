@@ -273,6 +273,9 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
 	ctx := context.Background()
+
+	// We stop the node at or after transition to make sure they are broadcasting
+	// their last partial before transition.
 	timeToStop := bp.group.TransitionTime + int64(bp.group.Period.Seconds()) - 1
 
 	if !newPresent {
