@@ -256,10 +256,15 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme, s.beaconID)
 	} else {
 		genesis := s.oldGroup.GenesisTime
-		atLeast := s.clock.Now().Add(totalDKG).Unix()
+
+		// Transition will happen 2 rounds after the minimum time the DKG takes.
+		// This will allow nodes to not produce "bls: invalid signature" errors from nodes in the network.
+		atLeast := s.clock.Now().Add(totalDKG).Add(s.beaconPeriod).Unix()
+
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
+
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme, s.beaconID)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()

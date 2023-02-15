@@ -256,10 +256,14 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 func (d *DrandTestScenario) waitFor(
 	t *testing.T,
 	client *net.ControlClient,
-	maxRetries int, //nolint
 	waitFor func(r *drand.StatusResponse) bool,
 ) bool {
-	retry := 0
+	period := d.period
+	if d.period == 0 {
+		period = 10
+	}
+	maxRetries := (period * 3).Milliseconds() / 100
+	retry := int64(0)
 	for {
 		r, err := client.Status(d.beaconID)
 		require.NoError(t, err)
@@ -296,7 +300,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	var wg sync.WaitGroup
 	wg.Add(totalNodes)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	done := make(chan bool) // signal we are done with the reshare before the timeout
 
@@ -322,7 +326,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
 
 		// We need to make sure the daemon is running before continuing
-		d.waitFor(d.t, controlClient, 10, func(r *drand.StatusResponse) bool {
+		d.waitFor(d.t, controlClient, func(r *drand.StatusResponse) bool {
 			// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 			return r.Beacon.IsRunning
 		})
@@ -332,7 +336,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	// first run the leader and then run the other nodes
 	go runLeaderNode()
 
-	require.True(d.t, d.waitFor(d.t, controlClient, 10, func(r *drand.StatusResponse) bool {
+	require.True(d.t, d.waitFor(d.t, controlClient, func(r *drand.StatusResponse) bool {
 		return r.Dkg.Status == uint32(DkgInProgress)
 	}))
 	d.t.Logf("[DEBUG] node: %s DKG Status: is in progress", leaderNode.GetAddr())
@@ -365,7 +369,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
 
 			// We need to make sure the daemon is running before continuing
-			d.waitFor(d.t, client, 10, func(r *drand.StatusResponse) bool {
+			d.waitFor(d.t, client, func(r *drand.StatusResponse) bool {
 				// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
 				return r.Beacon.IsRunning
 			})
@@ -785,12 +789,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	d.t.Log("[reshare] LOCK")
 	d.t.Logf("[reshare] old: %d/%d | new: %d/%d", c.oldRun, len(d.nodes), c.newRun, len(d.newNodes))
 
-	// stop the excluded nodes
-	for i, node := range d.nodes[c.oldRun:] {
-		d.t.Logf("[reshare] stop old %d | %s", i, node.addr)
-		d.StopMockNode(node.addr, false)
-	}
-
 	if len(d.newNodes) > 0 {
 		for _, node := range d.newNodes[c.newRun:] {
 			d.t.Logf("[reshare] stop new %s", node.addr)
@@ -823,7 +821,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	go d.runLeaderReshare(leader, controlClient, d.newN, d.newThr, c.timeout, errCh, leaderGroupReadyCh)
 	d.resharedNodes = append(d.resharedNodes, leader)
 
-	require.True(t, d.waitFor(t, controlClient, 10, func(r *drand.StatusResponse) bool {
+	require.True(t, d.waitFor(t, controlClient, func(r *drand.StatusResponse) bool {
 		return r.Reshare.Status == uint32(ReshareInProgress)
 	}))
 	t.Logf("[DEBUG] node: %s Reshare Status: is in progress", leader.GetAddr())
@@ -867,6 +865,12 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted
 		}
+	}
+
+	// stop the excluded nodes
+	for i, node := range d.nodes[c.oldRun:] {
+		d.t.Logf("[reshare] stop old %d | %s", i, node.addr)
+		d.StopMockNode(node.addr, false)
 	}
 
 	// wait for the return of the clients

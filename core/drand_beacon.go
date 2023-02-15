@@ -273,7 +273,10 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
 	ctx := context.Background()
-	timeToStop := bp.group.TransitionTime - 1
+
+	// We stop the node at or after transition to make sure they are broadcasting
+	// their last partial before transition.
+	timeToStop := bp.group.TransitionTime + int64(bp.group.Period.Seconds()) - 1
 
 	if !newPresent {
 		// an old node is leaving the network
@@ -307,9 +310,11 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 
 // Stop simply stops all drand operations.
 func (bp *BeaconProcess) Stop(ctx context.Context) {
+	bp.state.RLock()
 	select {
 	case <-bp.exitCh:
 		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
+		bp.state.RUnlock()
 		return
 	default:
 		bp.log.Debugw("Stopping BeaconProcess", "id", bp.getBeaconID())
@@ -322,6 +327,7 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	case <-ctx.Done():
 		bp.log.Warnw("Context canceled, BeaconProcess exitCh probably blocked")
 	}
+	bp.state.RUnlock()
 
 	bp.StopBeacon()
 }

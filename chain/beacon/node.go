@@ -125,7 +125,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
-		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, p.GetRound())
 	}
 
 	node := h.crypto.GetGroup().Node(uint32(idx))
@@ -141,6 +141,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSignature()),
 			"curr_round", currentRound,
+			"partial_round", p.GetRound(),
 			"msg_sign", shortSigStr(msg),
 			"from_idx", idx,
 			"from_node", nodeName)
@@ -150,6 +151,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSignature()),
 		"curr_round", currentRound,
+		"partial_round", p.GetRound(),
 		"msg_sign", shortSigStr(msg),
 		"from_node", nodeName,
 		"status", "OK")
@@ -247,7 +249,7 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Errorw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
@@ -361,7 +363,7 @@ func (h *Handler) run(startTime int64) {
 				// already. If that next beacon is created soon after, this
 				// channel will trigger again etc until we arrive at the correct
 				// round.
-				go func(c roundInfo, latest *chain.Beacon) {
+				go func(c roundInfo, latest chain.Beacon) {
 					h.l.Debugw("sleeping now", "beacon_loop", "catchupmode",
 						"last_is", latest.Round,
 						"sleep_for", h.conf.Group.CatchupPeriod)
@@ -376,8 +378,8 @@ func (h *Handler) run(startTime int64) {
 
 					h.l.Debugw("broadcast next partial", "beacon_loop", "catchupmode",
 						"last_is", latest.Round)
-					h.broadcastNextPartial(h.ctx, c, latest)
-				}(current, b)
+					h.broadcastNextPartial(h.ctx, c, &latest)
+				}(current, *b)
 			} else if b.Round > current.round {
 				h.l.Warnw(
 					"tried catching up, but catchup beacons were newer than the current round",
@@ -427,13 +429,25 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		idt := id.Identity
 		if h.addr == id.Address() {
 			continue
 		}
-		go func(i *key.Identity) {
+		go func(i key.Identity) {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			h.l.Debugw("", "beacon_round", round, "send_to", i.Address())
-			err := h.client.PartialBeacon(ctx, i, packet)
+			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
 				h.l.Errorw("", "beacon_round", round, "err_request", err, "from", i.Address())
 				if strings.Contains(err.Error(), errOutOfRound) {
@@ -441,7 +455,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 				}
 				return
 			}
-		}(idt)
+		}(*idt)
 	}
 }
 

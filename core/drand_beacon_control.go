@@ -1049,13 +1049,19 @@ func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThr
 				bp.log.Errorw("", "push_dkg", "failed to push", "to", ok.address, "err", ok.err)
 				continue
 			}
-			bp.log.Debugw("", "push_dkg", "sending_group", "success_to", ok.address, "left", total)
 			if nodesContainAddr(outgoing, ok.address) {
 				previousThreshold--
 			}
 			if nodesContainAddr(incoming, ok.address) {
 				newThreshold--
 			}
+			bp.log.Debugw("",
+				"push_dkg", "sending_group",
+				"success_to", ok.address,
+				"left", total,
+				"previousThreshold", previousThreshold,
+				"newThreshold", newThreshold,
+			)
 		case <-bp.opts.clock.After(time.Minute):
 			if previousThreshold <= 0 && newThreshold <= 0 {
 				bp.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
