@@ -441,7 +441,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore, beaconID)
 }
 
-//nolint:unused // This is literally used one line above
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
 
@@ -534,7 +533,6 @@ func testFailStatus(t *testing.T, ctrlPort, beaconID string) {
 	}
 }
 
-//nolint:unused // We want to provide convenience functions
 func testListSchemes(t *testing.T, ctrlPort string) {
 	t.Helper()
 
