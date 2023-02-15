@@ -569,12 +569,6 @@ var appCommands = []*cli.Command{
 				Action: showChainInfo,
 			},
 			{
-				Name:   "private",
-				Usage:  "shows the long-term private key of a node.\n",
-				Flags:  toArray(controlFlag, beaconIDFlag),
-				Action: showPrivateCmd,
-			},
-			{
 				Name:   "public",
 				Usage:  "shows the long-term public key of a node.\n",
 				Flags:  toArray(controlFlag, beaconIDFlag),
