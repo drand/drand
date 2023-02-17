@@ -6,9 +6,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash"
+	"io"
 	"os"
 
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/hkdf"
 
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
@@ -242,11 +244,17 @@ func GetSchemeFromEnv() (*Scheme, error) {
 	return GetSchemeByIDWithDefault(id)
 }
 
-// RandomnessFromSignature derives the round randomness from its signature. We are using sha256 currently
-// but it could use blake2b instead or another hash. Hashing the signature is important because the algebraic structure
-// of the elliptic curve points that correspond to signatures does not map uniformly with all possible bit string, but
-// a signature is indistinguishable from any random point on that elliptic curve.
+// RandomnessFromSignature derives the round randomness from its signature.
+// We are use HKDF to extract 32 bytes of randomness from the signature.
+// The hash function may be updated from sha256 to blake2b or similar in the future.
+// Using HKDF is important because signatures are nonuniform randomness,
+// and HKDF is designed to convert nonuniform randomness into uniform randomness.
 func RandomnessFromSignature(sig []byte) []byte {
-	out := sha256.Sum256(sig)
+	hash := sha256.New
+	salt := make([]byte, hash().Size())
+	info := make([]byte, 0)
+	hkdf := hkdf.New(hash, sig, salt, info)
+	out := make([]byte, 32)
+	io.ReadFull(hkdf, out)
 	return out[:]
 }
