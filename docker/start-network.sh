@@ -49,19 +49,26 @@ echo [+] Starting all the nodes using docker-compose
 docker-compose -f docker-compose-network.yml up -d
 
 
+### sleep to let the nodes start up
+sleep 5
+
 ### now we run the initial distributed key generation
 ### we're going to use the first node as the leader node
 
 echo [+] Starting distributed key generation for the leader
 
-# we start the DKG and send it to the background
-docker exec --detach --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --interactive --tty drand1 drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable
+# we start the DKG and send it to the background; 
+docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
+
+# and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
+sleep 1
+echo [+] Started distributed key generation for the leader
 
 echo [+] Joining distributed key generation for the followers
 for i in $(seq 2 $num_of_nodes);
 do
   # we start the DKG and send it to the background
-  docker exec --detach --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --interactive --tty drand$i drand share --id default --connect drand1:8010 --tls-disable
+  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand$i sh -c "drand share --id default --connect drand1:8010 --tls-disable"
 done
 
 
