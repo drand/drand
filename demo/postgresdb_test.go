@@ -1,4 +1,4 @@
-//go:build postgres
+//go:build integration && postgres
 
 package main_test
 

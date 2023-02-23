@@ -1,4 +1,4 @@
-//go:build !postgres && !memdb
+//go:build integration && !postgres && !memdb
 
 package main_test
 
