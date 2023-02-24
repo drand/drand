@@ -3,9 +3,10 @@ package dkg
 
 import (
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/util"
 
@@ -371,12 +372,6 @@ func TestProposalValidation(t *testing.T) {
 func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 
-	//// let's split off the group because it doesn't really matter for this
-	//completeWithoutGroup := func(beaconID string, status DKGStatus, previousLeader *drand.Participant, others ...*drand.Participant) *DBState {
-	//	s := NewCompleteDKGEntry(beaconID, status, previousLeader, others...)
-	//	s.FinalGroup = nil
-	//	return s
-	//}
 	tests := []stateChangeTableTest{
 		{
 			name:          "fresh state cannot time out",

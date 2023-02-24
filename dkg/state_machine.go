@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"reflect"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -93,6 +94,8 @@ type DBState struct {
 }
 
 // Equals does a deep equal comparison on all the values in the `DBState`
+//
+//nolint:gocyclo
 func (d *DBState) Equals(e *DBState) bool {
 	if d == nil {
 		return e == nil

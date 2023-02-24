@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/protobuf/drand"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/drand/drand/dkg"
 

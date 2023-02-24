@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	dkg2 "github.com/drand/drand/dkg"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	dkg2 "github.com/drand/drand/dkg"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"

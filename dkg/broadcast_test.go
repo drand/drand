@@ -1,9 +1,10 @@
 package dkg
 
 import (
+	"testing"
+
 	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber/share/dkg"
-	"testing"
 
 	"github.com/drand/drand/net"
 

@@ -152,6 +152,8 @@ func (g *Group) String() string {
 }
 
 // Equal indicates if two groups are equal
+//
+//nolint:gocyclo
 func (g *Group) Equal(g2 *Group) bool {
 	if g == nil {
 		return g2 == nil
@@ -221,6 +223,7 @@ type GroupTOML struct {
 	ID             string
 }
 
+//nolint:gocyclo
 func (g *Group) FromTOML(i interface{}) error {
 	if i == nil {
 		return nil

@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/key"
 	"time"
+
+	"github.com/drand/drand/key"
 
 	clock "github.com/jonboulle/clockwork"
 

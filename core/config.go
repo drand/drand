@@ -38,7 +38,6 @@ type Config struct {
 	pgDSN             string
 	pgConn            *sqlx.DB
 	memDBSize         int
-	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
 	keyPath           string
@@ -118,12 +117,6 @@ func (d *Config) ControlPort() string {
 // Logger returns the logger associated with this config.
 func (d *Config) Logger() log.Logger {
 	return d.logger
-}
-
-func (d *Config) callbacks(b *chain.Beacon) {
-	for _, fn := range d.beaconCbs {
-		fn(b)
-	}
 }
 
 // WithCallOption applies grpc options when drand calls a gRPC method.

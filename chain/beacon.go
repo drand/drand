@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+
 	"github.com/drand/drand/crypto"
 
 	json "github.com/nikkolasg/hexjson"

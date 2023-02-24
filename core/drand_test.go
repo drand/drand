@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/common"
-	"google.golang.org/grpc"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/common"
+	"google.golang.org/grpc"
 
 	dkg2 "github.com/drand/drand/dkg"
 
@@ -335,6 +336,8 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 // The test creates the scenario where one node made a complaint during the DKG, at the second phase, so normally,
 // there should be a "Justification" at the third phase. In this case, there is not. This scenario
 // can happen if there is an offline node right at the beginning of DKG that don't even send any message.
+//
+//nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Fails all the time on CI for some reason")
