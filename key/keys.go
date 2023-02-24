@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/drand/drand/crypto"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -27,7 +26,6 @@ type Pair struct {
 // valid internet facing ipv4 address where to this reach the node holding the
 // public / private key pair.
 type Identity struct {
-	sync.Mutex
 	Key       kyber.Point
 	Addr      string
 	TLS       bool
@@ -207,11 +205,8 @@ func (i *Identity) FromTOML(t interface{}) error {
 	return err
 }
 
-// TOML returns a empty TOML-compatible version of the public key
+// TOML returns an empty TOML-compatible version of the public key
 func (i *Identity) TOML() interface{} {
-	// race checker was getting frisky
-	i.Lock()
-	defer i.Unlock()
 	hexKey := PointToString(i.Key)
 	var schemeName string
 

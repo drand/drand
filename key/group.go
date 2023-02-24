@@ -64,12 +64,18 @@ func (g *Group) Find(pub *Identity) *Node {
 	for _, pu := range g.Nodes {
 		if pu.Identity.Equal(pub) {
 			// migration path
-			if pu.Scheme != g.Scheme {
-				pu.Lock()
-				pu.Scheme = g.Scheme
-				pu.Unlock()
+			// we have to create a new object to avoid triggering the race detector with the DKG
+			// store which also uses the `Node`s from the group file
+			return &Node{
+				Identity: &Identity{
+					Key:       pu.Key,
+					Addr:      pu.Addr,
+					TLS:       pu.TLS,
+					Signature: pu.Signature,
+					Scheme:    g.Scheme,
+				},
+				Index: pu.Index,
 			}
-			return pu
 		}
 	}
 	return nil
