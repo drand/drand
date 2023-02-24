@@ -1,4 +1,5 @@
 //go:build integration
+
 package main_test
 
 import (
@@ -6,8 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
@@ -57,7 +56,7 @@ func testLocalOrchestration(t *testing.T) {
 	o := lib.NewOrchestrator(c)
 	defer o.Shutdown()
 	t.Log("[DEBUG]", "[+] StartCurrentNodes")
-	err := o.StartCurrentNodes()
+	err = o.StartCurrentNodes()
 	require.NoError(t, err)
 
 	err = o.RunDKG(20 * time.Second)

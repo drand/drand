@@ -65,7 +65,9 @@ func (g *Group) Find(pub *Identity) *Node {
 		if pu.Identity.Equal(pub) {
 			// migration path
 			if pu.Scheme != g.Scheme {
+				pu.Lock()
 				pu.Scheme = g.Scheme
+				pu.Unlock()
 			}
 			return pu
 		}

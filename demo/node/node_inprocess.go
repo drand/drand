@@ -65,7 +65,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		return nil
 	}
 
-	controlAddr := test.FreeBind("localhost")
+	controlAddr := test.FreeBind(bindAddr)
 	dkgClient, err := net.NewDKGControlClient(controlAddr)
 	if err != nil {
 		return nil
@@ -80,6 +80,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		log:          log.NewLogger(nil, log.LogDebug),
 		pubAddr:      test.FreeBind(bindAddr),
 		privAddr:     test.FreeBind(bindAddr),
+		ctrlAddr:     controlAddr,
 		scheme:       cfg.Scheme,
 		beaconID:     cfg.BeaconID,
 		dbEngineType: cfg.DBEngineType,
