@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/drand/drand/crypto"
+	"reflect"
 	"time"
 
 	"github.com/drand/drand/key"
@@ -89,6 +90,37 @@ type DBState struct {
 
 	FinalGroup *key.Group
 	KeyShare   *key.Share
+}
+
+// Equals does a deep equal comparison on all the values in the `DBState`
+func (d *DBState) Equals(e *DBState) bool {
+	if d == nil {
+		return e == nil
+	}
+
+	if e == nil {
+		return false
+	}
+
+	return d.BeaconID == e.BeaconID &&
+		d.Epoch == e.Epoch &&
+		d.State == e.State &&
+		d.Threshold == e.Threshold &&
+		d.Timeout == e.Timeout &&
+		d.SchemeID == e.SchemeID &&
+		d.GenesisTime == e.GenesisTime &&
+		bytes.Equal(d.GenesisSeed, e.GenesisSeed) &&
+		d.TransitionTime == e.TransitionTime &&
+		d.CatchupPeriod == e.CatchupPeriod &&
+		d.BeaconPeriod == e.BeaconPeriod &&
+		reflect.DeepEqual(d.Leader, e.Leader) &&
+		reflect.DeepEqual(d.Remaining, e.Remaining) &&
+		reflect.DeepEqual(d.Joining, e.Joining) &&
+		reflect.DeepEqual(d.Leaving, e.Leaving) &&
+		reflect.DeepEqual(d.Acceptors, e.Acceptors) &&
+		reflect.DeepEqual(d.Rejectors, e.Rejectors) &&
+		d.FinalGroup.Equal(e.FinalGroup) &&
+		reflect.DeepEqual(d.KeyShare, e.KeyShare)
 }
 
 type DBStateTOML struct {

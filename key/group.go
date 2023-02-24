@@ -151,6 +151,12 @@ func (g *Group) String() string {
 
 // Equal indicates if two groups are equal
 func (g *Group) Equal(g2 *Group) bool {
+	if g == nil {
+		return g2 == nil
+	}
+	if g2 == nil {
+		return false
+	}
 	if !commonutils.CompareBeaconIDs(g.ID, g2.ID) {
 		return false
 	}
@@ -169,8 +175,14 @@ func (g *Group) Equal(g2 *Group) bool {
 	if g.TransitionTime != g2.TransitionTime {
 		return false
 	}
-	if g.Scheme.Name != g2.Scheme.Name {
-		return false
+	if g.Scheme == nil {
+		if g2.Scheme != nil {
+			return false
+		}
+	} else {
+		if g2.Scheme == nil || g.Scheme.Name != g2.Scheme.Name {
+			return false
+		}
 	}
 	for i := 0; i < g.Len(); i++ {
 		if !g.Nodes[i].Equal(g2.Nodes[i]) {

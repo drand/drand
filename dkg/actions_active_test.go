@@ -20,7 +20,9 @@ import (
 
 //nolint:funlen
 func TestStartNetwork(t *testing.T) {
-	myKeypair := key.NewKeyPair("somebody.com")
+	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	require.NoError(t, err)
+
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 
@@ -184,7 +186,9 @@ func TestStartNetwork(t *testing.T) {
 
 //nolint:funlen
 func TestStartProposal(t *testing.T) {
-	myKeypair := key.NewKeyPair("somebody.com")
+	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	require.NoError(t, err)
+
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	bob := NewParticipant("bob")
@@ -401,7 +405,8 @@ func TestStartProposal(t *testing.T) {
 }
 
 func TestAbort(t *testing.T) {
-	myKeypair := key.NewKeyPair("somebody.com")
+	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	require.NoError(t, err)
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	bob := NewParticipant("bob")

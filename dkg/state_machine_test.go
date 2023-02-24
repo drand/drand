@@ -3,10 +3,10 @@ package dkg
 
 import (
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/util"
 
 	"github.com/drand/drand/key"
@@ -370,6 +370,13 @@ func TestProposalValidation(t *testing.T) {
 //nolint:funlen
 func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
+
+	//// let's split off the group because it doesn't really matter for this
+	//completeWithoutGroup := func(beaconID string, status DKGStatus, previousLeader *drand.Participant, others ...*drand.Participant) *DBState {
+	//	s := NewCompleteDKGEntry(beaconID, status, previousLeader, others...)
+	//	s.FinalGroup = nil
+	//	return s
+	//}
 	tests := []stateChangeTableTest{
 		{
 			name:          "fresh state cannot time out",
@@ -377,8 +384,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.TimedOut()
 			},
-			expectedResult: nil,
-			expectedError:  InvalidStateChange(Fresh, TimedOut),
+			expectedError: InvalidStateChange(Fresh, TimedOut),
 		},
 		{
 			name:          "complete state cannot time out",
@@ -386,8 +392,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.TimedOut()
 			},
-			expectedResult: nil,
-			expectedError:  InvalidStateChange(Complete, TimedOut),
+			expectedError: InvalidStateChange(Complete, TimedOut),
 		},
 		{
 			name:          "timed out state cannot time out",
@@ -395,8 +400,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.TimedOut()
 			},
-			expectedResult: nil,
-			expectedError:  InvalidStateChange(TimedOut, TimedOut),
+			expectedError: InvalidStateChange(TimedOut, TimedOut),
 		},
 		{
 			name:          "aborted state cannot time out",
@@ -404,8 +408,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.TimedOut()
 			},
-			expectedResult: nil,
-			expectedError:  InvalidStateChange(Aborted, TimedOut),
+			expectedError: InvalidStateChange(Aborted, TimedOut),
 		},
 		{
 			name:          "left state cannot time out",
@@ -413,8 +416,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.TimedOut()
 			},
-			expectedResult: nil,
-			expectedError:  InvalidStateChange(Left, TimedOut),
+			expectedError: InvalidStateChange(Left, TimedOut),
 		},
 		{
 			name:          "joined state can time out and changes state",
@@ -423,7 +425,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 		{
 			name:          "proposed state can time out and changes state",
@@ -432,7 +433,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 		{
 			name:          "proposing state can time out and changes state",
@@ -441,7 +441,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 		{
 			name:          "executing state cannot time out and changes state",
@@ -450,7 +449,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 		{
 			name:          "accepted state can time out and changes state",
@@ -459,7 +457,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 		{
 			name:          "rejected state can time out and changes state",
@@ -468,7 +465,6 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 				return in.TimedOut()
 			},
 			expectedResult: NewCompleteDKGEntry(beaconID, TimedOut, alice),
-			expectedError:  nil,
 		},
 	}
 
@@ -1531,14 +1527,19 @@ func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 			result, err := test.transitionFn(test.startingState)
 			require.Equal(t, test.expectedError, err, "expected %s error but got %s", test.expectedError, err)
 			if test.expectedResult != nil {
-				require.EqualValues(t, test.expectedResult, result)
+				matching := test.expectedResult.Equals(result)
+				require.True(t, matching)
+				if !matching {
+					fmt.Println("NOTE: the below comparison will show mismatching pointers, but the check actually deep equals everything:")
+					require.EqualValues(t, test.expectedResult, result)
+				}
 			}
 		})
 	}
 }
 
 func NewParticipant(name string) *drand.Participant {
-	k := key.NewKeyPair(name)
+	k, _ := key.NewKeyPair(name, nil)
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address: name,
@@ -1555,7 +1556,7 @@ func NewCompleteDKGEntry(beaconID string, status DKGStatus, previousLeader *dran
 		State:          status,
 		Threshold:      1,
 		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
-		SchemeID:       scheme.DefaultSchemeID,
+		SchemeID:       crypto.DefaultSchemeID,
 		GenesisTime:    time.Unix(1669718523, 0).UTC(),
 		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: time.Unix(1669718523, 0).UTC(),
@@ -1573,9 +1574,9 @@ func NewCompleteDKGEntry(beaconID string, status DKGStatus, previousLeader *dran
 		FinalGroup: nil,
 		KeyShare:   nil,
 	}
-	sch, _ := scheme.GetSchemeByID(scheme.DefaultSchemeID)
+	sch, _ := crypto.GetSchemeByID(crypto.DefaultSchemeID)
 	nodes, err := util.TryMapEach[*key.Node](state.Remaining, func(index int, p *drand.Participant) (*key.Node, error) {
-		n, err := util.ToKeyNode(index, p)
+		n, err := util.ToKeyNode(index, p, sch)
 		return &n, err
 	})
 	if err != nil {
@@ -1612,7 +1613,7 @@ func NewInitialProposal(beaconID string, leader *drand.Participant, others ...*d
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0).UTC()),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
-		SchemeID:             scheme.DefaultSchemeID,
+		SchemeID:             crypto.DefaultSchemeID,
 		Joining:              append([]*drand.Participant{leader}, others...),
 	}
 }
@@ -1629,7 +1630,7 @@ func NewValidProposal(beaconID string, epoch uint32, leader *drand.Participant, 
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0).UTC()),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
-		SchemeID:             scheme.DefaultSchemeID,
+		SchemeID:             crypto.DefaultSchemeID,
 		Remaining:            append([]*drand.Participant{leader}, others...),
 	}
 }

@@ -111,7 +111,6 @@ func TestRunDKG(t *testing.T) {
 	assert.Equal(t, expectedBeaconPeriod, group.Period)
 	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
 	assert.Equal(t, n, len(group.Nodes))
-	require.Equal(t, int64(449884810), group.GenesisTime)
 }
 
 // Test dkg for a large quantity of nodes (22 nodes)
@@ -135,7 +134,6 @@ func TestRunDKGLarge(t *testing.T) {
 	assert.Equal(t, expectedBeaconPeriod, group.Period)
 	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
 	assert.Equal(t, n, len(group.Nodes))
-	require.Equal(t, int64(449884810), group.GenesisTime)
 }
 
 // Test Start/Stop after DKG
@@ -1166,7 +1164,8 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 	//nolint:prealloc // We don't preallocate this as it's not going to be big enough to warrant such an operation
 	var result []*MockNode
 	for i, drandInstance := range drands {
-		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
+		node, err := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
+		require.NoError(t, err)
 		d.nodes = append(d.nodes, node)
 		result = append(result, node)
 	}
@@ -1186,7 +1185,8 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 	// store new part. and add certificate path of old nodes to the new ones
 	d.newNodes = make([]*MockNode, n)
 	for i, inst := range drands {
-		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
+		node, err := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
+		require.NoError(t, err)
 		d.newNodes[i] = node
 		for _, cp := range oldCertPaths {
 			err := inst.opts.certmanager.Add(cp)

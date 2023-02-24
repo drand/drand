@@ -223,6 +223,15 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 			dd.log.Debugw("control stopped successfully")
 		}()
 	}()
+
+	select {
+	case dd.exitCh <- true:
+		dd.log.Debugw("signaled dd.exitCh")
+		close(dd.exitCh)
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
+	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations

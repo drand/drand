@@ -90,9 +90,10 @@ func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) 
 }
 
 func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.Node, error) {
+	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
 	public, err := pkToPoint(participant.PubKey, sch)
 	if err != nil {
-		return dkg.Node{}, err
+		return dkg.Node{}, key.ErrInvalidKeyScheme
 	}
 	return dkg.Node{
 		Public: public,
@@ -101,9 +102,10 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 }
 
 func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (key.Node, error) {
+	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
 	public, err := pkToPoint(participant.PubKey, sch)
 	if err != nil {
-		return key.Node{}, err
+		return key.Node{}, key.ErrInvalidKeyScheme
 	}
 
 	return key.Node{
@@ -112,6 +114,7 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 			Addr:      participant.Address,
 			TLS:       participant.Tls,
 			Signature: participant.Signature,
+			Scheme:    sch,
 		},
 		Index: uint32(index),
 	}, nil

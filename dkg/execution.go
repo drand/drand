@@ -57,6 +57,7 @@ func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
 		me.Address,
 		sortedParticipants,
 		keypair.Scheme(),
+		config,
 	)
 	if err != nil {
 		return nil, err

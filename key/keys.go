@@ -207,13 +207,22 @@ func (i *Identity) FromTOML(t interface{}) error {
 
 // TOML returns a empty TOML-compatible version of the public key
 func (i *Identity) TOML() interface{} {
-	hexKey := PointToString(i.Key)
+	// race checker was getting frisky
+	identity := i
+	hexKey := PointToString(identity.Key)
+	var schemeName string
+
+	if identity.Scheme == nil {
+		schemeName = crypto.DefaultSchemeID
+	} else {
+		schemeName = identity.Scheme.Name
+	}
 	return &PublicTOML{
-		Address:    i.Addr,
+		Address:    identity.Addr,
 		Key:        hexKey,
-		TLS:        i.TLS,
-		Signature:  hex.EncodeToString(i.Signature),
-		SchemeName: i.Scheme.Name,
+		TLS:        identity.TLS,
+		Signature:  hex.EncodeToString(identity.Signature),
+		SchemeName: schemeName,
 	}
 }
 

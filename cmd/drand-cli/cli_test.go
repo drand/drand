@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	dkg2 "github.com/drand/drand/dkg"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -398,7 +399,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	// fake group
 	_, group := test.BatchIdentities(5, sch, beaconID)
 
-	// fake dkg outuput
+	// fake dkg output
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{
@@ -425,6 +426,39 @@ func TestStartWithoutGroup(t *testing.T) {
 	s := &share.PriShare{I: 2, V: scalarOne}
 	fakeShare := &key.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
 	require.NoError(t, fileStore.SaveShare(fakeShare))
+
+	// save a fake complete DKG in the store
+	dStore, err := dkg2.NewDKGStore(tmpPath, nil)
+	require.NoError(t, err)
+	err = dStore.SaveFinished(beaconID, &dkg2.DBState{
+		BeaconID:       beaconID,
+		Epoch:          1,
+		State:          dkg2.Complete,
+		Threshold:      1,
+		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
+		SchemeID:       crypto.DefaultSchemeID,
+		GenesisTime:    time.Unix(1669718523, 0).UTC(),
+		GenesisSeed:    []byte("deadbeef"),
+		TransitionTime: time.Unix(1669718523, 0).UTC(),
+		CatchupPeriod:  5 * time.Second,
+		BeaconPeriod:   10 * time.Second,
+
+		Leader:    nil,
+		Remaining: nil,
+		Joining:   nil,
+		Leaving:   nil,
+
+		Acceptors: nil,
+		Rejectors: nil,
+
+		FinalGroup: group,
+		KeyShare:   fakeShare,
+	})
+	require.NoError(t, err)
+
+	// have to close it afterwards or starting the node will hang
+	err = dStore.Close()
+	require.NoError(t, err)
 
 	t.Logf(" --- DRAND START --- control %s\n", ctrlPort2)
 
@@ -815,7 +849,7 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	dkgTimeoutSeconds := 20
 
 	t.Log("waiting for initial set up to settle on all nodes")
-	err := instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds)
+	err = instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -951,13 +985,8 @@ func (d *drandInstance) startInitialDKG(
 	threshold,
 	periodSeconds int,
 	beaconID string,
-<<<<<<< HEAD
 	sch *crypto.Scheme,
-	done chan error) {
-=======
-	sch scheme.Scheme,
 ) {
->>>>>>> bdcb83c6 (DKG refactor first pass)
 	t.Helper()
 
 	addrs := make([]string, len(instances))
@@ -1172,32 +1201,6 @@ func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) [
 	}
 	return ins
 }
-<<<<<<< HEAD
-
-func TestSharingWithInvalidFlagCombos(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-
-	// leader and connect flags can't be used together
-	share1 := []string{
-		"drand", "share", "--tls-disable", "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
-		"--threshold", "2", "--nodes", "3", "--period", "5s",
-	}
-
-	require.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
-
-	// transition and from flags can't be used together
-	share3 := []string{
-		"drand", "share", "--tls-disable", "--id", beaconID, "--connect", "127.0.0.1:9090", "--transition", "--from", "somepath.txt",
-	}
-
-	require.EqualError(
-		t,
-		CLI().Run(share3),
-		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
-	)
-}
-=======
->>>>>>> bdcb83c6 (DKG refactor first pass)
 
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {

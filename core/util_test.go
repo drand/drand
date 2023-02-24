@@ -67,12 +67,8 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
-<<<<<<< HEAD
-
-=======
 //
 //nolint:funlen
->>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 func BatchNewDrand(
 	t *testing.T,
 	currentNodeCount,
@@ -245,38 +241,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 
 	return addresses
 }
-<<<<<<< HEAD
 
-// waitForStatus waits and retries calling Status until the condition is satisfied or the max retries is reached
-func (d *DrandTestScenario) waitFor(
-	t *testing.T,
-	client *net.ControlClient,
-	waitFor func(r *drand.StatusResponse) bool,
-) bool {
-	period := d.period
-	if d.period == 0 {
-		period = 10
-	}
-	maxRetries := (period * 3).Milliseconds() / 100
-	retry := int64(0)
-	for {
-		r, err := client.Status(d.beaconID)
-		require.NoError(t, err)
-		if waitFor(r) {
-			return true
-		}
-		if retry >= maxRetries {
-			return false
-		}
-
-		time.Sleep(100 * time.Millisecond)
-		retry++
-	}
-}
-
-=======
-
->>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 // GetBeacon returns the beacon of the given round for the specified drand id
 func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
@@ -409,11 +374,19 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
-func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes int) []*MockNode {
+func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes int, options ...ConfigOption) []*MockNode {
 	t.Log("Setup of", countOfAdditionalNodes, "new nodes for tests")
 	currentNodeCount := len(d.nodes)
-	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, currentNodeCount, countOfAdditionalNodes, false, d.scheme, d.beaconID,
-		WithCallOption(grpc.WaitForReady(false)))
+
+	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(
+		d.t,
+		currentNodeCount,
+		countOfAdditionalNodes,
+		false,
+		d.scheme,
+		d.beaconID,
+		append(options, WithCallOption(grpc.WaitForReady(false)))...,
+	)
 	d.newDir = newDir
 
 	oldCertPaths := make([]string, len(d.nodes))
@@ -469,25 +442,8 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	leader := d.nodes[0]
 	followers := d.nodes[1:]
 
-<<<<<<< HEAD
-	leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
-	if err != nil {
-		return nil, err
-	}
-	_, err = leaderClient.StartNetwork(context.Background(), &drand.FirstProposalOptions{
-		BeaconID:             d.beaconID,
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
-		Threshold:            uint32(d.thr),
-		PeriodSeconds:        uint32(d.period.Seconds()),
-		Scheme:               d.scheme.Name,
-		CatchupPeriodSeconds: uint32(d.catchupPeriod.Seconds()),
-		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Second)),
-		Joining:              joiners,
-	})
-=======
-	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.ID, int(d.catchupPeriod.Seconds()), joiners)
+	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.Name, int(d.catchupPeriod.Seconds()), joiners)
 
->>>>>>> 1ec6042e (Re-added the demo project and implemented the DKG for it)
 	if err != nil {
 		return nil, err
 	}
@@ -659,8 +615,8 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
-		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound == round {
-			t.Logf("node %s is on expected round (%d)", node.addr, status.ChainStore.LastRound)
+		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound >= round {
+			t.Logf("node %s has reached expected round (%d)", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
 

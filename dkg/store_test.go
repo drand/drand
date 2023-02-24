@@ -27,7 +27,7 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 	// retrieve them and ensure they're the same
 	result, err := store.GetCurrent(beaconID)
 	require.NoError(t, err)
-	require.Equal(t, dkg, result)
+	require.True(t, dkg.Equals(result))
 }
 
 func TestNoDKGStoredReturnsFresh(t *testing.T) {
@@ -103,10 +103,10 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 	// it's available using GetCurrent
 	result, err := store.GetCurrent(beaconID)
 	require.NoError(t, err)
-	require.Equal(t, dkg, result)
+	require.True(t, dkg.Equals(result))
 
 	// and also using GetFinished
 	finishedResult, err := store.GetFinished(beaconID)
 	require.NoError(t, err)
-	require.Equal(t, dkg, finishedResult)
+	require.True(t, dkg.Equals(finishedResult))
 }

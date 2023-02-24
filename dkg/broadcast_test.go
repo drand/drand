@@ -1,6 +1,8 @@
 package dkg
 
 import (
+	"github.com/drand/drand/crypto"
+	"github.com/drand/kyber/share/dkg"
 	"testing"
 
 	"github.com/drand/drand/net"
@@ -14,6 +16,7 @@ import (
 
 func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 	gateway := net.PrivateGateway{}
+	sch, _ := crypto.GetSchemeByIDWithDefault("")
 	_, err := newEchoBroadcast(
 		gateway.DKGClient,
 		log.DefaultLogger(),
@@ -21,15 +24,15 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 		"default",
 		"localhost:8080",
 		[]*drand.Participant{},
-		func(p packet) error {
-			return nil
-		},
+		sch,
+		&dkg.Config{},
 	)
 	require.Error(t, err)
 }
 
 func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 	gateway := net.PrivateGateway{}
+	sch, _ := crypto.GetSchemeByIDWithDefault("")
 
 	_, err := newEchoBroadcast(
 		gateway.DKGClient,
@@ -45,9 +48,8 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 				Signature: []byte("1111111"),
 			},
 		},
-		func(p packet) error {
-			return nil
-		},
+		sch,
+		&dkg.Config{},
 	)
 	require.NoError(t, err)
 }

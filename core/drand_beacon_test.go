@@ -162,12 +162,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	memDBNode := newNodes[0]
 
 	t.Log("running reshare")
-	newGroup, err := ts.RunReshare(t, &reshareConfig{
-		oldRun:  existingNodesCount,
-		newRun:  newNodesCount,
-		newThr:  thr + newNodesCount,
-		timeout: time.Second,
-	})
+	newGroup, err := ts.RunReshare(ts.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 

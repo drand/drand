@@ -63,17 +63,13 @@ type echoBroadcast struct {
 	dealCh chan dkg.DealBundle
 	respCh chan dkg.ResponseBundle
 	justCh chan dkg.JustificationBundle
-	verif  verifyPacket
 	scheme *crypto.Scheme
+	config *dkg.Config
 }
 
 type packet = dkg.Packet
 
 var _ Broadcast = (*echoBroadcast)(nil)
-
-// verifyPacket is a type for  a function that can verify the validity of a dkg
-// Packet, namely that the signature is correct.
-type verifyPacket func(packet) error
 
 func newEchoBroadcast(
 	client net.DKGClient,
@@ -83,6 +79,7 @@ func newEchoBroadcast(
 	own string,
 	to []*drand.Participant,
 	scheme *crypto.Scheme,
+	config *dkg.Config,
 ) (*echoBroadcast, error) {
 	if len(to) == 0 {
 		return nil, errors.New("cannot create a broadcaster with no participants")
@@ -97,6 +94,7 @@ func newEchoBroadcast(
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
 		hashes:     new(arraySet),
 		scheme:     scheme,
+		config:     config,
 	}, nil
 }
 
@@ -145,7 +143,8 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 		b.l.Debugw("ignoring duplicate packet", "index", dkgPacket.Index(), "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return nil
 	}
-	if err := b.verif(dkgPacket); err != nil {
+
+	if err := dkg.VerifyPacketSignature(b.config, dkgPacket); err != nil {
 		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "scheme", b.scheme, "err", err)
 		return errors.New("invalid DKGPacket")
 	}
