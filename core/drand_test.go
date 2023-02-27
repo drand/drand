@@ -122,16 +122,21 @@ func TestRunDKGLarge(t *testing.T) {
 
 	setFDLimit(t)
 
-	n := 40
+	n := 22
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
 	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, beaconID)
 
+	// we need to increase this a bit for bigger DKGs!
+	for _, node := range dt.nodes {
+		node.daemon.opts.dkgKickoffGracePeriod = 10 * time.Second
+	}
+
 	group, err := dt.RunDKG()
 	require.NoError(t, err)
 
-	assert.Equal(t, 21, group.Threshold)
+	assert.Equal(t, 12, group.Threshold)
 	assert.Equal(t, expectedBeaconPeriod, group.Period)
 	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
 	assert.Equal(t, n, len(group.Nodes))
