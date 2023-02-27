@@ -135,6 +135,7 @@ func TestRunDKGLarge(t *testing.T) {
 		beaconID,
 		WithDkgKickoffGracePeriod(10*time.Second),
 		WithDkgPhaseTimeout(30*time.Second),
+		WithDkgTimeout(5*time.Minute),
 	)
 
 	group, err := dt.RunDKG()
