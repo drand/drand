@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"sync"
 	"time"
 
 	"github.com/drand/drand/net"
@@ -12,6 +13,7 @@ import (
 
 //nolint:revive
 type DKGProcess struct {
+	sync.Mutex
 	store            Store
 	network          Network
 	internalClient   net.DKGClient
@@ -110,6 +112,8 @@ func NewDKGProcess(
 }
 
 func (d *DKGProcess) Close() {
+	d.Lock()
+	defer d.Unlock()
 	for _, e := range d.Executions {
 		e.Stop()
 	}

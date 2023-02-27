@@ -66,7 +66,9 @@ func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
 
 	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
 	// if other nodes try to send us DKG messages before this is set we're in trouble
+	d.Lock()
 	d.Executions[beaconID] = board
+	d.Unlock()
 
 	return config, nil
 }
@@ -134,7 +136,10 @@ func (d *DKGProcess) startDKGExecution(beaconID string, current *DBState, config
 	go phaser.Start()
 
 	// NewProtocol actually _starts_ the protocol on a goroutine also
-	protocol, err := dkg.NewProtocol(config, d.Executions[beaconID], phaser, d.config.SkipKeyVerification)
+	d.Lock()
+	broadcaster := d.Executions[beaconID]
+	d.Unlock()
+	protocol, err := dkg.NewProtocol(config, broadcaster, phaser, d.config.SkipKeyVerification)
 	if err != nil {
 		return nil, err
 	}

@@ -79,7 +79,9 @@ func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)
 func (d *DKGProcess) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyResponse, error) {
 	beaconID := packet.Dkg.Metadata.BeaconID
+	d.Lock()
 	broadcaster := d.Executions[beaconID]
+	d.Unlock()
 	if broadcaster == nil {
 		return nil, errors.New("could not broadcast a DKG message - there may not be a DKG in progress and in the execution phase")
 	}
