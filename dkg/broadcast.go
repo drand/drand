@@ -60,12 +60,13 @@ type echoBroadcast struct {
 	// responsible for sending out the messages
 	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
-	hashes set
-	dealCh chan dkg.DealBundle
-	respCh chan dkg.ResponseBundle
-	justCh chan dkg.JustificationBundle
-	scheme *crypto.Scheme
-	config dkg.Config
+	hashes    set
+	dealCh    chan dkg.DealBundle
+	respCh    chan dkg.ResponseBundle
+	justCh    chan dkg.JustificationBundle
+	scheme    *crypto.Scheme
+	config    dkg.Config
+	isStopped bool
 }
 
 type packet = dkg.Packet
@@ -98,6 +99,7 @@ func newEchoBroadcast(
 		hashes:     new(arraySet),
 		scheme:     scheme,
 		config:     c,
+		isStopped:  false,
 	}, nil
 }
 
@@ -177,6 +179,10 @@ func (b *echoBroadcast) passToApplication(p packet) {
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
 func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool, beaconID string) {
+	if b.isStopped {
+		return
+	}
+
 	dkgproto, err := dkgPacketToProto(p, beaconID)
 	if err != nil {
 		b.l.Errorw("can't send packet", "err", err)
@@ -209,6 +215,9 @@ func (b *echoBroadcast) IncomingJustification() <-chan dkg.JustificationBundle {
 }
 
 func (b *echoBroadcast) Stop() {
+	b.Lock()
+	b.isStopped = true
+	b.Unlock()
 	b.dispatcher.stop()
 }
 
@@ -306,27 +315,22 @@ func (d *dispatcher) stop() {
 }
 
 type sender struct {
-	l         log.Logger
-	client    net.DKGClient
-	to        *drand.Participant
-	newCh     chan broadcastPacket
-	isStopped bool
+	l      log.Logger
+	client net.DKGClient
+	to     *drand.Participant
+	newCh  chan broadcastPacket
 }
 
 func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueSize int) *sender {
 	return &sender{
-		l:         l.Named("Sender"),
-		client:    client,
-		to:        to,
-		newCh:     make(chan broadcastPacket, queueSize),
-		isStopped: false,
+		l:      l.Named("Sender"),
+		client: client,
+		to:     to,
+		newCh:  make(chan broadcastPacket, queueSize),
 	}
 }
 
 func (s *sender) sendPacket(p broadcastPacket) {
-	if s.isStopped {
-		return
-	}
 	select {
 	case s.newCh <- p:
 	default:
@@ -341,9 +345,6 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	if s.isStopped {
-		return
-	}
 	node := util.ToPeer(s.to)
 	_, err := s.client.BroadcastDKG(context.Background(), node, newPacket)
 	if err != nil {
@@ -354,7 +355,6 @@ func (s *sender) sendDirect(newPacket broadcastPacket) {
 }
 
 func (s *sender) stop() {
-	s.isStopped = true
 	close(s.newCh)
 }
 
