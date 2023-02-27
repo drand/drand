@@ -13,7 +13,7 @@ import (
 
 //nolint:revive
 type DKGProcess struct {
-	sync.Mutex
+	lock             sync.Mutex
 	store            Store
 	network          Network
 	internalClient   net.DKGClient
@@ -112,8 +112,8 @@ func NewDKGProcess(
 }
 
 func (d *DKGProcess) Close() {
-	d.Lock()
-	defer d.Unlock()
+	d.lock.Lock()
+	defer d.lock.Unlock()
 	for _, e := range d.Executions {
 		e.Stop()
 	}
