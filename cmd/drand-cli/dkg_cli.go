@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/cmd/client/lib"
 	"os"
 	"time"
+
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/cmd/client/lib"
 
 	"github.com/drand/drand/dkg"
 

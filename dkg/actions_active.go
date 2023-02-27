@@ -3,8 +3,9 @@ package dkg
 import (
 	"context"
 	"errors"
-	"github.com/drand/drand/key"
 	"time"
+
+	"github.com/drand/drand/key"
 
 	"github.com/drand/drand/net"
 
@@ -173,7 +174,7 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 			}
 		}
 
-		if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
+		if err := d.store.SaveCurrent(beaconID, nextState); err != nil {
 			return err
 		}
 

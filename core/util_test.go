@@ -137,8 +137,7 @@ func BatchNewDrand(
 		}
 
 		confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
-		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
-		confOptions = append(confOptions, WithDkgKickoffGracePeriod(1*time.Second))
+		confOptions = append(append(confOptions, WithDkgKickoffGracePeriod(1*time.Second)), WithPrivateListenAddress(privs[i].Public.Address()))
 		if !insecure {
 			confOptions = append(confOptions,
 				WithTLS(certPaths[i], keyPaths[i]),
