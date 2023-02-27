@@ -13,7 +13,6 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
-	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/sign/schnorr"
 )
@@ -224,23 +223,14 @@ func (d *DKGProcess) initialDKGConfig(current *DBState, keypair *key.Pair, sorte
 		return nil, err
 	}
 
-	var nodes []dkg.Node
-	var publicCoeffs []kyber.Point
-	var oldThreshold = 0
-	if current.FinalGroup != nil {
-		nodes = current.FinalGroup.DKGNodes()
-		publicCoeffs = current.FinalGroup.PublicKey.Coefficients
-		oldThreshold = current.FinalGroup.Threshold
-	}
-
 	suite := sch.KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
 		Longterm:       keypair.Key,
-		OldNodes:       nodes,
+		OldNodes:       nil,
 		NewNodes:       newNodes,
-		PublicCoeffs:   publicCoeffs,
-		OldThreshold:   oldThreshold,
+		PublicCoeffs:   nil,
+		OldThreshold:   0,
 		Share:          nil,
 		Threshold:      int(current.Threshold),
 		Reader:         nil,
