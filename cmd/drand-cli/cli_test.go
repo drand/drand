@@ -26,6 +26,7 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
@@ -706,7 +707,7 @@ func getSBFolderStructure(t *testing.T) string {
 
 func TestDrandListSchemes(t *testing.T) {
 	n := 2
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
 	for _, instance := range instances {
 		remote := []string{"drand", "util", "list-schemes", "--control", instance.ctrlPort}
@@ -722,7 +723,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
 	done := make(chan error, n)
 	for i, inst := range instances {
@@ -788,7 +789,7 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
 	done := make(chan error, n)
 	for i, inst := range instances {
@@ -834,7 +835,7 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 func TestDrandStatus(t *testing.T) {
 	t.Skipf("test fails when error checking commands")
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 	allAddresses := make([]string, 0, n)
 	for _, instance := range instances {
 		allAddresses = append(allAddresses, instance.addr)
@@ -983,9 +984,18 @@ func (d *drandInstance) load(beaconID string) error {
 func (d *drandInstance) run(t *testing.T, beaconID string) {
 	t.Helper()
 
-	startArgs := []string{
+	d.runWithStartArgs(t, beaconID, nil)
+}
+
+func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArgs []string) {
+	t.Helper()
+
+	require.Equal(t, 0, len(startArgs)%2, "start args must be in pairs of option/value")
+
+	baseArgs := []string{
 		"drand",
 		"start",
+		"--verbose",
 		"--tls-cert", d.certPath,
 		"--tls-key", d.keyPath,
 		"--certs-dir", d.certsDir,
@@ -995,8 +1005,10 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 		"--private-listen", d.addr,
 	}
 
+	args := append(baseArgs, startArgs...)
+
 	go func() {
-		err := CLI().Run(startArgs)
+		err := CLI().Run(args)
 		require.NoError(t, err)
 	}()
 
@@ -1004,10 +1016,17 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 	testStatus(t, d.ctrlPort, beaconID)
 }
 
-func launchDrandInstances(t *testing.T, n int) []*drandInstance {
+func genAndLaunchDrandInstances(t *testing.T, n int) []*drandInstance {
 	t.Helper()
 
 	beaconID := test.GetBeaconIDFromEnv()
+
+	ins := genDrandInstances(t, beaconID, n)
+	return launchDrandInstances(t, beaconID, ins)
+}
+
+func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
+	t.Helper()
 
 	tmpPath := t.TempDir()
 
@@ -1059,6 +1078,12 @@ func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 		})
 	}
 
+	return ins
+}
+
+func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) []*drandInstance {
+	t.Helper()
+
 	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for _, instance := range ins {
 		instance.run(t, beaconID)
@@ -1087,4 +1112,107 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 		CLI().Run(share3),
 		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
 	)
+}
+
+func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	// How many rounds to generate while the node is stopped.
+	roundsWhileMissing := 80
+	// If we are in short mode, let's run less rounds.
+	if testing.Short() {
+		roundsWhileMissing  = 20
+	}
+
+	period := 1
+	n := 4
+	instances := genDrandInstances(t, beaconID, n)
+	memDBNodeID := len(instances) - 1
+
+	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
+	for i := 0; i < memDBNodeID; i++ {
+		inst := instances[i]
+		inst.run(t, beaconID)
+	}
+
+	instances[memDBNodeID].runWithStartArgs(t, beaconID, []string{"--db", "memdb"})
+	memDBNode := instances[memDBNodeID]
+
+	done := make(chan error, n)
+	for i, inst := range instances {
+		inst := inst
+		if i == 0 {
+			go inst.shareLeader(t, n, 3, period, beaconID, sch, done)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			go inst.share(t, instances[0].addr, beaconID, done)
+		}
+	}
+
+	t.Log("waiting for initial set up to settle on all nodes")
+	for i := 0; i < n; i++ {
+		err := <-done
+		require.NoError(t, err)
+	}
+
+	defer func() {
+		for _, inst := range instances {
+			// We want to ignore this error, at least until the stop command won't return an error
+			// when correctly running the stop command.
+			t.Logf("stopping instance %v\n", inst.addr)
+			err := inst.stopAll()
+			require.NoError(t, err)
+			t.Logf("stopped instance %v\n", inst.addr)
+		}
+	}()
+
+	memDBClient, err := net.NewControlClient(memDBNode.ctrlPort)
+	require.NoError(t, err)
+
+	chainInfo, err := memDBClient.ChainInfo(beaconID)
+	require.NoError(t, err)
+
+	// Wait until DKG finishes
+	secondsToGenesisTime := chainInfo.GenesisTime - time.Now().Unix()
+	t.Logf("waiting %ds until DKG finishes\n", secondsToGenesisTime)
+	time.Sleep(time.Duration(secondsToGenesisTime) * time.Second)
+
+	// Wait for some rounds to be generated
+	t.Log("wait for some rounds to be generated")
+	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+
+	// Get the status before stopping the node
+	status, err := memDBClient.Status(beaconID)
+	require.NoError(t, err)
+
+	require.False(t, status.ChainStore.IsEmpty)
+	require.NotZero(t, status.ChainStore.LastRound)
+
+	lastRoundBeforeShutdown := status.ChainStore.LastRound
+
+	// Stop beacon process... not the entire node
+	err = instances[memDBNodeID].stop(beaconID)
+	require.NoError(t, err)
+
+	t.Log("waiting for beacons to be generated while a beacon process is stopped on a node")
+	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+
+	// reload a beacon
+	err = instances[memDBNodeID].load(beaconID)
+	require.NoError(t, err)
+
+	// Wait a bit to allow the node to startup and load correctly
+	time.Sleep(2 * time.Second)
+
+	status, err = memDBClient.Status(beaconID)
+	require.NoError(t, err)
+
+	require.False(t, status.ChainStore.IsEmpty)
+	require.NotZero(t, status.ChainStore.LastRound)
+	expectedRound := lastRoundBeforeShutdown + uint64(roundsWhileMissing)
+	t.Logf("comparing lastRound %d with lastRoundBeforeShutdown %d\n", status.ChainStore.LastRound, expectedRound)
+	require.GreaterOrEqual(t, status.ChainStore.LastRound, expectedRound)
 }

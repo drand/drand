@@ -488,6 +488,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	}
 
 	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	bp.log.Debugw("computed current round", "targetRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:gomnd // We cannot sync the initial round.
 	if targetRound < 2 {
@@ -498,16 +499,17 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	peers := bp.computePeers(bp.group.Nodes)
 	targetBeacon, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
 	if errors.Is(err, errNoRoundInPeers) {
-		// If we can't find the desired beacon round, let's try with the previous one.
-		// We don't want to try round 0 because that won't validate as it doesn't contain
-		// a previous signature.
-		// In this case, we'll just let the beacon sync everything from scratch.
+		// If we can't find the desired beacon round, let's try with the latest one.
+		// This will work only if the target round is at least 2. Otherwise, we'll
+		// start the node from scratch.
 		if targetRound > 1 {
-			targetBeacon, err = bp.loadBeaconFromPeers(ctx, targetRound-1, peers)
+			targetBeacon, err = bp.loadBeaconFromPeers(ctx, 0, peers)
+			bp.log.Debugw("computed current round", "targetRound", 0, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 		}
 	}
 
 	if err != nil {
+		bp.log.Debugw("computed current round with error", "err", err)
 		return err
 	}
 
@@ -519,7 +521,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 
 	err = store.Put(ctx, &targetBeacon)
 	if err != nil {
-		bp.log.Errorw("failed to store beacon", "err", err)
+		bp.log.Errorw("failed to store beacon", "err", err, "round", targetBeacon.Round)
 	}
 	return err
 }
