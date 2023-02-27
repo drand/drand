@@ -65,7 +65,7 @@ type echoBroadcast struct {
 	respCh chan dkg.ResponseBundle
 	justCh chan dkg.JustificationBundle
 	scheme *crypto.Scheme
-	config *dkg.Config
+	config dkg.Config
 }
 
 type packet = dkg.Packet
@@ -85,6 +85,8 @@ func newEchoBroadcast(
 	if len(to) == 0 {
 		return nil, errors.New("cannot create a broadcaster with no participants")
 	}
+	// copy the config to avoid races
+	c := *config
 	return &echoBroadcast{
 		l:          l.Named("echoBroadcast"),
 		version:    version,
@@ -95,7 +97,7 @@ func newEchoBroadcast(
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
 		hashes:     new(arraySet),
 		scheme:     scheme,
-		config:     config,
+		config:     c,
 	}, nil
 }
 
@@ -145,7 +147,8 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 		return nil
 	}
 
-	if err := dkg.VerifyPacketSignature(b.config, dkgPacket); err != nil {
+	dkgConfig := b.config
+	if err := dkg.VerifyPacketSignature(&dkgConfig, dkgPacket); err != nil {
 		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "scheme", b.scheme, "err", err)
 		return errors.New("invalid DKGPacket")
 	}
