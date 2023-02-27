@@ -5,8 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/drand/kyber"
 	"time"
+
+	"github.com/drand/kyber"
 
 	"github.com/drand/drand/crypto"
 
