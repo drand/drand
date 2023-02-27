@@ -197,7 +197,12 @@ func (d *DBStateTOML) FromTOML() (*DBState, error) {
 	var finalGroup *key.Group
 	if d.FinalGroup != nil {
 		finalGroup = &key.Group{}
-		err := finalGroup.FromTOML(d.FinalGroup)
+		sch, err := crypto.GetSchemeByIDWithDefault(d.SchemeID)
+		if err != nil {
+			return nil, err
+		}
+		finalGroup.Scheme = sch
+		err = finalGroup.FromTOML(d.FinalGroup)
 		if err != nil {
 			return nil, err
 		}
