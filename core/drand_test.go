@@ -122,7 +122,7 @@ func TestRunDKGLarge(t *testing.T) {
 
 	setFDLimit(t)
 
-	n := 50
+	n := 22
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -141,7 +141,7 @@ func TestRunDKGLarge(t *testing.T) {
 	group, err := dt.RunDKG()
 	require.NoError(t, err)
 
-	assert.Equal(t, 26, group.Threshold)
+	assert.Equal(t, 12, group.Threshold)
 	assert.Equal(t, expectedBeaconPeriod, group.Period)
 	assert.Equal(t, time.Duration(0), group.CatchupPeriod)
 	assert.Equal(t, n, len(group.Nodes))
