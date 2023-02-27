@@ -224,8 +224,9 @@ var oldGroupFlag = &cli.StringFlag{
 }
 
 var proposalFlag = &cli.StringFlag{
-	Name:  "proposal",
-	Usage: "Path to a toml file specifying the leavers, joiners and remainers for a network proposal",
+	Name:    "proposal",
+	Usage:   "Path to a toml file specifying the leavers, joiners and remainers for a network proposal",
+	EnvVars: []string{"DRAND_PROPOSAL_PATH"},
 }
 
 var skipValidationFlag = &cli.BoolFlag{

@@ -3,6 +3,7 @@ package dkg
 import (
 	"context"
 	"errors"
+	"github.com/drand/drand/key"
 	"time"
 
 	"github.com/drand/drand/net"
@@ -47,8 +48,7 @@ func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstPropo
 		GenesisTime: genesisTime,
 		// GenesisSeed is created after the DKG, so it cannot exist yet
 		GenesisSeed: nil,
-		// for the initial proposal, we want the same transition time as the genesis time
-		// ... or do we? are round 0 and round 1 the same time?
+		// for the initial proposal, we want the transition time should be the same as the genesis time
 		TransitionTime:       options.GenesisTime,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
@@ -167,12 +167,13 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 			err = d.network.Send(me, nextState.Leaving, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
 				return client.Propose(ctx, peer, &terms)
 			})
-		}
-		if err != nil {
-			d.log.Warnw("could not send proposal to a leaving participant", "err", err)
+
+			if err != nil {
+				d.log.Warnw("could not send proposal to a leaving participant", "err", err)
+			}
 		}
 
-		if err := d.store.SaveCurrent(beaconID, nextState); err != nil {
+		if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 			return err
 		}
 
@@ -283,9 +284,13 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 	beaconID := options.BeaconID
 
 	err := d.executeAction("Joining DKG", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
-		previousGroupFile, err := util.ParseGroupFileBytes(options.GroupFile)
-		if err != nil {
-			return nil, err
+		var previousGroupFile *key.Group
+		if current.Epoch > 1 {
+			p, err := util.ParseGroupFileBytes(options.GroupFile)
+			if err != nil {
+				return nil, err
+			}
+			previousGroupFile = p
 		}
 
 		return current.Joined(me, previousGroupFile)

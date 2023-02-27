@@ -278,8 +278,8 @@ func (l *LocalNode) GetGroup() *key.Group {
 	return group
 }
 
-func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Duration, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
-	err := l.dkgRunner.StartProposal(thr, time.Now().Add(transitionTime), beaconOffset, joiners, remainers, leavers)
+func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+	err := l.dkgRunner.StartProposal(thr, transitionTime, beaconOffset, joiners, remainers, leavers)
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return err

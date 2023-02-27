@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/cmd/client/lib"
 	"os"
 	"time"
 
@@ -93,9 +95,10 @@ var dkgCommand = &cli.Command{
 }
 
 var formatFlag = &cli.StringFlag{
-	Name:  "format",
-	Usage: "Set the format of the status output",
-	Value: "pretty",
+	Name:    "format",
+	Usage:   "Set the format of the status output. Valid options are: pretty, csv",
+	Value:   "pretty",
+	EnvVars: []string{"DRAND_STATUS_FORMAT"},
 }
 
 func makeProposal(c *cli.Context) error {
@@ -235,10 +238,23 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		transitionTime = time.Now().Add(1 * time.Minute)
 	}
 
+	apiClient, err := lib.Create(c, false)
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := apiClient.Info(c.Context)
+	if err != nil {
+		return nil, err
+	}
+
+	transitionRound := apiClient.RoundAt(transitionTime) + 1
+	actualTransitionTime := chain.TimeOfRound(info.Period, info.GenesisTime, transitionRound)
+
 	return &drand.ProposalOptions{
 		BeaconID:             beaconID,
 		Timeout:              timestamppb.New(timeout),
-		TransitionTime:       timestamppb.New(transitionTime),
+		TransitionTime:       timestamppb.New(time.Unix(actualTransitionTime, 0)),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
 		Joining:              proposalFile.Joining,
@@ -464,7 +480,7 @@ func prettyPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 
 var transitionTimeFlag = &cli.StringFlag{
 	Name:  "transition-time",
-	Usage: "The duration from now in which keys generated during the next DKG should be used.",
+	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
 	Value: "30s",
 }
 var dkgTimeoutFlag = &cli.StringFlag{

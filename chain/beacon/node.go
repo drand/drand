@@ -49,6 +49,8 @@ type Handler struct {
 	chain  *chainStore
 	ticker *ticker
 
+	killRunInFlight chan bool
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
@@ -88,16 +90,17 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	handler := &Handler{
-		conf:      conf,
-		client:    c,
-		crypto:    v,
-		chain:     store,
-		ticker:    ticker,
-		addr:      addr,
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
-		l:         l,
-		version:   version,
+		conf:            conf,
+		client:          c,
+		crypto:          v,
+		chain:           store,
+		ticker:          ticker,
+		addr:            addr,
+		ctx:             ctx,
+		ctxCancel:       ctxCancel,
+		l:               l,
+		version:         version,
+		killRunInFlight: make(chan bool),
 	}
 	return handler, nil
 }
@@ -247,14 +250,15 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	}
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+
 	go h.run(targetTime)
 
-	// HMM MAYBE THIS NEEDS THOUGHT ABOUT?
-	// tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
-	// if tTime != targetTime {
-	//   	h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
-	//	return
-	// }
+	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	if tTime != targetTime {
+		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		return
+	}
+	//
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
@@ -310,7 +314,14 @@ func (h *Handler) Reset() {
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
-	h.l.Debugw("", "run_round", "wait", "until", startTime)
+
+	// we cancel the context for any existing handler runs and replace it with a new one
+	select {
+	case <-time.After(time.Until(time.Unix(startTime, 0))):
+		h.killRunInFlight <- true
+	default:
+		h.l.Debugw("", "run_round", "wait", "until", startTime)
+	}
 
 	var current roundInfo
 	setRunning := sync.Once{}
@@ -322,6 +333,7 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
+		case <-h.killRunInFlight:
 		case <-h.ctx.Done():
 			h.l.Debugw("", "beacon_loop", "finished", "err", h.ctx.Err())
 			return

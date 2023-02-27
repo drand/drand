@@ -521,6 +521,7 @@ var ErrGenesisSeedCannotChange = errors.New("genesis seed cannot change after th
 var ErrTransitionTimeMustBeGenesisTime = errors.New("transition time must be the same as the genesis time for the first epoch")
 var ErrTransitionTimeMissing = errors.New("transition time must be provided in a proposal")
 var ErrTransitionTimeBeforeGenesis = errors.New("transition time cannot be before the genesis time")
+var ErrTransitionTimeTooSoonAfterGenesis = errors.New("transition time cannot be sooner than one round after genesis")
 var ErrSelfMissingFromProposal = errors.New("you must include yourself in a proposal")
 var ErrCannotJoinIfNotInJoining = errors.New("you cannot join a proposal in which you are not a joiner")
 var ErrJoiningAfterFirstEpochNeedsGroupFile = errors.New("joining after the first epoch requires a previous group file")

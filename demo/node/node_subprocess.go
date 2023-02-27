@@ -323,7 +323,7 @@ func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	return nil
 }
 
-func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Duration, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
 	proposalFileName := "proposal.toml"
 	proposal := ProposalFile{
 		Joining:   joiners,
@@ -335,13 +335,15 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Duration, bea
 		return err
 	}
 
+	durationUntilTransitionTime := time.Until(transitionTime)
+
 	proposeArgs := []string{
 		"dkg", "propose",
 		"--control", n.ctrl,
 		"--id", n.beaconID,
 		"--proposal", proposalFileName,
 		"--threshold", strconv.Itoa(thr),
-		"--transition-time", transitionTime.String(),
+		"--transition-time", durationUntilTransitionTime.String(),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

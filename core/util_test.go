@@ -138,6 +138,7 @@ func BatchNewDrand(
 
 		confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
+		confOptions = append(confOptions, WithDkgKickoffGracePeriod(1*time.Second))
 		if !insecure {
 			confOptions = append(confOptions,
 				WithTLS(certPaths[i], keyPaths[i]),
@@ -183,7 +184,7 @@ func getSleepDuration() time.Duration {
 		fmt.Println("--- Sleeping on CI")
 		return time.Duration(800) * time.Millisecond
 	}
-	return time.Duration(100) * time.Millisecond
+	return time.Duration(500) * time.Millisecond
 }
 
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
@@ -406,7 +407,8 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 	for i, inst := range newDrands {
 		node, err := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
 		if err != nil {
-			panic("could not construct mock node")
+			fmt.Println("could not construct mock node")
+			t.Fail()
 		}
 		d.newNodes[i] = node
 		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))
@@ -541,9 +543,11 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 	}
 
+	// set the transition time to round 3
+	transitionTime := time.Unix(d.group.GenesisTime+(3*int64(d.period.Seconds())), 0)
 	err := leader.dkgRunner.StartProposal(
 		d.thr,
-		time.Now().Add(5*time.Second),
+		transitionTime,
 		int(d.catchupPeriod.Seconds()),
 		joiners,
 		remainers,
@@ -621,7 +625,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		}
 
 		counter++
-		if counter == 10 {
+		if counter == int(round)+10 {
 			return fmt.Errorf("timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
@@ -650,8 +654,8 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 			return fmt.Errorf("timeout waiting node %s to run beacon chain", node.addr)
 		}
 
-		t.Logf("node %s has its beacon chain not running yet, waiting some time to ask again...", node.addr)
-		time.Sleep(500 * time.Millisecond)
+		t.Logf("node %s has not got its beacon chain running yet, waiting some time to ask again...", node.addr)
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
 

@@ -495,8 +495,9 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	leader := e.reshareNodes[0]
 
 	// if the transition time is in the past, the DKG could fail, so it needs to be long enough to complete the DKG
-	transitionTime := 1 * time.Minute
-	err := leader.StartLeaderReshare(e.newThr, transitionTime, beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
+	roundInTwentySecs := chain.CurrentRound(time.Now().Add(20*time.Second).Unix(), e.periodD, e.genesis)
+	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInTwentySecs)
+	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)
 	}

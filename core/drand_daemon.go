@@ -158,7 +158,7 @@ func (dd *DrandDaemon) init() error {
 
 	dkgConfig := dkg.Config{
 		TimeBetweenDKGPhases: DefaultDKGPhaseTimeout,
-		KickoffGracePeriod:   DefaultDKGKickoffGracePeriod,
+		KickoffGracePeriod:   c.dkgKickoffGracePeriod,
 		SkipKeyVerification:  false,
 	}
 	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway, dkgConfig, dd.log)
