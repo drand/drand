@@ -265,7 +265,7 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 		return nil, err
 	}
 
-	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
+	d.log.Infow("DKG execution leader setup successful", "beaconID", beaconID)
 
 	go func() {
 		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters

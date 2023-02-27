@@ -63,6 +63,8 @@ func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (
 		return nil, err
 	}
 
+	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
+
 	go func() {
 		time.Sleep(d.config.KickoffGracePeriod)
 		// copy this to avoid any data races with kyber

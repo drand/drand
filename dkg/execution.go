@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/drand/kyber"
 	"time"
 
 	"github.com/drand/drand/crypto"
@@ -223,14 +224,25 @@ func (d *DKGProcess) initialDKGConfig(current *DBState, keypair *key.Pair, sorte
 		return nil, err
 	}
 
+	// although this is an "initial" DKG, we could be a joiner, and we may need to set some things
+	// from a prior DKG provided by the network
+	var nodes []dkg.Node
+	var publicCoeffs []kyber.Point
+	var oldThreshold = 0
+	if current.FinalGroup != nil {
+		nodes = current.FinalGroup.DKGNodes()
+		publicCoeffs = current.FinalGroup.PublicKey.Coefficients
+		oldThreshold = current.FinalGroup.Threshold
+	}
+
 	suite := sch.KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
 		Longterm:       keypair.Key,
-		OldNodes:       nil,
+		OldNodes:       nodes,
 		NewNodes:       newNodes,
-		PublicCoeffs:   nil,
-		OldThreshold:   0,
+		PublicCoeffs:   publicCoeffs,
+		OldThreshold:   oldThreshold,
 		Share:          nil,
 		Threshold:      int(current.Threshold),
 		Reader:         nil,

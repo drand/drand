@@ -143,6 +143,8 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
 	group, err := ts.RunDKG()
 	require.NoError(t, err)
+	ts.AdvanceMockClock(t, ts.nodes[0].daemon.opts.dkgKickoffGracePeriod)
+	time.Sleep(getSleepDuration())
 
 	ts.SetMockClock(t, group.GenesisTime)
 	time.Sleep(getSleepDuration())
