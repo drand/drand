@@ -461,6 +461,9 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 		return nil, err
 	}
 
+	// advance by the grace period so all nodes kick off the DKG
+	d.AdvanceMockClock(d.t, d.nodes[0].daemon.opts.dkgKickoffGracePeriod)
+
 	groupFile, err := d.WaitForDKG(leader, 1, 100)
 	if err != nil {
 		return nil, err
