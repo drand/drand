@@ -28,7 +28,7 @@ const DefaultControlPort = "8888"
 // that by default, DKG uses the "fast sync" mode that shorten the first phase
 // and the second phase, "as fast as possible" when the protocol runs smoothly
 // (there is no malicious party).
-const DefaultDKGPhaseTimeout = 10 * time.Second
+const DefaultDKGPhaseTimeout = 15 * time.Second
 
 // DefaultDKGKickoffGracePeriod is the amount of time that each node waits after
 // receiving the execution notification from the leader.

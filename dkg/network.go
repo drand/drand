@@ -3,6 +3,7 @@ package dkg
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -34,28 +35,48 @@ func (n *GrpcNetwork) SendIgnoringConnectionError(
 	return n.send(from, to, action, true)
 }
 
+// send forks a goroutine for each recipient and sends a network request to them
+// in the case of error, it returns the first error
+// if they are all successful, it returns nil
 func (n *GrpcNetwork) send(
 	from *drand.Participant,
 	to []*drand.Participant,
 	action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
 	ignoreConnectionErrors bool,
 ) error {
+	wait := sync.WaitGroup{}
+	errs := make(chan error, len(to))
+	wait.Add(len(to))
+
 	for _, p := range to {
+		p := p
+
 		if p.Address == from.Address {
+			wait.Done()
 			continue
 		}
 
-		_, err := action(n.dkgClient, util.ToPeer(p))
-		if err != nil {
-			if ignoreConnectionErrors && isConnectionError(err) {
-				n.log.Warnw(fmt.Sprintf("connection error to node %s", p.Address), "err", err)
-				continue
+		go func() {
+			defer wait.Done()
+			_, err := action(n.dkgClient, util.ToPeer(p))
+			if err != nil {
+				if ignoreConnectionErrors && isConnectionError(err) {
+					n.log.Warnw(fmt.Sprintf("connection error to node %s", p.Address), "err", err)
+					return
+				}
+				errs <- err
 			}
-			return err
-		}
+		}()
 	}
 
-	return nil
+	wait.Wait()
+
+	select {
+	case err := <-errs:
+		return err
+	default:
+		return nil
+	}
 }
 
 func isConnectionError(err error) bool {
