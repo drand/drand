@@ -91,9 +91,9 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 
 	var priv *key.Pair
 	if l.tls {
-		priv, err = key.NewTLSKeyPair(l.privAddr, nil)
+		priv, err = key.NewTLSKeyPair(l.privAddr, l.scheme)
 	} else {
-		priv, err = key.NewKeyPair(l.privAddr, nil)
+		priv, err = key.NewKeyPair(l.privAddr, l.scheme)
 	}
 	if err != nil {
 		panic(err)

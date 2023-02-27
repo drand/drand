@@ -146,9 +146,8 @@ func (n *NodeProc) setup() {
 		BeaconID: n.beaconID,
 		Client:   dkgClient,
 	}
-
 	// call drand binary
-	n.priv, err = key.NewKeyPair(n.privAddr, nil)
+	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
 	if err != nil {
 		panic(err)
 	}
