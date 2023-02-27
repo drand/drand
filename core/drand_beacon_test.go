@@ -121,6 +121,7 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
+	time.Sleep(getSleepDuration())
 
 	memDBNode := newNodes[0]
 	err = ts.WaitUntilChainIsServing(t, memDBNode)

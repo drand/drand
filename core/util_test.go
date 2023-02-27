@@ -583,6 +583,9 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		return nil, err
 	}
 
+	// advance by the grace period so all nodes kick off the DKG
+	d.AdvanceMockClock(d.t, d.nodes[0].daemon.opts.dkgKickoffGracePeriod)
+
 	// if there are any more hooks now (such as errors to trigger) we trigger them
 	if hooks.postExecutionStart != nil {
 		hooks.postExecutionStart()
