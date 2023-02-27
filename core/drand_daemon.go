@@ -157,7 +157,7 @@ func (dd *DrandDaemon) init() error {
 	}
 
 	dkgConfig := dkg.Config{
-		TimeBetweenDKGPhases: DefaultDKGPhaseTimeout,
+		TimeBetweenDKGPhases: c.dkgPhaseTimeout,
 		KickoffGracePeriod:   c.dkgKickoffGracePeriod,
 		SkipKeyVerification:  false,
 	}

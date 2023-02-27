@@ -33,6 +33,7 @@ type Config struct {
 	insecure              bool
 	dkgTimeout            time.Duration
 	dkgKickoffGracePeriod time.Duration
+	dkgPhaseTimeout       time.Duration
 	grpcOpts              []grpc.DialOption
 	callOpts              []grpc.CallOption
 	boltOpts              *bolt.Options
@@ -54,6 +55,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		configFolder:          DefaultConfigFolder(),
 		dkgTimeout:            DefaultDKGPhaseTimeout,
 		dkgKickoffGracePeriod: DefaultDKGKickoffGracePeriod,
+		dkgPhaseTimeout:       DefaultDKGPhaseTimeout,
 		controlPort:           DefaultControlPort,
 		logger:                log.DefaultLogger(),
 		clock:                 clock.NewRealClock(),
@@ -138,6 +140,12 @@ func WithDkgTimeout(t time.Duration) ConfigOption {
 func WithDkgKickoffGracePeriod(t time.Duration) ConfigOption {
 	return func(d *Config) {
 		d.dkgKickoffGracePeriod = t
+	}
+}
+
+func WithDkgPhaseTimeout(t time.Duration) ConfigOption {
+	return func(d *Config) {
+		d.dkgPhaseTimeout = t
 	}
 }
 

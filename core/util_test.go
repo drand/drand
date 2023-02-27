@@ -189,7 +189,7 @@ func getSleepDuration() time.Duration {
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string) *DrandTestScenario {
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, opts ...ConfigOption) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		panic(err)
@@ -200,7 +200,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	// hmm it seems like this _has_ to be insecure as the `ControlClient` uses insecure credentials?
 	// dunno how any tests were passing if this was the case though
 	daemons, drands, _, dir, certPaths := BatchNewDrand(
-		t, 0, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),
+		t, 0, n, false, sch, beaconID, append(opts, WithCallOption(grpc.WaitForReady(true)))...,
 	)
 
 	dt.t = t
