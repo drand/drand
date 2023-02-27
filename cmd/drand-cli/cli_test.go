@@ -1005,10 +1005,10 @@ func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArg
 		"--private-listen", d.addr,
 	}
 
-	args := append(baseArgs, startArgs...)
+	baseArgs = append(baseArgs, startArgs...)
 
 	go func() {
-		err := CLI().Run(args)
+		err := CLI().Run(baseArgs)
 		require.NoError(t, err)
 	}()
 
@@ -1114,6 +1114,7 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 	)
 }
 
+//nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1123,7 +1124,7 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	roundsWhileMissing := 80
 	// If we are in short mode, let's run less rounds.
 	if testing.Short() {
-		roundsWhileMissing  = 20
+		roundsWhileMissing = 20
 	}
 
 	period := 1
