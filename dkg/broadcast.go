@@ -306,22 +306,27 @@ func (d *dispatcher) stop() {
 }
 
 type sender struct {
-	l      log.Logger
-	client net.DKGClient
-	to     *drand.Participant
-	newCh  chan broadcastPacket
+	l         log.Logger
+	client    net.DKGClient
+	to        *drand.Participant
+	newCh     chan broadcastPacket
+	isStopped bool
 }
 
 func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueSize int) *sender {
 	return &sender{
-		l:      l.Named("Sender"),
-		client: client,
-		to:     to,
-		newCh:  make(chan broadcastPacket, queueSize),
+		l:         l.Named("Sender"),
+		client:    client,
+		to:        to,
+		newCh:     make(chan broadcastPacket, queueSize),
+		isStopped: false,
 	}
 }
 
 func (s *sender) sendPacket(p broadcastPacket) {
+	if s.isStopped {
+		return
+	}
 	select {
 	case s.newCh <- p:
 	default:
@@ -336,6 +341,9 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
+	if s.isStopped {
+		return
+	}
 	node := util.ToPeer(s.to)
 	_, err := s.client.BroadcastDKG(context.Background(), node, newPacket)
 	if err != nil {
@@ -346,6 +354,7 @@ func (s *sender) sendDirect(newPacket broadcastPacket) {
 }
 
 func (s *sender) stop() {
+	s.isStopped = true
 	close(s.newCh)
 }
 
