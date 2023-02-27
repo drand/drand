@@ -232,10 +232,10 @@ var (
 	})
 
 	// DrandStorageBackend reports the database the node is running with
-	DrandStorageBackend = prometheus.NewGauge(prometheus.GaugeOpts{
+	DrandStorageBackend = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "drand_node_db",
-		Help: "The database type the node is running with. 1=boltdb, 2=postgres, 3=memdb",
-	})
+		Help: "The database type the node is running with. 1=bolt, 2=postgres, 3=memdb",
+	}, []string{"db_type"})
 
 	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
 	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
