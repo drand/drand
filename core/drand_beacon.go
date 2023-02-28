@@ -527,7 +527,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	if err != nil {
 		bp.log.Errorw("failed to store beacon", "err", err, "round", targetBeacon.Round)
 	} else {
-		bp.log.Infow("succesfully initialized from peers", "round", targetBeacon.Round)
+		bp.log.Infow("successfully initialized from peers", "round", targetBeacon.Round)
 	}
 	return err
 }
