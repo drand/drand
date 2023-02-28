@@ -1534,7 +1534,8 @@ func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 }
 
 func NewParticipant(name string) *drand.Participant {
-	k, _ := key.NewKeyPair(name, nil)
+	sch, _ := crypto.GetSchemeFromEnv()
+	k, _ := key.NewKeyPair(name, sch)
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address: name,
@@ -1569,7 +1570,7 @@ func NewCompleteDKGEntry(beaconID string, status DKGStatus, previousLeader *dran
 		FinalGroup: nil,
 		KeyShare:   nil,
 	}
-	sch, _ := crypto.GetSchemeByID(crypto.DefaultSchemeID)
+	sch, _ := crypto.GetSchemeFromEnv()
 	nodes, err := util.TryMapEach[*key.Node](state.Remaining, func(index int, p *drand.Participant) (*key.Node, error) {
 		n, err := util.ToKeyNode(index, p, sch)
 		return &n, err
