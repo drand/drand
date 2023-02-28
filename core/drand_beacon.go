@@ -504,12 +504,16 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		// start the node from scratch.
 		if targetRound > 1 {
 			targetBeacon, err = bp.loadBeaconFromPeers(ctx, 0, peers)
-			bp.log.Debugw("computed the latest round", "latestRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
+			logValues := []interface{}{"targetRound", targetRound}
+			if err == nil {
+				logValues = append(logValues, "latestRound", targetBeacon.Round)
+			}
+			bp.log.Debugw("failed to get target, trying to get the latest round", logValues...)
 		}
 	}
 
 	if err != nil {
-		bp.log.Debugw("computed current round with error", "err", err)
+		bp.log.Debugw("retrieved round error", "err", err, "targetRound", targetRound)
 		return err
 	}
 
