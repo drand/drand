@@ -503,12 +503,8 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		// This will work only if the target round is at least 2. Otherwise, we'll
 		// start the node from scratch.
 		if targetRound > 1 {
+			bp.log.Debugw("failed to get target, trying to get the latest round from peers")
 			targetBeacon, err = bp.loadBeaconFromPeers(ctx, 0, peers)
-			logValues := []interface{}{"targetRound", targetRound}
-			if err == nil {
-				logValues = append(logValues, "latestRound", targetBeacon.Round)
-			}
-			bp.log.Debugw("failed to get target, trying to get the latest round", logValues...)
 		}
 	}
 
