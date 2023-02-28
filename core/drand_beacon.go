@@ -522,6 +522,8 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	err = store.Put(ctx, &targetBeacon)
 	if err != nil {
 		bp.log.Errorw("failed to store beacon", "err", err, "round", targetBeacon.Round)
+	} else {
+		bp.log.Infow("succesfully initialized from peers", "round", targetBeacon.Round)
 	}
 	return err
 }
@@ -572,6 +574,8 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 				bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", ans.err, "peer", ans.peer.Address())
 				continue
 			}
+
+			bp.log.Infow("returning beacon from peer", "round", ans.b.Round, "peer", ans.peer.Address())
 
 			return ans.b, nil
 		case <-ctxFind.Done():
