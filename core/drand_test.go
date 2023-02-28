@@ -690,6 +690,7 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 
 	dt.AdvanceMockClock(t, group.Period)
+	time.Sleep(getSleepDuration())
 	select {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)
