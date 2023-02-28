@@ -139,7 +139,7 @@ func BatchNewDrand(
 		confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 		confOptions = append(confOptions,
 			WithDkgKickoffGracePeriod(1*time.Second),
-			WithDkgPhaseTimeout(2*time.Second),
+			WithDkgPhaseTimeout(5*time.Second),
 			WithPrivateListenAddress(privs[i].Public.Address()),
 		)
 		if !insecure {

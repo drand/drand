@@ -134,8 +134,8 @@ func TestRunDKGLarge(t *testing.T) {
 		expectedBeaconPeriod,
 		beaconID,
 		WithDkgKickoffGracePeriod(15*time.Second),
-		WithDkgPhaseTimeout(30*time.Second),
-		WithDkgTimeout(5*time.Minute),
+		WithDkgPhaseTimeout(45*time.Second),
+		WithDkgTimeout(3*time.Minute),
 	)
 
 	group, err := dt.RunDKG()
@@ -690,7 +690,6 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 
 	dt.AdvanceMockClock(t, group.Period)
-	time.Sleep(getSleepDuration())
 	select {
 	case resp := <-respCh:
 		t.Logf("Round %d rcv \n", maxRound)

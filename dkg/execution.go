@@ -140,6 +140,8 @@ func (d *DKGProcess) startDKGExecution(beaconID string, current *DBState, config
 	d.lock.Lock()
 	broadcaster := d.Executions[beaconID]
 	d.lock.Unlock()
+
+	d.log.Info("Starting DKG protocol")
 	protocol, err := dkg.NewProtocol(config, broadcaster, phaser, d.config.SkipKeyVerification)
 	if err != nil {
 		return nil, err
