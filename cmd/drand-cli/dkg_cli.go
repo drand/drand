@@ -253,7 +253,13 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 	}
 
 	ctrlClient, err := net.NewControlClient(ctrlPort)
+	if err != nil {
+		return nil, err
+	}
 	info, err := ctrlClient.ChainInfo(beaconID)
+	if err != nil {
+		return nil, err
+	}
 
 	// then we use it to work out the real transition time
 	transitionRound := chain.CurrentRound(transitionTime.Unix(), time.Duration(info.Period)*time.Second, info.GenesisTime)
