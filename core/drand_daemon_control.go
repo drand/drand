@@ -209,19 +209,16 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	dd.privGateway.StopAll(ctx)
 	dd.log.Debugw("privGateway stopped successfully")
 
-	// we defer the stop of the ControlListener to avoid canceling our context already
-	defer func() {
-		// We launch this in a goroutine to allow the stop connection to exit successfully.
-		// If we wouldn't launch it in a goroutine the Stop call itself would block the shutdown
-		// procedure and we'd be in a loop.
-		// By default, the Stop call will try to terminate all connections nicely.
-		// However, after a timeout, it will forcefully close all connections and terminate.
-		go func() {
-			dd.state.Lock()
-			defer dd.state.Unlock()
-			dd.control.Stop()
-			dd.log.Debugw("control stopped successfully")
-		}()
+	// We launch this in a goroutine to allow the stop connection to exit successfully.
+	// If we wouldn't launch it in a goroutine the Stop call itself would block the shutdown
+	// procedure and we'd be in a loop.
+	// By default, the Stop call will try to terminate all connections nicely.
+	// However, after a timeout, it will forcefully close all connections and terminate.
+	go func() {
+		dd.state.Lock()
+		defer dd.state.Unlock()
+		dd.control.Stop()
+		dd.log.Debugw("control stopped successfully")
 	}()
 
 	select {
