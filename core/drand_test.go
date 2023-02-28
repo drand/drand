@@ -528,13 +528,6 @@ func TestDrandPublicChainInfo(t *testing.T) {
 		t.Logf("Check if node %d is present on the group with the correct configuration \n", i)
 		require.True(t, found)
 	}
-
-	// rest := net.NewRestClientFromCertManager(cm)
-	// restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
-	// require.NoError(t, err)
-	// received, err := key.GroupFromProto(restGroup)
-	// require.NoError(t, err)
-	// require.True(t, group.Equal(received))
 }
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call

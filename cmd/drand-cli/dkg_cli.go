@@ -229,9 +229,14 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("you must provider remainers for a proposal")
 	}
 
-	// figure out the round closest to the transition duration provided
+	var timeout time.Time
+	if c.IsSet(dkgTimeoutFlag.Name) {
+		timeout = time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
+	} else {
+		timeout = time.Now().Add(core.DefaultDKGTimeout)
+	}
 
-	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
+	// figure out the round closest to the transition duration provided
 	var transitionTime time.Time
 	if c.IsSet(transitionTimeFlag.Name) {
 		transitionTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))

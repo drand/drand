@@ -22,12 +22,13 @@ func (r *DKGRunner) StartNetwork(
 	threshold int,
 	period int,
 	schemeID string,
+	timeout time.Duration,
 	catchupPeriod int,
 	joiners []*drand.Participant,
 ) error {
 	_, err := r.Client.StartNetwork(context.Background(), &drand.FirstProposalOptions{
 		BeaconID:             r.BeaconID,
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+		Timeout:              timestamppb.New(time.Now().Add(timeout)),
 		Threshold:            uint32(threshold),
 		PeriodSeconds:        uint32(period),
 		Scheme:               schemeID,

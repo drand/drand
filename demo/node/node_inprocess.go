@@ -232,7 +232,8 @@ func (l *LocalNode) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.P
 	if err != nil {
 		return err
 	}
-	return l.dkgRunner.StartNetwork(thr, int(p.Seconds()), l.scheme.Name, beaconOffset, joiners)
+	timeout := 5 * time.Minute
+	return l.dkgRunner.StartNetwork(thr, int(p.Seconds()), l.scheme.Name, timeout, beaconOffset, joiners)
 }
 
 func (l *LocalNode) ExecuteLeaderDKG() error {

@@ -447,7 +447,8 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 	leader := d.nodes[0]
 	followers := d.nodes[1:]
 
-	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.Name, int(d.catchupPeriod.Seconds()), joiners)
+	timeout := 5 * time.Minute
+	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.Name, timeout, int(d.catchupPeriod.Seconds()), joiners)
 
 	if err != nil {
 		return nil, err

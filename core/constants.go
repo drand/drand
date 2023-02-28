@@ -34,4 +34,7 @@ const DefaultDKGPhaseTimeout = 10 * time.Second
 // receiving the execution notification from the leader.
 const DefaultDKGKickoffGracePeriod = 5 * time.Second
 
+// DefaultDKGTimeout is the max amount of time from start of a DKG until it gets aborted automatically
+const DefaultDKGTimeout = 24 * time.Hour
+
 const callMaxTimeout = 10 * time.Second

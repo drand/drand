@@ -267,6 +267,7 @@ func (n *NodeProc) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Pa
 		"--catchup-period", "1s",
 		"--proposal", n.proposalPath,
 		"--threshold", strconv.Itoa(thr),
+		"--timeout", (5 * time.Minute).String(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
