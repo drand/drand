@@ -488,6 +488,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	}
 
 	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:gomnd // We cannot sync the initial round.
 	if targetRound < 2 {
@@ -498,16 +499,17 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	peers := bp.computePeers(bp.group.Nodes)
 	targetBeacon, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
 	if errors.Is(err, errNoRoundInPeers) {
-		// If we can't find the desired beacon round, let's try with the previous one.
-		// We don't want to try round 0 because that won't validate as it doesn't contain
-		// a previous signature.
-		// In this case, we'll just let the beacon sync everything from scratch.
+		// If we can't find the desired beacon round, let's try with the latest one.
+		// This will work only if the target round is at least 2. Otherwise, we'll
+		// start the node from scratch.
 		if targetRound > 1 {
-			targetBeacon, err = bp.loadBeaconFromPeers(ctx, targetRound-1, peers)
+			bp.log.Debugw("failed to get target, trying to get the latest round from peers")
+			targetBeacon, err = bp.loadBeaconFromPeers(ctx, 0, peers)
 		}
 	}
 
 	if err != nil {
+		bp.log.Debugw("retrieved round error", "err", err, "targetRound", targetRound)
 		return err
 	}
 
@@ -519,7 +521,9 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 
 	err = store.Put(ctx, &targetBeacon)
 	if err != nil {
-		bp.log.Errorw("failed to store beacon", "err", err)
+		bp.log.Errorw("failed to store beacon", "err", err, "round", targetBeacon.Round)
+	} else {
+		bp.log.Infow("successfully initialized from peers", "round", targetBeacon.Round)
 	}
 	return err
 }
@@ -570,6 +574,8 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 				bp.log.Errorw("failed to get rand value from peer", "round", targetRound, "err", ans.err, "peer", ans.peer.Address())
 				continue
 			}
+
+			bp.log.Infow("returning beacon from peer", "round", ans.b.Round, "peer", ans.peer.Address())
 
 			return ans.b, nil
 		case <-ctxFind.Done():
