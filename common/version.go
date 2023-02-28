@@ -14,7 +14,7 @@ var version = Version{
 	Major:      1,
 	Minor:      5,
 	Patch:      3,
-	Prerelease: "testnet",
+	Prerelease: "",
 }
 
 // Set via -ldflags. Example:
