@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/cmd/client/lib"
-
 	"github.com/drand/drand/dkg"
 
 	"github.com/drand/drand/common"
@@ -220,6 +218,7 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("%s flag is required", thresholdFlag.Name)
 	}
 
+	// parse a proposal file from the path specified
 	proposalFilePath := c.String(proposalFlag.Name)
 	proposalFile, err := ParseProposalFile(proposalFilePath)
 	if err != nil {
@@ -230,8 +229,9 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("you must provider remainers for a proposal")
 	}
 
-	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
+	// figure out the round closest to the transition duration provided
 
+	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
 	var transitionTime time.Time
 	if c.IsSet(transitionTimeFlag.Name) {
 		transitionTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
@@ -239,18 +239,20 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		transitionTime = time.Now().Add(1 * time.Minute)
 	}
 
-	apiClient, err := lib.Create(c, false)
-	if err != nil {
-		return nil, err
+	// first we get the chainInfo for the beacon
+	var ctrlPort string
+	if c.IsSet(controlFlag.Name) {
+		ctrlPort = c.String(controlFlag.Name)
+	} else {
+		ctrlPort = core.DefaultControlPort
 	}
 
-	info, err := apiClient.Info(c.Context)
-	if err != nil {
-		return nil, err
-	}
+	ctrlClient, err := net.NewControlClient(ctrlPort)
+	info, err := ctrlClient.ChainInfo(beaconID)
 
-	transitionRound := apiClient.RoundAt(transitionTime) + 1
-	actualTransitionTime := chain.TimeOfRound(info.Period, info.GenesisTime, transitionRound)
+	// then we use it to work out the real transition time
+	transitionRound := chain.CurrentRound(transitionTime.Unix(), time.Duration(info.Period)*time.Second, info.GenesisTime)
+	actualTransitionTime := chain.TimeOfRound(time.Duration(info.Period)*time.Second, info.GenesisTime, transitionRound)
 
 	return &drand.ProposalOptions{
 		BeaconID:             beaconID,
