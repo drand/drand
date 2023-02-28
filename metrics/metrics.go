@@ -232,10 +232,10 @@ var (
 	})
 
 	// DrandStorageBackend reports the database the node is running with
-	DrandStorageBackend = prometheus.NewGauge(prometheus.GaugeOpts{
+	DrandStorageBackend = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "drand_node_db",
-		Help: "The database type the node is running with",
-	})
+		Help: "The database type the node is running with. 1=bolt, 2=postgres, 3=memdb",
+	}, []string{"db_type"})
 
 	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
 	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
@@ -268,10 +268,6 @@ func bindMetrics() {
 		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "processCollector", "err", err)
 		return
 	}
-	if err := PrivateMetrics.Register(DrandStorageBackend); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "storageBackend", "err", err)
-		return
-	}
 
 	// Group metrics
 	group := []prometheus.Collector{
@@ -292,6 +288,7 @@ func bindMetrics() {
 		OutgoingConnectionState,
 		IsDrandNode,
 		DrandStartTimestamp,
+		DrandStorageBackend,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {

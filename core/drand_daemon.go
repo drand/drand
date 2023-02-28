@@ -74,7 +74,9 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		return nil, err
 	}
 
-	metrics.DrandStorageBackend.Set(float64(chain.MetricsStorageType(c.dbStorageEngine)))
+	metrics.DrandStorageBackend.
+		WithLabelValues(string(c.dbStorageEngine)).
+		Set(float64(chain.MetricsStorageType(c.dbStorageEngine)))
 
 	return drandDaemon, nil
 }
