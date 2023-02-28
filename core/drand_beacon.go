@@ -488,7 +488,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	}
 
 	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
-	bp.log.Debugw("computed current round", "targetRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
+	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:gomnd // We cannot sync the initial round.
 	if targetRound < 2 {
@@ -504,7 +504,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		// start the node from scratch.
 		if targetRound > 1 {
 			targetBeacon, err = bp.loadBeaconFromPeers(ctx, 0, peers)
-			bp.log.Debugw("computed current round", "targetRound", 0, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
+			bp.log.Debugw("computed the latest round", "latestRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 		}
 	}
 

@@ -1141,21 +1141,21 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	instances[memDBNodeID].runWithStartArgs(t, beaconID, []string{"--db", "memdb"})
 	memDBNode := instances[memDBNodeID]
 
-	done := make(chan error, n)
+	errs := make(chan error, n)
 	for i, inst := range instances {
 		inst := inst
 		if i == 0 {
-			go inst.shareLeader(t, n, 3, period, beaconID, sch, done)
+			go inst.shareLeader(t, n, 3, period, beaconID, sch, errs)
 			// Wait a bit after launching the leader to launch the other nodes too.
 			time.Sleep(500 * time.Millisecond)
 		} else {
-			go inst.share(t, instances[0].addr, beaconID, done)
+			go inst.share(t, instances[0].addr, beaconID, errs)
 		}
 	}
 
 	t.Log("waiting for initial set up to settle on all nodes")
 	for i := 0; i < n; i++ {
-		err := <-done
+		err := <-errs
 		require.NoError(t, err)
 	}
 
