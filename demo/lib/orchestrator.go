@@ -494,9 +494,9 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	fmt.Println("[+] Running DKG for resharing nodes")
 	leader := e.reshareNodes[0]
 
-	// if the transition time is in the past, the DKG could fail, so it needs to be long enough to complete the DKG
-	roundInTwentySecs := chain.CurrentRound(time.Now().Add(20*time.Second).Unix(), e.periodD, e.genesis)
-	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInTwentySecs)
+	// if the transition time is in the past, the DKG will fail, so it needs to be long enough to complete the DKG
+	roundInOneMinute := chain.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
+	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
 	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)
@@ -533,6 +533,9 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 		panic(err)
 	}
 	fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
+
+	// let's give the other nodes a little time to settle and finish their DKGs
+	time.Sleep(2 * time.Second)
 
 	// we pass the new group file
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)

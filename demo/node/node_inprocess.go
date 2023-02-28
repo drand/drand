@@ -253,7 +253,7 @@ func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.G
 		return nil, err
 	}
 
-	return key.GroupFromProto(groupPacket, nil)
+	return key.GroupFromProto(groupPacket, l.scheme)
 }
 func (l *LocalNode) JoinDKG() error {
 	return l.dkgRunner.JoinDKG()
@@ -271,7 +271,7 @@ func (l *LocalNode) GetGroup() *key.Group {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
-	group, err := key.GroupFromProto(grp, nil)
+	group, err := key.GroupFromProto(grp, l.scheme)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil

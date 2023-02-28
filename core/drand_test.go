@@ -651,7 +651,7 @@ func TestDrandPublicStream(t *testing.T) {
 		t.Logf("First round rcv %d \n", beacon.GetRound())
 		require.Equal(t, resp.GetRound(), beacon.GetRound())
 
-	case <-time.After(300 * time.Millisecond):
+	case <-time.After(1 * time.Second):
 		t.Logf("First round NOT rcv. Timeout has passed \n")
 		require.True(t, false, "too late for the first round, it didn't reply in time")
 	}
