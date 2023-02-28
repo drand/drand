@@ -907,6 +907,7 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID str
 	}
 	sch, err := crypto.SchemeFromName(identityResp.SchemeName)
 	if err != nil {
+		log.DefaultLogger().Errorw("received an invalid SchemeName in identity response", "received", identityResp.SchemeName)
 		return err
 	}
 	id, err := key.IdentityFromProto(identity, sch)

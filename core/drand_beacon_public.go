@@ -224,11 +224,12 @@ func (bp *BeaconProcess) GetIdentity(context.Context, *drand.IdentityRequest) (*
 	i := bp.priv.Public.ToProto()
 
 	response := &drand.IdentityResponse{
-		Address:   i.Address,
-		Key:       i.Key,
-		Tls:       i.Tls,
-		Signature: i.Signature,
-		Metadata:  bp.newMetadata(),
+		Address:    i.Address,
+		Key:        i.Key,
+		Tls:        i.Tls,
+		Signature:  i.Signature,
+		Metadata:   bp.newMetadata(),
+		SchemeName: bp.priv.Scheme().String(),
 	}
 	return response, nil
 }
