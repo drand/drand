@@ -1116,6 +1116,10 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	// stop the node and wait for it
 	node.daemon.Stop(context.Background())
 	<-node.daemon.exitCh
+	// although the exit channel has signalled exit, the control client is stopped out of band
+	// without waiting the pessimistic closing time, we may try and restart the daemon below
+	// before the port has been given up and cause an error binding the new port :(
+	time.Sleep(5 * time.Second)
 
 	// modify your entry (well, all of them!) in the group file to change the TLS status
 	groupPath := path.Join(dir, beaconID, key.GroupFolderName, "drand_group.toml")
