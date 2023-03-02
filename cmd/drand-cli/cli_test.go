@@ -1230,7 +1230,6 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	instances[memDBNodeID].runWithStartArgs(t, beaconID, []string{"--db", "memdb"})
 	memDBNode := instances[memDBNodeID]
 
-	errs := make(chan error, n)
 	for i, inst := range instances {
 		inst := inst
 		if i == 0 {
@@ -1242,11 +1241,11 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 		}
 	}
 
+	instances[0].executeDKG(t, beaconID)
+
 	t.Log("waiting for initial set up to settle on all nodes")
-	for i := 0; i < n; i++ {
-		err := <-errs
-		require.NoError(t, err)
-	}
+	err = instances[0].awaitDKGComplete(t, beaconID, 1, 60)
+	require.NoError(t, err)
 
 	defer func() {
 		for _, inst := range instances {
