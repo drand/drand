@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -102,8 +101,6 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	return handler, nil
 }
 
-var errOutOfRound = "out-of-round beacon request"
-
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
@@ -117,7 +114,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// possible, if a node receives a packet very fast just before his local
 	// clock passed to the next round
 	if p.GetRound() > nextRound {
-		h.l.Errorw("", "process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
+		h.l.Errorw("ignoring future partial", "from", addr, "round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
@@ -413,10 +410,10 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
+		h.l.Fatalw("err creating partial signature", "err", err, "round", round)
 		return
 	}
-	h.l.Debugw("", "broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	h.l.Debugw("", "broadcast_partial", round, "prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
 	metadata := common.NewMetadata(h.version.ToProto())
 	metadata.BeaconID = beaconID
 
@@ -446,13 +443,10 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			default:
 			}
 
-			h.l.Debugw("", "beacon_round", round, "send_to", i.Address())
+			h.l.Debugw("sending partial", "round", round, "to", i.Address())
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
-				h.l.Errorw("", "beacon_round", round, "err_request", err, "from", i.Address())
-				if strings.Contains(err.Error(), errOutOfRound) {
-					h.l.Errorw("", "beacon_round", round, "node", i.Addr, "reply", "out-of-round")
-				}
+				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
 		}(*idt)
@@ -488,7 +482,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 	}
 	duration := time.Duration(stopTime-now) * time.Second
 
-	h.l.Debugw("", "stop_at", stopTime, "sleep_for", duration.Seconds())
+	h.l.Debug("stop_at", stopTime, "sleep_for", duration.Seconds())
 	h.conf.Clock.Sleep(duration)
 	h.Stop()
 	return nil
