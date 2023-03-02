@@ -33,8 +33,9 @@ func (r *DKGRunner) StartNetwork(
 		PeriodSeconds:        uint32(period),
 		Scheme:               schemeID,
 		CatchupPeriodSeconds: uint32(catchupPeriod),
-		GenesisTime:          timestamppb.New(time.Now().Add(10 * time.Second)),
-		Joining:              joiners,
+		// put the genesis a little in the future to give demo nodes some time to do the DKG
+		GenesisTime: timestamppb.New(time.Now().Add(10 * time.Second)),
+		Joining:     joiners,
 	})
 	return err
 }
