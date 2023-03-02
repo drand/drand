@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/BurntSushi/toml"
-	common2 "github.com/drand/drand/protobuf/common"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/BurntSushi/toml"
+	common2 "github.com/drand/drand/protobuf/common"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/dkg"
@@ -108,18 +109,21 @@ var dkgCommand = &cli.Command{
 }
 
 var joinerFlag = &cli.StringSliceFlag{
-	Name:  "joiner",
-	Usage: "the address of a joiner you wish to add to a DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+	Name: "joiner",
+	Usage: "the address of a joiner you wish to add to a DKG proposal. You can pass it multiple times. " +
+		"To use TLS, prefix their address with 'https://'",
 }
 
 var remainerFlag = &cli.StringSliceFlag{
-	Name:  "remainer",
-	Usage: "the address of a remainer you wish to add to a DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+	Name: "remainer",
+	Usage: "the address of a remainer you wish to add to a DKG proposal. You can pass it multiple times. " +
+		"To use TLS, prefix their address with 'https://'",
 }
 
 var leaverFlag = &cli.StringSliceFlag{
-	Name:  "leaver",
-	Usage: "the address of a leaver you wish to add to the DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+	Name: "leaver",
+	Usage: "the address of a leaver you wish to add to the DKG proposal. You can pass it multiple times. " +
+		"To use TLS, prefix their address with 'https://'",
 }
 
 var proposalOutputFlag = &cli.StringFlag{
@@ -561,7 +565,6 @@ func generateProposalCmd(c *cli.Context) error {
 			peer = net.CreatePeer(parts[1], tls)
 		} else {
 			peer = net.CreatePeer(path, tls)
-
 		}
 		client := net.NewGrpcClient()
 		identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})

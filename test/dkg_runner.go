@@ -33,7 +33,7 @@ func (r *DKGRunner) StartNetwork(
 		PeriodSeconds:        uint32(period),
 		Scheme:               schemeID,
 		CatchupPeriodSeconds: uint32(catchupPeriod),
-		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Second)),
+		GenesisTime:          timestamppb.New(time.Now().Add(10 * time.Second)),
 		Joining:              joiners,
 	})
 	return err
