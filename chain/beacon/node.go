@@ -105,7 +105,8 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	addr := net.RemoteAddress(c)
-	h.l.Debugw("", "received", "request", "from", addr, "round", p.GetRound())
+	pRound := p.GetRound()
+	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
 
 	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -113,16 +114,16 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// we allow one round off in the future because of small clock drifts
 	// possible, if a node receives a packet very fast just before his local
 	// clock passed to the next round
-	if p.GetRound() > nextRound {
-		h.l.Errorw("ignoring future partial", "from", addr, "round", p.GetRound(), "current_round", currentRound)
-		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
+	if pRound > nextRound {
+		h.l.Errorw("ignoring future partial", "from", addr, "round", pRound, "current_round", currentRound)
+		return nil, fmt.Errorf("invalid round: %d instead of %d", pRound, currentRound)
 	}
 
 	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: p.GetRound(), PreviousSig: p.GetPreviousSignature()})
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
-		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, p.GetRound())
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 	}
 
 	node := h.crypto.GetGroup().Node(uint32(idx))
@@ -138,7 +139,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSignature()),
 			"curr_round", currentRound,
-			"partial_round", p.GetRound(),
+			"partial_round", pRound,
 			"msg_sign", shortSigStr(msg),
 			"from_idx", idx,
 			"from_node", nodeName)
@@ -148,7 +149,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSignature()),
 		"curr_round", currentRound,
-		"partial_round", p.GetRound(),
+		"partial_round", pRound,
 		"msg_sign", shortSigStr(msg),
 		"from_node", nodeName,
 		"status", "OK")
@@ -157,7 +158,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"process_partial", addr,
 			"index_got", idx,
 			"index_our", h.crypto.Index(),
-			"advance_packet", p.GetRound(),
+			"advance_packet", pRound,
 			"from_node", nodeName)
 		// XXX error or not ?
 		return new(proto.Empty), nil
