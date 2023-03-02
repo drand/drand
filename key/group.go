@@ -246,11 +246,9 @@ func (g *Group) FromTOML(i interface{}) error {
 		return fmt.Errorf("unable to instantiate group with crypto Scheme named '%s'", gt.SchemeID)
 	}
 	g.Scheme = sch
-
 	g.Nodes = make([]*Node, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
 		g.Nodes[i] = new(Node)
-		g.Nodes[i].Identity = &Identity{Scheme: sch}
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
 			return fmt.Errorf("group: unwrapping node[%d]: %w", i, err)
 		}

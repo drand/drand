@@ -96,7 +96,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = orch.RunDKG(20 * time.Second)
+	err = orch.RunDKG(1 * time.Minute)
 	if err != nil {
 		panic(err)
 	}
@@ -133,7 +133,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	orch.RunResharing(resharingGroup, 60*time.Second)
+	orch.RunResharing(resharingGroup, 1*time.Minute)
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {

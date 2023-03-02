@@ -152,7 +152,7 @@ func (n *NodeProc) setup() {
 		panic(err)
 	}
 
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
 
 	if !n.tls {
 		args = append(args, "--tls-disable")
@@ -257,7 +257,6 @@ func (n *NodeProc) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Pa
 	if err != nil {
 		return err
 	}
-
 	proposeArgs := []string{
 		"dkg", "propose",
 		"--control", n.ctrl,
