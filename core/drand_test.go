@@ -412,6 +412,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	// moving another round to make sure all nodes have time to sync in case one missed a beat
 	dt.SetMockClock(t, resharedGroup.TransitionTime)
+	dt.AdvanceMockClock(t, dt.period)
 	time.Sleep(getSleepDuration())
 	for _, n := range dt.resharedNodes[1:] {
 		// Make sure we pull the same round from the rest of the nodes as we received from the leader

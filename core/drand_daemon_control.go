@@ -214,19 +214,17 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	// procedure and we'd be in a loop.
 	// By default, the Stop call will try to terminate all connections nicely.
 	// However, after a timeout, it will forcefully close all connections and terminate.
-	go func() {
+
+	select {
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
+	default:
 		dd.state.Lock()
 		defer dd.state.Unlock()
 		dd.control.Stop()
 		dd.log.Debugw("control stopped successfully")
-	}()
-
-	select {
-	case dd.exitCh <- true:
-		dd.log.Debugw("signaled dd.exitCh")
-		close(dd.exitCh)
-	case <-ctx.Done():
-		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		dd.exitCh <- true
 		close(dd.exitCh)
 	}
 }
