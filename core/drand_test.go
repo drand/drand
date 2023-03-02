@@ -863,7 +863,7 @@ func TestDrandFollowChain(t *testing.T) {
 	}
 
 	fn(resp.GetRound()-2, resp.GetRound()-2)
-	// there is a race condition between the context being cancelled and the nextf sync request being sent
+	// there is a race condition between the context being canceled and the nextf sync request being sent
 	// let's sleep a short period to ensure we don't get a `syncing is already in progress` error
 	time.Sleep(2 * time.Second)
 	fn(0, resp.GetRound())
