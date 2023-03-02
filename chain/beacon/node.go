@@ -119,7 +119,13 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", pRound, currentRound)
 	}
 
-	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: p.GetRound(), PreviousSig: p.GetPreviousSignature()})
+	// we don't want to process partials for beacons that we've already stored.
+	if latest, err := h.chain.Last(c); err == nil && pRound <= latest.GetRound() {
+		h.l.Debugw("ignoring past partial", "from", addr, "round", pRound, "current_round", currentRound, "latestStored", latest.GetRound())
+		return new(proto.Empty), nil
+	}
+
+	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
