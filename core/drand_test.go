@@ -803,8 +803,8 @@ func TestDrandFollowChain(t *testing.T) {
 	require.Error(t, err)
 	cancel()
 
-	// testing with a invalid beaconID
-	t.Logf("T \t [-] rying to follow with an invalid beaconID\n")
+	// testing with an invalid beaconID
+	t.Logf(" \t [-] Trying to follow with an invalid beaconID\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
 	expectChanFail(t, errCh)
@@ -813,7 +813,7 @@ func TestDrandFollowChain(t *testing.T) {
 	fn := func(upTo, exp uint64) {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		t.Logf(" \t [-] Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
+		t.Logf(" \t [+] Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
 		t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
@@ -863,6 +863,8 @@ func TestDrandFollowChain(t *testing.T) {
 	}
 
 	fn(resp.GetRound()-2, resp.GetRound()-2)
+	// a bit of science
+	time.Sleep(2 * time.Second)
 	fn(0, resp.GetRound())
 }
 
@@ -1116,7 +1118,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	// stop the node and wait for it
 	node.daemon.Stop(context.Background())
 	<-node.daemon.exitCh
-	// although the exit channel has signalled exit, the control client is stopped out of band
+	// although the exit channel has signaled exit, the control client is stopped out of band
 	// without waiting the pessimistic closing time, we may try and restart the daemon below
 	// before the port has been given up and cause an error binding the new port :(
 	time.Sleep(5 * time.Second)
