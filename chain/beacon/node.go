@@ -317,10 +317,10 @@ func (h *Handler) run(startTime int64) {
 
 	// we cancel the context for any existing handler runs and replace it with a new one
 	select {
-	case <-time.After(time.Until(time.Unix(startTime, 0))):
+	case <-h.conf.Clock.After(time.Unix(startTime, 0).Sub(h.conf.Clock.Now())):
 		h.killRunInFlight <- true
 	default:
-		h.l.Debugw("", "run_round", "wait", "until", startTime)
+		h.l.Debugw("", "run_round", "wait", "until", startTime, "now", h.conf.Clock.Now().Unix())
 	}
 
 	var current roundInfo
