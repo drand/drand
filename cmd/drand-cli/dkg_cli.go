@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/BurntSushi/toml"
+	common2 "github.com/drand/drand/protobuf/common"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -90,14 +93,54 @@ var dkgCommand = &cli.Command{
 			),
 			Action: viewStatus,
 		},
+		{
+			Name: "generate-proposal",
+			Flags: toArray(
+				joinerFlag,
+				remainerFlag,
+				proposalOutputFlag,
+				beaconIDFlag,
+				leaverFlag,
+			),
+			Action: generateProposalCmd,
+		},
 	},
 }
 
+var joinerFlag = &cli.StringSliceFlag{
+	Name:  "joiner",
+	Usage: "the address of a joiner you wish to add to a DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+}
+
+var remainerFlag = &cli.StringSliceFlag{
+	Name:  "remainer",
+	Usage: "the address of a remainer you wish to add to a DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+}
+
+var leaverFlag = &cli.StringSliceFlag{
+	Name:  "leaver",
+	Usage: "the address of a leaver you wish to add to the DKG proposal. You can pass it multiple times. To use TLS, prefix their address with 'https://'",
+}
+
+var proposalOutputFlag = &cli.StringFlag{
+	Name:  "out",
+	Usage: "the location you wish to save the proposal file to",
+}
 var formatFlag = &cli.StringFlag{
 	Name:    "format",
 	Usage:   "Set the format of the status output. Valid options are: pretty, csv",
 	Value:   "pretty",
 	EnvVars: []string{"DRAND_STATUS_FORMAT"},
+}
+var transitionTimeFlag = &cli.StringFlag{
+	Name:  "transition-time",
+	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
+	Value: "30s",
+}
+var dkgTimeoutFlag = &cli.StringFlag{
+	Name:  "timeout",
+	Usage: "The duration from now in which DKG participants should abort the DKG if it has not completed.",
+	Value: "24h",
 }
 
 func makeProposal(c *cli.Context) error {
@@ -492,13 +535,82 @@ func prettyPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 	}
 }
 
-var transitionTimeFlag = &cli.StringFlag{
-	Name:  "transition-time",
-	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
-	Value: "30s",
-}
-var dkgTimeoutFlag = &cli.StringFlag{
-	Name:  "timeout",
-	Usage: "The duration from now in which DKG participants should abort the DKG if it has not completed.",
-	Value: "24h",
+func generateProposalCmd(c *cli.Context) error {
+	if !c.IsSet(joinerFlag.Name) && !c.IsSet(remainerFlag.Name) {
+		return errors.New("you must add joiners and/or remainers to the proposal")
+	}
+
+	if !c.IsSet(proposalOutputFlag.Name) {
+		return errors.New("you must pass an output filepath for the proposal")
+	}
+
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	p := ProposalFile{}
+
+	fetchParticipantData := func(path string) (*drand.Participant, error) {
+		parts := strings.Split(path, "https://")
+		tls := len(parts) > 1
+		var peer net.Peer
+		if tls {
+			peer = net.CreatePeer(parts[1], tls)
+		} else {
+			peer = net.CreatePeer(path, tls)
+
+		}
+		client := net.NewGrpcClient()
+		identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
+		if err != nil {
+			return nil, err
+		}
+		return &drand.Participant{
+			Address:   identity.Address,
+			Tls:       identity.Tls,
+			PubKey:    identity.Key,
+			Signature: identity.Signature,
+		}, nil
+	}
+
+	for _, joiner := range c.StringSlice(joinerFlag.Name) {
+		j, err := fetchParticipantData(joiner)
+		if err != nil {
+			return err
+		}
+		p.Joining = append(p.Joining, j)
+	}
+
+	for _, remainer := range c.StringSlice(remainerFlag.Name) {
+		r, err := fetchParticipantData(remainer)
+		if err != nil {
+			return err
+		}
+		p.Remaining = append(p.Remaining, r)
+	}
+
+	for _, leaver := range c.StringSlice(leaverFlag.Name) {
+		l, err := fetchParticipantData(leaver)
+		if err != nil {
+			return err
+		}
+		p.Leaving = append(p.Leaving, l)
+	}
+
+	filepath := c.String(proposalOutputFlag.Name)
+	file, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+
+	err = toml.NewEncoder(file).Encode(p.TOML())
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Proposal created successfully at path %s", filepath)
+	return nil
 }

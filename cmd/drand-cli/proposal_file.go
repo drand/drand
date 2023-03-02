@@ -79,6 +79,36 @@ func (t *TomlParticipant) Into() *drand.Participant {
 	}
 }
 
+func (p *ProposalFile) TOML() ProposalFileFormat {
+	out := ProposalFileFormat{}
+
+	for _, j := range p.Joining {
+		p := encode(j)
+		out.Joining = append(out.Joining, &p)
+	}
+
+	for _, r := range p.Remaining {
+		p := encode(r)
+		out.Remaining = append(out.Remaining, &p)
+	}
+
+	for _, l := range p.Leaving {
+		p := encode(l)
+		out.Leaving = append(out.Leaving, &p)
+	}
+
+	return out
+}
+
+func encode(p *drand.Participant) TomlParticipant {
+	return TomlParticipant{
+		Address:   p.Address,
+		TLS:       p.Tls,
+		Key:       hex.EncodeToString(p.PubKey),
+		Signature: hex.EncodeToString(p.Signature),
+	}
+}
+
 func decodeHexOrPanic(input string) []byte {
 	// input lengths are u8 instead of hex, so /2
 	byteLength := len(input) / 2
