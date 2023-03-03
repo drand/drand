@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 
 num_of_nodes=3
-docker_image_version=v1.5.2-testnet
+docker_image_version=v1.5.3
 
 ### first we check if docker and docker-compose are installed
 
@@ -13,15 +13,15 @@ if [ ! has_docker ]; then
   exit 1
 fi
 
-has_docker_compose=$(docker-compose --version | echo "$?")
+has_docker_compose=$(docker compose --version | echo "$?")
 
 if [ ! has_docker_compose ]; then
-  echo [-] You must have docker-compose installed to run the network
+  echo [-] You must have docker compose installed to run the network
   exit 1
 fi
 
 echo [+] Pulling the official drand docker image $docker_image_version
-docker pull drandorg/go-drand:$docker_image_version 1>/dev/null 
+docker pull drandorg/go-drand:$docker_image_version 1>/dev/null
 
 
 ### then we create a volume for each of those nodes
@@ -46,7 +46,7 @@ done
 ### now we start them all using docker-compose as it'll be easy to spin up and down
 echo [+] Starting all the nodes using docker-compose
 
-docker-compose -f docker-compose-network.yml up -d
+docker compose -f docker-compose-network.yml up -d
 
 
 ### sleep to let the nodes start up
@@ -57,7 +57,7 @@ sleep 5
 
 echo [+] Starting distributed key generation for the leader
 
-# we start the DKG and send it to the background; 
+# we start the DKG and send it to the background;
 docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
 
 # and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
@@ -87,8 +87,11 @@ do
 
   ### once the first round has been created, we know that the DKG happened succesfully
   response=$(curl --silent localhost:9010/public/1)
-  if [[ $? -eq 0 && $response =~ "round" ]]; then
-    break
+  code=$?
+  if [ $code -eq 0 ]; then
+    if [[ $response =~ "round" ]]; then
+      break
+    fi
   fi
 
   attempts=$(($attempts - 1))

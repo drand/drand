@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ###
 #   This script sets up a network with 3 nodes, runs an initial distributed key generation, then spins up another node behind nginx
@@ -6,15 +6,15 @@
 ###
 
 # first lets kill any existing runs
-docker-compose --file docker-compose-nginx.yml down
+docker compose --file docker-compose-nginx.yml down
 ./cleanup.sh
 
 ./start-network.sh
 
 # then let's create a volume for the nginx drand node and put a keypair on it pointing to the grpc port
 docker volume create drand-nginx
-docker run --volume drand-nginx:/data/drand drandorg/go-drand:v1.5.3-testnet generate-keypair  --folder /data/drand/.drand --tls-disable --id default nginx:81
-docker-compose --file docker-compose-nginx.yml up --detach
+docker run --volume drand-nginx:/data/drand drandorg/go-drand:v1.5.3 generate-keypair  --folder /data/drand/.drand --tls-disable --id default nginx:81
+docker compose --file docker-compose-nginx.yml up --detach
 
 # start the resharing as leader
 echo [+] starting the resharing as leader
