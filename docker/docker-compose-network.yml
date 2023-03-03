@@ -1,36 +1,36 @@
 version: "3"
 
 services:
-  drand_1:
-    container_name: drand1
-    image: drandorg/go-drand:v1.5.3-testnet
-    command: start --verbose --tls-disable --private-listen drand1:8010 --control 8888 --public-listen 0.0.0.0:9080
+  drand_docker_demo_1:
+    container_name: drand_docker_demo1
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo1:8010 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
-      - drand1:/data/drand
+      - drand_docker_demo1:/data/drand
     restart: always
     ports:
       - 8010:8080
       - 8818:8888
       - 9010:9080
 
-  drand_2:
-    container_name: drand2
-    image: drandorg/go-drand:v1.5.3-testnet
-    command: start --verbose --tls-disable --private-listen drand2:8020 --control 8888 --public-listen 0.0.0.0:9080
+  drand_docker_demo_2:
+    container_name: drand_docker_demo2
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo2:8020 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
-      - drand2:/data/drand
+      - drand_docker_demo2:/data/drand
     restart: always
     ports:
       - 8020:8080
       - 8828:8888
       - 9020:9080
 
-  drand_3:
-    container_name: drand3
-    image: drandorg/go-drand:v1.5.3-testnet
-    command: start --verbose --tls-disable --private-listen drand3:8030 --control 8888 --public-listen 0.0.0.0:9080
+  drand_docker_demo_3:
+    container_name: drand_docker_demo3
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo3:8030 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
-      - drand3:/data/drand
+      - drand_docker_demo3:/data/drand
     restart: always
     ports:
       - 8030:8080
@@ -38,13 +38,13 @@ services:
       - 9030:9080
 
 volumes:
-  drand1:
+  drand_docker_demo1:
     external: true
-    name: drand1
-  drand2:
+    name: drand_docker_demo1
+  drand_docker_demo2:
     external: true
-    name: drand2
-  drand3:
+    name: drand_docker_demo2
+  drand_docker_demo3:
     external: true
-    name: drand3
+    name: drand_docker_demo3
 

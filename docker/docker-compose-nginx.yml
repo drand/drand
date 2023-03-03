@@ -1,19 +1,19 @@
 version: "3"
 
 services:
-  drand-nginx:
-    container_name: drand-nginx
-    image: drandorg/go-drand:v1.5.3-testnet
+  drand_docker_demo_drand:
+    container_name: drand_docker_demo_drand
+    image: drandorg/go-drand:v1.5.3
     command: start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
-      - drand-nginx:/data/drand
+      - drand_docker_demo_drand:/data/drand
     restart: always
     ports:
       - 8080:8080
       - 8888:8888
       - 9080:9080
-  nginx:
-    container_name: nginx
+  drand_docker_demo-nginx:
+    container_name: drand_docker_demo-nginx
     image: nginx:1.23.3-alpine
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
@@ -22,10 +22,9 @@ services:
       - 22181:81
       - 22443:443
     links:
-      - drand-nginx
+      - drand_docker_demo_drand
 
 volumes:
-  drand-nginx:
+  drand_docker_demo_drand:
     external: true
-    name: drand-nginx
-
+    name: drand_docker_demo_drand

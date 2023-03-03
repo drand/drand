@@ -29,8 +29,7 @@ echo [+] Creating docker volumes for $num_of_nodes nodes
 
 for i in $(seq 1 $num_of_nodes);
 do
-  echo "docker volume create drand$i"
-  docker volume create drand$i
+  docker volume create drand_docker_demo$i
 done
 
 ### next we're going to generate a keypair on each of those volumes
@@ -40,8 +39,8 @@ for i in $(seq 1 $num_of_nodes);
 do
   # these will end up on drand1:8010, drand2:8020, drand3:8030, etc
   # note they map to the container's mapped ports, but the internal ports; internally the services still listen on 8080
-  path=drand$i:80${i}0
-  docker run --rm --volume drand$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair  --folder /data/drand/.drand --tls-disable --id default $path 1>/dev/null
+  path=drand_docker_demo$i:80${i}0
+  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --tls-disable --id default $path 1>/dev/null
 done
 
 ### now we start them all using docker-compose as it'll be easy to spin up and down
@@ -59,7 +58,7 @@ sleep 5
 echo [+] Starting distributed key generation for the leader
 
 # we start the DKG and send it to the background;
-docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
+docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
 
 # and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
 sleep 1
@@ -69,7 +68,7 @@ echo [+] Joining distributed key generation for the followers
 for i in $(seq 2 $num_of_nodes);
 do
   # we start the DKG and send it to the background
-  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand$i sh -c "drand share --id default --connect drand1:8010 --tls-disable"
+  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010 --tls-disable"
 done
 
 
@@ -82,7 +81,7 @@ while :
 do
   ### if it isn't working after a bunch of attempts, it probably failed
   if [ "$attempts" -eq 0 ]; then
-    echo [-] the DKG didn\'t finish successfully - check the container logs with '`docker logs -f drand1`'
+    echo [-] the DKG didn\'t finish successfully - check the container logs with '`docker logs -f drand_docker_demo1`'
     exit 1
   fi
 
