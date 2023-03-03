@@ -29,7 +29,8 @@ echo [+] Creating docker volumes for $num_of_nodes nodes
 
 for i in $(seq 1 $num_of_nodes);
 do
-  docker volume create drand$i 1>/dev/null
+  echo "docker volume create drand$i"
+  docker volume create drand$i
 done
 
 ### next we're going to generate a keypair on each of those volumes

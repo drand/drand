@@ -18,9 +18,9 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
     ports:
-      - 80:80
-      - 81:81
-      - 443:443
+      - 22180:80
+      - 22181:81
+      - 22443:443
     links:
       - drand-nginx
 
