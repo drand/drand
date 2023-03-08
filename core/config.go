@@ -24,37 +24,41 @@ type ConfigOption func(*Config)
 
 // Config holds all relevant information for a drand node to run.
 type Config struct {
-	configFolder      string
-	version           string
-	privateListenAddr string
-	publicListenAddr  string
-	controlPort       string
-	dbStorageEngine   chain.StorageType
-	insecure          bool
-	dkgTimeout        time.Duration
-	grpcOpts          []grpc.DialOption
-	callOpts          []grpc.CallOption
-	boltOpts          *bolt.Options
-	pgDSN             string
-	pgConn            *sqlx.DB
-	memDBSize         int
-	dkgCallback       func(*key.Share, *key.Group)
-	certPath          string
-	keyPath           string
-	certmanager       *net.CertManager
-	logger            log.Logger
-	clock             clock.Clock
+	configFolder          string
+	version               string
+	privateListenAddr     string
+	publicListenAddr      string
+	controlPort           string
+	dbStorageEngine       chain.StorageType
+	insecure              bool
+	dkgTimeout            time.Duration
+	dkgKickoffGracePeriod time.Duration
+	dkgPhaseTimeout       time.Duration
+	grpcOpts              []grpc.DialOption
+	callOpts              []grpc.CallOption
+	boltOpts              *bolt.Options
+	pgDSN                 string
+	pgConn                *sqlx.DB
+	memDBSize             int
+	dkgCallback           func(*key.Share, *key.Group)
+	certPath              string
+	keyPath               string
+	certmanager           *net.CertManager
+	logger                log.Logger
+	clock                 clock.Clock
 }
 
 // NewConfig returns the config to pass to drand with the default options set
 // and the updated values given by the options.
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
-		configFolder: DefaultConfigFolder(),
-		dkgTimeout:   DefaultDKGTimeout,
-		controlPort:  DefaultControlPort,
-		logger:       log.DefaultLogger(),
-		clock:        clock.NewRealClock(),
+		configFolder:          DefaultConfigFolder(),
+		dkgTimeout:            DefaultDKGPhaseTimeout,
+		dkgKickoffGracePeriod: DefaultDKGKickoffGracePeriod,
+		dkgPhaseTimeout:       DefaultDKGPhaseTimeout,
+		controlPort:           DefaultControlPort,
+		logger:                log.DefaultLogger(),
+		clock:                 clock.NewRealClock(),
 	}
 	for i := range opts {
 		opts[i](d)
@@ -119,20 +123,6 @@ func (d *Config) Logger() log.Logger {
 	return d.logger
 }
 
-func (d *Config) applyDkgCallback(share *key.Share, group *key.Group) {
-	if d.dkgCallback != nil {
-		d.dkgCallback(share, group)
-	}
-}
-
-// WithGrpcOptions applies grpc dialing option used when a drand node actively
-// contacts another.
-func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
-	return func(d *Config) {
-		d.grpcOpts = opts
-	}
-}
-
 // WithCallOption applies grpc options when drand calls a gRPC method.
 func WithCallOption(opts ...grpc.CallOption) ConfigOption {
 	return func(d *Config) {
@@ -144,6 +134,18 @@ func WithCallOption(opts ...grpc.CallOption) ConfigOption {
 func WithDkgTimeout(t time.Duration) ConfigOption {
 	return func(d *Config) {
 		d.dkgTimeout = t
+	}
+}
+
+func WithDkgKickoffGracePeriod(t time.Duration) ConfigOption {
+	return func(d *Config) {
+		d.dkgKickoffGracePeriod = t
+	}
+}
+
+func WithDkgPhaseTimeout(t time.Duration) ConfigOption {
+	return func(d *Config) {
+		d.dkgPhaseTimeout = t
 	}
 }
 
@@ -286,6 +288,12 @@ func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 		} else {
 			d.logger = log.NewLogger(nil, level)
 		}
+	}
+}
+
+func WithNamedLogger(name string) ConfigOption {
+	return func(d *Config) {
+		d.logger = d.logger.Named(name)
 	}
 }
 

@@ -280,6 +280,17 @@ func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
 
 	return SchemeFromName(id)
 }
+func GetSchemeByID(id string) (*Scheme, bool) {
+	if id == "" {
+		id = DefaultSchemeID
+	}
+
+	sch, err := SchemeFromName(id)
+	if err != nil {
+		return nil, false
+	}
+	return sch, true
+}
 
 // GetSchemeFromEnv allows the user to retrieve the scheme configuration looking by the ID set on an
 // environmental variable. If the scheme is not found, function will panic.

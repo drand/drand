@@ -84,7 +84,7 @@ func TestKeyDistributedPublic(t *testing.T) {
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
 	require.NoError(t, enc.Encode(dtoml))
-	toml.NewEncoder(os.Stdout).Encode(dtoml)
+	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(dtoml))
 
 	d2 := new(DistPublic)
 	d2Toml := new(DistPublicTOML)

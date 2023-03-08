@@ -10,7 +10,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	json "github.com/nikkolasg/hexjson"
@@ -54,8 +53,6 @@ type Orchestrator struct {
 	transition        int64
 	group             *key.Group
 	newGroup          *key.Group
-	resharePaths      []string
-	reshareIndex      []int
 	reshareNodes      []node.Node
 	tls               bool
 	withCurl          bool
@@ -105,20 +102,23 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 	return e
 }
 
-func (e *Orchestrator) StartCurrentNodes(toExclude ...int) {
+func (e *Orchestrator) StartCurrentNodes(toExclude ...int) error {
 	filtered := filterNodes(e.nodes, toExclude...)
-	e.startNodes(filtered)
+	return e.startNodes(filtered)
 }
 
-func (e *Orchestrator) StartNewNodes() {
-	e.startNodes(e.newNodes)
+func (e *Orchestrator) StartNewNodes() error {
+	return e.startNodes(e.newNodes)
 }
 
-func (e *Orchestrator) startNodes(nodes []node.Node) {
+func (e *Orchestrator) startNodes(nodes []node.Node) error {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, n := range nodes {
 		fmt.Printf("\t- Starting node %s\n", n.PrivateAddr())
-		n.Start(e.certFolder, e.dbEngineType, e.pgDSN, e.memDBSize)
+		err := n.Start(e.certFolder, e.dbEngineType, e.pgDSN, e.memDBSize)
+		if err != nil {
+			return err
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -143,51 +143,50 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 				fmt.Println("[-] can not ping them all. Sleeping 2s...")
 				break
 			}
-			return
+			return nil
 		case <-ctx.Done():
 			fmt.Println("[-] can not ping all nodes in 30 seconds. Shutting down.")
 			panic("failed to ping nodes in 30 seconds")
 		}
 	}
 }
-
-func (e *Orchestrator) RunDKG(timeout time.Duration) {
+func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	fmt.Println("[+] Running DKG for all nodes")
-	time.Sleep(100 * time.Millisecond)
 	leader := e.nodes[0]
-	var wg sync.WaitGroup
-	wg.Add(len(e.nodes))
-	panicCh := make(chan interface{}, 1)
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				panicCh <- err
-			}
-			wg.Done()
-		}()
-		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
-		leader.RunDKG(e.n, e.thr, timeout, true, "", beaconOffset)
-	}()
-	time.Sleep(200 * time.Millisecond)
+
+	fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
+	joiners := make([]*drand.Participant, len(e.nodes))
+	for i, n := range e.nodes {
+		identity, err := n.Identity()
+		if err != nil {
+			return err
+		}
+		joiners[i] = identity
+	}
+
+	err := leader.StartLeaderDKG(e.thr, beaconOffset, joiners)
+	if err != nil {
+		return err
+	}
+
 	for _, n := range e.nodes[1:] {
 		n := n
-		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
-		go func(n node.Node) {
-			defer func() {
-				if err := recover(); err != nil {
-					panicCh <- err
-				}
-				wg.Done()
-			}()
-			n.RunDKG(e.n, e.thr, timeout, false, leader.PrivateAddr(), beaconOffset)
-			fmt.Println("\t FINISHED DKG")
-		}(n)
+		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
+		err = n.JoinDKG()
+		if err != nil {
+			return err
+		}
 	}
-	wg.Wait()
-	select {
-	case p := <-panicCh:
-		panic(p)
-	default:
+
+	err = leader.ExecuteLeaderDKG()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("[+] Waiting for DKG completion")
+	_, err = leader.WaitDKGComplete(1, timeout)
+	if err != nil {
+		return err
 	}
 
 	fmt.Println("[+] Nodes finished running DKG. Checking keys...")
@@ -198,6 +197,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) {
 	e.genesis = g.GenesisTime
 	checkErr(key.Save(e.groupPath, e.group, false))
 	fmt.Println("\t- Overwrite group with distributed key to ", e.groupPath)
+	return nil
 }
 
 func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key.Group {
@@ -421,42 +421,64 @@ func (e *Orchestrator) UpdateBinary(binary string, idx uint, isCandidate bool) {
 	}
 }
 
-// UpdateGlobalBinary will set the 'bianry' to use on the orchestrator as a whole
+// UpdateGlobalBinary will set the 'binary' to use on the orchestrator as a whole
 func (e *Orchestrator) UpdateGlobalBinary(binary string, isCandidate bool) {
 	e.binary = binary
 	e.isBinaryCandidate = isCandidate
 }
 
-func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
+type ResharingGroup struct {
+	leaving   []*drand.Participant
+	joining   []*drand.Participant
+	remaining []*drand.Participant
+}
+
+func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) (*ResharingGroup, error) {
+	resharingGroup := ResharingGroup{}
 	fmt.Println("[+] Setting up the nodes for the resharing")
 	// create paths that contains old node + new nodes
 	for _, n := range e.nodes[oldToRemove:] {
 		fmt.Printf("\t- Adding current node %s\n", n.PrivateAddr())
-		e.reshareIndex = append(e.reshareIndex, n.Index())
+		p, err := n.Identity()
+		if err != nil {
+			return nil, err
+		}
+
+		resharingGroup.remaining = append(resharingGroup.remaining, p)
 		e.reshareNodes = append(e.reshareNodes, n)
 	}
+
 	for _, n := range e.newNodes {
-		fmt.Printf("\t- Adding new node %s\n", n.PrivateAddr())
-		e.reshareIndex = append(e.reshareIndex, n.Index())
+		p, err := n.Identity()
+		if err != nil {
+			return nil, err
+		}
+		resharingGroup.joining = append(resharingGroup.joining, p)
 		e.reshareNodes = append(e.reshareNodes, n)
 	}
-	e.resharePaths = append(e.resharePaths, e.paths[oldToRemove:]...)
-	e.resharePaths = append(e.resharePaths, e.newPaths...)
+
 	e.newThr = threshold
 	fmt.Printf("[+] Stopping old nodes\n")
 	for _, n := range e.nodes {
 		var found bool
-		for _, idx := range e.reshareIndex {
-			if idx == n.Index() {
+		for _, resharer := range append(e.nodes[oldToRemove:], e.newNodes...) {
+			if resharer == n {
 				found = true
 				break
 			}
 		}
 		if !found {
 			fmt.Printf("\t- Stopping old node %s\n", n.PrivateAddr())
+			p, err := n.Identity()
+			if err != nil {
+				return nil, err
+			}
+			resharingGroup.leaving = append(resharingGroup.leaving, p)
 			n.Stop()
 		}
 	}
+
+	return &resharingGroup, nil
 }
 
 func (e *Orchestrator) isNew(n node.Node) bool {
@@ -468,60 +490,53 @@ func (e *Orchestrator) isNew(n node.Node) bool {
 	return false
 }
 
-func (e *Orchestrator) RunResharing(timeout string) {
+func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time.Duration) {
 	fmt.Println("[+] Running DKG for resharing nodes")
-	nodes := len(e.reshareNodes)
-	thr := e.newThr
-	groupCh := make(chan *key.Group, 1)
 	leader := e.reshareNodes[0]
-	panicCh := make(chan interface{}, 1)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				panicCh <- err
-			}
-		}()
-		p := ""
-		if e.isNew(leader) {
-			p = e.groupPath
-		}
-		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
-		group := leader.RunReshare(nodes, thr, p, timeout, true, "", beaconOffset)
-		fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
-		wg.Done()
-		groupCh <- group
-	}()
-	time.Sleep(100 * time.Millisecond)
 
-	for _, n := range e.reshareNodes[1:] {
+	// if the transition time is in the past, the DKG will fail, so it needs to be long enough to complete the DKG
+	roundInOneMinute := chain.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
+	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
+	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
+	if err != nil {
+		panic(err)
+	}
+
+	oldGroup := *leader.GetGroup()
+	for _, n := range e.newNodes {
 		n := n
-		p := ""
-		if e.isNew(n) {
-			p = e.groupPath
+		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
+		err = n.JoinReshare(oldGroup)
+		if err != nil {
+			panic(err)
 		}
-		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
-		wg.Add(1)
-		go func(n node.Node) {
-			defer func() {
-				if err := recover(); err != nil {
-					wg.Done()
-					panicCh <- err
-				}
-			}()
-			n.RunReshare(nodes, thr, p, timeout, false, leader.PrivateAddr(), beaconOffset)
-			fmt.Printf("\t- Resharing DONE for node %s\n", n.PrivateAddr())
-			wg.Done()
-		}(n)
+		fmt.Printf("\t- Joined DKG for node %s\n", n.PrivateAddr())
 	}
-	wg.Wait()
-	<-groupCh
-	select {
-	case p := <-panicCh:
-		panic(p)
-	default:
+
+	for _, n := range except(e.reshareNodes[1:], e.newNodes) {
+		n := n
+		fmt.Printf("\t- Accepting DKG for node %s\n", n.PrivateAddr())
+		err = n.AcceptReshare()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("\t- Accepted DKG for node %s\n", n.PrivateAddr())
 	}
+
+	err = leader.ExecuteLeaderReshare()
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = leader.WaitDKGComplete(2, timeout)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
+
+	// let's give the other nodes a little time to settle and finish their DKGs
+	time.Sleep(2 * time.Second)
+
 	// we pass the new group file
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)
 	e.newGroup = g
@@ -600,7 +615,7 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 			panic(fmt.Errorf("[-] Could not start node %s error: %v", foundNode.PrivateAddr(), err))
 		}
 		var started bool
-		for trial := 1; trial < 10; trial += 1 {
+		for trial := 1; trial < 10; trial++ {
 			if foundNode.Ping() {
 				fmt.Printf("\t- Node %s started correctly\n", foundNode.PrivateAddr())
 				started = true
@@ -639,18 +654,6 @@ func (e *Orchestrator) Shutdown() {
 	time.Sleep(time.Minute)
 }
 
-func runCommand(c *exec.Cmd, add ...string) []byte {
-	out, err := c.CombinedOutput()
-	if err != nil {
-		if len(add) > 0 {
-			fmt.Printf("[-] Msg failed command: %s\n", add[0])
-		}
-		fmt.Printf("[-] Command \"%s\" gave\n%s\n", strings.Join(c.Args, " "), string(out))
-		panic(err)
-	}
-	return out
-}
-
 func checkErr(err error, out ...string) {
 	if err == nil {
 		return
@@ -664,4 +667,23 @@ func checkErr(err error, out ...string) {
 
 func pair(k, v string) []string {
 	return []string{k, v}
+}
+
+// returns an array containing all the nodes in the first array except if they appear in the second
+func except(arr []node.Node, arr2 []node.Node) []node.Node {
+	var out []node.Node
+
+	for _, n := range arr {
+		found := false
+		for _, n2 := range arr2 {
+			if n == n2 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			out = append(out, n)
+		}
+	}
+	return out
 }
