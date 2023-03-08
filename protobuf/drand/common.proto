@@ -15,10 +15,6 @@ message DkgStatus{
     uint32 status = 1;
 }
 
-message ReshareStatus{
-    uint32 status = 1;
-}
-
 message BeaconStatus{
     uint32 status = 1;
     bool is_running = 2;
@@ -53,7 +49,7 @@ message StatusRequest {
 // ask during the StatusRequest.
 message StatusResponse {
     DkgStatus dkg = 1;
-    ReshareStatus reshare = 2;
+    uint32 epoch = 2;
     BeaconStatus beacon = 3;
     ChainStoreStatus chain_store = 4;
     map<string,bool> connections = 5;

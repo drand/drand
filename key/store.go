@@ -136,7 +136,17 @@ func (f *fileStore) LoadKeyPair(targetScheme *crypto.Scheme) (*Pair, error) {
 
 func (f *fileStore) LoadGroup() (*Group, error) {
 	g := new(Group)
-	return g, Load(f.groupFile, g)
+	err := Load(f.groupFile, g)
+	if err != nil {
+		return nil, err
+	}
+	// we don't want to return a pointer to an empty `Group` struct if
+	// there isn't a group in the file system
+	//nolint:nilnil
+	if g == new(Group) {
+		return nil, nil
+	}
+	return g, nil
 }
 
 func (f *fileStore) SaveGroup(g *Group) error {

@@ -18,6 +18,7 @@ type PrivateGateway struct {
 	Listener
 	ProtocolClient
 	PublicClient
+	DKGClient
 }
 
 // StartAll starts the control and public functionalities of the node
@@ -46,6 +47,8 @@ type Service interface {
 	drand.ControlServer
 	drand.ProtocolServer
 	drand.Interceptors
+	drand.DKGControlServer
+	drand.DKGServer
 }
 
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the
@@ -63,8 +66,10 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	pg := &PrivateGateway{Listener: l}
 	if !insecure {
 		pg.ProtocolClient = NewGrpcClientFromCertManager(certs, opts...)
+		pg.DKGClient = NewGrpcClientFromCertManager(certs, opts...)
 	} else {
 		pg.ProtocolClient = NewGrpcClient(opts...)
+		pg.DKGClient = NewGrpcClient(opts...)
 	}
 	// duplication since client implements both...
 	// XXX Find a better fix
