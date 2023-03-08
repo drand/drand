@@ -223,6 +223,12 @@ var oldGroupFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_FROM"},
 }
 
+var proposalFlag = &cli.StringFlag{
+	Name:    "proposal",
+	Usage:   "Path to a toml file specifying the leavers, joiners and remainers for a network proposal",
+	EnvVars: []string{"DRAND_PROPOSAL_PATH"},
+}
+
 var skipValidationFlag = &cli.BoolFlag{
 	Name:    "skipValidation",
 	Usage:   "skips bls verification of beacon rounds for faster catchup.",
@@ -231,7 +237,7 @@ var skipValidationFlag = &cli.BoolFlag{
 
 var timeoutFlag = &cli.StringFlag{
 	Name:    "timeout",
-	Usage:   fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
+	Usage:   fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGPhaseTimeout),
 	EnvVars: []string{"DRAND_TIMEOUT"},
 }
 
@@ -364,6 +370,7 @@ var memDBSizeFlag = &cli.IntFlag{
 }
 
 var appCommands = []*cli.Command{
+	dkgCommand,
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
@@ -397,7 +404,7 @@ var appCommands = []*cli.Command{
 			schemeFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
-			return shareCmd(c)
+			return deprecatedShareCommand(c)
 		},
 	},
 	{
@@ -548,8 +555,8 @@ var appCommands = []*cli.Command{
 		Name: "show",
 		Usage: "local information retrieval about the node's cryptographic " +
 			"material. Show prints the information about the collective " +
-			"public key (drand.cokey), the group details (group.toml), the " +
-			"long-term private key (drand.private), the long-term public key " +
+			"public key (drand.cokey), the group details (group.toml)," +
+			"the long-term public key " +
 			"(drand.public), or the private key share (drand.share), " +
 			"respectively.\n",
 		Flags: toArray(folderFlag, controlFlag),
@@ -807,18 +814,6 @@ func groupOut(c *cli.Context, group *key.Group) error {
 		fmt.Fprintf(output, "\nHash of the group configuration: %x\n", group.Hash())
 	}
 	return nil
-}
-
-func getThreshold(c *cli.Context) (int, error) {
-	var threshold = key.DefaultThreshold(c.NArg())
-	if c.IsSet(thresholdFlag.Name) {
-		var localThr = c.Int(thresholdFlag.Name)
-		if localThr < threshold {
-			return 0, fmt.Errorf("drand: threshold specified too low %d/%d", localThr, threshold)
-		}
-		return localThr, nil
-	}
-	return threshold, nil
 }
 
 func checkConnection(c *cli.Context) error {
@@ -1181,4 +1176,8 @@ func getKeyStores(c *cli.Context) (map[string]key.Store, error) {
 	stores := map[string]key.Store{beaconID: store}
 
 	return stores, nil
+}
+
+func deprecatedShareCommand(_ *cli.Context) error {
+	return errors.New("the share command has been removed! Please use `drand dkg` instead")
 }

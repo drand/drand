@@ -12,7 +12,7 @@ type logger struct {
 	*zap.SugaredLogger
 }
 
-// Logger is a interface that can log to different levels.
+// Logger is an interface that can log to different levels.
 //
 //nolint:interfacebloat // We want this interface to implement the original one
 type Logger interface {
