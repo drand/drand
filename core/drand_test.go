@@ -349,7 +349,7 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 //nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
 	oldNodes, newNodes, oldThreshold := 3, 4, 2
-	beaconPeriod := 2*time.Second
+	beaconPeriod := 2 * time.Second
 	offline := 1
 	beaconID := test.GetBeaconIDFromEnv()
 
