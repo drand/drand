@@ -16,8 +16,6 @@ import (
 	"testing"
 	"time"
 
-	dkg2 "github.com/drand/drand/dkg"
-
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
@@ -28,6 +26,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/crypto"
+	dkg2 "github.com/drand/drand/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"

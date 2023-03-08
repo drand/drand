@@ -99,6 +99,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 		var err error
 		var resp *drand.StatusResponse
 		statusReq := &drand.StatusRequest{
+			CheckConn: in.GetAddresses(),
 			Metadata: bp.newMetadata(),
 		}
 		if remoteAddress == bp.priv.Public.Addr {
