@@ -740,6 +740,11 @@ func keygenCmd(c *cli.Context) error {
 		return errors.New("missing drand address in argument. Abort")
 	}
 
+	if args.Len() > 1 {
+		return fmt.Errorf("expecting only one argument, the address, but got:"+
+			"\n\t%v\nAborting. Note that the flags need to go before the argument", args.Slice())
+	}
+
 	addr := args.First()
 	var validID = regexp.MustCompile(`:\d+$`)
 	if !validID.MatchString(addr) {
