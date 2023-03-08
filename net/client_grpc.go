@@ -58,14 +58,6 @@ func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) Clien
 	return client
 }
 
-// NewGrpcClientWithTimeout returns a Client using gRPC using fixed timeout for
-// method calls.
-func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Client {
-	c := NewGrpcClient(opts...).(*grpcClient)
-	c.timeout = timeout
-	return c
-}
-
 func (g *grpcClient) loadEnvironment() {
 	opt := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		return proxy.Dial(ctx, "tcp", addr)
@@ -160,38 +152,6 @@ func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoR
 	defer cancel()
 	resp, err = client.ChainInfo(ctx, in)
 	return resp, err
-}
-
-func (g *grpcClient) PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error {
-	c, err := g.conn(p)
-	if err != nil {
-		return err
-	}
-	client := drand.NewProtocolClient(c)
-	_, err = client.PushDKGInfo(ctx, in, opts...)
-	return err
-}
-
-func (g *grpcClient) SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error {
-	c, err := g.conn(p)
-	if err != nil {
-		return err
-	}
-	client := drand.NewProtocolClient(c)
-	_, err = client.SignalDKGParticipant(ctx, in, opts...)
-	return err
-}
-
-func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error {
-	c, err := g.conn(p)
-	if err != nil {
-		return err
-	}
-	client := drand.NewProtocolClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
-	_, err = client.BroadcastDKG(ctx, in, opts...)
-	return err
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {

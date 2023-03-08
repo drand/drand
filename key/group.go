@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
 	"golang.org/x/crypto/blake2b"
 
 	commonutils "github.com/drand/drand/common"
@@ -63,10 +64,18 @@ func (g *Group) Find(pub *Identity) *Node {
 	for _, pu := range g.Nodes {
 		if pu.Identity.Equal(pub) {
 			// migration path
-			if pu.Scheme != g.Scheme {
-				pu.Scheme = g.Scheme
+			// we have to create a new object to avoid triggering the race detector with the DKG
+			// store which also uses the `Node`s from the group file
+			return &Node{
+				Identity: &Identity{
+					Key:       pu.Key,
+					Addr:      pu.Addr,
+					TLS:       pu.TLS,
+					Signature: pu.Signature,
+					Scheme:    g.Scheme,
+				},
+				Index: pu.Index,
 			}
-			return pu
 		}
 	}
 	return nil
@@ -149,7 +158,15 @@ func (g *Group) String() string {
 }
 
 // Equal indicates if two groups are equal
+//
+//nolint:gocyclo
 func (g *Group) Equal(g2 *Group) bool {
+	if g == nil {
+		return g2 == nil
+	}
+	if g2 == nil {
+		return false
+	}
 	if !commonutils.CompareBeaconIDs(g.ID, g2.ID) {
 		return false
 	}
@@ -168,8 +185,14 @@ func (g *Group) Equal(g2 *Group) bool {
 	if g.TransitionTime != g2.TransitionTime {
 		return false
 	}
-	if g.Scheme.Name != g2.Scheme.Name {
-		return false
+	if g.Scheme == nil {
+		if g2.Scheme != nil {
+			return false
+		}
+	} else {
+		if g2.Scheme == nil || g.Scheme.Name != g2.Scheme.Name {
+			return false
+		}
 	}
 	for i := 0; i < g.Len(); i++ {
 		if !g.Nodes[i].Equal(g2.Nodes[i]) {
@@ -206,8 +229,11 @@ type GroupTOML struct {
 	ID             string
 }
 
-// FromTOML decodes the group from the toml struct
+//nolint:gocyclo
 func (g *Group) FromTOML(i interface{}) error {
+	if i == nil {
+		return nil
+	}
 	gt, ok := i.(*GroupTOML)
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
@@ -220,11 +246,9 @@ func (g *Group) FromTOML(i interface{}) error {
 		return fmt.Errorf("unable to instantiate group with crypto Scheme named '%s'", gt.SchemeID)
 	}
 	g.Scheme = sch
-
 	g.Nodes = make([]*Node, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
 		g.Nodes[i] = new(Node)
-		g.Nodes[i].Identity = &Identity{Scheme: sch}
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
 			return fmt.Errorf("group: unwrapping node[%d]: %w", i, err)
 		}
@@ -312,22 +336,6 @@ func (g *Group) TOMLValue() interface{} {
 	return &GroupTOML{}
 }
 
-// NewGroup returns a group from the given information to be used as a new group
-// in a setup or resharing phase. Every identity is map to a Node struct whose
-// index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration,
-	sch *crypto.Scheme, beaconID string) *Group {
-	return &Group{
-		Nodes:         copyAndSort(list),
-		Threshold:     threshold,
-		GenesisTime:   genesis,
-		Period:        period,
-		CatchupPeriod: catchupPeriod,
-		Scheme:        sch,
-		ID:            beaconID,
-	}
-}
-
 // LoadGroup returns a group that contains all information with respect
 // to a QUALified set of nodes that ran successfully a setup or reshare phase.
 // The threshold is automatically guessed from the length of the distributed
@@ -346,20 +354,6 @@ func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Dura
 		Scheme:         sch,
 		ID:             beaconID,
 	}
-}
-
-func copyAndSort(list []*Identity) []*Node {
-	nl := make([]*Identity, len(list))
-	copy(nl, list)
-	sort.Sort(ByKey(nl))
-	nodes := make([]*Node, len(list))
-	for i := 0; i < len(list); i++ {
-		nodes[i] = &Node{
-			Identity: nl[i],
-			Index:    Index(i),
-		}
-	}
-	return nodes
 }
 
 // MinimumT calculates the threshold needed for the group to produce sufficient shares to decode
