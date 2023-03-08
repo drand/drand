@@ -222,7 +222,7 @@ func GetBeaconIDFromEnv() string {
 func SleepDuration() time.Duration {
 	if os.Getenv("CI") != "" {
 		fmt.Println("--- Sleeping on CI")
-		return time.Duration(800) * time.Millisecond
+		return time.Duration(100) * time.Millisecond
 	}
-	return time.Duration(500) * time.Millisecond
+	return time.Duration(100) * time.Millisecond
 }
