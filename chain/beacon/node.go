@@ -15,13 +15,12 @@ import (
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// Config holds the different cryptographc information necessary to run the
+// Config holds the different cryptographic information necessary to run the
 // randomness beacon.
 type Config struct {
 	// Public key of this node
@@ -46,9 +45,10 @@ type Handler struct {
 	// keeps the cryptographic info (group share etc)
 	crypto *vault.Vault
 	// main logic that treats incoming packet / new beacons created
-	chain            *chainStore
-	ticker           *ticker
-	thresholdMonitor *metrics.ThresholdMonitor
+	chain  *chainStore
+	ticker *ticker
+
+	killRunInFlight chan bool
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -89,17 +89,17 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	handler := &Handler{
-		conf:             conf,
-		client:           c,
-		crypto:           v,
-		chain:            store,
-		ticker:           ticker,
-		addr:             addr,
-		ctx:              ctx,
-		ctxCancel:        ctxCancel,
-		l:                l,
-		version:          version,
-		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
+		conf:            conf,
+		client:          c,
+		crypto:          v,
+		chain:           store,
+		ticker:          ticker,
+		addr:            addr,
+		ctx:             ctx,
+		ctxCancel:       ctxCancel,
+		l:               l,
+		version:         version,
+		killRunInFlight: make(chan bool),
 	}
 	return handler, nil
 }
@@ -203,7 +203,6 @@ func (h *Handler) Start() error {
 	h.started = true
 	h.Unlock()
 
-	h.thresholdMonitor.Start()
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
@@ -222,7 +221,6 @@ func (h *Handler) Catchup() {
 	h.Unlock()
 
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.chain.RunSync(nRound, nil)
 }
@@ -260,11 +258,15 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	}
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+
+	go h.run(targetTime)
+
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Errorw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
+	//
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
@@ -275,7 +277,6 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 			return
 		}
 		h.crypto.SetInfo(newGroup, newShare)
-		h.thresholdMonitor.UpdateThreshold(newGroup.Threshold)
 		h.chain.RemoveCallback("transition")
 	})
 }
@@ -321,7 +322,14 @@ func (h *Handler) Reset() {
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
-	h.l.Debugw("", "run_round", "wait", "until", startTime)
+
+	// we cancel the context for any existing handler runs and replace it with a new one
+	select {
+	case <-h.conf.Clock.After(time.Unix(startTime, 0).Sub(h.conf.Clock.Now())):
+		h.killRunInFlight <- true
+	default:
+		h.l.Debugw("", "run_round", "wait", "until", startTime, "now", h.conf.Clock.Now().Unix())
+	}
 
 	var current roundInfo
 	setRunning := sync.Once{}
@@ -333,6 +341,7 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
+		case <-h.killRunInFlight:
 		case <-h.ctx.Done():
 			h.l.Debugw("", "beacon_loop", "finished", "err", h.ctx.Err())
 			return
@@ -463,11 +472,9 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			h.l.Debugw("sending partial", "round", round, "to", i.Address())
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
-				h.thresholdMonitor.ReportFailure(beaconID, i.Address())
 				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
-			metrics.SuccessfulPartial(beaconID, i.Address())
 		}(*idt)
 	}
 }
@@ -484,7 +491,6 @@ func (h *Handler) Stop() {
 
 	h.ticker.Stop()
 	h.chain.Stop()
-	h.thresholdMonitor.Stop()
 
 	h.stopped = true
 	h.running = false

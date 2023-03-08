@@ -19,13 +19,6 @@ const (
 	DkgNotStarted
 )
 
-type ReshareStatus uint32
-
-const (
-	ReshareNotInProgress ReshareStatus = iota
-	ReshareInProgress
-)
-
 type BeaconStatus uint32
 
 const (
@@ -46,17 +39,6 @@ func GetDkgStatusDescription(value DkgStatus) string {
 	}
 }
 
-func GetReshareStatusDescription(value ReshareStatus) string {
-	switch value {
-	case ReshareInProgress:
-		return InProgressDesc
-	case ReshareNotInProgress:
-		return NotStartedDesc
-	default:
-		return UnknownDesc
-	}
-}
-
 func GetBeaconDescription(value BeaconStatus) string {
 	switch value {
 	case BeaconNotInited:
@@ -70,14 +52,12 @@ func GetBeaconDescription(value BeaconStatus) string {
 
 func StatusResponseToString(status *drand.StatusResponse) string {
 	dkgStatus := GetDkgStatusDescription(DkgStatus(status.Dkg.Status))
-	reshareStatus := GetReshareStatusDescription(ReshareStatus(status.Reshare.Status))
 	beaconStatus := GetBeaconDescription(BeaconStatus(status.Beacon.Status))
 
 	output := new(strings.Builder)
 	fmt.Fprintf(output, "* Dkg \n")
 	fmt.Fprintf(output, " - Status: %s \n", dkgStatus)
-	fmt.Fprintf(output, "* Reshare \n")
-	fmt.Fprintf(output, " - Status: %s \n", reshareStatus)
+	fmt.Fprintf(output, "DKG epoch: %d \n", status.Epoch)
 	fmt.Fprintf(output, "* ChainStore \n")
 	fmt.Fprintf(output, " - IsEmpty: %t \n", status.ChainStore.IsEmpty)
 	fmt.Fprintf(output, " - LastRound: %d \n", status.ChainStore.LastRound)

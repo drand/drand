@@ -36,18 +36,8 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 	return nil, nil
 }
 
-// SignalDKGParticipant is an empty implementation
-func (s *EmptyServer) SignalDKGParticipant(context.Context, *drand.SignalDKGPacket) (*drand.Empty, error) {
-	return nil, nil
-}
-
-// PushDKGInfo is an empty implementation
-func (s *EmptyServer) PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand.Empty, error) {
-	return nil, nil
-}
-
 // BroadcastDKG is an empty implementation
-func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
+func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
@@ -88,21 +78,6 @@ func (s *EmptyServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*
 
 // ListBeaconIDs is an empty implementation
 func (s *EmptyServer) ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
-	return nil, nil
-}
-
-// InitDKG is an empty implementation
-func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	return nil, nil
-}
-
-// InitReshare is an empty implementation
-func (s *EmptyServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.GroupPacket, error) {
-	return nil, nil
-}
-
-// Share is an empty implementation
-func (s *EmptyServer) Share(context.Context, *drand.ShareRequest) (*drand.ShareResponse, error) {
 	return nil, nil
 }
 
@@ -154,4 +129,56 @@ func (s *EmptyServer) NodeVersionValidator(ctx context.Context, req interface{},
 // Shutdown is an empty implementation
 func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	return handler(srv, ss)
+}
+
+func (s *EmptyServer) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Propose(_ context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartNetwork(_ context.Context, options *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartProposal(_ context.Context, options *drand.ProposalOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartJoin(_ context.Context, options *drand.JoinOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartAbort(_ context.Context, options *drand.AbortOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartExecute(_ context.Context, options *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartAccept(_ context.Context, options *drand.AcceptOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartReject(_ context.Context, options *drand.RejectOptions) (*drand.EmptyResponse, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) DKGStatus(_ context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+	return nil, nil
 }

@@ -7,74 +7,9 @@ import (
 
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
-
-// InitDKG take a InitDKGPacket, extracts the information needed and wait for
-// the DKG protocol to finish. If the request specifies this node is a leader,
-// it starts the DKG protocol.
-func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	beaconID, err := dd.readBeaconID(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	bp, err := dd.getBeaconProcessByID(beaconID)
-	if err != nil {
-		store, isStoreLoaded := dd.initialStores[beaconID]
-		if !isStoreLoaded {
-			dd.log.Infow("", "init_dkg", "loading store from disk")
-
-			newStore := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
-			store = &newStore
-		}
-
-		dd.log.Infow("", "init_dkg", "instantiating a new beacon process")
-		bp, err = dd.InstantiateBeaconProcess(beaconID, *store)
-		if err != nil {
-			return nil, fmt.Errorf("something went wrong try to initiate DKG. err: %w", err)
-		}
-	}
-
-	return bp.InitDKG(c, in)
-}
-
-// InitReshare receives information about the old and new group from which to
-// operate the resharing protocol.
-func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
-	beaconID, err := dd.readBeaconID(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	bp, err := dd.getBeaconProcessByID(beaconID)
-	if bp == nil {
-		return nil, fmt.Errorf("beacon with ID %s could not be found - make sure you have passed the id flag or have a default beacon", beaconID)
-	}
-
-	if err != nil {
-		store, isStoreLoaded := dd.initialStores[beaconID]
-		if !isStoreLoaded {
-			dd.log.Infow("", "init_reshare", "loading store from disk")
-
-			newStore := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
-			store = &newStore
-		}
-
-		metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
-		metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
-
-		dd.log.Infow("", "init_reshare", "instantiating a new beacon process")
-		bp, err = dd.InstantiateBeaconProcess(beaconID, *store)
-		if err != nil {
-			return nil, fmt.Errorf("something went wrong try to initiate DKG")
-		}
-	}
-
-	return bp.InitReshare(ctx, in)
-}
 
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
@@ -97,13 +32,6 @@ func (dd *DrandDaemon) ListSchemes(ctx context.Context, in *drand.ListSchemesReq
 	metadata := common.NewMetadata(dd.version.ToProto())
 
 	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: metadata}, nil
-}
-
-// Share is a functionality of Control Service defined in protobuf/control that requests the private share of
-// the drand node running locally
-// Deprecated: no need to export the secret share to a remote client.
-func (dd *DrandDaemon) Share(_ context.Context, _ *drand.ShareRequest) (*drand.ShareResponse, error) {
-	return nil, fmt.Errorf("deprecated function: exporting the Share to a remote client is not supported")
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -228,6 +156,15 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 	return &drand.ListBeaconIDsResponse{Ids: ids, Metadata: metadata}, nil
 }
 
+func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
+	bp, exists := dd.beaconProcesses[beaconID]
+	if !exists {
+		return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
+	}
+
+	return bp.priv, nil
+}
+
 // /////////
 
 // Stop simply stops all drand operations.
@@ -241,16 +178,7 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		dd.log.Infow("Stopping DrandDaemon")
 	}
 
-	dd.log.Debugw("waiting for dd.exitCh to finish")
-
-	select {
-	case dd.exitCh <- true:
-		dd.log.Debugw("signaled dd.exitCh")
-		close(dd.exitCh)
-	case <-ctx.Done():
-		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
-		close(dd.exitCh)
-	}
+	dd.dkg.Close()
 
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
@@ -287,9 +215,20 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	// By default, the Stop call will try to terminate all connections nicely.
 	// However, after a timeout, it will forcefully close all connections and terminate.
 	go func() {
+		dd.state.Lock()
+		defer dd.state.Unlock()
 		dd.control.Stop()
 		dd.log.Debugw("control stopped successfully")
 	}()
+
+	select {
+	case dd.exitCh <- true:
+		dd.log.Debugw("signaled dd.exitCh")
+		close(dd.exitCh)
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+		close(dd.exitCh)
+	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations

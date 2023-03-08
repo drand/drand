@@ -121,6 +121,7 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
+	time.Sleep(getSleepDuration())
 
 	memDBNode := newNodes[0]
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
@@ -146,6 +147,8 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
 	group, err := ts.RunDKG()
 	require.NoError(t, err)
+	ts.AdvanceMockClock(t, ts.nodes[0].daemon.opts.dkgKickoffGracePeriod)
+	time.Sleep(getSleepDuration())
 
 	ts.SetMockClock(t, group.GenesisTime)
 	time.Sleep(getSleepDuration())
@@ -166,12 +169,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	memDBNode := newNodes[0]
 
 	t.Log("running reshare")
-	newGroup, err := ts.RunReshare(t, &reshareConfig{
-		oldRun:  existingNodesCount,
-		newRun:  newNodesCount,
-		newThr:  thr + newNodesCount,
-		timeout: time.Second,
-	})
+	newGroup, err := ts.RunReshare(ts.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -196,6 +194,6 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	ts.AdvanceMockClock(t, period)
 	time.Sleep(getSleepDuration())
 
-	err = ts.WaitUntilRound(t, memDBNode, 11)
+	err = ts.WaitUntilRound(t, memDBNode, 7)
 	require.NoError(t, err)
 }
