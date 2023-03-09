@@ -5,11 +5,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path"
+	"strings"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/xerrors"
 
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
@@ -86,11 +87,25 @@ var runCmd = &cli.Command{
 	Flags: append(lib.ClientFlags, []cli.Flag{
 		idFlag,
 		peerWithFlag,
+		lib.HashListFlag,
 		storeFlag,
 		listenFlag,
 		metricsFlag,
 	}...),
 	Action: func(cctx *cli.Context) error {
+
+		hashFlagSet := cctx.IsSet(lib.HashFlag.Name)
+		if hashFlagSet {
+			if cctx.IsSet(lib.HashListFlag.Name) {
+				return fmt.Errorf("--%s is exclusive with --%s. Use one or the other flag", lib.HashFlag.Name, lib.HashListFlag.Name)
+			}
+
+			err := cctx.Set(lib.HashListFlag.Name, lib.HashFlag.Value)
+			if err != nil {
+				return err
+			}
+		}
+
 		if cctx.IsSet(metricsFlag.Name) {
 			metricsListener := metrics.Start(cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
@@ -99,34 +114,107 @@ var runCmd = &cli.Command{
 			}
 		}
 
-		c, err := lib.Create(cctx, cctx.IsSet(metricsFlag.Name))
+		hashesMap, err := computeHashesMap(cctx)
 		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
-		}
-
-		chainHash := cctx.String(lib.HashFlag.Name)
-		if chainHash == "" {
-			info, err := c.Info(context.Background())
-			if err != nil {
-				return xerrors.Errorf("getting chain info: %w", err)
-			}
-			chainHash = hex.EncodeToString(info.Hash())
-		}
-
-		cfg := &lp2p.GossipRelayConfig{
-			ChainHash:    chainHash,
-			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
-			Addr:         cctx.String(listenFlag.Name),
-			DataDir:      cctx.String(storeFlag.Name),
-			IdentityPath: cctx.String(idFlag.Name),
-			Client:       c,
-		}
-		if _, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg); err != nil {
 			return err
 		}
-		<-chan int(nil)
-		return nil
+
+		for chainHash, groupConf := range hashesMap {
+			err := cctx.Set(lib.HashFlag.Name, chainHash)
+			if err != nil {
+				return fmt.Errorf("setting client hash: %w", err)
+			}
+
+			if groupConf != "" {
+				err = cctx.Set(lib.GroupConfFlag.Name, groupConf)
+				if err != nil {
+					return fmt.Errorf("setting group-conf for hash %q got: %w", chainHash, err)
+				}
+			}
+
+			err = boostrapGossipRelayNode(cctx, chainHash)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(hashesMap) == 0 {
+			err := boostrapGossipRelayNode(cctx, "")
+			if err != nil {
+				return err
+			}
+		}
+
+		// Wait indefinitely for our client(s) to run
+		select {}
 	},
+}
+
+func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
+	c, err := lib.Create(cctx, cctx.IsSet(metricsFlag.Name))
+	if err != nil {
+		return fmt.Errorf("constructing client: %w", err)
+	}
+
+	chainInfo, err := c.Info(context.Background())
+	if err != nil {
+		return fmt.Errorf("cannot retrieve chain info: %w", err)
+	}
+	beaconID := chainInfo.ID
+
+	// Set the path to be desired 'storage path / beaconID'.
+	// This allows running multiple networks via the same beacon.
+	dataDir := path.Join(cctx.String(storeFlag.Name), beaconID)
+
+	cfg := &lp2p.GossipRelayConfig{
+		ChainHash:    chainHash,
+		BeaconID:     beaconID,
+		PeerWith:     cctx.StringSlice(peerWithFlag.Name),
+		Addr:         cctx.String(listenFlag.Name),
+		DataDir:      dataDir,
+		IdentityPath: cctx.String(idFlag.Name),
+		Client:       c,
+	}
+	_, err = lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
+	return err
+}
+
+func computeHashesMap(cctx *cli.Context) (map[string]string, error) {
+	hashesMap := make(map[string]string)
+	if cctx.IsSet(lib.HashListFlag.Name) {
+		hashesList := cctx.StringSlice(lib.HashListFlag.Name)
+		if len(hashesList) < 1 {
+			return nil, fmt.Errorf("you must specify at least one hash to follow")
+		}
+
+		var groupConfs []string
+		if cctx.IsSet(lib.GroupConfFlag.Name) {
+			// Here we overload the -group-conf flag and we convert it from String to StringSlice.
+			// This is required to provide the correct -group-conf value for the client library.
+			groupConfsString := cctx.String(lib.GroupConfFlag.Name)
+			groupConfs = strings.Split(groupConfsString, ",")
+			if len(groupConfs) > 0 &&
+				len(groupConfs) != len(hashesList) {
+				return nil, fmt.Errorf("list of provided hashes is different from list of group-conf files")
+			}
+		} else {
+			for i := 0; i < len(hashesList); i++ {
+				groupConfs = append(groupConfs, "")
+			}
+		}
+
+		for idx, hash := range hashesList {
+			var err error
+
+			_, err = hex.DecodeString(hash)
+			if err != nil {
+				return nil, fmt.Errorf("decoding hash: %w", err)
+			}
+			hashesMap[hash] = groupConfs[idx]
+		}
+	}
+
+	return hashesMap, nil
 }
 
 var clientCmd = &cli.Command{
@@ -135,7 +223,7 @@ var clientCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 		c, err := lib.Create(cctx, false)
 		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
+			return fmt.Errorf("constructing client: %w", err)
 		}
 
 		for rand := range c.Watch(context.Background()) {
@@ -153,11 +241,11 @@ var idCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log.DefaultLogger())
 		if err != nil {
-			return xerrors.Errorf("loading p2p key: %w", err)
+			return fmt.Errorf("loading p2p key: %w", err)
 		}
 		peerID, err := peer.IDFromPrivateKey(priv)
 		if err != nil {
-			return xerrors.Errorf("computing peerid: %w", err)
+			return fmt.Errorf("computing peerid: %w", err)
 		}
 		fmt.Printf("%s\n", peerID)
 		return nil

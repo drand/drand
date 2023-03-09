@@ -21,6 +21,7 @@ import (
 type GossipRelayConfig struct {
 	// ChainHash is a hash that uniquely identifies the drand chain.
 	ChainHash    string
+	BeaconID     string
 	PeerWith     []string
 	Addr         string
 	DataDir      string
@@ -33,6 +34,7 @@ type GossipRelayConfig struct {
 // GossipRelayNode is a gossip relay runtime.
 type GossipRelayNode struct {
 	l         log.Logger
+	beaconID  string
 	bootstrap []ma.Multiaddr
 	ds        *bds.Datastore
 	priv      crypto.PrivKey
@@ -45,6 +47,10 @@ type GossipRelayNode struct {
 
 // NewGossipRelayNode starts a new gossip relay node.
 func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode, error) {
+	if cfg.Client == nil {
+		return nil, fmt.Errorf("no client supplying randomness supplied")
+	}
+
 	bootstrap, err := ParseMultiaddrSlice(cfg.PeerWith)
 	if err != nil {
 		return nil, fmt.Errorf("parsing peer-with: %w", err)
@@ -79,8 +85,18 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		return nil, fmt.Errorf("joining topic: %w", err)
 	}
 
+	beaconID := cfg.BeaconID
+	if beaconID == "" {
+		chainInfo, err := cfg.Client.Info(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("cannot retrieve chain info: %w", err)
+		}
+		beaconID = chainInfo.ID
+	}
+
 	g := &GossipRelayNode{
 		l:         l,
+		beaconID:  beaconID,
 		bootstrap: bootstrap,
 		ds:        ds,
 		priv:      priv,
@@ -91,9 +107,6 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		done:      make(chan struct{}),
 	}
 
-	if cfg.Client == nil {
-		return nil, fmt.Errorf("no client supplying randomness supplied")
-	}
 	go g.background(cfg.Client)
 
 	return g, nil
@@ -141,13 +154,13 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 			select {
 			case res, ok := <-results:
 				if !ok {
-					g.l.Warnw("", "relay_node", "watch channel closed")
+					g.l.Warnw("", "relay_node", "watch channel closed", "beaconID", g.beaconID)
 					break LOOP
 				}
 
 				rd, ok := res.(*client.RandomData)
 				if !ok {
-					g.l.Errorw("", "relay_node", "unexpected client result type")
+					g.l.Errorw("", "relay_node", "unexpected client result type", "beaconID", g.beaconID)
 					continue
 				}
 
@@ -158,17 +171,17 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					Randomness:        res.Randomness(),
 				})
 				if err != nil {
-					g.l.Errorw("", "relay_node", "err marshaling", "err", err)
+					g.l.Errorw("", "relay_node", "err marshaling", "beaconID", g.beaconID, "err", err)
 					continue
 				}
 
 				err = g.t.Publish(ctx, randB)
 				if err != nil {
-					g.l.Errorw("", "relay_node", "err publishing on pubsub", "err", err)
+					g.l.Errorw("", "relay_node", "err publishing on pubsub", "beaconID", g.beaconID, "err", err)
 					continue
 				}
 
-				g.l.Infow("", "relay_node", "Published randomness on pubsub", "round", res.Round())
+				g.l.Infow("", "relay_node", "Published randomness on pubsub", "beaconID", g.beaconID, "round", res.Round())
 			case <-g.done:
 				return
 			}

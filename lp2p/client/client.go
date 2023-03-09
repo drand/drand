@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"sync"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/drand/drand/chain"
@@ -49,7 +49,7 @@ func WithPubsub(ps *pubsub.PubSub) client.Option {
 // NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
 	if info == nil {
-		return nil, xerrors.Errorf("No chain supplied for joining")
+		return nil, fmt.Errorf("no chain supplied for joining")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -63,17 +63,17 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	topic := lp2p.PubSubTopic(chainHash)
 	if err := ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c)); err != nil {
 		cancel()
-		return nil, xerrors.Errorf("creating topic: %w", err)
+		return nil, fmt.Errorf("creating topic: %w", err)
 	}
 	t, err := ps.Join(topic)
 	if err != nil {
 		cancel()
-		return nil, xerrors.Errorf("joining pubsub: %w", err)
+		return nil, fmt.Errorf("joining pubsub: %w", err)
 	}
 	s, err := t.Subscribe()
 	if err != nil {
 		cancel()
-		return nil, xerrors.Errorf("subscribe: %w", err)
+		return nil, fmt.Errorf("subscribe: %w", err)
 	}
 
 	c.subs.M = make(map[*int]chan drand.PublicRandResponse)

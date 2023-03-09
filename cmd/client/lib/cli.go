@@ -136,7 +136,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		if info != nil && !bytes.Equal(hash, info.Hash()) {
 			return nil, fmt.Errorf(
-				"%w %v != %v", commonutils.ErrInvalidChainHash,
+				"%w for beacon %s %v != %v",
+				commonutils.ErrInvalidChainHash,
+				info.ID,
 				c.String(HashFlag.Name),
 				hex.EncodeToString(info.Hash()),
 			)
@@ -160,35 +162,38 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 }
 
 func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
-	if c.IsSet(GRPCConnectFlag.Name) {
-		hash := make([]byte, 0)
+	if !c.IsSet(GRPCConnectFlag.Name) {
+		return []client.Client{}, nil
+	}
 
-		if c.IsSet(HashFlag.Name) {
-			var err error
+	hash := make([]byte, 0)
 
-			hash, err = hex.DecodeString(c.String(HashFlag.Name))
-			if err != nil {
-				return nil, err
-			}
-		}
+	if c.IsSet(HashFlag.Name) {
+		var err error
 
-		if *info != nil && len(hash) == 0 {
-			hash = (*info).Hash()
-		}
-
-		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
+		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
 			return nil, err
 		}
-		if *info == nil {
-			*info, err = gc.Info(context.Background())
-			if err != nil {
-				return nil, err
-			}
-		}
-		return []client.Client{gc}, nil
 	}
-	return []client.Client{}, nil
+
+	if *info != nil && len(hash) == 0 {
+		hash = (*info).Hash()
+	}
+
+	gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
+	if err != nil {
+		return nil, err
+	}
+
+	if *info == nil {
+		*info, err = gc.Info(c.Context)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return []client.Client{gc}, nil
 }
 
 func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
