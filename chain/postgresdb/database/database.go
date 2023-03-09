@@ -19,13 +19,14 @@ import (
 
 // Config is the required properties to use the database.
 type Config struct {
-	User         string
-	Password     string
-	Host         string
-	Name         string
-	MaxIdleConns int
-	MaxOpenConns int
-	DisableTLS   bool
+	User           string
+	Password       string
+	Host           string
+	Name           string
+	ConnectTimeout int
+	MaxIdleConns   int
+	MaxOpenConns   int
+	DisableTLS     bool
 }
 
 // ConfigFromDSN provides support for creating a config from a DSN.
@@ -56,6 +57,17 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		default:
 			return Config{}, fmt.Errorf("unsupported ssl mode %q. Expected disable or required", sslMode)
 		}
+	}
+
+	cfg.ConnectTimeout = 5
+	if query.Has("connect_timeout") {
+		timeout := query.Get("connect_timeout")
+		t, err := strconv.Atoi(timeout)
+		if err != nil {
+			return Config{}, fmt.Errorf("expected number for connect_timeout, got err: %w", err)
+		}
+
+		cfg.ConnectTimeout = t
 	}
 
 	cfg.MaxIdleConns = 2
@@ -98,6 +110,7 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 	q := make(url.Values)
 	q.Set("sslmode", sslMode)
 	q.Set("timezone", "utc")
+	q.Set("connect_timeout", strconv.Itoa(cfg.ConnectTimeout))
 
 	u := url.URL{
 		Scheme:   "postgres",

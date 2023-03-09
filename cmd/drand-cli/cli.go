@@ -350,8 +350,13 @@ var pgDSNFlag = &cli.StringFlag{
 	Name: "pg-dsn",
 	Usage: "PostgreSQL DSN configuration.\n" +
 		"Supported options are:\n" +
-		"-sslmode see: https://www.postgresql.org/docs/15/libpq-ssl.html#LIBPQ-SSL-PROTECTION\n" +
-		"-connect_timeout see: https://www.postgresql.org/docs/15/libpq-connect.html#LIBPQ-CONNECT-CONNECT-TIMEOUT\n",
+		//nolint:lll
+		"- sslmode: if the SSL connection is disabled or required. Default disabled. See: https://www.postgresql.org/docs/15/libpq-ssl.html#LIBPQ-SSL-PROTECTION\n" +
+		//nolint:lll
+		"- connect_timeout: how many seconds before the connection attempt times out. Default 5 (seconds). See: https://www.postgresql.org/docs/15/libpq-connect.html#LIBPQ-CONNECT-CONNECT-TIMEOUT\n" +
+		"- max-idle: number of maximum idle connections. Default: 2\n" +
+		"- max-open: number of maximum open connections. Default: 0 - unlimited.\n",
+
 	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&connect_timeout=5",
 	EnvVars: []string{"DRAND_PG_DSN"},
 }
