@@ -31,7 +31,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: Build
         env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '0' && 'INFO' || 'DEBUG' }}"
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make drand
@@ -65,7 +65,7 @@ jobs:
       - run: go get -v -t -d -tags ${{ matrix.db_type }} ./...
       - name: Unit tests
         env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '0' && 'INFO' || 'DEBUG' }}"
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
         run: make test-unit-${{ matrix.db_type }}
@@ -95,7 +95,7 @@ jobs:
       - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
       - name: Integration tests
         env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '0' && 'INFO' || 'DEBUG' }}"
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
         run: make test-integration-${{ matrix.db_type }}
@@ -125,7 +125,7 @@ jobs:
       - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
       - name: Integration tests
         env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '0' && 'INFO' || 'DEBUG' }}"
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
         run: make test-integration-run-demo-${{ matrix.db_type }}
@@ -156,7 +156,7 @@ jobs:
             ${{ runner.os }}-go-
       - run: make coverage-${{ matrix.db_type }}
         env:
-          DRAND_TEST_LOGS: "${{ runner.debug == '0' && 'INFO' || 'DEBUG' }}"
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
       - run: bash <(curl -s https://codecov.io/bash)
