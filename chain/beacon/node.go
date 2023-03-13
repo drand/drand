@@ -142,6 +142,11 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 
 	nodeName := node.Address()
+	if nodeName == h.addr {
+		h.l.Warnw("received a partial with our own index", "partial", pRound, "from", addr)
+		return nil, fmt.Errorf("invalid self index %d in partial with msg %v partial_round %v", idx, msg, pRound)
+	}
+
 	// verify if request is valid
 	if err := h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("",
