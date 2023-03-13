@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -93,15 +92,13 @@ var runCmd = &cli.Command{
 		metricsFlag,
 	}...),
 	Action: func(cctx *cli.Context) error {
-
 		hashFlagSet := cctx.IsSet(lib.HashFlag.Name)
 		if hashFlagSet {
 			if cctx.IsSet(lib.HashListFlag.Name) {
 				return fmt.Errorf("--%s is exclusive with --%s. Use one or the other flag", lib.HashFlag.Name, lib.HashListFlag.Name)
 			}
 
-			err := cctx.Set(lib.HashListFlag.Name, lib.HashFlag.Value)
-			if err != nil {
+			if err := cctx.Set(lib.HashListFlag.Name, lib.HashFlag.Value); err != nil {
 				return err
 			}
 		}
@@ -120,8 +117,7 @@ var runCmd = &cli.Command{
 		}
 
 		for chainHash, groupConf := range hashesMap {
-			err := cctx.Set(lib.HashFlag.Name, chainHash)
-			if err != nil {
+			if err := cctx.Set(lib.HashFlag.Name, chainHash); err != nil {
 				return fmt.Errorf("setting client hash: %w", err)
 			}
 
@@ -132,8 +128,7 @@ var runCmd = &cli.Command{
 				}
 			}
 
-			err = boostrapGossipRelayNode(cctx, chainHash)
-			if err != nil {
+			if err := boostrapGossipRelayNode(cctx, chainHash); err != nil {
 				return err
 			}
 		}
@@ -146,7 +141,10 @@ var runCmd = &cli.Command{
 		}
 
 		// Wait indefinitely for our client(s) to run
-		select {}
+		<-cctx.Context.Done()
+		// select {}
+
+		return cctx.Context.Err()
 	},
 }
 
@@ -156,19 +154,18 @@ func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
 		return fmt.Errorf("constructing client: %w", err)
 	}
 
-	chainInfo, err := c.Info(context.Background())
+	chainInfo, err := c.Info(cctx.Context)
 	if err != nil {
 		return fmt.Errorf("cannot retrieve chain info: %w", err)
 	}
-	beaconID := chainInfo.ID
 
 	// Set the path to be desired 'storage path / beaconID'.
 	// This allows running multiple networks via the same beacon.
-	dataDir := path.Join(cctx.String(storeFlag.Name), beaconID)
+	dataDir := path.Join(cctx.String(storeFlag.Name), chainInfo.ID)
 
 	cfg := &lp2p.GossipRelayConfig{
 		ChainHash:    chainHash,
-		BeaconID:     beaconID,
+		BeaconID:     chainInfo.ID,
 		PeerWith:     cctx.StringSlice(peerWithFlag.Name),
 		Addr:         cctx.String(listenFlag.Name),
 		DataDir:      dataDir,
@@ -176,6 +173,9 @@ func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
 		Client:       c,
 	}
 	_, err = lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
+	if err != nil {
+		err = fmt.Errorf("could not initialize a new gossip relay node %w", err)
+	}
 	return err
 }
 
@@ -204,10 +204,7 @@ func computeHashesMap(cctx *cli.Context) (map[string]string, error) {
 		}
 
 		for idx, hash := range hashesList {
-			var err error
-
-			_, err = hex.DecodeString(hash)
-			if err != nil {
+			if _, err := hex.DecodeString(hash); err != nil {
 				return nil, fmt.Errorf("decoding hash: %w", err)
 			}
 			hashesMap[hash] = groupConfs[idx]
@@ -226,7 +223,7 @@ var clientCmd = &cli.Command{
 			return fmt.Errorf("constructing client: %w", err)
 		}
 
-		for rand := range c.Watch(context.Background()) {
+		for rand := range c.Watch(cctx.Context) {
 			log.DefaultLogger().Infow("", "client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
