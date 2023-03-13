@@ -1,12 +1,12 @@
 version: "3"
 
 services:
-  drand:
-    container_name: drand
-    image: drandorg/go-drand:v1.5.2-testnet
+  drand_docker_demo:
+    container_name: drand_docker_demo
+    image: drandorg/go-drand:v1.5.3
     command: start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
-      - drand:/data/drand
+      - drand_docker_demo:/data/drand
     restart: always
     ports:
       - 8080:8080
@@ -15,7 +15,7 @@ services:
     environment:
       PORT: 8080
 volumes:
-  drand:
+  drand_docker_demo:
     external: true
-    name: drand
+    name: drand_docker_demo
 
