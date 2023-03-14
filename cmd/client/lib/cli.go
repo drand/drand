@@ -58,7 +58,7 @@ var (
 	// HashListFlag is the CLI flag for the hashes list (in hex) for the relay to follow.
 	HashListFlag = &cli.StringSliceFlag{
 		Name:  "hash-list",
-		Usage: "Specify one hash in the list (in hex) of hashes the relay should follow",
+		Usage: "Specify the list (in hex) of hashes the relay should follow",
 	}
 	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
@@ -122,11 +122,13 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.WithChainInfo(info))
 	}
 
-	gc, err := buildGrpcClient(c, &info)
+	gc, info, err := buildGrpcClient(c, info)
 	if err != nil {
 		return nil, err
 	}
-	clients = append(clients, gc...)
+	if len(gc) > 0 {
+		clients = append(clients, gc...)
+	}
 
 	var hash []byte
 	if c.IsSet(HashFlag.Name) && c.String(HashFlag.Name) != "" {
@@ -161,9 +163,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	return client.Wrap(clients, opts...)
 }
 
-func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
+func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.Info, error) {
 	if !c.IsSet(GRPCConnectFlag.Name) {
-		return []client.Client{}, nil
+		return nil, info, nil
 	}
 
 	hash := make([]byte, 0)
@@ -173,27 +175,27 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error)
 
 		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	if *info != nil && len(hash) == 0 {
-		hash = (*info).Hash()
+	if info != nil && len(hash) == 0 {
+		hash = info.Hash()
 	}
 
 	gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if *info == nil {
-		*info, err = gc.Info(c.Context)
+	if info == nil {
+		info, err = gc.Info(c.Context)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return []client.Client{gc}, nil
+	return []client.Client{gc}, info, nil
 }
 
 func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {

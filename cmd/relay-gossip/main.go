@@ -92,17 +92,6 @@ var runCmd = &cli.Command{
 		metricsFlag,
 	}...),
 	Action: func(cctx *cli.Context) error {
-		hashFlagSet := cctx.IsSet(lib.HashFlag.Name)
-		if hashFlagSet {
-			if cctx.IsSet(lib.HashListFlag.Name) {
-				return fmt.Errorf("--%s is exclusive with --%s. Use one or the other flag", lib.HashFlag.Name, lib.HashListFlag.Name)
-			}
-
-			if err := cctx.Set(lib.HashListFlag.Name, lib.HashFlag.Value); err != nil {
-				return err
-			}
-		}
-
 		if cctx.IsSet(metricsFlag.Name) {
 			metricsListener := metrics.Start(cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
@@ -111,12 +100,27 @@ var runCmd = &cli.Command{
 			}
 		}
 
-		hashesMap, err := computeHashesMap(cctx)
+		var hashMaps []string
+		if cctx.IsSet(lib.HashListFlag.Name) {
+			hashMaps = cctx.StringSlice(lib.HashListFlag.Name)
+		}
+
+		hashFlagSet := cctx.IsSet(lib.HashFlag.Name)
+		if hashFlagSet {
+			if cctx.IsSet(lib.HashListFlag.Name) {
+				return fmt.Errorf("--%s is exclusive with --%s. Use one or the other flag", lib.HashFlag.Name, lib.HashListFlag.Name)
+			}
+
+			hashMaps = append(hashMaps, cctx.String(lib.HashFlag.Name))
+		}
+
+		groupConfs := computeGroupConfs(cctx)
+
+		hashesMap, err := computeHashesMap(hashMaps, groupConfs)
 		if err != nil {
 			return err
 		}
 
-		groupConfs := computeGroupConfs(cctx)
 		if len(groupConfs) >= 1 &&
 			len(hashesMap) == 0 {
 
@@ -150,9 +154,17 @@ var runCmd = &cli.Command{
 			}
 		}
 
+		// Try and build a default gossip relay using other options that might have been set.
+		if len(hashesMap) == 0 &&
+			len(groupConfs) == 0 &&
+			!hashFlagSet {
+			if err := boostrapGossipRelayNode(cctx, ""); err != nil {
+				return err
+			}
+		}
+
 		// Wait indefinitely for our client(s) to run
 		<-cctx.Context.Done()
-		// select {}
 
 		return cctx.Context.Err()
 	},
@@ -198,36 +210,31 @@ func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
 	return err
 }
 
-func computeHashesMap(cctx *cli.Context) (map[string]string, error) {
+func computeHashesMap(hashMaps, groupConfs []string) (map[string]string, error) {
 	hashesMap := make(map[string]string)
-	if cctx.IsSet(lib.HashListFlag.Name) {
-		hashesList := cctx.StringSlice(lib.HashListFlag.Name)
-		if len(hashesList) < 1 {
-			return nil, fmt.Errorf("you must specify at least one hash to follow")
-		}
+	if hashMaps == nil ||
+		len(hashMaps) == 0 {
+		return nil, nil
+	}
 
-		var groupConfs []string
-		if cctx.IsSet(lib.GroupConfFlag.Name) {
-			// Here we overload the -group-conf flag and we convert it from String to StringSlice.
-			// This is required to provide the correct -group-conf value for the client library.
-			groupConfsString := cctx.String(lib.GroupConfFlag.Name)
-			groupConfs = strings.Split(groupConfsString, ",")
-			if len(groupConfs) > 0 &&
-				len(groupConfs) != len(hashesList) {
-				return nil, fmt.Errorf("list of provided hashes is different from list of group-conf files")
-			}
-		} else {
-			for i := 0; i < len(hashesList); i++ {
-				groupConfs = append(groupConfs, "")
-			}
+	if groupConfs != nil {
+		// Here we overload the -group-conf flag and we convert it from String to StringSlice.
+		// This is required to provide the correct -group-conf value for the client library.
+		if len(groupConfs) > 0 &&
+			len(groupConfs) != len(hashMaps) {
+			return nil, fmt.Errorf("list of provided hashes is different from list of group-conf files")
 		}
+	} else {
+		for i := 0; i < len(hashMaps); i++ {
+			groupConfs = append(groupConfs, "")
+		}
+	}
 
-		for idx, hash := range hashesList {
-			if _, err := hex.DecodeString(hash); err != nil {
-				return nil, fmt.Errorf("decoding hash: %w", err)
-			}
-			hashesMap[hash] = groupConfs[idx]
+	for idx, hash := range hashMaps {
+		if _, err := hex.DecodeString(hash); err != nil {
+			return nil, fmt.Errorf("decoding hash: %w", err)
 		}
+		hashesMap[hash] = groupConfs[idx]
 	}
 
 	return hashesMap, nil

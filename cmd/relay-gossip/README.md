@@ -98,9 +98,9 @@ Or, with a hashlist:
 The gossip relay can also relay directly from an HTTP API. You can specify multiple endpoints to enable failover.
 
 ```sh
-drand-relay-gossip run -url=http://127.0.0.1:3002 \
-                       -url=http://127.0.0.1:3102 \
-                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+drand-relay-gossip run -url=https://api.drand.sh \
+                       -url=https://api2.drand.sh \
+                       -hash=dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493
 ```
 
 ### Relay Gossipsub
@@ -128,7 +128,7 @@ If you want to verify multiple networks, you can provide the `-hash-list` flag, 
 drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
                        -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
                        -url=http://127.0.0.1:3002 \
-                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83,dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493
+                       -hash-list=dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493,8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce
 ```
 
 ### Other options
