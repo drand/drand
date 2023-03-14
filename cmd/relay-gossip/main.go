@@ -163,7 +163,7 @@ var runCmd = &cli.Command{
 			}
 		}
 
-		// Wait indefinitely for our client(s) to run
+		// Wait until we are signaled to shutdown.
 		<-cctx.Context.Done()
 
 		return cctx.Context.Err()
@@ -217,14 +217,15 @@ func computeHashesMap(hashMaps, groupConfs []string) (map[string]string, error) 
 		return nil, nil
 	}
 
-	if groupConfs != nil {
+	switch {
+	case groupConfs != nil:
 		// Here we overload the -group-conf flag and we convert it from String to StringSlice.
 		// This is required to provide the correct -group-conf value for the client library.
 		if len(groupConfs) > 0 &&
 			len(groupConfs) != len(hashMaps) {
 			return nil, fmt.Errorf("list of provided hashes is different from list of group-conf files")
 		}
-	} else {
+	default:
 		for i := 0; i < len(hashMaps); i++ {
 			groupConfs = append(groupConfs, "")
 		}
