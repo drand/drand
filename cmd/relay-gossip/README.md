@@ -70,22 +70,27 @@ make relay-gossip
 
 ## Usage
 
-You _must_ specify a `-hash-list` flag for your client to validate the randomness it receives is from the correct chain.
+In general, you _should_ specify either a `-hash`, `-hash-list`, or `-group-conf` flag in order for your client to validate the randomness it receives is from the correct chain.
 
 ### Relay gRPC
 
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
-                       -cert=/path/to/grpc-drand-cert \
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+                       -cert=/path/to/grpc-drand-cert
 ```
 
 If you do not have gRPC transport credentials, you can use the `-insecure` flag:
 
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
-                       -insecure\
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+                       -insecure
+```
+
+Or, with a hashlist:
+```shell
+ drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
+                       -insecure \
+                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83,dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493
 ```
 
 ### Relay HTTP
@@ -95,7 +100,7 @@ The gossip relay can also relay directly from an HTTP API. You can specify multi
 ```sh
 drand-relay-gossip run -url=http://127.0.0.1:3002 \
                        -url=http://127.0.0.1:3102 \
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
 ```
 
 ### Relay Gossipsub
@@ -105,7 +110,6 @@ The gossip relay can also relay directly from _other_ gossip relays. You can spe
 ```sh
 drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
                        -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83 \
                        -group-conf=/home/user/.drand/groups/drand_group.toml
 ```
 
@@ -115,7 +119,16 @@ Alternatively, you can provide URL(s) of HTTP API(s) that can be contacted to re
 drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
                        -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
                        -url=http://127.0.0.1:3002 \
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+```
+
+If you want to verify multiple networks, you can provide the `-hash-list` flag, e.g.:
+
+```shell
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+                       -url=http://127.0.0.1:3002 \
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83,dbd506d6ef76e5f386f41c651dcb808c5bcbd75471cc4eafa3f4df7ad4e4c493
 ```
 
 ### Other options
@@ -131,8 +144,7 @@ The `-url` flag provides the URL(s) of alternative HTTP API endpoints that may b
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
                        -insecure \
-                       -url=http://127.0.0.1:3102 \
-                       -hash-list=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+                       -url=http://127.0.0.1:3102
 ```
 
 ```sh

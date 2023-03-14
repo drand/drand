@@ -116,6 +116,23 @@ var runCmd = &cli.Command{
 			return err
 		}
 
+		groupConfs := computeGroupConfs(cctx)
+		if len(groupConfs) >= 1 &&
+			len(hashesMap) == 0 {
+
+			for _, groupConf := range groupConfs {
+				err = cctx.Set(lib.GroupConfFlag.Name, groupConf)
+				if err != nil {
+					return fmt.Errorf("setting group-conf %q got: %w", groupConf, err)
+				}
+
+				err := boostrapGossipRelayNode(cctx, "")
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		for chainHash, groupConf := range hashesMap {
 			if err := cctx.Set(lib.HashFlag.Name, chainHash); err != nil {
 				return fmt.Errorf("setting client hash: %w", err)
@@ -133,19 +150,21 @@ var runCmd = &cli.Command{
 			}
 		}
 
-		if len(hashesMap) == 0 {
-			err := boostrapGossipRelayNode(cctx, "")
-			if err != nil {
-				return err
-			}
-		}
-
 		// Wait indefinitely for our client(s) to run
 		<-cctx.Context.Done()
 		// select {}
 
 		return cctx.Context.Err()
 	},
+}
+
+func computeGroupConfs(cctx *cli.Context) []string {
+	if !cctx.IsSet(lib.GroupConfFlag.Name) {
+		return nil
+	}
+
+	groupConfs := cctx.String(lib.GroupConfFlag.Name)
+	return strings.Split(groupConfs, ",")
 }
 
 func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
