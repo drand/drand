@@ -212,8 +212,8 @@ func boostrapGossipRelayNode(cctx *cli.Context, chainHash string) error {
 
 func computeHashesMap(hashMaps, groupConfs []string) (map[string]string, error) {
 	hashesMap := make(map[string]string)
-	if hashMaps == nil ||
-		len(hashMaps) == 0 {
+	if len(hashMaps) == 0 {
+		//nolint:nilnil // We want to return an nil instead of an empty map.
 		return nil, nil
 	}
 
