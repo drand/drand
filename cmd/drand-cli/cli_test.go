@@ -727,10 +727,10 @@ func testCommand(t *testing.T, args []string, exp string) {
 	t.Helper()
 
 	var buff bytes.Buffer
-	output = &buff
-	defer func() { output = os.Stdout }()
 	t.Log("--------------")
-	require.NoError(t, CLI().Run(args))
+	cli := CLI()
+	cli.Writer = &buff
+	require.NoError(t, cli.Run(args))
 	if exp == "" {
 		return
 	}
@@ -891,7 +891,10 @@ func TestDrandStatus(t *testing.T) {
 		var buff bytes.Buffer
 		output = &buff
 
-		err := CLI().Run(remote)
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
 		require.NoError(t, err)
 		for j, instance := range instances {
 			if i == j {
@@ -915,7 +918,10 @@ func TestDrandStatus(t *testing.T) {
 		var buff bytes.Buffer
 		output = &buff
 
-		err := CLI().Run(remote)
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
 		require.NoError(t, err)
 		for j, instance := range instances {
 			if i == j {
