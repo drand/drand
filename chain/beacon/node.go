@@ -136,7 +136,6 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 
 	node := h.crypto.GetGroup().Node(uint32(idx))
-
 	if node == nil {
 		return nil, fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
 	}
