@@ -66,6 +66,12 @@ var (
 		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded)," +
 			" can be used instead of `-hash` flag to verify the chain.",
 	}
+	// GroupConfListFlag is like GroupConfFlag but for a list values.
+	GroupConfListFlag = &cli.StringSliceFlag{
+		Name: "group-conf-list",
+		Usage: "Paths to at least one drand group configuration (TOML encoded) or chain info (JSON encoded)," +
+			fmt.Sprintf(" can be used instead of `-%s` flag to verify the chain.", HashListFlag.Name),
+	}
 	// InsecureFlag is the CLI flag to allow autodetection of the chain
 	// information.
 	InsecureFlag = &cli.BoolFlag{
@@ -168,8 +174,7 @@ func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.
 		return nil, info, nil
 	}
 
-	hash := make([]byte, 0)
-
+	var hash []byte
 	if c.IsSet(HashFlag.Name) {
 		var err error
 
