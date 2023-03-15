@@ -874,7 +874,7 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	testFailStatus(t, instances[3].ctrlPort, beaconID)
 }
 
-func TestDrandStatus(t *testing.T) {
+func TestDrandStatus_WithoutDKG(t *testing.T) {
 	n := 4
 	instances := genAndLaunchDrandInstances(t, n)
 	allAddresses := make([]string, 0, n)
@@ -882,14 +882,11 @@ func TestDrandStatus(t *testing.T) {
 		allAddresses = append(allAddresses, instance.addr)
 	}
 
-	defer func() { output = os.Stdout }()
-
 	// check that each node can reach each other
 	for i, instance := range instances {
 		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
-		output = &buff
 
 		cli := CLI()
 		cli.Writer = &buff
@@ -900,7 +897,7 @@ func TestDrandStatus(t *testing.T) {
 			if i == j {
 				continue
 			}
-			require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
 		}
 	}
 	// stop one and check that all nodes report this node down
@@ -916,7 +913,6 @@ func TestDrandStatus(t *testing.T) {
 		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
-		output = &buff
 
 		cli := CLI()
 		cli.Writer = &buff
@@ -928,9 +924,149 @@ func TestDrandStatus(t *testing.T) {
 				continue
 			}
 			if j != toStop {
-				require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
 			} else {
-				require.True(t, strings.Contains(buff.String(), instance.addr+" -> X"))
+				require.Contains(t, buff.String(), instance.addr+" -> X")
+			}
+		}
+	}
+}
+
+func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	n := 4
+	instances := genAndLaunchDrandInstances(t, n)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+	t.Log("waiting for initial set up to settle on all nodes")
+
+	// check that each node can reach each other
+	for i, instance := range instances {
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
+		}
+	}
+	// stop one and check that all nodes report this node down
+	toStop := 2
+	insToStop := instances[toStop]
+	err = insToStop.stopAll()
+	require.NoError(t, err)
+
+	for i, instance := range instances {
+		if i == toStop {
+			continue
+		}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			if j != toStop {
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
+			} else {
+				require.Contains(t, buff.String(), instance.addr+" -> X")
+			}
+		}
+	}
+}
+
+func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	n := 4
+	instances := genAndLaunchDrandInstances(t, n)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+	t.Log("waiting for initial set up to settle on all nodes")
+
+	// check that each node can reach each other
+	for i, instance := range instances {
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, instances[i].addr)
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
+		}
+	}
+	// stop one and check that all nodes report this node down
+	toStop := 2
+	insToStop := instances[toStop]
+	err = insToStop.stopAll()
+	require.NoError(t, err)
+
+	for i, instance := range instances {
+		if i == toStop {
+			continue
+		}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, instances[i].addr)
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			if j != toStop {
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
+			} else {
+				require.Contains(t, buff.String(), instance.addr+" -> X")
 			}
 		}
 	}
@@ -1107,6 +1243,9 @@ func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArg
 		err := CLI().Run(baseArgs)
 		require.NoError(t, err)
 	}()
+
+	// Prevent race condition in urfave/cli
+	time.Sleep(100 * time.Millisecond)
 
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort, beaconID)

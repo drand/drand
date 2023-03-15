@@ -66,12 +66,17 @@ func remoteStatusCmd(c *cli.Context) error {
 	}
 	// set default value for all keys so json outputs something for all keys
 	defaultMap := make(map[string]*control.StatusResponse)
-	for _, addr := range addresses {
-		if resp, ok := resp[addr.GetAddress()]; !ok {
-			defaultMap[addr.GetAddress()] = nil
-		} else {
-			defaultMap[addr.GetAddress()] = resp
+	switch {
+	case len(addresses) > 0:
+		for _, addr := range addresses {
+			if resp, ok := resp[addr.GetAddress()]; !ok {
+				defaultMap[addr.GetAddress()] = nil
+			} else {
+				defaultMap[addr.GetAddress()] = resp
+			}
 		}
+	default:
+		defaultMap = resp
 	}
 
 	if c.IsSet(jsonFlag.Name) {

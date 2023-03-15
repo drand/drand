@@ -88,8 +88,20 @@ func (bp *BeaconProcess) PingPong(context.Context, *drand.Ping) (*drand.Pong, er
 
 func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	replies := make(map[string]*drand.StatusResponse)
-	bp.log.Debugw("Starting remote status request", "for_nodes", in.GetAddresses())
-	for _, addr := range in.GetAddresses() {
+	nodes := in.GetAddresses()
+	if len(nodes) == 0 {
+		if bp.beacon != nil && bp.group != nil {
+			for _, node := range bp.group.Nodes {
+				if node.Addr == bp.priv.Public.Addr {
+					continue
+				}
+
+				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.TLS})
+			}
+		}
+	}
+	bp.log.Debugw("Starting remote status request", "for_nodes", nodes)
+	for _, addr := range nodes {
 		remoteAddress := addr.GetAddress()
 		if remoteAddress == "" {
 			bp.log.Errorw("Received empty address during remote status", "addr", addr)
@@ -99,7 +111,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 		var err error
 		var resp *drand.StatusResponse
 		statusReq := &drand.StatusRequest{
-			CheckConn: in.GetAddresses(),
+			CheckConn: nodes,
 			Metadata:  bp.newMetadata(),
 		}
 		if remoteAddress == bp.priv.Public.Addr {
@@ -161,9 +173,20 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 	// remote network connectivity
 	nodeList := in.GetCheckConn()
 	// in case of an empty list, we test all nodes in the group file
-	if len(nodeList) == 0 && bp.beacon != nil && bp.group != nil {
+	if bp.beacon != nil && bp.group != nil {
 		bp.log.Debugw("Empty node connectivity list, populating with group file")
 		for _, node := range bp.group.Nodes {
+			found := false
+			for _, nl := range nodeList {
+				if node.Addr == nl.Address {
+					found = true
+					break
+				}
+			}
+			if found {
+				continue
+			}
+
 			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
 		}
 	}
