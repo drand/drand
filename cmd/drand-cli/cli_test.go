@@ -1120,6 +1120,7 @@ func (d *drandInstance) startInitialDKG(
 	t *testing.T,
 	instances []*drandInstance,
 	threshold,
+	//nolint:unparam // This is a parameter
 	periodSeconds int,
 	beaconID string,
 	sch *crypto.Scheme,
@@ -1169,7 +1170,13 @@ func (d *drandInstance) executeDKG(t *testing.T, beaconID string) {
 	require.NoError(t, err)
 }
 
-func (d *drandInstance) awaitDKGComplete(t *testing.T, beaconID string, epoch uint32, timeoutSeconds int) error {
+func (d *drandInstance) awaitDKGComplete(
+	t *testing.T,
+	beaconID string,
+	//nolint:unparam // This is a parameter
+	epoch uint32,
+	timeoutSeconds int,
+) error {
 	t.Helper()
 	dkgArgs := []string{
 		"drand",
