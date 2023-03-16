@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
@@ -20,16 +21,16 @@ import (
 	"github.com/drand/drand/test/mock"
 )
 
-func withClient(t *testing.T) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	l, s := mock.NewMockGRPCPublicServer(t, ":0", true, sch)
+	l, s := mock.NewMockGRPCPublicServer(t, "127.0.0.1:0", true, sch, clk)
 	lAddr := l.Addr()
 	go l.Start()
 
-	c, _ = grpc.New(lAddr, "", true, []byte(""))
+	c, err = grpc.New(lAddr, "", true, []byte(""))
+	require.NoError(t, err)
 
 	return c, s.(mock.MockService).EmitRand
 }
@@ -48,7 +49,8 @@ func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, _ := withClient(t)
+	clk := clock.NewFakeClockAt(time.Now())
+	c, _ := withClient(t, clk)
 
 	handler, err := New(ctx, "", test.Logger(t))
 	if err != nil {
@@ -151,7 +153,9 @@ func validateEndpoint(endpoint string, round float64) error {
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t)
+
+	clk := clock.NewFakeClockAt(time.Now())
+	c, push := withClient(t, clk)
 
 	handler, err := New(ctx, "", test.Logger(t))
 	require.NoError(t, err)
@@ -161,7 +165,7 @@ func TestHTTPWaiting(t *testing.T) {
 
 	handler.RegisterNewBeaconHandler(c, info.HashString())
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
 	server := http.Server{Handler: handler.GetHTTPHandler()}
@@ -174,24 +178,24 @@ func TestHTTPWaiting(t *testing.T) {
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
 	next := getWithCtx(ctx, u, t)
-	defer func() { _ = next.Body.Close() }()
+	_ = next.Body.Close()
 
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
 
 	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
 	// the expected beacon from above due to lock contention on bh.pendingLk.
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(test.SleepDuration())
 
 	done := make(chan time.Time)
-	before := time.Now()
+	before := clk.Now()
 	go func() {
 		endpoint := listener.Addr().String() + "/" + info.HashString() + "/public/1971"
 		if err = validateEndpoint(endpoint, 1971.0); err != nil {
 			done <- time.Unix(0, 0)
 			return
 		}
-		done <- time.Now()
+		done <- clk.Now()
 	}()
 	time.Sleep(100 * time.Millisecond)
 	select {
@@ -200,7 +204,7 @@ func TestHTTPWaiting(t *testing.T) {
 	default:
 	}
 	push(false)
-	time.Sleep(10 * time.Millisecond)
+
 	var after time.Time
 	select {
 	case x := <-done:
@@ -210,7 +214,7 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal("should return after a round")
 	}
 
-	t.Logf("comparing values: before: %s after: %s", before, after)
+	t.Logf("comparing values: before: %s after: %s\n", before, after)
 
 	// mock grpc server spits out new round every second on streaming interface.
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
@@ -225,7 +229,8 @@ func TestHTTPWatchFuture(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, _ := withClient(t)
+	clk := clock.NewFakeClockAt(time.Now())
+	c, _ := withClient(t, clk)
 
 	handler, err := New(ctx, "", test.Logger(t))
 	if err != nil {
@@ -261,54 +266,45 @@ func TestHTTPWatchFuture(t *testing.T) {
 func TestHTTPHealth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t)
+	clk := clock.NewFakeClockAt(time.Now())
+	c, push := withClient(t, clk)
 
 	handler, err := New(ctx, "", test.Logger(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
 	err = nhttp.IsServerReady(listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	resp := getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
-	if resp.StatusCode == http.StatusOK {
-		t.Fatalf("newly started server not expected to be synced.")
-	}
+	require.NotEqual(t, http.StatusOK, resp.StatusCode, "newly started server not expected to be synced.")
+
 	resp.Body.Close()
 
 	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString()), t)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("startup of the server on 1st request should happen")
-	}
+	require.Equal(t, http.StatusOK, resp.StatusCode, "startup of the server on 1st request should happen")
+
 	push(false)
 	// give some time for http server to get it
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(test.SleepDuration())
 	resp.Body.Close()
 
 	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
-	if resp.StatusCode != http.StatusOK {
-		var buf [100]byte
-		_, _ = resp.Body.Read(buf[:])
-		t.Fatalf("after start server expected to be healthy relatively quickly. %v - %v", string(buf[:]), resp.StatusCode)
-	}
+	var buf [100]byte
+	_, _ = resp.Body.Read(buf[:])
+	//nolint:lll // This is correct
+	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf[:]), resp.StatusCode)
 	resp.Body.Close()
 }
 func TestHTTP404(t *testing.T) {

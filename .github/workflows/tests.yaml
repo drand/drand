@@ -14,6 +14,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
@@ -41,6 +42,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -70,6 +72,7 @@ jobs:
 
   test-integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -99,6 +102,7 @@ jobs:
 
   test-integration-run-demo:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -128,6 +132,7 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     strategy:
       fail-fast: false

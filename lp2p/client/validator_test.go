@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/crypto"
@@ -52,8 +53,8 @@ func randomPeerID(t *testing.T) peer.ID {
 	return peerID
 }
 
-func fakeRandomData(info *chain.Info) client.RandomData {
-	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+func fakeRandomData(info *chain.Info, clk clock.Clock) client.RandomData {
+	rnd := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 
 	sig := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sig, rnd)
@@ -78,7 +79,8 @@ func fakeChainInfo() *chain.Info {
 
 func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(fakeChainInfo(), nil, &c)
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(fakeChainInfo(), nil, &c, clk)
 
 	msg := pubsub.Message{Message: &pb.Message{}}
 	res := validate(context.Background(), randomPeerID(t), &msg)
@@ -90,7 +92,8 @@ func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
 
 func TestAcceptsWithoutTrustRoot(t *testing.T) {
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(nil, nil, &c)
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(nil, nil, &c, clk)
 
 	resp := drand.PublicRandResponse{}
 	data, err := proto.Marshal(&resp)
@@ -108,7 +111,8 @@ func TestAcceptsWithoutTrustRoot(t *testing.T) {
 func TestRejectsFutureBeacons(t *testing.T) {
 	info := fakeChainInfo()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, nil, &c)
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(info, nil, &c, clk)
 
 	resp := drand.PublicRandResponse{
 		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime) + 5,
@@ -128,7 +132,8 @@ func TestRejectsFutureBeacons(t *testing.T) {
 func TestRejectsVerifyBeaconFailure(t *testing.T) {
 	info := fakeChainInfo()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, nil, &c)
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(info, nil, &c, clk)
 
 	resp := drand.PublicRandResponse{
 		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime),
@@ -150,8 +155,9 @@ func TestIgnoresCachedEqualBeacon(t *testing.T) {
 	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, ca, &c)
-	rdata := fakeRandomData(info)
+	clk := clock.NewFakeClockAt(time.Now())
+	validate := randomnessValidator(info, ca, &c, clk)
+	rdata := fakeRandomData(info, clk)
 
 	ca.Add(rdata.Rnd, &rdata)
 
@@ -177,8 +183,9 @@ func TestRejectsCachedUnequalBeacon(t *testing.T) {
 	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, ca, &c)
-	rdata := fakeRandomData(info)
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(info, ca, &c, clk)
+	rdata := fakeRandomData(info, clk)
 
 	ca.Add(rdata.Rnd, &rdata)
 
@@ -207,8 +214,9 @@ func TestIgnoresCachedEqualNonRandomDataBeacon(t *testing.T) {
 	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, ca, &c)
-	rdata := randomDataWrapper{fakeRandomData(info)}
+	clk := clock.NewFakeClockAt(time.Now())
+	validate := randomnessValidator(info, ca, &c, clk)
+	rdata := randomDataWrapper{fakeRandomData(info, clk)}
 
 	ca.Add(rdata.Round(), &rdata)
 
@@ -234,8 +242,9 @@ func TestRejectsCachedEqualNonRandomDataBeacon(t *testing.T) {
 	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(info, ca, &c)
-	rdata := randomDataWrapper{fakeRandomData(info)}
+	clk := clock.NewFakeClock()
+	validate := randomnessValidator(info, ca, &c, clk)
+	rdata := randomDataWrapper{fakeRandomData(info, clk)}
 
 	ca.Add(rdata.Round(), &rdata)
 

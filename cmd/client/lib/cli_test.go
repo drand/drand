@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 
@@ -54,11 +56,11 @@ func TestClientLib(t *testing.T) {
 
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	grpcLis, _ := mock.NewMockGRPCPublicServer(t, ":0", false, sch)
+	grpcLis, _ := mock.NewMockGRPCPublicServer(t, ":0", false, sch, clk)
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
@@ -109,8 +111,8 @@ func TestClientLibGroupConfTOML(t *testing.T) {
 func TestClientLibGroupConfJSON(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	var b bytes.Buffer

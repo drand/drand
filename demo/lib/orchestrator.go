@@ -651,7 +651,8 @@ func (e *Orchestrator) Shutdown() {
 		fmt.Println("\t- Successfully stopped Node", no.Index(), "(", no.PrivateAddr(), ")")
 	}
 	fmt.Println("\t- Successfully sent Stop command to all node")
-	time.Sleep(time.Minute)
+	time.Sleep(20 * time.Second)
+	fmt.Println("\t- Wait done. Exiting.")
 }
 
 func checkErr(err error, out ...string) {
