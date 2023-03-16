@@ -163,6 +163,12 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					continue
 				}
 
+				g.l.Debugw("publishing message",
+					"relay_node", "publish",
+					"round", res.Round(),
+					"time.Now", time.Now().Unix(),
+				)
+
 				err = g.t.Publish(ctx, randB)
 				if err != nil {
 					g.l.Errorw("", "relay_node", "err publishing on pubsub", "err", err)

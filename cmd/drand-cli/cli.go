@@ -36,10 +36,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// default output of the drand operational commands
-// the drand daemon use its own logging mechanism.
-var output io.Writer = os.Stdout
-
 // Automatically set through -ldflags
 // Example: go install -ldflags "-X main.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) -X main.gitCommit=$(git rev-parse HEAD)"
 var (
@@ -51,9 +47,9 @@ var SetVersionPrinter sync.Once
 
 const defaultPort = "8080"
 
-func banner() {
+func banner(w io.Writer) {
 	version := common.GetAppVersion()
-	_, _ = fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
+	_, _ = fmt.Fprintf(w, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -385,7 +381,7 @@ var appCommands = []*cli.Command{
 			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
 		Action: func(c *cli.Context) error {
-			banner()
+			banner(c.App.Writer)
 			return startCmd(c)
 		},
 		Before: runMigration,
@@ -395,7 +391,7 @@ var appCommands = []*cli.Command{
 		Usage: "Stop the drand daemon.\n",
 		Flags: toArray(controlFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
-			banner()
+			banner(c.App.Writer)
 			return stopDaemon(c)
 		},
 	},
@@ -408,7 +404,7 @@ var appCommands = []*cli.Command{
 			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag,
 			schemeFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
-			banner()
+			banner(c.App.Writer)
 			return deprecatedShareCommand(c)
 		},
 	},
@@ -433,7 +429,7 @@ var appCommands = []*cli.Command{
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
-			banner()
+			banner(c.App.Writer)
 			err := keygenCmd(c)
 
 			// If keys were generated successfully, daemon needs to load them
@@ -602,7 +598,7 @@ func CLI() *cli.App {
 
 	SetVersionPrinter.Do(func() {
 		cli.VersionPrinter = func(c *cli.Context) {
-			fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version, buildDate, gitCommit)
+			fmt.Fprintf(c.App.Writer, "drand %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 		}
 	})
 
@@ -634,7 +630,7 @@ func CLI() *cli.App {
 func resetCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 
-	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. "+
+	fmt.Fprintf(c.App.Writer, "You are about to delete your local share, group file and generated random beacons. "+
 		"Are you sure you wish to perform this operation? [y/N]")
 	reader := bufio.NewReader(c.App.Reader)
 
@@ -645,24 +641,24 @@ func resetCmd(c *cli.Context) error {
 
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
-		fmt.Fprintf(output, "drand: not reseting the state.")
+		fmt.Fprintf(c.App.Writer, "drand: not reseting the state.")
 		return nil
 	}
 
 	stores, err := getKeyStores(c)
 	if err != nil {
-		fmt.Fprintf(output, "drand: err reading beacons database: %v\n", err)
+		fmt.Fprintf(c.App.Writer, "drand: err reading beacons database: %v\n", err)
 		os.Exit(1)
 	}
 
 	for key, store := range stores {
 		if err := store.Reset(); err != nil {
-			fmt.Fprintf(output, "drand: beacon id [%s] - err reseting key store: %v\n", key, err)
+			fmt.Fprintf(c.App.Writer, "drand: beacon id [%s] - err reseting key store: %v\n", key, err)
 			os.Exit(1)
 		}
 
 		if err := os.RemoveAll(path.Join(conf.ConfigFolderMB(), key)); err != nil {
-			fmt.Fprintf(output, "drand: beacon id [%s] - err reseting beacons database: %v\n", key, err)
+			fmt.Fprintf(c.App.Writer, "drand: beacon id [%s] - err reseting beacons database: %v\n", key, err)
 			os.Exit(1)
 		}
 
@@ -674,7 +670,7 @@ func resetCmd(c *cli.Context) error {
 
 func askPort(c *cli.Context) string {
 	for {
-		fmt.Fprintf(output, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
+		fmt.Fprintf(c.App.Writer, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
 
 		reader := bufio.NewReader(c.App.Reader)
 		input, err := reader.ReadString('\n')
@@ -684,7 +680,7 @@ func askPort(c *cli.Context) string {
 
 		portStr := strings.TrimSpace(input)
 		if portStr == "" {
-			fmt.Fprintln(output, "Default port selected")
+			fmt.Fprintln(c.App.Writer, "Default port selected")
 			return defaultPort
 		}
 
@@ -780,7 +776,7 @@ func keygenCmd(c *cli.Context) error {
 
 	if _, err := fileStore.LoadKeyPair(sch); err == nil {
 		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
-		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
+		fmt.Fprintf(c.App.Writer, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
@@ -812,16 +808,16 @@ func groupOut(c *cli.Context, group *key.Group) error {
 			return fmt.Errorf("drand: can't save group to specified file name: %w", err)
 		}
 	} else if c.Bool(hashOnly.Name) {
-		fmt.Fprintf(output, "%x\n", group.Hash())
+		fmt.Fprintf(c.App.Writer, "%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
 			return fmt.Errorf("drand: can't encode group to TOML: %w", err)
 		}
 		buff.WriteString("\n")
-		fmt.Fprintf(output, "The following group.toml file has been created\n")
-		fmt.Fprint(output, buff.String())
-		fmt.Fprintf(output, "\nHash of the group configuration: %x\n", group.Hash())
+		fmt.Fprintf(c.App.Writer, "The following group.toml file has been created\n")
+		fmt.Fprint(c.App.Writer, buff.String())
+		fmt.Fprintf(c.App.Writer, "\nHash of the group configuration: %x\n", group.Hash())
 	}
 	return nil
 }
@@ -875,15 +871,15 @@ func checkConnection(c *cli.Context) error {
 
 		if err != nil {
 			if isVerbose {
-				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
+				fmt.Fprintf(c.App.Writer, "drand: error checking id %s: %s\n", address, err)
 			} else {
-				fmt.Fprintf(output, "drand: error checking id %s\n", address)
+				fmt.Fprintf(c.App.Writer, "drand: error checking id %s\n", address)
 			}
 			allGood = false
 			invalidIds = append(invalidIds, address)
 			continue
 		}
-		fmt.Fprintf(output, "drand: id %s answers correctly\n", address)
+		fmt.Fprintf(c.App.Writer, "drand: id %s answers correctly\n", address)
 	}
 	if !allGood {
 		return fmt.Errorf("following nodes don't answer: %s", strings.Join(invalidIds, ","))

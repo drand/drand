@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -48,10 +50,11 @@ type Server struct {
 	streamDone chan error
 	d          *Data
 	t          logger
+	clk        clock.Clock
 	chainInfo  *drand.ChainInfoPacket
 }
 
-func newMockServer(t logger, d *Data) *Server {
+func newMockServer(t logger, d *Data, clk clock.Clock) *Server {
 	if t == nil {
 		t = fmtLogger{}
 	}
@@ -60,6 +63,7 @@ func newMockServer(t logger, d *Data) *Server {
 		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
 		t:           t,
+		clk:         clk,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
 			GenesisTime: d.Genesis,
@@ -138,12 +142,14 @@ func (s *Server) EmitRand(closeStream bool) {
 		s.t.Log("MOCK SERVER: context error ", err)
 		return
 	}
+	s.clk.(clock.FakeClock).Advance(time.Duration(s.chainInfo.Period) * time.Second)
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err
 		s.t.Log("MOCK SERVER: public rand err:", err)
 		return
 	}
+	s.t.Log(fmt.Sprintf("MOCK SERVER: sending round: %d time.Now: %d", resp.Round, s.clk.Now().Unix()))
 	if err = stream.Send(resp); err != nil {
 		done <- err
 		s.t.Log("MOCK SERVER: stream send error:", err)
@@ -200,7 +206,7 @@ type Data struct {
 	Scheme            *crypto.Scheme
 }
 
-func generateMockData(sch *crypto.Scheme) *Data {
+func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 	secret := sch.KeyGroup.Scalar().Pick(random.New())
 	public := sch.KeyGroup.Point().Mul(secret, nil)
 	var previous [32]byte
@@ -233,7 +239,7 @@ func generateMockData(sch *crypto.Scheme) *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
+		Genesis:           clk.Now().Add(period * 1969 * -1).Unix(),
 		Period:            period,
 		BadSecondRound:    true,
 		Scheme:            sch,
@@ -274,14 +280,14 @@ func nextMockData(d *Data) *Data {
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch *crypto.Scheme) (net.Listener, net.Service) {
-	d := generateMockData(sch)
+func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (net.Listener, net.Service) {
+	d := generateMockData(sch, clk)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(t, d)
+	server := newMockServer(t, d, clk)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
 		panic(err)
@@ -291,14 +297,14 @@ func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch
 }
 
 // NewMockServer creates a server interface not bound to a newtork port
-func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme) net.Service {
-	d := generateMockData(sch)
+func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) net.Service {
+	d := generateMockData(sch, clk)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(t, d)
+	server := newMockServer(t, d, clk)
 	return server
 }
 
@@ -318,9 +324,9 @@ func roundToBytes(r int) []byte {
 }
 
 // NewMockBeacon provides a random beacon and the chain it validates against
-func NewMockBeacon(t *testing.T, sch *crypto.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
-	d := generateMockData(sch)
-	s := newMockServer(t, d)
+func NewMockBeacon(t *testing.T, sch *crypto.Scheme, clk clock.Clock) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData(sch, clk)
+	s := newMockServer(t, d, clk)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
 

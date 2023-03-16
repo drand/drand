@@ -35,7 +35,7 @@ func TestLoggerKit(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		t.Logf(" -- test %d -- ", i)
+		t.Logf(" -- test %d -- \n", i)
 
 		var b bytes.Buffer
 		writer := bufio.NewWriter(&b)
