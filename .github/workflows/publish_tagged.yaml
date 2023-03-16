@@ -30,6 +30,6 @@ jobs:
             ${{ runner.os }}-go-
       - name: Build and push tagged Docker image
         run: |
-          docker build --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
-          echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u drandci --password-stdin
-          docker push drandorg/go-drand:`git describe --tags`
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+          docker build --build-arg gitCommit=`git rev-parse HEAD` -t drand/go-drand:`git describe --tags` .
+          docker push ghcr.io/drand/go-drand:latest`git describe --tags`
