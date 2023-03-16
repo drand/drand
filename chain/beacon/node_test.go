@@ -165,7 +165,7 @@ func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime i
 
 	for i := 0; i < n; i++ {
 		bt.CreateNode(t, i)
-		t.Logf("Creating node %d/%d", i+1, n)
+		t.Logf("Creating node %d/%d\n", i+1, n)
 	}
 	return bt
 }
@@ -295,7 +295,7 @@ func (b *BeaconTest) WaitBeaconToKickoff(t *testing.T, i int) error {
 			return fmt.Errorf("timeout waiting beacon %d to run", i)
 		}
 
-		t.Logf("beacon %d is not running yet, waiting some time to ask again...", i)
+		t.Logf("beacon %d is not running yet, waiting some time to ask again...\n", i)
 		time.Sleep(500 * time.Millisecond)
 	}
 }
@@ -438,9 +438,9 @@ func TestBeaconSync(t *testing.T) {
 
 	// do some rounds
 	for i := 0; i < 2; i++ {
-		t.Logf("round %d starting", i+2)
+		t.Logf("round %d starting\n", i+2)
 		doRound(n, period)
-		t.Logf("round %d done", i+2)
+		t.Logf("round %d done\n", i+2)
 	}
 
 	t.Log("disable reception")
@@ -556,7 +556,7 @@ func TestBeaconThreshold(t *testing.T) {
 			// callbacks are called for syncing up as well so we only decrease
 			// waitgroup when it's the current round
 			if b.Round == currentRound {
-				t.Logf("node %d got b.Round(%d) == currentRound(%d)", i, b.Round, currentRound)
+				t.Logf("node %d got b.Round(%d) == currentRound(%d)\n", i, b.Round, currentRound)
 				counter.Done()
 			}
 		}
