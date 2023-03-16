@@ -46,14 +46,14 @@ func stopDaemon(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("error stopping beacon process [%s]: %w", beaconID, err)
 		}
-		fmt.Fprintf(output, "beacon process [%s] stopped correctly. Bye.\n", beaconID)
+		fmt.Fprintf(c.App.Writer, "beacon process [%s] stopped correctly. Bye.\n", beaconID)
 	} else {
 		_, err = ctrlClient.Shutdown("")
 
 		if err != nil {
 			return fmt.Errorf("error stopping drand daemon: %w", err)
 		}
-		fmt.Fprintf(output, "drand daemon stopped correctly. Bye.\n")
+		fmt.Fprintf(c.App.Writer, "drand daemon stopped correctly. Bye.\n")
 	}
 
 	return nil
