@@ -790,8 +790,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 		var err error
 		var resp *drand.StatusResponse
 		statusReq := &drand.StatusRequest{
-			CheckConn: in.GetAddresses(),
-			Metadata:  bp.newMetadata(),
+			Metadata: bp.newMetadata(),
 		}
 		if remoteAddress == bp.priv.Public.Addr {
 			// it's ourself
@@ -802,7 +801,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 			resp, err = bp.privGateway.Status(ctx, p, statusReq)
 		}
 		if err != nil {
-			bp.log.Errorw("Status request failed", "remote", addr, "error", err)
+			bp.log.Warnw("Status request failed", "for_node", addr, "error", err)
 		} else {
 			replies[remoteAddress] = resp
 		}
