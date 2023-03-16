@@ -101,7 +101,7 @@ var runCmd = &cli.Command{
 		}
 
 		if cctx.IsSet(lib.HashFlag.Name) {
-			return fmt.Errorf("--%s is deprecated. Use --%s or --%s instead", lib.HashFlag.Name, lib.HashListFlag.Name, lib.GroupConfListFlag)
+			fmt.Printf("--%s is deprecated. Use --%s or --%s instead\n", lib.HashFlag.Name, lib.HashListFlag.Name, lib.GroupConfListFlag.Name)
 		}
 
 		switch {
@@ -126,6 +126,16 @@ var runCmd = &cli.Command{
 				if err != nil {
 					return err
 				}
+			}
+		case cctx.IsSet(lib.HashFlag.Name):
+			hash := cctx.String(lib.HashFlag.Name)
+			if _, err := hex.DecodeString(hash); err != nil {
+				return fmt.Errorf("decoding hash %q: %w", hash, err)
+			}
+
+			err := boostrapGossipRelayNode(cctx, "", hash)
+			if err != nil {
+				return err
 			}
 		default:
 			if err := boostrapGossipRelayNode(cctx, "", ""); err != nil {
