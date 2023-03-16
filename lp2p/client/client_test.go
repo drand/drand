@@ -9,6 +9,7 @@ import (
 	"time"
 
 	bds "github.com/ipfs/go-ds-badger2"
+	clock "github.com/jonboulle/clockwork"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
@@ -27,12 +28,13 @@ import (
 )
 
 func TestGRPCClientTestFunc(t *testing.T) {
-	t.Skip("TestGRPCClientTestFunc is flaky")
 	// start mock drand node
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
-	grpcLis, svc := mock.NewMockGRPCPublicServer(t, ":0", false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+
+	grpcLis, svc := mock.NewMockGRPCPublicServer(t, "127.0.0.1:0", false, sch, clk)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -41,63 +43,67 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	identityDir := t.TempDir()
 
 	infoProto, err := svc.ChainInfo(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	info, _ := chain.InfoFromProto(infoProto)
+	require.NoError(t, err)
+
+	info, err := chain.InfoFromProto(infoProto)
+	require.NoError(t, err)
 
 	// start mock relay-node
 	grpcClient, err := grpc.New(grpcAddr, "", true, []byte(""))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	cfg := &lp2p.GossipRelayConfig{
 		ChainHash:    info.HashString(),
 		PeerWith:     nil,
-		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		Addr:         "/ip4/127.0.0.1/tcp/" + test.FreePort(),
 		DataDir:      dataDir,
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       grpcClient,
 	}
 	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
-	if err != nil {
-		t.Fatalf("gossip relay node (%v)", err)
-	}
+	require.NoError(t, err, "gossip relay node")
 	defer g.Shutdown()
 
 	// start client
-	c, err := newTestClient(t, g.Multiaddrs(), info)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
+	c, err := newTestClient(t, g.Multiaddrs(), info, clk)
+	require.NoError(t, err)
+	defer func() {
+		err := c.Close()
+		require.NoError(t, err)
+	}()
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.Watch(ctx)
-	for i := 0; i < 3; i++ {
-		// pub sub polls every 200ms
-		time.Sleep(250 * time.Millisecond)
-		svc.(mock.MockService).EmitRand(false)
-		fmt.Printf("round %d. emitted.\n", i)
+
+	baseRound := uint64(1969)
+
+	mockService := svc.(mock.MockService)
+	// pub sub polls every 200ms
+	wait := 250 * time.Millisecond
+	for i := uint64(0); i < 3; i++ {
+		time.Sleep(wait)
+		mockService.EmitRand(false)
+		t.Logf("round %d emitted\n", baseRound+i)
+
 		select {
 		case r, ok := <-ch:
-			if !ok {
-				t.Fatal("expected randomness, watch outer channel was closed instead")
-			} else {
-				t.Log("received", r.Round())
-			}
+			require.True(t, ok, "expected randomness, watch outer channel was closed instead")
+			t.Logf("received round %d\n", r.Round())
+			require.Equal(t, baseRound+i, r.Round())
 		// the period of the mock servers is 1 second
 		case <-time.After(5 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
-	svc.(mock.MockService).EmitRand(true)
+
+	time.Sleep(wait)
+	mockService.EmitRand(true)
 	cancel()
+
 	drain(t, ch, 5*time.Second)
 }
 
-//nolint:unused
 func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 	for {
 		select {
@@ -112,11 +118,12 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClientTestFunc(t *testing.T) {
-	t.Skip("TestHTTPClientTestFunc is flaky")
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
-	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+
+	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer stop()
 
 	dataDir := t.TempDir()
@@ -129,7 +136,7 @@ func TestHTTPClientTestFunc(t *testing.T) {
 	cfg := &lp2p.GossipRelayConfig{
 		ChainHash:    chainInfo.HashString(),
 		PeerWith:     nil,
-		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		Addr:         "/ip4/127.0.0.1/tcp/" + test.FreePort(),
 		DataDir:      dataDir,
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       httpClient,
@@ -140,7 +147,7 @@ func TestHTTPClientTestFunc(t *testing.T) {
 	}
 	defer g.Shutdown()
 
-	c, err := newTestClient(t, g.Multiaddrs(), chainInfo)
+	c, err := newTestClient(t, g.Multiaddrs(), chainInfo, clk)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,8 +176,7 @@ func TestHTTPClientTestFunc(t *testing.T) {
 	drain(t, ch, 5*time.Second)
 }
 
-//nolint:unused
-func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
+func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info, clk clock.Clock) (*Client, error) {
 	dataDir := t.TempDir()
 	identityDir := t.TempDir()
 	ds, err := bds.NewDatastore(dataDir, nil)
@@ -199,7 +205,7 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewWithPubsub(ps, info, nil)
+	c, err := NewWithPubsubWithOptions(ps, info, nil, clk, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +213,6 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	return c, nil
 }
 
-//nolint:unused
 func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
 	ai, err := peer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
@@ -216,7 +221,6 @@ func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
 	return ai.ID, nil
 }
 
-//nolint:unused
 func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
 	t := time.NewTimer(timeout)
 	for {

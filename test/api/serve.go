@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/crypto"
@@ -24,7 +25,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	listener, server := mock.NewMockGRPCPublicServer(nil, serve, true, sch)
+	clk := clock.NewRealClock()
+	listener, server := mock.NewMockGRPCPublicServer(nil, serve, true, sch, clk)
 	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
 	if err != nil {
 		panic(err)

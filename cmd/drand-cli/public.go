@@ -55,7 +55,7 @@ func getPublicRandomness(c *cli.Context) error {
 		if err == nil {
 			foundCorrect = true
 			if c.Bool(verboseFlag.Name) {
-				fmt.Fprintf(output, "drand: public randomness retrieved from %s\n", id.Addr)
+				fmt.Fprintf(c.App.Writer, "drand: public randomness retrieved from %s\n", id.Addr)
 			}
 			break
 		}
@@ -65,7 +65,7 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: could not verify randomness")
 	}
 
-	return printJSON(resp)
+	return printJSON(c.App.Writer, resp)
 }
 
 func getChainInfo(c *cli.Context) error {
@@ -107,8 +107,8 @@ func getChainInfo(c *cli.Context) error {
 
 func printChainInfo(c *cli.Context, ci *chain.Info) error {
 	if c.Bool(hashOnly.Name) {
-		fmt.Fprintf(output, "%s\n", hex.EncodeToString(ci.Hash()))
+		fmt.Fprintf(c.App.Writer, "%s\n", hex.EncodeToString(ci.Hash()))
 		return nil
 	}
-	return printJSON(ci.ToProto(nil))
+	return printJSON(c.App.Writer, ci.ToProto(nil))
 }
