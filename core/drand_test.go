@@ -591,16 +591,17 @@ func TestDrandPublicRand(t *testing.T) {
 	}
 
 	newN := 5
-	newThr := thr + 1
 	toAdd := newN - n
-	newNodes := dt.SetupNewNodes(toAdd)
-	newGroup, err := dt.RunReshare(n, toAdd, newThr, 1*time.Second, false, false, true)
+	newNodes := dt.SetupNewNodes(t, toAdd)
+	newGroup, err := dt.RunReshare(dt.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
-	dt.MoveToTime(newGroup.TransitionTime)
+	dt.SetMockClock(t, newGroup.TransitionTime)
+	time.Sleep(test.SleepDuration())
 	// do a few periods
 	for i := 0; i < 2; i++ {
-		dt.MoveTime(newGroup.Period)
+		dt.AdvanceMockClock(t, newGroup.Period)
+		time.Sleep(test.SleepDuration())
 	}
 	// then ask the new node about a previous randomness
 	newNodeID := newNodes[0].drand.priv.Public
