@@ -58,13 +58,19 @@ var (
 	// HashListFlag is the CLI flag for the hashes list (in hex) for the relay to follow.
 	HashListFlag = &cli.StringSliceFlag{
 		Name:  "hash-list",
-		Usage: "Specify one hash in the list (in hex) of hashes the relay should follow",
+		Usage: "Specify the list (in hex) of hashes the relay should follow",
 	}
 	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
 		Name: "group-conf",
 		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded)," +
 			" can be used instead of `-hash` flag to verify the chain.",
+	}
+	// GroupConfListFlag is like GroupConfFlag but for a list values.
+	GroupConfListFlag = &cli.StringSliceFlag{
+		Name: "group-conf-list",
+		Usage: "Paths to at least one drand group configuration (TOML encoded) or chain info (JSON encoded)," +
+			fmt.Sprintf(" can be used instead of `-%s` flag to verify the chain.", HashListFlag.Name),
 	}
 	// InsecureFlag is the CLI flag to allow autodetection of the chain
 	// information.
@@ -122,11 +128,13 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.WithChainInfo(info))
 	}
 
-	gc, err := buildGrpcClient(c, &info)
+	gc, info, err := buildGrpcClient(c, info)
 	if err != nil {
 		return nil, err
 	}
-	clients = append(clients, gc...)
+	if len(gc) > 0 {
+		clients = append(clients, gc...)
+	}
 
 	var hash []byte
 	if c.IsSet(HashFlag.Name) && c.String(HashFlag.Name) != "" {
@@ -136,7 +144,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		if info != nil && !bytes.Equal(hash, info.Hash()) {
 			return nil, fmt.Errorf(
-				"%w %v != %v", commonutils.ErrInvalidChainHash,
+				"%w for beacon %s %v != %v",
+				commonutils.ErrInvalidChainHash,
+				info.ID,
 				c.String(HashFlag.Name),
 				hex.EncodeToString(info.Hash()),
 			)
@@ -159,36 +169,38 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	return client.Wrap(clients, opts...)
 }
 
-func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
-	if c.IsSet(GRPCConnectFlag.Name) {
-		hash := make([]byte, 0)
-
-		if c.IsSet(HashFlag.Name) {
-			var err error
-
-			hash, err = hex.DecodeString(c.String(HashFlag.Name))
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if *info != nil && len(hash) == 0 {
-			hash = (*info).Hash()
-		}
-
-		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
-		if err != nil {
-			return nil, err
-		}
-		if *info == nil {
-			*info, err = gc.Info(context.Background())
-			if err != nil {
-				return nil, err
-			}
-		}
-		return []client.Client{gc}, nil
+func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.Info, error) {
+	if !c.IsSet(GRPCConnectFlag.Name) {
+		return nil, info, nil
 	}
-	return []client.Client{}, nil
+
+	var hash []byte
+	if c.IsSet(HashFlag.Name) {
+		var err error
+
+		hash, err = hex.DecodeString(c.String(HashFlag.Name))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	if info != nil && len(hash) == 0 {
+		hash = info.Hash()
+	}
+
+	gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if info == nil {
+		info, err = gc.Info(c.Context)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return []client.Client{gc}, info, nil
 }
 
 func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {

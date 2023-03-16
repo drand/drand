@@ -45,6 +45,10 @@ type GossipRelayNode struct {
 
 // NewGossipRelayNode starts a new gossip relay node.
 func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode, error) {
+	if cfg.Client == nil {
+		return nil, fmt.Errorf("no client supplying randomness supplied")
+	}
+
 	bootstrap, err := ParseMultiaddrSlice(cfg.PeerWith)
 	if err != nil {
 		return nil, fmt.Errorf("parsing peer-with: %w", err)
@@ -91,9 +95,6 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		done:      make(chan struct{}),
 	}
 
-	if cfg.Client == nil {
-		return nil, fmt.Errorf("no client supplying randomness supplied")
-	}
 	go g.background(cfg.Client)
 
 	return g, nil

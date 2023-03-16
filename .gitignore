@@ -19,3 +19,5 @@ test/docker/tmp
 test/docker/data*
 **/nohup.out
 .tool-versions
+datastore
+identity.key
