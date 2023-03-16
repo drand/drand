@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
@@ -42,11 +43,11 @@ func TestClientConstraints(t *testing.T) {
 func TestClientMultiple(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel2()
 
 	httpClients := http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())
@@ -102,8 +103,8 @@ func TestClientWithChainInfo(t *testing.T) {
 func TestClientCache(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	httpClients := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
@@ -140,7 +141,8 @@ func TestClientCache(t *testing.T) {
 func TestClientWithoutCache(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	httpClients := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
@@ -172,7 +174,6 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	t.Skipf("Skip flaky test")
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	info, results := mock.VerifiableResults(2, sch)
@@ -255,8 +256,8 @@ func TestClientChainInfoOverrideError(t *testing.T) {
 func TestClientAutoWatch(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
 	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
