@@ -32,4 +32,4 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
           docker build --build-arg gitCommit=`git rev-parse HEAD` -t drand/go-drand:`git describe --tags` .
-          docker push ghcr.io/drand/go-drand:latest`git describe --tags`
+          docker push drand/go-drand:latest`git describe --tags`
