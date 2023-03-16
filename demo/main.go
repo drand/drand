@@ -44,6 +44,9 @@ func main() {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
 
+	err := os.Setenv("DRAND_TEST_LOGS", "")
+	checkErr(err)
+
 	if chain.StorageType(*dbEngineType) == chain.PostgreSQL {
 		stopContainer := cfg.BootContainer()
 		defer stopContainer()
@@ -51,7 +54,7 @@ func main() {
 
 	nRound, n := 2, 6
 	thr, newThr := 4, 5
-	period := "10s"
+	period := "3s"
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		panic(err)

@@ -38,7 +38,7 @@ func loadCmd(c *cli.Context) error {
 		return fmt.Errorf("could not reload the beacon process [%s]: %w", beaconID, err)
 	}
 
-	fmt.Fprintf(output, "Beacon process [%s] was loaded on drand.\n", beaconID)
+	fmt.Fprintf(c.App.Writer, "Beacon process [%s] was loaded on drand.\n", beaconID)
 	return nil
 }
 
@@ -66,12 +66,17 @@ func remoteStatusCmd(c *cli.Context) error {
 	}
 	// set default value for all keys so json outputs something for all keys
 	defaultMap := make(map[string]*control.StatusResponse)
-	for _, addr := range addresses {
-		if resp, ok := resp[addr.GetAddress()]; !ok {
-			defaultMap[addr.GetAddress()] = nil
-		} else {
-			defaultMap[addr.GetAddress()] = resp
+	switch {
+	case len(addresses) > 0:
+		for _, addr := range addresses {
+			if resp, ok := resp[addr.GetAddress()]; !ok {
+				defaultMap[addr.GetAddress()] = nil
+			} else {
+				defaultMap[addr.GetAddress()] = resp
+			}
 		}
+	default:
+		defaultMap = resp
 	}
 
 	if c.IsSet(jsonFlag.Name) {
@@ -79,14 +84,14 @@ func remoteStatusCmd(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot marshal the response ... %w", err)
 		}
-		fmt.Fprintf(output, "%s \n", string(str))
+		fmt.Fprintf(c.App.Writer, "%s \n", string(str))
 	} else {
 		for addr, resp := range defaultMap {
-			fmt.Fprintf(output, "Status of beacon %s on node %s\n", beaconID, addr)
+			fmt.Fprintf(c.App.Writer, "Status of beacon %s on node %s\n", beaconID, addr)
 			if resp == nil {
-				fmt.Fprintf(output, "\t- NO STATUS; can't connect\n")
+				fmt.Fprintf(c.App.Writer, "\t- NO STATUS; can't connect\n")
 			} else {
-				fmt.Fprintf(output, "%s\n", core.StatusResponseToString(resp))
+				fmt.Fprintf(c.App.Writer, "%s\n", core.StatusResponseToString(resp))
 			}
 		}
 	}
@@ -101,7 +106,7 @@ func pingpongCmd(c *cli.Context) error {
 	if err := client.Ping(); err != nil {
 		return fmt.Errorf("drand: can't ping the daemon ... %w", err)
 	}
-	fmt.Fprintf(output, "drand daemon is alive on port %s\n", controlPort(c))
+	fmt.Fprintf(c.App.Writer, "drand daemon is alive on port %s\n", controlPort(c))
 	return nil
 }
 
@@ -152,11 +157,11 @@ func statusCmd(c *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("cannot marshal the response ... %w", err)
 			}
-			fmt.Fprintf(output, "%s \n", string(str))
+			fmt.Fprintf(c.App.Writer, "%s \n", string(str))
 			return nil
 		}
 
-		fmt.Fprintf(output, "running beacon ids on the node: [%s]\n", strings.Join(beaconIDsList.Ids, ", "))
+		fmt.Fprintf(c.App.Writer, "running beacon ids on the node: [%s]\n", strings.Join(beaconIDsList.Ids, ", "))
 		return nil
 	}
 
@@ -172,8 +177,8 @@ func statusCmd(c *cli.Context) error {
 			continue
 		}
 
-		fmt.Fprintf(output, "the status of network with id [%s] is: \n", id)
-		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
+		fmt.Fprintf(c.App.Writer, "the status of network with id [%s] is: \n", id)
+		fmt.Fprintf(c.App.Writer, "%s \n", core.StatusResponseToString(resp))
 	}
 
 	if c.IsSet(jsonFlag.Name) {
@@ -181,7 +186,7 @@ func statusCmd(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("cannot marshal the response ... %w", err)
 		}
-		fmt.Fprintf(output, "%s \n", string(str))
+		fmt.Fprintf(c.App.Writer, "%s \n", string(str))
 	}
 
 	return nil
@@ -194,7 +199,7 @@ func migrateCmd(c *cli.Context) error {
 		return fmt.Errorf("cannot migrate folder structure, please try again. err: %w", err)
 	}
 
-	fmt.Fprintf(output, "folder structure is now ready to support multi-beacon drand\n")
+	fmt.Fprintf(c.App.Writer, "folder structure is now ready to support multi-beacon drand\n")
 	return nil
 }
 
@@ -209,13 +214,13 @@ func schemesCmd(c *cli.Context) error {
 		return fmt.Errorf("drand: can't get the list of scheme ids availables ... %w", err)
 	}
 
-	fmt.Fprintf(output, "Drand supports the following list of schemes: \n")
+	fmt.Fprintf(c.App.Writer, "Drand supports the following list of schemes: \n")
 
 	for i, id := range resp.Ids {
-		fmt.Fprintf(output, "%d) %s \n", i, id)
+		fmt.Fprintf(c.App.Writer, "%d) %s \n", i, id)
 	}
 
-	fmt.Fprintf(output, "\nChoose one of them and set it on --%s flag \n", schemeFlag.Name)
+	fmt.Fprintf(c.App.Writer, "\nChoose one of them and set it on --%s flag \n", schemeFlag.Name)
 	return nil
 }
 
@@ -271,7 +276,7 @@ func showPublicCmd(c *cli.Context) error {
 		return fmt.Errorf("drand: could not request drand.public: %w", err)
 	}
 
-	return printJSON(resp)
+	return printJSON(c.App.Writer, resp)
 }
 
 func backupDBCmd(c *cli.Context) error {
@@ -307,12 +312,12 @@ func controlClient(c *cli.Context) (*net.ControlClient, error) {
 	return client, nil
 }
 
-func printJSON(j interface{}) error {
+func printJSON(w io.Writer, j interface{}) error {
 	buff, err := json.MarshalIndent(j, "", "    ")
 	if err != nil {
 		return fmt.Errorf("could not JSON marshal: %w", err)
 	}
-	fmt.Fprintln(output, string(buff))
+	fmt.Fprintln(w, string(buff))
 	return nil
 }
 
@@ -328,7 +333,7 @@ func selfSign(c *cli.Context) error {
 		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
 	}
 	if pair.Public.ValidSignature() == nil {
-		fmt.Fprintf(output, "beacon id [%s] - public identity already self signed.\n", beaconID)
+		fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
 		return nil
 	}
 
@@ -339,8 +344,8 @@ func selfSign(c *cli.Context) error {
 		return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
 	}
 
-	fmt.Fprintf(output, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
-	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
+	fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
+	fmt.Fprintln(c.App.Writer, printJSON(c.App.Writer, pair.Public.TOML()))
 	return nil
 }
 

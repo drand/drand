@@ -408,7 +408,7 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	var r = new(drand.ChainInfoPacket)
 	err = json.Unmarshal(out, r)
 	if err != nil {
-		fmt.Printf("err json decoding %s\n", out)
+		fmt.Println(fmt.Sprintf("\n\n-----\nerr %v json decoding %q\n\n-----\n", err, out))
 	}
 	checkErr(err)
 	sdist := hex.EncodeToString(r.PublicKey)
