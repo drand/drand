@@ -1,4 +1,5 @@
 #!bin/sh
+## this file is used by the demo projects and CLI for building docker images
 
 set -e
 user=drand

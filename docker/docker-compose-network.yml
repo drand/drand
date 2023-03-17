@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  drand_docker_demo_1:
+    container_name: drand_docker_demo1
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo1:8010 --control 8888 --public-listen 0.0.0.0:9080
+    volumes:
+      - drand_docker_demo1:/data/drand
+    restart: always
+    ports:
+      - 8010:8080
+      - 8818:8888
+      - 9010:9080
+
+  drand_docker_demo_2:
+    container_name: drand_docker_demo2
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo2:8020 --control 8888 --public-listen 0.0.0.0:9080
+    volumes:
+      - drand_docker_demo2:/data/drand
+    restart: always
+    ports:
+      - 8020:8080
+      - 8828:8888
+      - 9020:9080
+
+  drand_docker_demo_3:
+    container_name: drand_docker_demo3
+    image: drandorg/go-drand:v1.5.3
+    command: start --verbose --tls-disable --private-listen drand_docker_demo3:8030 --control 8888 --public-listen 0.0.0.0:9080
+    volumes:
+      - drand_docker_demo3:/data/drand
+    restart: always
+    ports:
+      - 8030:8080
+      - 8838:8888
+      - 9030:9080
+
+volumes:
+  drand_docker_demo1:
+    external: true
+    name: drand_docker_demo1
+  drand_docker_demo2:
+    external: true
+    name: drand_docker_demo2
+  drand_docker_demo3:
+    external: true
+    name: drand_docker_demo3
+
