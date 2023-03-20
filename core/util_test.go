@@ -310,9 +310,7 @@ func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup
 
 	d.t.Log("[drand] Start")
 	err := dr.StartBeacon(catchup)
-	if err != nil {
-		d.t.Logf("[drand] Start had an error: %v\n", err)
-	}
+	require.NoError(t, err)
 	d.t.Log("[drand] Started")
 }
 
