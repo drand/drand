@@ -4,7 +4,6 @@ package test
 
 import (
 	"encoding/hex"
-	"fmt"
 	n "net"
 	"os"
 	"path"
@@ -220,9 +219,10 @@ func GetBeaconIDFromEnv() string {
 }
 
 func SleepDuration() time.Duration {
-	if os.Getenv("CI") != "" {
+	/*if os.Getenv("CI") != "" {
 		fmt.Println("--- Sleeping on CI")
 		return time.Duration(200) * time.Millisecond
-	}
-	return time.Duration(200) * time.Millisecond
+	}*/
+	// return time.Duration(100) * time.Millisecond
+	return 0
 }
