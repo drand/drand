@@ -25,7 +25,7 @@ type Vault struct {
 	share *key.Share
 	// public polynomial to verify a partial beacon
 	pub *share.PubPoly
-	// chian info to verify final random beacon
+	// chain info to verify final random beacon
 	chain *chain.Info
 	// to know the threshold, transition time etc
 	group *key.Group
