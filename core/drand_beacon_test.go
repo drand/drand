@@ -140,7 +140,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	const thr = 3
 	const period = 1 * time.Second
 	beaconName := "default"
-	sleepDuration := test.SleepDuration()
+	sleepDuration := 100 * time.Millisecond
 
 	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName, clockwork.NewFakeClockAt(time.Now()))
 	group, err := ts.RunDKG()

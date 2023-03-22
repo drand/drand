@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"testing"
@@ -18,7 +19,6 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
 	"github.com/drand/drand/test/testlogger"
 )
@@ -192,7 +192,8 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
 	// the expected beacon from above due to lock contention on bh.pendingLk.
-	time.Sleep(test.SleepDuration())
+	// Note: Removing this sleep will cause the test to randomly break.
+	time.Sleep(100*time.Millisecond)
 
 	done := make(chan time.Time)
 	before := clk.Now()
@@ -303,14 +304,15 @@ func TestHTTPHealth(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode, "startup of the server on 1st request should happen")
 
 	push(false)
-	// give some time for http server to get it
-	time.Sleep(test.SleepDuration())
+	// Give some time for http server to get it
+	// Note: Removing this sleep will cause the test to randomly break.
+	time.Sleep(50*time.Millisecond)
 	resp.Body.Close()
 
 	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
-	var buf [100]byte
-	_, _ = resp.Body.Read(buf[:])
+	buf, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
 	//nolint:lll // This is correct
-	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf[:]), resp.StatusCode)
+	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf), resp.StatusCode)
 	resp.Body.Close()
 }

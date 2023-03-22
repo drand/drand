@@ -243,7 +243,7 @@ func (l *LocalNode) ExecuteLeaderDKG() error {
 }
 
 func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
-	err := l.dkgRunner.WaitForDKG(l.beaconID, epoch, int(timeout.Seconds()))
+	err := l.dkgRunner.WaitForDKG(l.log, l.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
 	}

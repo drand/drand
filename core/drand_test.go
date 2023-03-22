@@ -304,6 +304,8 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 	require.NoError(t, err)
 
 	dt.SetMockClock(t, group1.GenesisTime)
+	// Note: Removing this sleep will cause the test to randomly break.
+	time.Sleep(1*time.Second)
 	err = dt.WaitUntilChainIsServing(t, dt.nodes[0])
 	require.NoError(t, err)
 
@@ -600,11 +602,11 @@ func TestDrandPublicRand(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 	dt.SetMockClock(t, newGroup.TransitionTime)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(newGroup.Period)
 	// do a few periods
 	for i := 0; i < 2; i++ {
 		dt.AdvanceMockClock(t, newGroup.Period)
-		time.Sleep(test.SleepDuration())
+		time.Sleep(newGroup.Period)
 	}
 	// then ask the new node about a previous randomness
 	newNodeID := newNodes[0].drand.priv.Public
@@ -992,7 +994,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Skip why: This call will create a new database connection.
 	//  However, for the MemDB engine type, this means we create a new backing array from scratch
 	//  thus removing all previous items from memory. At that point, this invalidates the test.
-	dt.StartDrand(t, dt.nodes[0].addr, false, false)
+	dt.StartDrand(t, dt.nodes[0].addr, true, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
 	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})

@@ -471,7 +471,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 // WaitForDKG waits for the DKG complete and returns the group file
 // it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
 func (d *DrandTestScenario) WaitForDKG(node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
-	err := node.dkgRunner.WaitForDKG(d.beaconID, epoch, numberOfSeconds)
+	err := node.dkgRunner.WaitForDKG(node.drand.log, d.beaconID, epoch, numberOfSeconds)
 	if err != nil {
 		return nil, err
 	}

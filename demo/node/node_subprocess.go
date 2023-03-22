@@ -44,6 +44,7 @@ type NodeProc struct {
 	// where all public certs are stored
 	certFolder   string
 	startCmd     *exec.Cmd
+	lg           log.Logger
 	logPath      string
 	privAddr     string
 	pubAddr      string
@@ -73,10 +74,13 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 	groupPath := path.Join(nbase, "group.toml")
 	proposalPath := path.Join(nbase, "proposal.toml")
 	os.Remove(logPath)
+	lg := log.New(nil, log.DefaultLevel, false).
+		Named(fmt.Sprintf("sub-proc-node-%d", i))
 	n := &NodeProc{
 		tls:          cfg.WithTLS,
 		base:         nbase,
 		i:            i,
+		lg:           lg,
 		logPath:      logPath,
 		publicPath:   publicPath,
 		groupPath:    groupPath,
@@ -90,9 +94,7 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 		pgDSN:        cfg.PgDSN(),
 		memDBSize:    cfg.MemDBSize,
 	}
-	lg := log.New(nil, log.DefaultLevel, false).
-		Named(fmt.Sprintf("sub-proc-node-%d", i))
-	n.setup(lg)
+	n.setup()
 	return n
 }
 
@@ -116,7 +118,7 @@ func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, 
 	return drand.NewDKGControlClient(conn), nil
 }
 
-func (n *NodeProc) setup(lg log.Logger) {
+func (n *NodeProc) setup() {
 	var err error
 	// find a free port
 	freePort := test.FreePort()
@@ -139,7 +141,7 @@ func (n *NodeProc) setup(lg log.Logger) {
 		}()
 	}
 
-	dkgClient, err := drandnet.NewDKGControlClientWithLogger(lg, ctrlPort)
+	dkgClient, err := drandnet.NewDKGControlClientWithLogger(n.lg, ctrlPort)
 	if err != nil {
 		panic("could not create DKG client")
 	}
@@ -162,7 +164,7 @@ func (n *NodeProc) setup(lg log.Logger) {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
-	config := core.NewConfigWithLogger(lg, core.WithConfigFolder(n.base))
+	config := core.NewConfigWithLogger(n.lg, core.WithConfigFolder(n.base))
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
@@ -376,7 +378,7 @@ func (n *NodeProc) AcceptReshare() error {
 }
 
 func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
-	err := n.dkgRunner.WaitForDKG(n.beaconID, epoch, int(timeout.Seconds()))
+	err := n.dkgRunner.WaitForDKG(n.lg, n.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
 	}
