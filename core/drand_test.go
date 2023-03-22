@@ -355,6 +355,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	beaconPeriod := 2 * time.Second
 	offline := 1
 	beaconID := test.GetBeaconIDFromEnv()
+	sleepDuration := 100*time.Millisecond
 
 	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -385,7 +386,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	for {
 		dt.AdvanceMockClock(t, beaconPeriod)
-		time.Sleep(test.SleepDuration())
+		time.Sleep(sleepDuration)
 		dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
 		if dt.clock.Now().Unix() > resharedGroup.TransitionTime {
 			break
@@ -394,7 +395,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		dt.AdvanceMockClock(t, beaconPeriod)
-		time.Sleep(test.SleepDuration())
+		time.Sleep(sleepDuration)
 	}
 
 	// test that all nodes in the new group have generated a new beacon
@@ -408,12 +409,15 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	require.NoError(t, err)
 
 	dt.AdvanceMockClock(t, beaconPeriod)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(sleepDuration)
 
 	// moving another round to make sure all nodes have time to sync in case one missed a beat
 	dt.SetMockClock(t, resharedGroup.TransitionTime)
+	time.Sleep(sleepDuration)
+
 	dt.AdvanceMockClock(t, dt.period)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(sleepDuration)
+
 	for _, n := range dt.resharedNodes[1:] {
 		// Make sure we pull the same round from the rest of the nodes as we received from the leader
 		req := &drand.PublicRandRequest{Round: resp.Round}
@@ -629,6 +633,7 @@ func TestDrandPublicStream(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
+	sleepDuration := 100*time.Millisecond
 
 	dt := NewDrandTestScenario(t, n, thr, p, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -740,7 +745,7 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 
 	dt.AdvanceMockClock(t, group.Period)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(sleepDuration)
 
 	select {
 	case resp := <-respCh:

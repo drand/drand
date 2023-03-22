@@ -122,7 +122,6 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
-	time.Sleep(test.SleepDuration())
 
 	memDBNode := newNodes[0]
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
@@ -146,7 +145,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	group, err := ts.RunDKG()
 	require.NoError(t, err)
 	ts.AdvanceMockClock(t, ts.nodes[0].daemon.opts.dkgKickoffGracePeriod)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(sleepDuration)
 
 	ts.SetMockClock(t, group.GenesisTime)
 	time.Sleep(sleepDuration)

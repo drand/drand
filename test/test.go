@@ -217,12 +217,3 @@ func GetBeaconIDFromEnv() string {
 	beaconID := os.Getenv("BEACON_ID")
 	return commonutils.GetCanonicalBeaconID(beaconID)
 }
-
-func SleepDuration() time.Duration {
-	/*if os.Getenv("CI") != "" {
-		fmt.Println("--- Sleeping on CI")
-		return time.Duration(200) * time.Millisecond
-	}*/
-	// return time.Duration(100) * time.Millisecond
-	return 0
-}
