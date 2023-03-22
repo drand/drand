@@ -180,7 +180,8 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 		return err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ = g.getTimeoutContext(ctx)
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
 	_, err = client.PartialBeacon(ctx, in, opts...)
 	return err
 }
