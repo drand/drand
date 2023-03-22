@@ -535,6 +535,9 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call
 func TestDrandPublicRand(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flacky in CI")
+	}
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second

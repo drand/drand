@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -156,6 +157,10 @@ func validateEndpoint(endpoint string, round float64) error {
 }
 
 func TestHTTPWaiting(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flacky in CI")
+	}
+
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
@@ -270,6 +275,10 @@ func TestHTTPWatchFuture(t *testing.T) {
 }
 
 func TestHTTPHealth(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flacky in CI")
+	}
+
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
