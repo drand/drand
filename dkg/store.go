@@ -6,9 +6,10 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/log"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
+
+	"github.com/drand/drand/log"
 )
 
 type boltStore struct {
@@ -45,7 +46,7 @@ func NewDKGStore(baseFolder string, options *bolt.Options) (Store, error) {
 
 	store := boltStore{
 		db:  db,
-		log: log.NewLogger(nil, log.LogDebug),
+		log: log.New(nil, log.DebugLevel, true),
 	}
 
 	return &store, nil

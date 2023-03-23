@@ -8,8 +8,8 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test/testlogger"
 	"github.com/drand/kyber/share"
 )
 
@@ -64,7 +64,7 @@ func TestCacheRound(t *testing.T) {
 }
 
 func TestCachePartial(t *testing.T) {
-	l := log.DefaultLogger()
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	cache := newPartialCache(l, sch)

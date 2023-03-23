@@ -71,10 +71,8 @@ type BeaconHandler struct {
 }
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, version string, logger log.Logger) (*DrandHandler, error) {
-	if logger == nil {
-		logger = log.DefaultLogger()
-	}
+func New(ctx context.Context, version string) (*DrandHandler, error) {
+	logger := log.FromContextOrDefault(ctx)
 
 	handler := &DrandHandler{
 		timeout: reqTimeout,

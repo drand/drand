@@ -6,13 +6,16 @@ import (
 	"errors"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 )
 
-func generateJoiningProposal(beaconID string, joining []string) (string, error) {
-	return generateProposal(beaconID, joining, []string{}, []string{})
+func generateJoiningProposal(l log.Logger, beaconID string, joining []string) (string, error) {
+	return generateProposal(l, beaconID, joining, []string{}, []string{})
 }
-func generateProposal(beaconID string, joining, remaining, leaving []string) (string, error) {
+
+func generateProposal(l log.Logger, beaconID string, joining, remaining, leaving []string) (string, error) {
 	if len(joining) == 0 && len(remaining) == 0 && len(leaving) == 0 {
 		return "", errors.New("you must fill at least one of the ")
 	}
@@ -20,7 +23,7 @@ func generateProposal(beaconID string, joining, remaining, leaving []string) (st
 	extractParticipants := func(addrs []string) ([]*TomlParticipant, error) {
 		var participants []*TomlParticipant
 		for _, addr := range addrs {
-			client, err := net.NewControlClient(addr)
+			client, err := net.NewControlClientWithLogger(l, addr)
 			if err != nil {
 				return nil, err
 			}

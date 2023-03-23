@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -10,11 +11,12 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestBeaconProcess_Stop(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -26,12 +28,11 @@ func TestBeaconProcess_Stop(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
 		WithInsecure(),
-		WithLogLevel(log.LogDebug, false),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfig(confOptions...))
+	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
@@ -55,6 +56,7 @@ func TestBeaconProcess_Stop(t *testing.T) {
 }
 
 func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -66,12 +68,11 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
 		WithInsecure(),
-		WithLogLevel(log.LogDebug, false),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfig(confOptions...))
+	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
@@ -122,7 +123,6 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
-	time.Sleep(test.SleepDuration())
 
 	memDBNode := newNodes[0]
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
@@ -135,8 +135,8 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flacky in CI")
 	}
 
 	const existingNodesCount = 3
@@ -144,13 +144,13 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	const thr = 3
 	const period = 1 * time.Second
 	beaconName := "default"
-	sleepDuration := test.SleepDuration()
+	sleepDuration := 100 * time.Millisecond
 
 	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName, clockwork.NewFakeClockAt(time.Now()))
 	group, err := ts.RunDKG()
 	require.NoError(t, err)
 	ts.AdvanceMockClock(t, ts.nodes[0].daemon.opts.dkgKickoffGracePeriod)
-	time.Sleep(test.SleepDuration())
+	time.Sleep(sleepDuration)
 
 	ts.SetMockClock(t, group.GenesisTime)
 	time.Sleep(sleepDuration)

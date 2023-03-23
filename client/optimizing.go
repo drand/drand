@@ -65,6 +65,7 @@ type optimizingClient struct {
 // Additionally, calls to Get are given a timeout of 5 seconds (by default) to
 // ensure no unbounded blocking occurs.
 func newOptimizingClient(
+	l log.Logger,
 	clients []Client,
 	requestTimeout time.Duration,
 	requestConcurrency int,
@@ -99,7 +100,7 @@ func newOptimizingClient(
 		requestConcurrency: requestConcurrency,
 		speedTestInterval:  speedTestInterval,
 		watchRetryInterval: watchRetryInterval,
-		log:                log.DefaultLogger(),
+		log:                l,
 		done:               done,
 	}
 	return oc, nil

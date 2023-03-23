@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -59,17 +60,19 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	certs *CertManager,
 	s Service,
 	insecure bool, opts ...grpc.DialOption) (*PrivateGateway, error) {
+	lg := log.FromContextOrDefault(ctx)
+
 	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}
 	pg := &PrivateGateway{Listener: l}
 	if !insecure {
-		pg.ProtocolClient = NewGrpcClientFromCertManager(certs, opts...)
-		pg.DKGClient = NewGrpcClientFromCertManager(certs, opts...)
+		pg.ProtocolClient = NewGrpcClientFromCertManagerWithLogger(lg, certs, opts...)
+		pg.DKGClient = NewGrpcClientFromCertManagerWithLogger(lg, certs, opts...)
 	} else {
-		pg.ProtocolClient = NewGrpcClient(opts...)
-		pg.DKGClient = NewGrpcClient(opts...)
+		pg.ProtocolClient = NewGrpcClientWithLogger(lg, opts...)
+		pg.DKGClient = NewGrpcClientWithLogger(lg, opts...)
 	}
 	// duplication since client implements both...
 	// XXX Find a better fix

@@ -29,8 +29,10 @@ import (
 	dkg2 "github.com/drand/drand/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
@@ -44,7 +46,8 @@ func TestMigrate(t *testing.T) {
 	app := CLI()
 	require.NoError(t, app.Run(args))
 
-	config := core.NewConfig(core.WithConfigFolder(tmp))
+	l := testlogger.New(t)
+	config := core.NewConfigWithLogger(l, core.WithConfigFolder(tmp))
 	defaultBeaconPath := path.Join(config.ConfigFolderMB(), common.DefaultBeaconID)
 
 	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
@@ -85,7 +88,7 @@ func TestDeleteBeaconError(t *testing.T) {
 
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -95,7 +98,7 @@ func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(t.TempDir(), "drand")
 
 	opt := core.WithConfigFolder(tmp)
-	conf := core.NewConfig(opt)
+	conf := core.NewConfigWithLogger(l, opt)
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
 	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
@@ -157,6 +160,7 @@ func TestKeySelfSignError(t *testing.T) {
 
 func TestKeySelfSign(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
+	l := testlogger.New(t)
 
 	tmp := path.Join(t.TempDir(), "drand")
 
@@ -169,7 +173,7 @@ func TestKeySelfSign(t *testing.T) {
 	testCommand(t, selfSign, expectedOutput)
 
 	// load, remove signature and save
-	config := core.NewConfig(core.WithConfigFolder(tmp))
+	config := core.NewConfigWithLogger(l, core.WithConfigFolder(tmp))
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	pair, err := fileStore.LoadKeyPair(nil)
@@ -193,13 +197,14 @@ func TestKeyGenError(t *testing.T) {
 
 func TestKeyGen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
+	l := testlogger.New(t)
 
 	tmp := path.Join(t.TempDir(), "drand")
 	sch, _ := crypto.GetSchemeFromEnv()
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "--scheme", sch.Name, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
 
-	config := core.NewConfig(core.WithConfigFolder(tmp))
+	config := core.NewConfigWithLogger(l, core.WithConfigFolder(tmp))
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err := fileStore.LoadKeyPair(nil)
 	require.NoError(t, err)
@@ -210,7 +215,7 @@ func TestKeyGen(t *testing.T) {
 	args = []string{"drand", "generate-keypair", "--folder", tmp2, "--id", beaconID, "--scheme", sch.Name}
 	require.Error(t, CLI().Run(args))
 
-	config = core.NewConfig(core.WithConfigFolder(tmp2))
+	config = core.NewConfigWithLogger(l, core.WithConfigFolder(tmp2))
 	fileStore = key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err = fileStore.LoadKeyPair(nil)
 	require.Error(t, err)
@@ -341,6 +346,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 //nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -358,7 +364,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
-	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	config := core.NewConfigWithLogger(lg, core.WithConfigFolder(tmpPath))
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	require.NoError(t, fileStore.SaveKeyPair(priv))
 
@@ -493,6 +499,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
+	lg := testlogger.New(t)
 
 	testPing(t, ctrlPort)
 	testStatus(t, ctrlPort, beaconID)
@@ -501,7 +508,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group.TOML()))
 
 	t.Log("Running CHAIN-INFO command")
-	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
+	chainInfo, err := json.MarshalIndent(chain.NewChainInfoWithLogger(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", address}
@@ -509,16 +516,16 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 
 	t.Log("Running CHAIN-INFO --HASH command")
 	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", address}
-	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfoWithLogger(lg, group).Hash())
 	testCommand(t, chainInfoCmdHash, expectedOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
-	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
+	buffCi, err := json.MarshalIndent(chain.NewChainInfoWithLogger(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
 	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort}
-	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfoWithLogger(lg, group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
@@ -603,6 +610,7 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 //nolint:funlen //This is a test
 func TestClientTLS(t *testing.T) {
 	t.Skip("The test fails because the logic for generating the group has changed")
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -624,7 +632,7 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
-	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	config := core.NewConfigWithLogger(lg, core.WithConfigFolder(tmpPath))
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	err = fileStore.SaveKeyPair(priv)
 	require.NoError(t, err)
@@ -697,11 +705,12 @@ func TestClientTLS(t *testing.T) {
 //nolint:unused // This is used but the test it belongs is currently skipped
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
+	lg := testlogger.New(t)
 
 	var err error
 
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
-	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
+	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfoWithLogger(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)
 	testCommand(t, chainInfoCmd, expectedOutput)
@@ -764,6 +773,7 @@ func TestDrandListSchemes(t *testing.T) {
 }
 
 func TestDrandReloadBeacon(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -773,7 +783,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 
 	for i, inst := range instances {
 		if i == 0 {
-			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
 		} else {
 			inst.join(t, beaconID)
 		}
@@ -826,6 +836,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 }
 
 func TestDrandLoadNotPresentBeacon(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -835,7 +846,7 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 
 	for i, inst := range instances {
 		if i == 0 {
-			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
 		} else {
 			inst.join(t, beaconID)
 		}
@@ -933,6 +944,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 }
 
 func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -942,7 +954,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 
 	for i, inst := range instances {
 		if i == 0 {
-			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
 		} else {
 			inst.join(t, beaconID)
 		}
@@ -1002,6 +1014,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 }
 
 func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -1011,7 +1024,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 
 	for i, inst := range instances {
 		if i == 0 {
-			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
 		} else {
 			inst.join(t, beaconID)
 		}
@@ -1118,6 +1131,7 @@ func (d *drandInstance) stop(beaconID string) error {
 
 func (d *drandInstance) startInitialDKG(
 	t *testing.T,
+	l log.Logger,
 	instances []*drandInstance,
 	threshold,
 	//nolint:unparam // This is a parameter
@@ -1132,7 +1146,7 @@ func (d *drandInstance) startInitialDKG(
 		addrs[i] = v.ctrlPort
 	}
 
-	proposal, err := generateJoiningProposal("default", addrs)
+	proposal, err := generateJoiningProposal(l, "default", addrs)
 	require.NoError(t, err)
 
 	proposalPath := filepath.Join(t.TempDir(), "proposal.toml")
@@ -1290,6 +1304,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 	certsDir := path.Join(tmpPath, "certs")
 	require.NoError(t, os.Mkdir(certsDir, 0o740))
+	l := testlogger.New(t)
 
 	ins := make([]*drandInstance, 0, n)
 	for i := 1; i <= n; i++ {
@@ -1310,7 +1325,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 		priv, err := key.NewTLSKeyPair(addr, nil)
 		require.NoError(t, err)
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
-		config := core.NewConfig(core.WithConfigFolder(nodePath))
+		config := core.NewConfigWithLogger(l, core.WithConfigFolder(nodePath))
 		fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 		err = fileStore.SaveKeyPair(priv)
 		require.NoError(t, err)
@@ -1351,6 +1366,7 @@ func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) [
 
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -1379,7 +1395,7 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	for i, inst := range instances {
 		inst := inst
 		if i == 0 {
-			inst.startInitialDKG(t, instances, 3, period, beaconID, sch)
+			inst.startInitialDKG(t, l, instances, 3, period, beaconID, sch)
 			// Wait a bit after launching the leader to launch the other nodes too.
 			time.Sleep(500 * time.Millisecond)
 		} else {
@@ -1404,7 +1420,7 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 		}
 	}()
 
-	memDBClient, err := net.NewControlClient(memDBNode.ctrlPort)
+	memDBClient, err := net.NewControlClientWithLogger(l, memDBNode.ctrlPort)
 	require.NoError(t, err)
 
 	chainInfo, err := memDBClient.ChainInfo(beaconID)

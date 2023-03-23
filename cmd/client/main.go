@@ -71,6 +71,8 @@ var clientMetricsIDFlag = &cli.StringFlag{
 func main() {
 	version := common.GetAppVersion()
 
+	lg := log.New(nil, log.DefaultLevel, false)
+
 	app := cli.NewApp()
 	app.Name = "drand-client"
 	app.Version = version.String()
@@ -80,7 +82,22 @@ func main() {
 		watchFlag, roundFlag,
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
 		clientMetricsPushIntervalFlag, verboseFlag)
-	app.Action = Client
+	app.Action = func(c *cli.Context) error {
+		var level int
+		if c.Bool(verboseFlag.Name) {
+			level = log.DebugLevel
+		} else {
+			level = log.InfoLevel
+		}
+
+		log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
+		if level != log.DefaultLevel {
+			lg = log.New(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
+		}
+		c.Context = log.ToContext(c.Context, lg)
+
+		return Client(c)
+	}
 
 	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
 	app.EnableBashCompletion = true
@@ -98,14 +115,7 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	var level int
-	if c.Bool(verboseFlag.Name) {
-		level = log.LogDebug
-	} else {
-		level = log.LogInfo
-	}
-
-	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
+	lg := log.FromContextOrDefault(c.Context)
 
 	var opts []client.Option
 
@@ -117,7 +127,7 @@ func Client(c *cli.Context) error {
 		metricsAddr := c.String(clientMetricsAddressFlag.Name)
 		metricsGateway := c.String(clientMetricsGatewayFlag.Name)
 		metricsPushInterval := c.Int64(clientMetricsPushIntervalFlag.Name)
-		bridge := newPrometheusBridge(metricsAddr, metricsGateway, metricsPushInterval)
+		bridge := newPrometheusBridge(lg, metricsAddr, metricsGateway, metricsPushInterval)
 		bridgeWithID := client.WithPrometheus(prometheus.WrapRegistererWith(
 			prometheus.Labels{"client_id": clientID},
 			bridge))
@@ -154,11 +164,12 @@ func Watch(inst client.Watcher) error {
 	return nil
 }
 
-func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometheus.Registerer {
+func newPrometheusBridge(l log.Logger, address, gateway string, pushIntervalSec int64) prometheus.Registerer {
 	b := &prometheusBridge{
 		address:         address,
 		pushIntervalSec: pushIntervalSec,
 		Registry:        prometheus.NewRegistry(),
+		log:             l,
 	}
 	if gateway != "" {
 		b.pusher = push.New(gateway, "drand_client_observations_push").Gatherer(b.Registry)
@@ -174,7 +185,7 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 
 			//nolint
 			err := http.ListenAndServe(address, nil)
-			log.DefaultLogger().Fatalw("", "client", err)
+			l.Fatalw("", "client", err)
 		}()
 	}
 	return b
@@ -185,13 +196,14 @@ type prometheusBridge struct {
 	address         string
 	pushIntervalSec int64
 	pusher          *push.Pusher
+	log             log.Logger
 }
 
 func (b *prometheusBridge) pushLoop() {
 	for {
 		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
 		if err := b.pusher.Push(); err != nil {
-			log.DefaultLogger().Infow("", "client_metrics", "prometheus gateway push (%v)", err)
+			b.log.Infow("", "client_metrics", "prometheus gateway push (%v)", err)
 		}
 	}
 }
