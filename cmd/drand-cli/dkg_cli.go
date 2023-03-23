@@ -10,17 +10,20 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/drand/drand/log"
 	common2 "github.com/drand/drand/protobuf/common"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/dkg"
 
+	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/urfave/cli/v2"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var dkgCommand = &cli.Command{
@@ -41,7 +44,11 @@ var dkgCommand = &cli.Command{
 				dkgTimeoutFlag,
 				transitionTimeFlag,
 			),
-			Action: makeProposal,
+			Action: func(c *cli.Context) error {
+				l := log.New(nil, logLevel(c), logJSON(c)).
+					Named("dkgPropose")
+				return makeProposal(c, l)
+			},
 		},
 		{
 			Name: "join",
@@ -103,7 +110,11 @@ var dkgCommand = &cli.Command{
 				beaconIDFlag,
 				leaverFlag,
 			),
-			Action: generateProposalCmd,
+			Action: func(c *cli.Context) error {
+				l := log.New(nil, logLevel(c), logJSON(c)).
+					Named("dkgGenerateProposal")
+				return generateProposalCmd(c, l)
+			},
 		},
 	},
 }
@@ -147,9 +158,9 @@ var dkgTimeoutFlag = &cli.StringFlag{
 	Value: "24h",
 }
 
-func makeProposal(c *cli.Context) error {
+func makeProposal(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
-	client, err := net.NewDKGControlClient(controlPort)
+	client, err := net.NewDKGControlClientWithLogger(l, controlPort)
 	if err != nil {
 		return err
 	}
@@ -160,12 +171,12 @@ func makeProposal(c *cli.Context) error {
 			return err
 		}
 
-		_, err = client.StartNetwork(context.Background(), proposal)
+		_, err = client.StartNetwork(c.Context, proposal)
 		if err != nil {
 			return err
 		}
 	} else {
-		proposal, err := parseProposal(c)
+		proposal, err := parseProposal(c, l)
 		if err != nil {
 			return err
 		}
@@ -248,7 +259,7 @@ func validateInitialProposal(proposalFile *ProposalFile) error {
 	return nil
 }
 
-func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
+func parseProposal(c *cli.Context, l log.Logger) (*drand.ProposalOptions, error) {
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	bannedFlags := []*cli.StringFlag{periodFlag, schemeFlag}
 	for _, flag := range bannedFlags {
@@ -299,7 +310,7 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		ctrlPort = core.DefaultControlPort
 	}
 
-	ctrlClient, err := net.NewControlClient(ctrlPort)
+	ctrlClient, err := net.NewControlClientWithLogger(l, ctrlPort)
 	if err != nil {
 		return nil, err
 	}
@@ -325,6 +336,7 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 }
 
 func joinNetwork(c *cli.Context) error {
+	l := log.FromContextOrDefault(c.Context)
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 
@@ -337,7 +349,7 @@ func joinNetwork(c *cli.Context) error {
 		groupFile = fileContents
 	}
 
-	client, err := net.NewDKGControlClient(controlPort)
+	client, err := net.NewDKGControlClientWithLogger(l, controlPort)
 	if err != nil {
 		return err
 	}
@@ -402,10 +414,11 @@ func abortDKG(c *cli.Context) error {
 }
 
 func runSimpleAction(c *cli.Context, action func(beaconID string, client drand.DKGControlClient) error) error {
+	l := log.FromContextOrDefault(c.Context)
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 
-	client, err := net.NewDKGControlClient(controlPort)
+	client, err := net.NewDKGControlClientWithLogger(l, controlPort)
 	if err != nil {
 		return err
 	}
@@ -413,6 +426,7 @@ func runSimpleAction(c *cli.Context, action func(beaconID string, client drand.D
 }
 
 func viewStatus(c *cli.Context) error {
+	l := log.FromContextOrDefault(c.Context)
 	var beaconID string
 	if c.IsSet(beaconIDFlag.Name) {
 		beaconID = c.String(beaconIDFlag.Name)
@@ -427,7 +441,7 @@ func viewStatus(c *cli.Context) error {
 		controlPort = core.DefaultControlPort
 	}
 
-	client, err := net.NewDKGControlClient(controlPort)
+	client, err := net.NewDKGControlClientWithLogger(l, controlPort)
 	if err != nil {
 		return err
 	}
@@ -539,7 +553,7 @@ func prettyPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 	}
 }
 
-func generateProposalCmd(c *cli.Context) error {
+func generateProposalCmd(c *cli.Context, l log.Logger) error {
 	if !c.IsSet(joinerFlag.Name) && !c.IsSet(remainerFlag.Name) {
 		return errors.New("you must add joiners and/or remainers to the proposal")
 	}
@@ -566,7 +580,7 @@ func generateProposalCmd(c *cli.Context) error {
 		} else {
 			peer = net.CreatePeer(path, tls)
 		}
-		client := net.NewGrpcClient()
+		client := net.NewGrpcClientWithLogger(l)
 		identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
 		if err != nil {
 			return nil, err

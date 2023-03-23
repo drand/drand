@@ -32,7 +32,15 @@ const httpWaitInterval = 2 * time.Second
 const maxTimeoutHTTPRequest = 5 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
+//
+// Deprecated: Use NewWithLogger
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
+	l := log.DefaultLogger()
+	return NewWithLogger(l, url, chainHash, transport)
+}
+
+// NewWithLogger creates a new client pointing to an HTTP endpoint
+func NewWithLogger(l log.Logger, url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
@@ -47,7 +55,7 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 	c := &httpClient{
 		root:   url,
 		client: instrumentClient(url, transport),
-		l:      log.DefaultLogger(),
+		l:      l,
 		Agent:  agent,
 		done:   make(chan struct{}),
 	}
@@ -65,7 +73,15 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 }
 
 // NewWithInfo constructs an http client when the group parameters are already known.
+//
+// Deprecated: Use NewWithLoggerAndInfo
 func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
+	l := log.DefaultLogger()
+	return NewWithLoggerAndInfo(l, url, info, transport)
+}
+
+// NewWithLoggerAndInfo constructs an http client when the group parameters are already known.
+func NewWithLoggerAndInfo(l log.Logger, url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
@@ -82,7 +98,7 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 		root:      url,
 		chainInfo: info,
 		client:    instrumentClient(url, transport),
-		l:         log.DefaultLogger(),
+		l:         l,
 		Agent:     agent,
 		done:      make(chan struct{}),
 	}
@@ -90,13 +106,21 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 }
 
 // ForURLs provides a shortcut for creating a set of HTTP clients for a set of URLs.
+//
+// Deprecated: Use ForURLsWithLogger
 func ForURLs(urls []string, chainHash []byte) []client.Client {
+	l := log.DefaultLogger()
+	return ForURLsWithLogger(l, urls, chainHash)
+}
+
+// ForURLsWithLogger provides a shortcut for creating a set of HTTP clients for a set of URLs.
+func ForURLsWithLogger(l log.Logger, urls []string, chainHash []byte) []client.Client {
 	clients := make([]client.Client, 0)
 	var info *chain.Info
 	var skipped []string
 	for _, u := range urls {
 		if info == nil {
-			if c, err := New(u, chainHash, nil); err == nil {
+			if c, err := NewWithLogger(l, u, chainHash, nil); err == nil {
 				// Note: this wrapper assumes the current behavior that if `New` succeeds,
 				// Info will have been fetched.
 				info, _ = c.Info(context.Background())
@@ -105,14 +129,14 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 				skipped = append(skipped, u)
 			}
 		} else {
-			if c, err := NewWithInfo(u, info, nil); err == nil {
+			if c, err := NewWithLoggerAndInfo(l, u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
 		}
 	}
 	if info != nil {
 		for _, u := range skipped {
-			if c, err := NewWithInfo(u, info, nil); err == nil {
+			if c, err := NewWithLoggerAndInfo(l, u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
 		}

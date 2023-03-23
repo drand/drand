@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestCacheGet(t *testing.T) {
@@ -14,7 +15,7 @@ func TestCacheGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClient(m, cache)
+	c, err := NewCachingClientWithLogger(testlogger.New(t), m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestCacheGetLatest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClient(m, cache)
+	c, err := NewCachingClientWithLogger(testlogger.New(t), m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +83,9 @@ func TestCacheWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cache, _ := NewCachingClient(m, arcCache)
-	c := newWatchAggregator(cache, nil, false, 0)
+	lg := testlogger.New(t)
+	cache, _ := NewCachingClientWithLogger(lg, m, arcCache)
+	c := newWatchAggregator(lg, cache, nil, false, 0)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
@@ -118,7 +120,7 @@ func TestCacheClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ca, err := NewCachingClient(c, cache)
+	ca, err := NewCachingClientWithLogger(testlogger.New(t), c, cache)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	testnet "github.com/drand/drand/test/net"
+	"github.com/drand/drand/test/testlogger"
 )
 
 const runtimeGOOSWindows = "windows"
@@ -22,25 +23,27 @@ func testable() bool {
 	}
 	return true
 }
+
 func TestControlUnix(t *testing.T) {
 	if !testable() {
 		t.Skip("Platform does not support unix.")
 	}
 
+	lg := testlogger.New(t)
 	name := t.TempDir()
 	s := testnet.EmptyServer{}
-	service, err := NewGRPCListener(&s, "unix://"+name+"/sock")
+	service, err := NewGRPCListenerWithLogger(lg, &s, "unix://"+name+"/sock")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client, err := NewControlClient("unix://" + name + "/sock")
+	client, err := NewControlClientWithLogger(lg, "unix://"+name+"/sock")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	client.conn.Close()
 	service.lis.Close()
+	client.conn.Close()
 }

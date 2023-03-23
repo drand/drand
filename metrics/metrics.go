@@ -258,14 +258,14 @@ var (
 	metricsBound sync.Once
 )
 
-func bindMetrics() {
+func bindMetrics(l log.Logger) {
 	// The private go-level metrics live in private.
 	if err := PrivateMetrics.Register(collectors.NewGoCollector()); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "goCollector", "err", err)
+		l.Errorw("error in bindMetrics", "metrics", "goCollector", "err", err)
 		return
 	}
 	if err := PrivateMetrics.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "processCollector", "err", err)
+		l.Errorw("error in bindMetrics", "metrics", "processCollector", "err", err)
 		return
 	}
 
@@ -292,11 +292,11 @@ func bindMetrics() {
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
-			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 	}
@@ -309,22 +309,22 @@ func bindMetrics() {
 	}
 	for _, c := range httpMetrics {
 		if err := HTTPMetrics.Register(c); err != nil {
-			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 	}
 
 	// Client metrics
 	if err := RegisterClientMetrics(ClientMetrics); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 	if err := RegisterClientMetrics(PrivateMetrics); err != nil {
-		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		l.Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 }
@@ -355,17 +355,27 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 type Handler func(addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
+//
+// Deprecated: Use StartWithLogger
 func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.Listener {
-	log.DefaultLogger().Debugw("", "metrics", "starting listener", "at", metricsBind)
+	l := log.DefaultLogger()
+	return StartWithLogger(l, metricsBind, pprof, groupHandlers)
+}
 
-	metricsBound.Do(bindMetrics)
+// StartWithLogger starts a prometheus metrics server with debug endpoints.
+func StartWithLogger(logger log.Logger, metricsBind string, pprof http.Handler, groupHandlers []Handler) net.Listener {
+	logger.Debugw("", "metrics", "starting listener", "at", metricsBind)
+
+	metricsBound.Do(func() {
+		bindMetrics(logger)
+	})
 
 	if !strings.Contains(metricsBind, ":") {
 		metricsBind = "localhost:" + metricsBind
 	}
 	l, err := net.Listen("tcp", metricsBind)
 	if err != nil {
-		log.DefaultLogger().Warnw("", "metrics", "listen failed", "err", err)
+		logger.Warnw("", "metrics", "listen failed", "err", err)
 		return nil
 	}
 	s := http.Server{Addr: l.Addr().String(), ReadHeaderTimeout: 3 * time.Second}
@@ -373,7 +383,7 @@ func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
 	if groupHandlers != nil {
-		mux.Handle("/peer/", newLazyPeerHandler(groupHandlers))
+		mux.Handle("/peer/", newLazyPeerHandler(logger, groupHandlers))
 	}
 
 	if pprof != nil {
@@ -386,15 +396,17 @@ func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.
 	})
 	s.Handler = mux
 	go func() {
-		log.DefaultLogger().Warnw("", "metrics", "listen finished", "err", s.Serve(l))
+		logger.Warnw("", "metrics", "listen finished", "err", s.Serve(l))
 	}()
 	return l
 }
 
-// GroupHandler provides metrics shared to other group members
+// GroupHandlerWithLogger provides metrics shared to other group members
 // This HTTP handler, which would typically be mounted at `/metrics` exposes `GroupMetrics`
-func GroupHandler() http.Handler {
-	metricsBound.Do(bindMetrics)
+func GroupHandlerWithLogger(logger log.Logger) http.Handler {
+	metricsBound.Do(func() {
+		bindMetrics(logger)
+	})
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
 }
 
@@ -402,6 +414,7 @@ func GroupHandler() http.Handler {
 // to until an http request is received for a specific peer. It handles all peers that
 // this node is connected to regardless of which group they are a part of.
 type lazyPeerHandler struct {
+	log             log.Logger
 	metricsHandlers []Handler
 	// handlerCache is a cache of peer address -> handler
 	// TODO Do we need to evict from cache at some point? The only case when it should be
@@ -410,10 +423,11 @@ type lazyPeerHandler struct {
 }
 
 // newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
-func newLazyPeerHandler(metricsHandlers []Handler) *lazyPeerHandler {
+func newLazyPeerHandler(logger log.Logger, metricsHandlers []Handler) *lazyPeerHandler {
 	return &lazyPeerHandler{
-		metricsHandlers,
-		sync.Map{},
+		log:             logger,
+		metricsHandlers: metricsHandlers,
+		handlerCache:    sync.Map{},
 	}
 }
 
@@ -466,12 +480,12 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if errors.Is(err, common.ErrPeerNotFound) {
-			log.DefaultLogger().Warnw("", "metrics", "peer not found", "addr", addr)
+			l.log.Warnw("", "metrics", "peer not found", "addr", addr)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		log.DefaultLogger().Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
+		l.log.Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

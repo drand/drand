@@ -21,20 +21,21 @@ import (
 	dhttp "github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestGRPCClientTestFunc(t *testing.T) {
+	lg := testlogger.New(t)
 	// start mock drand node
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
 	clk := clock.NewFakeClockAt(time.Now())
 
-	grpcLis, svc := mock.NewMockGRPCPublicServer(t, "127.0.0.1:0", false, sch, clk)
+	grpcLis, svc := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", false, sch, clk)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -49,7 +50,7 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	require.NoError(t, err)
 
 	// start mock relay-node
-	grpcClient, err := grpc.New(grpcAddr, "", true, []byte(""))
+	grpcClient, err := grpc.NewWithLogger(lg, grpcAddr, "", true, []byte(""))
 	require.NoError(t, err)
 
 	cfg := &lp2p.GossipRelayConfig{
@@ -60,8 +61,9 @@ func TestGRPCClientTestFunc(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       grpcClient,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
+	g, err := lp2p.NewGossipRelayNode(lg, cfg)
 	require.NoError(t, err, "gossip relay node")
+
 	defer g.Shutdown()
 
 	// start client
@@ -118,6 +120,7 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClientTestFunc(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
@@ -129,7 +132,7 @@ func TestHTTPClientTestFunc(t *testing.T) {
 	dataDir := t.TempDir()
 	identityDir := t.TempDir()
 
-	httpClient, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := dhttp.NewWithLogger(lg, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +144,7 @@ func TestHTTPClientTestFunc(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       httpClient,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
+	g, err := lp2p.NewGossipRelayNode(lg, cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -183,7 +186,8 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger())
+	lg := testlogger.New(t)
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), lg)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +196,7 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
-		log.DefaultLogger(),
+		lg,
 	)
 	if err != nil {
 		return nil, err
@@ -205,11 +209,11 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewWithPubsubWithOptions(ps, info, nil, clk, 100)
+	c, err := NewWithPubsubWithOptions(lg, ps, info, nil, clk, 100)
 	if err != nil {
 		return nil, err
 	}
-	c.SetLog(log.DefaultLogger())
+	c.SetLog(lg)
 	return c, nil
 }
 

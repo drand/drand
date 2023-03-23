@@ -26,8 +26,8 @@ type beaconIDsStatuses struct {
 	Beacons map[string]*control.StatusResponse `json:"beacons"`
 }
 
-func loadCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func loadCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func loadCmd(c *cli.Context) error {
 	return nil
 }
 
-func remoteStatusCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func remoteStatusCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -98,8 +98,8 @@ func remoteStatusCmd(c *cli.Context) error {
 	return nil
 }
 
-func pingpongCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func pingpongCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -110,9 +110,9 @@ func pingpongCmd(c *cli.Context) error {
 	return nil
 }
 
-func remotePingToNode(addr string, tls bool) error {
+func remotePingToNode(l log.Logger, addr string, tls bool) error {
 	peer := net.CreatePeer(addr, tls)
-	client := net.NewGrpcClient()
+	client := net.NewGrpcClientWithLogger(l)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -126,8 +126,8 @@ func remotePingToNode(addr string, tls bool) error {
 }
 
 //nolint:gocyclo
-func statusCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func statusCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -192,8 +192,8 @@ func statusCmd(c *cli.Context) error {
 	return nil
 }
 
-func migrateCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
+func migrateCmd(c *cli.Context, l log.Logger) error {
+	conf := contextToConfig(c, l)
 
 	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
 		return fmt.Errorf("cannot migrate folder structure, please try again. err: %w", err)
@@ -203,8 +203,8 @@ func migrateCmd(c *cli.Context) error {
 	return nil
 }
 
-func schemesCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func schemesCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -224,8 +224,8 @@ func schemesCmd(c *cli.Context) error {
 	return nil
 }
 
-func showGroupCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func showGroupCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -244,8 +244,8 @@ func showGroupCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func showChainInfo(c *cli.Context) error {
-	client, err := controlClient(c)
+func showChainInfo(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -264,8 +264,8 @@ func showChainInfo(c *cli.Context) error {
 	return printChainInfo(c, ci)
 }
 
-func showPublicCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func showPublicCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -279,8 +279,8 @@ func showPublicCmd(c *cli.Context) error {
 	return printJSON(c.App.Writer, resp)
 }
 
-func backupDBCmd(c *cli.Context) error {
-	client, err := controlClient(c)
+func backupDBCmd(c *cli.Context, l log.Logger) error {
+	client, err := controlClient(c, l)
 	if err != nil {
 		return err
 	}
@@ -303,9 +303,9 @@ func controlPort(c *cli.Context) string {
 	return port
 }
 
-func controlClient(c *cli.Context) (*net.ControlClient, error) {
+func controlClient(c *cli.Context, l log.Logger) (*net.ControlClient, error) {
 	port := controlPort(c)
-	client, err := net.NewControlClient(port)
+	client, err := net.NewControlClientWithLogger(l, port)
 	if err != nil {
 		return nil, fmt.Errorf("can't instantiate control client: %w", err)
 	}
@@ -321,8 +321,8 @@ func printJSON(w io.Writer, j interface{}) error {
 	return nil
 }
 
-func selfSign(c *cli.Context) error {
-	conf := contextToConfig(c)
+func selfSign(c *cli.Context, l log.Logger) error {
+	conf := contextToConfig(c, l)
 
 	beaconID := getBeaconID(c)
 
@@ -352,10 +352,10 @@ func selfSign(c *cli.Context) error {
 const refreshRate = 500 * time.Millisecond
 
 //nolint:funlen
-func checkCmd(c *cli.Context) error {
-	defer log.DefaultLogger().Infow("Finished sync")
+func checkCmd(c *cli.Context, l log.Logger) error {
+	defer l.Infow("Finished sync")
 
-	ctrlClient, err := controlClient(c)
+	ctrlClient, err := controlClient(c, l)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
 	}
@@ -371,7 +371,7 @@ func checkCmd(c *cli.Context) error {
 		c.String(beaconIDFlag.Name))
 
 	if err != nil {
-		log.DefaultLogger().Errorw("Error checking chain", "err", err)
+		l.Errorw("Error checking chain", "err", err)
 		return fmt.Errorf("error asking to check chain up to %d: %w", c.Int(upToFlag.Name), err)
 	}
 
@@ -400,7 +400,7 @@ func checkCmd(c *cli.Context) error {
 				if success {
 					// we need an empty line to not clash with the spinner
 					fmt.Println()
-					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+					l.Infow("Finished correcting faulty beacons, " +
 						"we recommend running the same command a second time to confirm all beacons are now valid")
 				}
 				return nil
@@ -412,19 +412,19 @@ func checkCmd(c *cli.Context) error {
 				time.Sleep(refreshRate)
 				// we need an empty line to not clash with the spinner
 				fmt.Println()
-				log.DefaultLogger().Infow("Finished checking chain validity")
+				l.Infow("Finished checking chain validity")
 				if progress.Target > 0 {
-					log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+					l.Warnw("Faulty beacon found!", "amount", progress.Target)
 					isCorrecting = true
 				} else {
-					log.DefaultLogger().Warnw("No faulty beacon found!")
+					l.Warnw("No faulty beacon found!")
 				}
 			}
 			atomic.StoreUint64(&current, progress.Current)
 			atomic.StoreUint64(&target, progress.Target)
 		case err, ok := <-errCh:
 			if !ok {
-				log.DefaultLogger().Infow("Error channel was closed")
+				l.Infow("Error channel was closed")
 				return nil
 			}
 			// note that grpc's "error reading from server: EOF" won't trigger this so we really only catch the case
@@ -438,8 +438,8 @@ func checkCmd(c *cli.Context) error {
 					if atomic.LoadUint64(&target) > progress.Target {
 						// we need an empty line to not clash with the spinner
 						fmt.Println()
-						log.DefaultLogger().Infow("Finished checking chain validity")
-						log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+						l.Infow("Finished checking chain validity")
+						l.Warnw("Faulty beacon found!", "amount", progress.Target)
 					} else {
 						atomic.StoreUint64(&current, progress.Current)
 						// let the spinner time to refresh again
@@ -452,29 +452,29 @@ func checkCmd(c *cli.Context) error {
 				if success {
 					// we need an empty line to not clash with the spinner
 					fmt.Println()
-					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+					l.Infow("Finished correcting faulty beacons, " +
 						"we recommend running the same command a second time to confirm all beacons are now valid")
 				}
 
 				return nil
 			}
 
-			log.DefaultLogger().Errorw("received an error", "err", err)
+			l.Errorw("received an error", "err", err)
 			return fmt.Errorf("errror when checking the chain: %w", err)
 		}
 	}
 }
 
-func syncCmd(c *cli.Context) error {
+func syncCmd(c *cli.Context, l log.Logger) error {
 	if c.Bool(followFlag.Name) {
-		return followSync(c)
+		return followSync(c, l)
 	}
 
-	return checkCmd(c)
+	return checkCmd(c, l)
 }
 
-func followSync(c *cli.Context) error {
-	ctrlClient, err := controlClient(c)
+func followSync(c *cli.Context, l log.Logger) error {
+	ctrlClient, err := controlClient(c, l)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
 	}
@@ -523,7 +523,7 @@ func followSync(c *cli.Context) error {
 			if errors.Is(err, io.EOF) {
 				// we need a new line because of the spinner
 				fmt.Println()
-				log.DefaultLogger().Infow("Finished following beacon chain", "reached", current,
+				l.Infow("Finished following beacon chain", "reached", current,
 					"server closed stream with", err)
 				return nil
 			}

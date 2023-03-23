@@ -30,7 +30,15 @@ type grpcClient struct {
 }
 
 // New creates a drand client backed by a GRPC connection.
+//
+// Deprecated: Use NewWithLogger
 func New(address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
+	l := log.DefaultLogger()
+	return NewWithLogger(l, address, certPath, insecure, chainHash)
+}
+
+// NewWithLogger creates a drand client backed by a GRPC connection.
+func NewWithLogger(l log.Logger, address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
 	var opts []grpc.DialOption
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -52,7 +60,7 @@ func New(address, certPath string, insecure bool, chainHash []byte) (client.Clie
 		return nil, err
 	}
 
-	return &grpcClient{address, chainHash, drand.NewPublicClient(conn), conn, log.DefaultLogger()}, nil
+	return &grpcClient{address, chainHash, drand.NewPublicClient(conn), conn, l}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {

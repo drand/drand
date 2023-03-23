@@ -9,15 +9,17 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestChainInfo(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := "test_beacon"
 
 	_, g1 := test.BatchIdentities(5, sch, beaconID)
-	c1 := NewChainInfo(g1)
+	c1 := NewChainInfoWithLogger(lg, g1)
 	require.NotNil(t, c1)
 
 	h1 := c1.Hash()
@@ -31,7 +33,7 @@ func TestChainInfo(t *testing.T) {
 		ID:          beaconID,
 	}
 
-	c12 := NewChainInfo(fake)
+	c12 := NewChainInfoWithLogger(lg, fake)
 	// Note: the fake group here does not hash the same.
 	c12.GenesisSeed = c1.GenesisSeed
 	h12 := c12.Hash()
@@ -39,7 +41,7 @@ func TestChainInfo(t *testing.T) {
 	require.Equal(t, c1, c12)
 
 	_, g2 := test.BatchIdentities(5, sch, beaconID)
-	c2 := NewChainInfo(g2)
+	c2 := NewChainInfoWithLogger(lg, g2)
 	h2 := c2.Hash()
 	require.NotEqual(t, h1, h2)
 	require.NotEqual(t, c1, c2)
@@ -66,5 +68,6 @@ func TestChainInfo(t *testing.T) {
 	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
+	c1.log = nil
 	require.Equal(t, c1, c13)
 }
