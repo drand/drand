@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestHTTPClient(t *testing.T) {
@@ -28,7 +29,8 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	l := testlogger.New(t)
+	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +72,8 @@ func TestHTTPGetLatest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	l := testlogger.New(t)
+	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +110,8 @@ func TestForURLsCreation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
+	l := testlogger.New(t)
+	clients := ForURLsWithLogger(l, []string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned")
 	}
@@ -127,7 +131,8 @@ func TestHTTPWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	l := testlogger.New(t)
+	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +164,8 @@ func TestHTTPClientClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	l := testlogger.New(t)
+	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,13 +9,14 @@ import (
 
 	"github.com/drand/drand/net"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //nolint:funlen
@@ -164,7 +165,7 @@ func TestStartNetwork(t *testing.T) {
 				beaconIdentifier: &identityProvider,
 				network:          &network,
 				store:            &store,
-				log:              log.NewLogger(nil, log.LogDebug),
+				log:              log.New(nil, log.DebugLevel, true),
 				config:           Config{},
 			}
 
@@ -384,7 +385,7 @@ func TestStartProposal(t *testing.T) {
 				beaconIdentifier: &identityProvider,
 				network:          &network,
 				store:            &store,
-				log:              log.NewLogger(nil, log.LogDebug),
+				log:              log.New(nil, log.DebugLevel, true),
 				config:           Config{},
 			}
 
@@ -467,7 +468,7 @@ func TestAbort(t *testing.T) {
 				beaconIdentifier: &identityProvider,
 				network:          &network,
 				store:            &store,
-				log:              log.NewLogger(nil, log.LogDebug),
+				log:              log.New(nil, log.DebugLevel, true),
 				config:           Config{},
 			}
 

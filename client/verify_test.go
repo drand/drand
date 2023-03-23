@@ -10,9 +10,11 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/test/testlogger"
 )
 
-func mockClientWithVerifiableResults(t *testing.T, n int) (client.Client, []mock.Result) {
+func mockClientWithVerifiableResults(t *testing.T, l log.Logger, n int) (client.Client, []mock.Result) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -22,7 +24,8 @@ func mockClientWithVerifiableResults(t *testing.T, n int) (client.Client, []mock
 
 	var c client.Client
 
-	c, err = client.Wrap(
+	c, err = client.WrapWithLogger(
+		l,
 		[]client.Client{client.MockClientWithInfo(info), &mc},
 		client.WithChainInfo(info),
 		client.WithVerifiedResult(&results[0]),
@@ -42,7 +45,8 @@ func TestVerifyWithOldVerifiedResult(t *testing.T) {
 }
 
 func VerifyFuncTest(t *testing.T, clients, upTo int) {
-	c, results := mockClientWithVerifiableResults(t, clients)
+	l := testlogger.New(t)
+	c, results := mockClientWithVerifiableResults(t, l, clients)
 
 	res, err := c.Get(context.Background(), results[upTo].Round())
 	require.NoError(t, err)

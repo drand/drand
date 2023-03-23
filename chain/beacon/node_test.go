@@ -23,6 +23,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	testnet "github.com/drand/drand/test/net"
+	"github.com/drand/drand/test/testlogger"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
@@ -194,7 +195,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	keyShare := findShare(idx)
 	node.shares = keyShare
 
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	store, err := createStore(t, l, b, idx)
 	require.NoError(t, err)
 	node.clock = clock.NewFakeClockAt(b.time.Now())
@@ -205,9 +206,12 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 		Clock:  node.clock,
 	}
 
-	logger := log.NewLogger(nil, log.LogDebug).Named("BeaconTest").Named(knode.Addr).Named(fmt.Sprint(idx))
+	logger := testlogger.New(t).
+		Named("BeaconTest").
+		Named(knode.Addr).
+		Named(fmt.Sprintf("%d", idx))
 	version := common.GetAppVersion()
-	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, logger, version)
+	node.handler, err = NewHandler(net.NewGrpcClientWithLogger(l), store, conf, logger, version)
 	checkErr(err)
 
 	if node.handler.addr != node.private.Public.Address() {
@@ -240,6 +244,9 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 }
 
 func (b *BeaconTest) ServeBeacon(t *testing.T, i int) {
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+
 	j := b.searchNode(i)
 	beaconServer := &testBeaconServer{
 		h: b.nodes[j].handler,
@@ -247,7 +254,7 @@ func (b *BeaconTest) ServeBeacon(t *testing.T, i int) {
 	b.nodes[j].server = beaconServer
 	var err error
 	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(
-		context.Background(),
+		ctx,
 		b.nodes[j].private.Public.Address(),
 		"", "",
 		beaconServer,
@@ -628,7 +635,7 @@ func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T)
 }
 
 func TestSyncChainWithoutMetadata(t *testing.T) {
-	logger := log.NewLogger(nil, log.LogDebug).Named("BeaconTest")
+	logger := testlogger.New(t)
 	expectedBeaconID := "someGreatBeacon"
 
 	require.Equal(

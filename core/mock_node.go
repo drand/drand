@@ -3,9 +3,10 @@ package core
 import (
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/test"
-	clock "github.com/jonboulle/clockwork"
 )
 
 type MockNode struct {
@@ -25,7 +26,7 @@ func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProc
 	// Note: not pure
 	dr.opts.clock = c
 
-	dkgClient, err := net.NewDKGControlClient(dr.opts.controlPort)
+	dkgClient, err := net.NewDKGControlClientWithLogger(daemon.log, dr.opts.controlPort)
 	if err != nil {
 		return nil, err
 	}

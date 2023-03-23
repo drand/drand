@@ -9,8 +9,8 @@ import (
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
-	"github.com/drand/drand/test"
 	context2 "github.com/drand/drand/test/context"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestTrimmedStoreBoltOrder(t *testing.T) {
@@ -31,7 +31,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 		t.Skip("This test does not make sense from a chained beacon perspective.")
 	}
 
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	store, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {
@@ -84,7 +84,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 
 	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
-	l := test.Logger(t)
+	l := testlogger.New(t)
 
 	var sig0 = []byte{0x00, 0x01, 0x02}
 	var sig1 = []byte{0x01, 0x02, 0x03}
@@ -202,7 +202,7 @@ func TestTrimmedStore_Cursor(t *testing.T) {
 
 	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {

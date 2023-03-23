@@ -6,10 +6,11 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/log"
 )
 
-func startCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
+func startCmd(c *cli.Context, l log.Logger) error {
+	conf := contextToConfig(c, l)
 
 	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(conf)
@@ -32,8 +33,8 @@ func startCmd(c *cli.Context) error {
 	return nil
 }
 
-func stopDaemon(c *cli.Context) error {
-	ctrlClient, err := controlClient(c)
+func stopDaemon(c *cli.Context, lg log.Logger) error {
+	ctrlClient, err := controlClient(c, lg)
 	if err != nil {
 		return err
 	}

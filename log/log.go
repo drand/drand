@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"os"
 	"sync"
 
@@ -8,7 +9,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-type logger struct {
+// log is the implementation of Logger
+type log struct {
 	*zap.SugaredLogger
 }
 
@@ -33,31 +35,31 @@ type Logger interface {
 	AddCallerSkip(skip int) Logger
 }
 
-func (l *logger) AddCallerSkip(skip int) Logger {
-	return &logger{l.WithOptions(zap.AddCallerSkip(skip))}
+func (l *log) AddCallerSkip(skip int) Logger {
+	return &log{l.WithOptions(zap.AddCallerSkip(skip))}
 }
 
-func (l *logger) With(args ...interface{}) Logger {
-	return &logger{l.SugaredLogger.With(args...)}
+func (l *log) With(args ...interface{}) Logger {
+	return &log{l.SugaredLogger.With(args...)}
 }
 
-func (l *logger) Named(s string) Logger {
-	return &logger{l.SugaredLogger.Named(s)}
+func (l *log) Named(s string) Logger {
+	return &log{l.SugaredLogger.Named(s)}
 }
 
 const (
-	LogInfo  = int(zapcore.InfoLevel)
-	LogDebug = int(zapcore.DebugLevel)
-	LogError = int(zapcore.ErrorLevel)
-	LogFatal = int(zapcore.FatalLevel)
-	LogPanic = int(zapcore.PanicLevel)
-	LogWarn  = int(zapcore.WarnLevel)
+	InfoLevel  = int(zapcore.InfoLevel)
+	DebugLevel = int(zapcore.DebugLevel)
+	ErrorLevel = int(zapcore.ErrorLevel)
+	FatalLevel = int(zapcore.FatalLevel)
+	PanicLevel = int(zapcore.PanicLevel)
+	WarnLevel  = int(zapcore.WarnLevel)
 )
 
 // DefaultLevel is the default level where statements are logged. Change the
 // value of this variable before init() to change the level of the default
 // logger.
-var DefaultLevel = LogInfo
+var DefaultLevel = InfoLevel
 
 // Allows the debug logs to be printed in envs where the test logs are set to debug level.
 //
@@ -65,7 +67,7 @@ var DefaultLevel = LogInfo
 func init() {
 	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
 	if isDebug && debugEnv == "DEBUG" {
-		DefaultLevel = LogDebug
+		DefaultLevel = DebugLevel
 	}
 }
 
@@ -73,42 +75,54 @@ var isDefaultLoggerSet sync.Once
 
 // ConfigureDefaultLogger updates the default logger to wrap a provided kit logger.
 func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bool) {
+	encoder := getConsoleEncoder()
 	if jsonFormat {
-		zap.ReplaceGlobals(NewZapLogger(output, getJSONEncoder(), level))
-	} else {
-		zap.ReplaceGlobals(NewZapLogger(output, getConsoleEncoder(), level))
+		encoder = getJSONEncoder()
 	}
+	zap.ReplaceGlobals(newZapLogger(output, encoder, level))
 }
 
 // DefaultLogger is the default logger that only logs at the `DefaultLevel`.
 func DefaultLogger() Logger {
 	isDefaultLoggerSet.Do(func() {
-		zap.ReplaceGlobals(NewZapLogger(nil, getConsoleEncoder(), DefaultLevel))
+		zap.ReplaceGlobals(newZapLogger(nil, getJSONEncoder(), DefaultLevel))
 	})
 
-	return &logger{zap.S()}
+	return &log{zap.S()}
 }
 
 // NewLogger returns a logger that prints statements at the given level.
+//
+// Deprecated: Use New
 func NewLogger(output zapcore.WriteSyncer, level int) Logger {
-	l := NewZapLogger(output, getConsoleEncoder(), level)
-	return &logger{l.Sugar()}
+	l := newZapLogger(output, getConsoleEncoder(), level)
+	return &log{l.Sugar()}
 }
 
-// NewJSONLogger returns a logger that prints statements at the given level as JSON output.
-func NewJSONLogger(output zapcore.WriteSyncer, level int) Logger {
-	l := NewZapLogger(output, getJSONEncoder(), level)
-	return &logger{l.Sugar()}
+// New returns a logger that prints statements at the given level.
+func New(output zapcore.WriteSyncer, level int, isJSON bool) Logger {
+	encoder := getConsoleEncoder()
+	if isJSON {
+		encoder = getJSONEncoder()
+	}
+	l := newZapLogger(output, encoder, level)
+	return &log{l.Sugar()}
 }
 
+// NewZapLogger returns a new *zap.logger.
+//
+// Deprecated: Use New
 func NewZapLogger(output zapcore.WriteSyncer, encoder zapcore.Encoder, level int) *zap.Logger {
+	return newZapLogger(output, encoder, level)
+}
+
+func newZapLogger(output zapcore.WriteSyncer, encoder zapcore.Encoder, level int) *zap.Logger {
 	if output == nil {
 		output = os.Stdout
 	}
 
 	core := zapcore.NewCore(encoder, output, zapcore.Level(level))
 	logger := zap.New(core, zap.WithCaller(true))
-
 	return logger
 }
 
@@ -128,4 +142,24 @@ func getConsoleEncoder() zapcore.Encoder {
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+type ctxLoggerKey string
+
+const ctxLogger ctxLoggerKey = "logger"
+
+// ToContext allows setting the logger on the context
+func ToContext(ctx context.Context, l Logger) context.Context {
+	return context.WithValue(ctx, ctxLogger, l)
+}
+
+// FromContextOrDefault returns the logger from the context when set with CtxWithLogger.
+// If not found, it returns a nil value.
+func FromContextOrDefault(ctx context.Context) Logger {
+	l, ok := ctx.Value(ctxLogger).(Logger)
+	if !ok {
+		l = DefaultLogger()
+		l.Debugw("logger missing on context, using default logger")
+	}
+	return l
 }

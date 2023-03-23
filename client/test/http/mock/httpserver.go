@@ -13,8 +13,10 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/crypto"
 	dhttp "github.com/drand/drand/http"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
@@ -23,9 +25,12 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Sche
 
 	server := mock.NewMockServer(t, badSecondRound, sch, clk)
 	client := core.Proxy(server)
-	ctx, cancel := context.WithCancel(context.Background())
 
-	handler, err := dhttp.New(ctx, "", nil)
+	lg := testlogger.New(t)
+	lctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(lctx)
+
+	handler, err := dhttp.New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}

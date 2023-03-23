@@ -125,7 +125,7 @@ func (bp *BeaconProcess) Load() error {
 	}
 
 	bp.state.Lock()
-	info := chain.NewChainInfo(bp.group)
+	info := chain.NewChainInfoWithLogger(bp.log, bp.group)
 	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
@@ -261,7 +261,7 @@ func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) erro
 	defer bp.state.Unlock()
 	bp.group = group
 	bp.share = share
-	bp.chainHash = chain.NewChainInfo(bp.group).Hash()
+	bp.chainHash = chain.NewChainInfoWithLogger(bp.log, bp.group).Hash()
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {

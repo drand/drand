@@ -51,10 +51,11 @@ var metricsFlag = &cli.StringFlag{
 //
 //nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
+	cliLog := log.FromContextOrDefault(c.Context)
 	version := common.GetAppVersion()
 
 	if c.IsSet(metricsFlag.Name) {
-		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
+		metricsListener := metrics.StartWithLogger(cliLog, c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
 
 		if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics); err != nil {
@@ -67,8 +68,9 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
 	}
 
-	handler, err := dhttp.New(c.Context, fmt.Sprintf("drand/%s (%s)",
-		version, gitCommit), log.DefaultLogger().Named("relay"))
+	relayCtx := log.ToContext(c.Context, cliLog.Named("relay"))
+	handler, err := dhttp.New(relayCtx, fmt.Sprintf("drand/%s (%s)",
+		version, gitCommit))
 	if err != nil {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
@@ -101,7 +103,7 @@ func Relay(c *cli.Context) error {
 
 		subCli, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 		if err != nil {
-			log.DefaultLogger().Warnw("failed to create client", "hash", hash, "error", err)
+			cliLog.Warnw("failed to create client", "hash", hash, "error", err)
 			skipHashes[hash] = true
 			continue
 		}
@@ -147,7 +149,7 @@ func Relay(c *cli.Context) error {
 		rr := httptest.NewRecorder()
 		handler.GetHTTPHandler().ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
-			log.DefaultLogger().Warnw("", "binary", "relay", "chain-hash", hash, "startup failed", rr.Code)
+			cliLog.Warnw("", "binary", "relay", "chain-hash", hash, "startup failed", rr.Code)
 		}
 	}
 
@@ -161,13 +163,17 @@ func Relay(c *cli.Context) error {
 
 func main() {
 	version := common.GetAppVersion()
+	lg := log.New(nil, log.DefaultLevel, false)
 
 	app := &cli.App{
 		Name:    "relay",
 		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
 		Flags:   append(lib.ClientFlags, lib.HashListFlag, listenFlag, accessLogFlag, metricsFlag),
-		Action:  Relay,
+		Action: func(ctx *cli.Context) error {
+			ctx.Context = log.ToContext(ctx.Context, lg)
+			return Relay(ctx)
+		},
 	}
 
 	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
@@ -179,6 +185,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.DefaultLogger().Fatalw("", "binary", "relay", "err", err)
+		lg.Fatalw("", "binary", "relay", "err", err)
 	}
 }
