@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/google/uuid"
 	bds "github.com/ipfs/go-ds-badger2"
+	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
@@ -113,12 +114,13 @@ var ClientFlags = []cli.Flag{
 // Create builds a client, and can be invoked from a cli action supplied
 // with ClientFlags
 func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (client.Client, error) {
+	l := log.FromContextOrDefault(c.Context)
 	clients := make([]client.Client, 0)
 	var info *chain.Info
 	var err error
 
 	if groupPath := c.Path(GroupConfFlag.Name); groupPath != "" {
-		info, err = chainInfoFromGroupTOML(groupPath)
+		info, err = chainInfoFromGroupTOML(l, groupPath)
 		if err != nil {
 			info, err = chainInfoFromChainInfoJSON(groupPath)
 			if info == nil || err != nil {
@@ -128,7 +130,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.WithChainInfo(info))
 	}
 
-	gc, info, err := buildGrpcClient(c, info)
+	gc, info, err := buildGrpcClient(c, l, info)
 	if err != nil {
 		return nil, err
 	}
@@ -158,18 +160,18 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.Insecurely())
 	}
 
-	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
+	clients = append(clients, buildHTTPClients(c, l, &info, hash, withInstrumentation)...)
 
-	gopt, err := buildGossipClient(c)
+	gopt, err := buildGossipClient(c, l)
 	if err != nil {
 		return nil, err
 	}
 	opts = append(opts, gopt...)
 
-	return client.Wrap(clients, opts...)
+	return client.WrapWithLogger(l, clients, opts...)
 }
 
-func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.Info, error) {
+func buildGrpcClient(c *cli.Context, l log.Logger, info *chain.Info) ([]client.Client, *chain.Info, error) {
 	if !c.IsSet(GRPCConnectFlag.Name) {
 		return nil, info, nil
 	}
@@ -188,7 +190,7 @@ func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.
 		hash = info.Hash()
 	}
 
-	gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
+	gc, err := grpc.NewWithLogger(l, c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -203,28 +205,28 @@ func buildGrpcClient(c *cli.Context, info *chain.Info) ([]client.Client, *chain.
 	return []client.Client{gc}, info, nil
 }
 
-func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
+func buildHTTPClients(c *cli.Context, l log.Logger, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
 	clients := make([]client.Client, 0)
 	var err error
 	var skipped []string
 	var hc client.Client
 	for _, url := range c.StringSlice(URLFlag.Name) {
 		if *info != nil {
-			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
+			hc, err = http.NewWithLoggerAndInfo(l, url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
+				l.Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 		} else {
-			hc, err = http.New(url, hash, nhttp.DefaultTransport)
+			hc, err = http.NewWithLogger(l, url, hash, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
+				l.Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				skipped = append(skipped, url)
 				continue
 			}
 			*info, err = hc.Info(context.Background())
 			if err != nil {
-				log.DefaultLogger().Warnw("", "client", "failed to load Info from URL", "url", url, "err", err)
+				l.Warnw("", "client", "failed to load Info from URL", "url", url, "err", err)
 				continue
 			}
 		}
@@ -232,9 +234,9 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 	}
 	if *info != nil {
 		for _, url := range skipped {
-			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
+			hc, err = http.NewWithLoggerAndInfo(l, url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
+				l.Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 			clients = append(clients, hc)
@@ -248,7 +250,7 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 	return clients
 }
 
-func buildGossipClient(c *cli.Context) ([]client.Option, error) {
+func buildGossipClient(c *cli.Context, l log.Logger) ([]client.Option, error) {
 	if c.IsSet(RelayFlag.Name) {
 		addrs := c.StringSlice(RelayFlag.Name)
 		if len(addrs) > 0 {
@@ -260,23 +262,23 @@ func buildGossipClient(c *cli.Context) ([]client.Option, error) {
 			if c.IsSet(PortFlag.Name) {
 				listen = c.String(PortFlag.Name)
 			}
-			ps, err := buildClientHost(listen, relayPeers)
+			ps, err := buildClientHost(l, listen, relayPeers)
 			if err != nil {
 				return nil, err
 			}
-			return []client.Option{gclient.WithPubsub(ps)}, nil
+			return []client.Option{gclient.WithPubsubWithOptions(l, ps, clock.NewRealClock(), gclient.DefaultBufferSize)}, nil
 		}
 	}
 	return []client.Option{}, nil
 }
 
-func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
+func buildClientHost(l log.Logger, clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
 	clientID := uuid.New().String()
 	ds, err := bds.NewDatastore(path.Join(os.TempDir(), "drand-"+clientID+"-datastore"), nil)
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-"+clientID+"-id"), log.DefaultLogger())
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-"+clientID+"-id"), l)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +302,7 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 		priv,
 		listen,
 		relayMultiaddr,
-		log.DefaultLogger(),
+		l,
 	)
 	if err != nil {
 		return nil, err
@@ -309,7 +311,7 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 }
 
 // chainInfoFromGroupTOML reads a drand group TOML file and returns the chain info.
-func chainInfoFromGroupTOML(filePath string) (*chain.Info, error) {
+func chainInfoFromGroupTOML(l log.Logger, filePath string) (*chain.Info, error) {
 	gt := &key.GroupTOML{}
 	_, err := toml.DecodeFile(filePath, gt)
 	if err != nil {
@@ -320,7 +322,7 @@ func chainInfoFromGroupTOML(filePath string) (*chain.Info, error) {
 	if err != nil {
 		return nil, err
 	}
-	return chain.NewChainInfo(g), nil
+	return chain.NewChainInfoWithLogger(l, g), nil
 }
 
 func chainInfoFromChainInfoJSON(filePath string) (*chain.Info, error) {

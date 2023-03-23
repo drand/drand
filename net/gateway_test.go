@@ -12,8 +12,10 @@ import (
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	testnet "github.com/drand/drand/test/net"
+	"github.com/drand/drand/test/testlogger"
 )
 
 type testPeer struct {
@@ -52,7 +54,8 @@ func TestListeners(t *testing.T) {
 
 //nolint:gocritic
 func testListener(t *testing.T) {
-	ctx := context.Background()
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
 	randServer := &testRandomnessServer{round: 42}
 
 	lisGRPC, err := NewGRPCListenerForPrivate(ctx, "localhost:", "", "", randServer, true)
@@ -71,7 +74,7 @@ func testListener(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// GRPC
-	client := NewGrpcClient()
+	client := NewGrpcClientWithLogger(lg)
 	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
@@ -82,7 +85,9 @@ func testListener(t *testing.T) {
 //
 //nolint:gocritic
 func testListenerTLS(t *testing.T) {
-	ctx := context.Background()
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+
 	if run.GOOS == runtimeGOOSWindows {
 		t.Log("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
@@ -116,11 +121,12 @@ func testListenerTLS(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	certManager := NewCertManager()
-	certManager.Add(certPath)
+	certManager := NewCertManagerWithLogger(lg)
+	err = certManager.Add(certPath)
+	require.NoError(t, err)
 
 	// test GRPC variant
-	client := NewGrpcClientFromCertManager(certManager)
+	client := NewGrpcClientFromCertManagerWithLogger(lg, certManager)
 	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.Nil(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}

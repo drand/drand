@@ -92,8 +92,9 @@ var runCmd = &cli.Command{
 		metricsFlag,
 	}...),
 	Action: func(cctx *cli.Context) error {
+		lg := log.New(nil, log.DefaultLevel, false)
 		if cctx.IsSet(metricsFlag.Name) {
-			metricsListener := metrics.Start(cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
+			metricsListener := metrics.StartWithLogger(lg, cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
 			if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics); err != nil {
 				return err
@@ -110,7 +111,7 @@ var runCmd = &cli.Command{
 		case cctx.IsSet(lib.GroupConfListFlag.Name):
 			groupConfs := cctx.StringSlice(lib.GroupConfListFlag.Name)
 			for _, groupConf := range groupConfs {
-				err := boostrapGossipRelayNode(cctx, groupConf, "")
+				err := boostrapGossipRelayNode(cctx, lg, groupConf, "")
 				if err != nil {
 					return err
 				}
@@ -122,7 +123,7 @@ var runCmd = &cli.Command{
 			}
 
 			for _, hash := range hashes {
-				err := boostrapGossipRelayNode(cctx, "", hash)
+				err := boostrapGossipRelayNode(cctx, lg, "", hash)
 				if err != nil {
 					return err
 				}
@@ -133,12 +134,12 @@ var runCmd = &cli.Command{
 				return fmt.Errorf("decoding hash %q: %w", hash, err)
 			}
 
-			err := boostrapGossipRelayNode(cctx, "", hash)
+			err := boostrapGossipRelayNode(cctx, lg, "", hash)
 			if err != nil {
 				return err
 			}
 		default:
-			if err := boostrapGossipRelayNode(cctx, "", ""); err != nil {
+			if err := boostrapGossipRelayNode(cctx, lg, "", ""); err != nil {
 				return err
 			}
 		}
@@ -150,7 +151,7 @@ var runCmd = &cli.Command{
 	},
 }
 
-func boostrapGossipRelayNode(cctx *cli.Context, groupConf, chainHash string) error {
+func boostrapGossipRelayNode(cctx *cli.Context, lg log.Logger, groupConf, chainHash string) error {
 	err := cctx.Set(lib.GroupConfFlag.Name, groupConf)
 	if err != nil {
 		return err
@@ -161,6 +162,7 @@ func boostrapGossipRelayNode(cctx *cli.Context, groupConf, chainHash string) err
 		return err
 	}
 
+	cctx.Context = log.ToContext(cctx.Context, lg)
 	c, err := lib.Create(cctx, cctx.IsSet(metricsFlag.Name))
 	if err != nil {
 		return fmt.Errorf("constructing client: %w", err)
@@ -216,13 +218,15 @@ var clientCmd = &cli.Command{
 	Name:  "client",
 	Flags: lib.ClientFlags,
 	Action: func(cctx *cli.Context) error {
+		lg := log.New(nil, log.DefaultLevel, false)
+		cctx.Context = log.ToContext(cctx.Context, lg)
 		c, err := lib.Create(cctx, false)
 		if err != nil {
 			return fmt.Errorf("constructing client: %w", err)
 		}
 
 		for rand := range c.Watch(cctx.Context) {
-			log.DefaultLogger().Infow("", "client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
+			lg.Infow("", "client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
 		return nil
@@ -234,7 +238,8 @@ var idCmd = &cli.Command{
 	Usage: "prints the libp2p peer ID or creates one if it does not exist",
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
-		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log.DefaultLogger())
+		lg := log.New(nil, log.DefaultLevel, false)
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), lg)
 		if err != nil {
 			return fmt.Errorf("loading p2p key: %w", err)
 		}

@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
+	l := testlogger.New(t)
 	// bind a random port on localhost
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err, "Failed to bind port for testing")
@@ -22,10 +23,12 @@ func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 	inUsePort := listener.Addr().(*net.TCPAddr).Port
 
 	// configure the daemon to try and bind the same port
-	config := NewConfig()
-	config.insecure = true
-	config.controlPort = strconv.Itoa(inUsePort)
-	config.privateListenAddr = "127.0.0.1:0"
+	config := NewConfigWithLogger(
+		l,
+		WithInsecure(),
+		WithControlPort(strconv.Itoa(inUsePort)),
+		WithPrivateListenAddress("127.0.0.1:0"),
+	)
 
 	// an error is returned during daemon creation instead of panicking
 	_, err = NewDrandDaemon(config)
@@ -33,6 +36,7 @@ func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 }
 
 func TestDrandDaemon_Stop(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -44,12 +48,11 @@ func TestDrandDaemon_Stop(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithInsecure(),
 		WithControlPort(port),
-		WithLogLevel(log.LogDebug, false),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfig(confOptions...))
+	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()

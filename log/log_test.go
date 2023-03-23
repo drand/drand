@@ -26,12 +26,12 @@ func TestLoggerKit(t *testing.T) {
 		return outs
 	}
 	var tests = []logTest{
-		{nil, LogInfo, LogInfo, "hello", o("hello")},
-		{nil, LogDebug, LogInfo, "hello", nil},
-		{nil, LogError, LogDebug, "hello", o("hello")},
-		{nil, LogWarn, LogError, "hello", nil},
-		{nil, LogWarn, LogDebug, "hello", o("hello")},
-		{w("yard", "bird"), LogWarn, LogInfo, "hello", o("yard", "bird", "hello")},
+		{nil, InfoLevel, InfoLevel, "hello", o("hello")},
+		{nil, DebugLevel, InfoLevel, "hello", nil},
+		{nil, ErrorLevel, DebugLevel, "hello", o("hello")},
+		{nil, WarnLevel, ErrorLevel, "hello", nil},
+		{nil, WarnLevel, DebugLevel, "hello", o("hello")},
+		{w("yard", "bird"), WarnLevel, InfoLevel, "hello", o("yard", "bird", "hello")},
 	}
 
 	for i, test := range tests {
@@ -42,24 +42,24 @@ func TestLoggerKit(t *testing.T) {
 		syncer := zapcore.AddSync(writer)
 
 		var logging func(...interface{})
-		logger := NewLogger(syncer, test.allowedLvl)
+		logger := New(syncer, test.allowedLvl, true)
 
 		if test.with != nil {
 			logger = logger.With(test.with...)
 		}
 
 		switch test.level {
-		case LogInfo:
+		case InfoLevel:
 			logging = logger.Info
-		case LogDebug:
+		case DebugLevel:
 			logging = logger.Debug
-		case LogWarn:
+		case WarnLevel:
 			logging = logger.Warn
-		case LogError:
+		case ErrorLevel:
 			logging = logger.Error
-		case LogFatal:
+		case FatalLevel:
 			logging = logger.Fatal
-		case LogPanic:
+		case PanicLevel:
 			logging = logger.Panic
 		default:
 			t.FailNow()
@@ -81,7 +81,7 @@ func TestOddKV(t *testing.T) {
 	writer := bufio.NewWriter(&b)
 	syncer := zapcore.AddSync(writer)
 
-	logger := NewLogger(syncer, LogInfo)
+	logger := New(syncer, InfoLevel, true)
 	logger = logger.With([]interface{}{"yard", "bird", "stone"}...)
 
 	logger.Info("msg=", "hello")

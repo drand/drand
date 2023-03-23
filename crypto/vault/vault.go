@@ -6,6 +6,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/kyber/share"
 )
 
@@ -19,7 +20,8 @@ type CryptoSafe interface {
 // beacons and to sign new partial beacons (it implements CryptoSafe interface).
 // Vault is thread safe when using the methods.
 type Vault struct {
-	mu sync.RWMutex
+	log log.Logger
+	mu  sync.RWMutex
 	*crypto.Scheme
 	// current share of the node
 	share *key.Share
@@ -31,10 +33,11 @@ type Vault struct {
 	group *key.Group
 }
 
-func NewVault(currentGroup *key.Group, ks *key.Share, sch *crypto.Scheme) *Vault {
+func NewVault(l log.Logger, currentGroup *key.Group, ks *key.Share, sch *crypto.Scheme) *Vault {
 	return &Vault{
+		log:    l,
 		Scheme: sch,
-		chain:  chain.NewChainInfo(currentGroup),
+		chain:  chain.NewChainInfoWithLogger(l, currentGroup),
 		share:  ks,
 		pub:    currentGroup.PublicKey.PubPoly(sch),
 		group:  currentGroup,

@@ -24,6 +24,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 //nolint:gocritic
@@ -126,6 +127,8 @@ func BatchNewDrand(
 		}
 	}
 
+	l := testlogger.New(t)
+
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
 
@@ -152,7 +155,6 @@ func BatchNewDrand(
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(test.LogLevel(t), false),
 			WithNamedLogger(fmt.Sprintf("[node %d]", currentNodeCount+i)),
 			WithMemDBSize(100),
 		)
@@ -161,7 +163,7 @@ func BatchNewDrand(
 
 		t.Logf("Creating node %d\n", i)
 
-		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
+		daemon, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 		require.NoError(t, err)
 
 		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
@@ -280,7 +282,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 	d.t.Logf("[drand] stop %s\n", dr.priv.Public.Address())
 
-	controlClient, err := net.NewControlClient(dr.opts.controlPort)
+	controlClient, err := net.NewControlClientWithLogger(dr.log, dr.opts.controlPort)
 	require.NoError(d.t, err)
 
 	retryCount := 1
@@ -358,7 +360,7 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
-	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
+	client := net.NewGrpcClientFromCertManagerWithLogger(dr.log, dr.opts.certmanager, dr.opts.grpcOpts...)
 	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 
 	require.NoError(d.t, err)
@@ -469,7 +471,7 @@ func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
 // WaitForDKG waits for the DKG complete and returns the group file
 // it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
 func (d *DrandTestScenario) WaitForDKG(node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
-	err := node.dkgRunner.WaitForDKG(d.beaconID, epoch, numberOfSeconds)
+	err := node.dkgRunner.WaitForDKG(node.drand.log, d.beaconID, epoch, numberOfSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -611,7 +613,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round uint64) error {
 	counter := 0
 
-	newClient, err := net.NewControlClient(node.drand.opts.controlPort)
+	newClient, err := net.NewControlClientWithLogger(node.drand.log, node.drand.opts.controlPort)
 	require.NoError(t, err)
 
 	for {
@@ -636,7 +638,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode) error {
 	counter := 0
 
-	newClient, err := net.NewControlClient(node.drand.opts.controlPort)
+	newClient, err := net.NewControlClientWithLogger(node.drand.log, node.drand.opts.controlPort)
 	require.NoError(t, err)
 
 	for {

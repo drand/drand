@@ -9,6 +9,7 @@ import (
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 )
@@ -21,12 +22,13 @@ type TestJSON struct {
 }
 
 func main() {
+	lg := log.New(nil, log.DebugLevel, false)
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		panic(err)
 	}
 	clk := clock.NewRealClock()
-	listener, server := mock.NewMockGRPCPublicServer(nil, serve, true, sch, clk)
+	listener, server := mock.NewMockGRPCPublicServer(nil, lg, serve, true, sch, clk)
 	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
 	if err != nil {
 		panic(err)
