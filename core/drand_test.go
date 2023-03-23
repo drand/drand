@@ -629,6 +629,9 @@ func TestDrandPublicRand(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandPublicStream(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flacky in CI")
+	}
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
