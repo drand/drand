@@ -79,18 +79,20 @@ var runCmd = &cli.Command{
 			return fmt.Errorf("checking credentials: %w", err)
 		}
 
+		lg := log.New(nil, log.DefaultLevel, false)
+		cctx.Context = log.ToContext(cctx.Context, lg)
 		c, err := lib.Create(cctx, false)
 		if err != nil {
 			return fmt.Errorf("creating client: %w", err)
 		}
 
 		upr := s3manager.NewUploader(sess)
-		watch(context.Background(), c, upr, cctx.String(bucketFlag.Name))
+		watch(context.Background(), lg, c, upr, cctx.String(bucketFlag.Name))
 		return nil
 	},
 }
 
-func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc string) {
+func watch(ctx context.Context, l log.Logger, c client.Watcher, upr *s3manager.Uploader, buc string) {
 	for {
 		ch := c.Watch(ctx)
 	INNER:
@@ -98,7 +100,7 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 			select {
 			case res, ok := <-ch:
 				if !ok {
-					log.DefaultLogger().Warnw("", "relay_s3", "watch channel closed")
+					l.Warnw("", "relay_s3", "watch channel closed")
 					t := time.NewTimer(time.Second)
 					select {
 					case <-t.C:
@@ -107,14 +109,14 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 						return
 					}
 				}
-				log.DefaultLogger().Infow("", "relay_s3", "got randomness", "round", res.Round())
+				l.Infow("", "relay_s3", "got randomness", "round", res.Round())
 				go func(res client.Result) {
 					url, err := uploadRandomness(ctx, upr, buc, res)
 					if err != nil {
-						log.DefaultLogger().Errorw("", "relay_s3", "failed to upload randomness", "err", err)
+						l.Errorw("", "relay_s3", "failed to upload randomness", "err", err)
 						return
 					}
-					log.DefaultLogger().Infow("", "relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
+					l.Infow("", "relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
 				}(res)
 			case <-ctx.Done():
 				return
@@ -170,6 +172,8 @@ var syncCmd = &cli.Command{
 			return fmt.Errorf("checking credentials: %w", err)
 		}
 
+		lg := log.New(nil, log.DefaultLevel, false)
+		cctx.Context = log.ToContext(cctx.Context, lg)
 		c, err := lib.Create(cctx, false)
 		if err != nil {
 			return fmt.Errorf("creating client: %w", err)
@@ -183,15 +187,15 @@ var syncCmd = &cli.Command{
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
 			if err != nil {
-				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
+				lg.Errorw("", "relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
 				continue
 			}
 			url, err := uploadRandomness(ctx, upr, buc, r)
 			if err != nil {
-				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to upload randomness", "err", err)
+				lg.Errorw("", "relay_s3_sync", "failed to upload randomness", "err", err)
 				continue
 			}
-			log.DefaultLogger().Infow("", "relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
+			lg.Infow("", "relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
 		}
 
 		return nil

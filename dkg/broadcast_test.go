@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/test/testlogger"
 	"github.com/drand/kyber/share/dkg"
 
 	"github.com/drand/drand/net"
@@ -11,16 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
+	l := testlogger.New(t)
 	gateway := net.PrivateGateway{}
 	sch, _ := crypto.GetSchemeByIDWithDefault("")
 	_, err := newEchoBroadcast(
 		gateway.DKGClient,
-		log.DefaultLogger(),
+		l,
 		common.GetAppVersion(),
 		"default",
 		"localhost:8080",
@@ -32,12 +33,13 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 }
 
 func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
+	l := testlogger.New(t)
 	gateway := net.PrivateGateway{}
 	sch, _ := crypto.GetSchemeByIDWithDefault("")
 
 	_, err := newEchoBroadcast(
 		gateway.DKGClient,
-		log.DefaultLogger(),
+		l,
 		common.GetAppVersion(),
 		"default",
 		"localhost:8080",

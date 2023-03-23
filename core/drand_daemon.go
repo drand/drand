@@ -121,12 +121,13 @@ func (dd *DrandDaemon) init() error {
 	// ctx is used to create the gateway below.
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
 	// do not actually use it, so we are passing a background context to be safe.
-	ctx := context.Background()
+	lg := dd.log.With("server", "http")
+	ctx := log.ToContext(context.Background(), lg)
 
 	var err error
 	dd.log.Infow("", "network", "init", "insecure", c.insecure)
 
-	handler, err := dhttp.New(ctx, c.Version(), dd.log.With("server", "http"))
+	handler, err := dhttp.New(ctx, c.Version())
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (dd *DrandDaemon) init() error {
 
 	// set up the gRPC clients
 	p := c.ControlPort()
-	controlListener, err := net.NewGRPCListener(dd, p)
+	controlListener, err := net.NewGRPCListenerWithLogger(lg, dd, p)
 	if err != nil {
 		return err
 	}
@@ -207,7 +208,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 
 	chainHash := ""
 	if bp.group != nil {
-		info := chain.NewChainInfo(bp.group)
+		info := chain.NewChainInfoWithLogger(dd.log, bp.group)
 		chainHash = info.HashString()
 	}
 
@@ -232,7 +233,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 // AddBeaconHandler adds a handler linked to beacon with chain hash from http server used to
 // expose public services
 func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
-	chainHash := chain.NewChainInfo(bp.group).HashString()
+	chainHash := chain.NewChainInfoWithLogger(dd.log, bp.group).HashString()
 
 	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, chainHash)
 
@@ -256,7 +257,7 @@ func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 		return
 	}
 
-	info := chain.NewChainInfo(bp.group)
+	info := chain.NewChainInfoWithLogger(dd.log, bp.group)
 	dd.handler.RemoveBeaconHandler(info.HashString())
 	if common.IsDefaultBeaconID(beaconID) {
 		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
@@ -308,7 +309,7 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string, singleBeacon bool
 
 	// Start metrics server
 	if len(metricsHandlers) > 0 {
-		_ = metrics.Start(metricsFlag, pprof.WithProfile(), metricsHandlers)
+		_ = metrics.StartWithLogger(dd.log, metricsFlag, pprof.WithProfile(), metricsHandlers)
 	}
 
 	return nil

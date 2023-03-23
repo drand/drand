@@ -12,8 +12,8 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 type mockClient struct {
@@ -90,7 +90,8 @@ func TestWatchRetryOnClose(t *testing.T) {
 	c := &mockClient{chainInfo, watchF}
 
 	td := t.TempDir()
-	gr, err := NewGossipRelayNode(log.DefaultLogger(), &GossipRelayConfig{
+	lg := testlogger.New(t)
+	gr, err := NewGossipRelayNode(lg, &GossipRelayConfig{
 		ChainHash:    hex.EncodeToString(chainInfo.Hash()),
 		Addr:         "/ip4/0.0.0.0/tcp/0",
 		DataDir:      td,

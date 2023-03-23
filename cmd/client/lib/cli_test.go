@@ -19,7 +19,9 @@ import (
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 var (
@@ -38,18 +40,22 @@ func mockAction(c *cli.Context) error {
 	return err
 }
 
-func run(args []string) error {
+func run(l log.Logger, args []string) error {
 	app := cli.NewApp()
 	app.Name = "mock-client"
 	app.Flags = ClientFlags
-	app.Action = mockAction
+	app.Action = func(c *cli.Context) error {
+		c.Context = log.ToContext(c.Context, l)
+		return mockAction(c)
+	}
 
 	return app.Run(args)
 }
 
 func TestClientLib(t *testing.T) {
 	opts = []client.Option{}
-	err := run([]string{"mock-client"})
+	lg := testlogger.New(t)
+	err := run(lg, []string{"mock-client"})
 	if err == nil {
 		t.Fatal("need to specify a connection method.", err)
 	}
@@ -60,55 +66,57 @@ func TestClientLib(t *testing.T) {
 	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	grpcLis, _ := mock.NewMockGRPCPublicServer(t, ":0", false, sch, clk)
+	grpcLis, _ := mock.NewMockGRPCPublicServer(t, lg, ":0", false, sch, clk)
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
 	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
-	err = run(args)
+	err = run(lg, args)
 	if err != nil {
 		t.Fatal("GRPC should work", err)
 	}
 
 	args = []string{"mock-client", "--url", "https://" + addr}
-	err = run(args)
+	err = run(lg, args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
 	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
-	err = run(args)
+	err = run(lg, args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
-	err = run(args)
+	err = run(lg, args)
 	if err == nil {
 		t.Fatal("relays need URL to get chain info and hash", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
-	err = run(args)
+	err = run(lg, args)
 	if err == nil {
 		t.Fatal("relays need URL to get chain info and hash", err)
 	}
 
 	args = []string{"mock-client", "--url", "http://" + addr, "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
-	err = run(args)
+	err = run(lg, args)
 	if err != nil {
 		t.Fatal("unable to get relay to work", err)
 	}
 }
 
 func TestClientLibGroupConfTOML(t *testing.T) {
-	err := run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--group-conf", groupTOMLPath()})
+	lg := testlogger.New(t)
+	err := run(lg, []string{"mock-client", "--relay", fakeGossipRelayAddr, "--group-conf", groupTOMLPath()})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestClientLibGroupConfJSON(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
@@ -125,14 +133,15 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--group-conf", infoPath})
+	err = run(lg, []string{"mock-client", "--url", "http://" + addr, "--group-conf", infoPath})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestClientLibChainHashOverrideError(t *testing.T) {
-	err := run([]string{
+	lg := testlogger.New(t)
+	err := run(lg, []string{
 		"mock-client",
 		"--relay",
 		fakeGossipRelayAddr,
@@ -147,7 +156,8 @@ func TestClientLibChainHashOverrideError(t *testing.T) {
 }
 
 func TestClientLibListenPort(t *testing.T) {
-	err := run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--port", "0.0.0.0:0", "--group-conf", groupTOMLPath()})
+	lg := testlogger.New(t)
+	err := run(lg, []string{"mock-client", "--relay", fakeGossipRelayAddr, "--port", "0.0.0.0:0", "--group-conf", groupTOMLPath()})
 	if err != nil {
 		t.Fatal(err)
 	}

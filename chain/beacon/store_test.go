@@ -10,15 +10,15 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/test"
 	context2 "github.com/drand/drand/test/context"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestSchemeStore(t *testing.T) {
 	dir := t.TempDir()
 	ctx, sch, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
 
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	bstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 

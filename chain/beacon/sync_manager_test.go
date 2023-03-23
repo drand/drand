@@ -15,8 +15,8 @@ import (
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
 	dcontext "github.com/drand/drand/test/context"
+	"github.com/drand/drand/test/testlogger"
 )
 
 type testSyncStream struct {
@@ -62,7 +62,7 @@ func createTestCBStore(t *testing.T) CallbackStore {
 	t.Helper()
 	dir := t.TempDir()
 	ctx, _, _ := dcontext.PrevSignatureMattersOnContext(t, context.Background())
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 	cb := NewCallbackStore(l, bbstore)
@@ -106,7 +106,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		l := test.Logger(t)
+		l := testlogger.New(t)
 		stream := &testSyncStream{
 			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
@@ -134,7 +134,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		l := test.Logger(t)
+		l := testlogger.New(t)
 		stream := &testSyncStream{
 			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
@@ -171,7 +171,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		l := test.Logger(t)
+		l := testlogger.New(t)
 		stream1 := &testSyncStream{
 			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
@@ -239,7 +239,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		l := test.Logger(t)
+		l := testlogger.New(t)
 		stream1 := &testSyncStream{
 			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),
@@ -285,7 +285,7 @@ func doTest(t *testing.T, addr1, addr2 string) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		l := test.Logger(t)
+		l := testlogger.New(t)
 		stream1 := &testSyncStream{
 			ctx:        peerCtx(ctx, t, addr1),
 			l:          l.Named("1"),

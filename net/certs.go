@@ -12,17 +12,30 @@ import (
 // testing with self-signed certificate. By default, it returns the bundled set
 // of certificates coming with the OS (Go's implementation).
 type CertManager struct {
+	log  log.Logger
 	pool *x509.CertPool
 }
 
 // NewCertManager returns a cert manager filled with the trusted certificates of
-// the running system
+// the running system.
+//
+// Deprecated: NewCertManagerWithLogger
 func NewCertManager() *CertManager {
+	l := log.DefaultLogger()
+	return NewCertManagerWithLogger(l)
+}
+
+// NewCertManagerWithLogger returns a cert manager filled with the trusted certificates of
+// the running system
+func NewCertManagerWithLogger(l log.Logger) *CertManager {
 	pool, err := x509.SystemCertPool()
 	if err != nil {
 		panic(err)
 	}
-	return &CertManager{pool}
+	return &CertManager{
+		log:  l,
+		pool: pool,
+	}
 }
 
 // Pool returns the pool of trusted certificates
@@ -40,6 +53,6 @@ func (p *CertManager) Add(certPath string) error {
 	if !p.pool.AppendCertsFromPEM(b) {
 		return fmt.Errorf("peer cert: failed to append certificate %s", certPath)
 	}
-	log.DefaultLogger().Debugw("", "cert_manager", "add", "server cert path", certPath)
+	p.log.Debugw("", "cert_manager", "add", "server cert path", certPath)
 	return nil
 }

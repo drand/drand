@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestMetricReshare(t *testing.T) {
@@ -34,7 +35,7 @@ func TestMetricReshare(t *testing.T) {
 		}
 	}
 
-	l := Start(":0", nil, []Handler{hdl})
+	l := StartWithLogger(testlogger.New(t), ":0", nil, []Handler{hdl})
 	defer l.Close()
 	addr := l.Addr()
 	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", addr.String()))
@@ -108,7 +109,7 @@ func TestCreatingMetricHandlerWithoutHandlerDoesntPanic(t *testing.T) {
 	funcReturningNil := func(_ string) (http.Handler, error) {
 		return nil, nil
 	}
-	h := newLazyPeerHandler([]Handler{funcReturningNil})
+	h := newLazyPeerHandler(testlogger.New(t), []Handler{funcReturningNil})
 
 	_, err := h.handlerForPeer("127.0.0.1")
 

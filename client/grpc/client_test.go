@@ -14,19 +14,21 @@ import (
 
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestClient(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
-	l, server := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch, clk)
+	l, server := mock.NewMockGRPCPublicServer(t, lg, "localhost:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := New(addr, "", true, []byte(""))
+	c, err := NewWithLogger(lg, addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,16 +70,17 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
+	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
-	l, _ := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch, clk)
+	l, _ := mock.NewMockGRPCPublicServer(t, lg, "localhost:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := New(addr, "", true, []byte(""))
+	c, err := NewWithLogger(lg, addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}

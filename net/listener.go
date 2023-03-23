@@ -23,9 +23,9 @@ import (
 var isGrpcPrometheusMetricsRegisted = false
 var state sync.Mutex
 
-func registerGRPCMetrics() error {
+func registerGRPCMetrics(l log.Logger) error {
 	if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics); err != nil {
-		log.DefaultLogger().Warnw("", "grpc Listener", "failed metrics registration", "err", err)
+		l.Warnw("", "grpc Listener", "failed metrics registration", "err", err)
 		return err
 	}
 
@@ -35,7 +35,7 @@ func registerGRPCMetrics() error {
 
 // NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC.
 func NewGRPCListenerForPrivate(
-	_ context.Context,
+	ctx context.Context,
 	bindingAddr, certPath, keyPath string,
 	s Service,
 	insecure bool,
@@ -44,6 +44,8 @@ func NewGRPCListenerForPrivate(
 	if err != nil {
 		return nil, err
 	}
+
+	l := log.FromContextOrDefault(ctx)
 
 	if !insecure {
 		grpcCreds, err := credentials.NewServerTLSFromFile(certPath, keyPath)
@@ -79,18 +81,19 @@ func NewGRPCListenerForPrivate(
 
 		gr := &restListener{
 			restServer: buildTLSServer(grpcServer, &x509KeyPair),
+			l:          l,
 		}
 		gr.lis = tls.NewListener(lis, gr.restServer.TLSConfig)
 		g = gr
 	}
 
-	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
+	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandlerWithLogger(l)))
 	grpc_prometheus.Register(grpcServer)
 
 	state.Lock()
 	defer state.Unlock()
 	if !isGrpcPrometheusMetricsRegisted {
-		if err := registerGRPCMetrics(); err != nil {
+		if err := registerGRPCMetrics(l); err != nil {
 			return nil, err
 		}
 	}
@@ -109,8 +112,11 @@ func NewRESTListenerForPublic(
 		return nil, err
 	}
 
+	l := log.FromContextOrDefault(ctx)
+
 	g := &restListener{
 		lis: lis,
+		l:   l,
 	}
 	if insecure {
 		g.restServer = &http.Server{
@@ -169,6 +175,7 @@ func buildTLSServer(httpHandler http.Handler, x509KeyPair *tls.Certificate) *htt
 type restListener struct {
 	restServer *http.Server
 	lis        net.Listener
+	l          log.Logger
 }
 
 func (g *restListener) Addr() string {
@@ -181,10 +188,10 @@ func (g *restListener) Start() {
 
 func (g *restListener) Stop(ctx context.Context) {
 	if err := g.lis.Close(); err != nil {
-		log.DefaultLogger().Debugw("", "grpc listener", "grpc shutdown", "err", err)
+		g.l.Debugw("", "grpc listener", "grpc shutdown", "err", err)
 	}
 	if err := g.restServer.Shutdown(ctx); err != nil {
-		log.DefaultLogger().Debugw("", "grpc listener", "http shutdown", "err", err)
+		g.l.Debugw("", "grpc listener", "http shutdown", "err", err)
 	}
 }
 

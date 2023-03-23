@@ -5,12 +5,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/BurntSushi/toml"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
 )
 
 type DKGRunner struct {
@@ -99,7 +102,7 @@ func (r *DKGRunner) Accept() error {
 
 var ErrTimeout = errors.New("DKG timed out")
 
-func (r *DKGRunner) WaitForDKG(beaconID string, epoch uint32, numberOfSeconds int) error {
+func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
 	waitForGroupFile := func() error {
 		res, err := r.Client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
 		if err != nil {
@@ -135,7 +138,7 @@ func (r *DKGRunner) WaitForDKG(beaconID string, epoch uint32, numberOfSeconds in
 		if err == nil {
 			break
 		}
-		fmt.Println("DKG not finished... retrying")
+		lg.Infow("DKG not finished... retrying")
 		time.Sleep(1 * time.Second)
 	}
 

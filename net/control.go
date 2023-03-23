@@ -20,21 +20,29 @@ const grpcDefaultIPNetwork = "tcp"
 
 // ControlListener is used to keep state of the connections of our drand instance
 type ControlListener struct {
+	log   log.Logger
 	conns *grpc.Server
 	lis   net.Listener
 }
 
 func NewGRPCListener(s Service, controlAddr string) (ControlListener, error) {
+	l := log.DefaultLogger()
+	return NewGRPCListenerWithLogger(l, s, controlAddr)
+}
+
+// NewTCPGrpcControlListenerWithLogger registers the pairing between a ControlServer and a grpc server
+func NewGRPCListenerWithLogger(l log.Logger, s Service, controlAddr string) (ControlListener, error) {
 	grpcServer := grpc.NewServer()
 	lis, err := newListener(controlAddr)
 	if err != nil {
+		l.Errorw("", "grpc listener", "failure", "err", err)
 		return ControlListener{}, err
 	}
 
 	control.RegisterControlServer(grpcServer, s)
 	control.RegisterDKGControlServer(grpcServer, s)
 
-	return ControlListener{conns: grpcServer, lis: lis}, nil
+	return ControlListener{log: l, conns: grpcServer, lis: lis}, nil
 }
 
 // NewListener creates a net.Listener which should be shared between different gRPC servers
@@ -45,7 +53,7 @@ func newListener(controlAddr string) (net.Listener, error) {
 // Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		log.DefaultLogger().Errorw("", "control listener", "serve ended", "err", err)
+		g.log.Errorw("", "control listener", "serve ended", "err", err)
 	}
 }
 
@@ -71,6 +79,7 @@ func (g *ControlListener) Stop() {
 // ControlClient is a struct that implement control.ControlClient and is used to
 // request a Share to a ControlListener on a specific port
 type ControlClient struct {
+	log     log.Logger
 	conn    *grpc.ClientConn
 	client  control.ControlClient
 	version common.Version
@@ -78,7 +87,16 @@ type ControlClient struct {
 
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
+//
+// Deprecated: Use NewControlClientWithLogger
 func NewControlClient(addr string) (*ControlClient, error) {
+	l := log.DefaultLogger()
+	return NewControlClientWithLogger(l, addr)
+}
+
+// NewControlClientWithLogger creates a client capable of issuing control commands to a
+// localhost running drand node.
+func NewControlClientWithLogger(l log.Logger, addr string) (*ControlClient, error) {
 	network, host := listenAddrFor(addr)
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
@@ -86,13 +104,14 @@ func NewControlClient(addr string) (*ControlClient, error) {
 
 	conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.DefaultLogger().Errorw("", "control client", "connect failure", "err", err)
+		l.Errorw("", "control client", "connect failure", "err", err)
 		return nil, err
 	}
 
 	c := control.NewControlClient(conn)
 
 	return &ControlClient{
+		log:     l,
 		conn:    conn,
 		client:  c,
 		version: common.GetAppVersion(),
@@ -221,13 +240,13 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 		metadata.ChainHash = hash
 	}
 
-	log.DefaultLogger().Infow("Launching a check request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
+	c.log.Infow("Launching a check request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
 	if upTo == 0 {
 		return nil, nil, fmt.Errorf("upTo must be greater than 0")
 	}
 
-	log.DefaultLogger().Infow("Starting to check chain consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
+	c.log.Infow("Starting to check chain consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
 
 	stream, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
@@ -237,7 +256,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 	})
 
 	if err != nil {
-		log.DefaultLogger().Errorw("Error while checking chain consistency", "err", err)
+		c.log.Errorw("Error while checking chain consistency", "err", err)
 		return nil, nil, err
 	}
 
@@ -290,7 +309,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 		return nil, nil, err
 	}
 	metadata.ChainHash = hash
-	log.DefaultLogger().Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
+	c.log.Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
 	stream, err := c.client.StartFollowChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
 		IsTls:    tls,
@@ -298,7 +317,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 		Metadata: metadata,
 	})
 	if err != nil {
-		log.DefaultLogger().Errorw("Error while following chain", "err", err)
+		c.log.Errorw("Error while following chain", "err", err)
 		return nil, nil, err
 	}
 	outCh = make(chan *control.SyncProgress, progressSyncQueue)
