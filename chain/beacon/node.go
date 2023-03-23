@@ -74,7 +74,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	}
 	addr := conf.Public.Address()
 
-	v := vault.NewVault(conf.Group, conf.Share, conf.Group.Scheme)
+	v := vault.NewVault(l, conf.Group, conf.Share, conf.Group.Scheme)
 	// insert genesis beacon
 	if err := s.Put(context.Background(), chain.GenesisBeacon(conf.Group.GenesisSeed)); err != nil {
 		return nil, err

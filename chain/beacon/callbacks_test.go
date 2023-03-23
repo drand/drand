@@ -9,14 +9,14 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/test"
 	context2 "github.com/drand/drand/test/context"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
 	ctx, _, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
-	l := test.Logger(t)
+	l := testlogger.New(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 	cb := NewCallbackStore(l, bbstore)

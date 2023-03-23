@@ -50,14 +50,23 @@ type Config struct {
 
 // NewConfig returns the config to pass to drand with the default options set
 // and the updated values given by the options.
+//
+// Deprecated: Use NewConfigWithLogger
 func NewConfig(opts ...ConfigOption) *Config {
+	l := log.DefaultLogger()
+	return NewConfigWithLogger(l, opts...)
+}
+
+// NewConfigWithLogger returns the config to pass to drand with the default options set
+// and the updated values given by the options.
+func NewConfigWithLogger(l log.Logger, opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder:          DefaultConfigFolder(),
 		dkgTimeout:            DefaultDKGPhaseTimeout,
 		dkgKickoffGracePeriod: DefaultDKGKickoffGracePeriod,
 		dkgPhaseTimeout:       DefaultDKGPhaseTimeout,
 		controlPort:           DefaultControlPort,
-		logger:                log.DefaultLogger(),
+		logger:                l,
 		clock:                 clock.NewRealClock(),
 	}
 	for i := range opts {
@@ -244,7 +253,7 @@ func WithTrustedCerts(certPaths ...string) ConfigOption {
 			return
 		}
 		if d.certmanager == nil {
-			d.certmanager = net.NewCertManager()
+			d.certmanager = net.NewCertManagerWithLogger(d.logger)
 		}
 		for _, p := range certPaths {
 			if err := d.certmanager.Add(p); err != nil {
@@ -272,22 +281,24 @@ func WithPrivateListenAddress(addr string) ConfigOption {
 	}
 }
 
+// WithLogLevel sets the logging verbosity to the given level.
+//
+// Deprecated: Use NewConfigWithLogger.
+func WithLogLevel(level int, jsonFormat bool) ConfigOption {
+	return func(d *Config) {
+		if jsonFormat {
+			d.logger = log.New(nil, level, false)
+		} else {
+			d.logger = log.New(nil, level, true)
+		}
+	}
+}
+
 // WithControlPort specifies which port on localhost the ListenerControl should
 // bind to.
 func WithControlPort(port string) ConfigOption {
 	return func(d *Config) {
 		d.controlPort = port
-	}
-}
-
-// WithLogLevel sets the logging verbosity to the given level.
-func WithLogLevel(level int, jsonFormat bool) ConfigOption {
-	return func(d *Config) {
-		if jsonFormat {
-			d.logger = log.NewJSONLogger(nil, level)
-		} else {
-			d.logger = log.NewLogger(nil, level)
-		}
 	}
 }
 

@@ -123,7 +123,7 @@ func (bp *BeaconProcess) ChainInfo(context.Context, *drand.ChainInfoRequest) (*d
 		return nil, errors.New("no dkg group setup yet")
 	}
 
-	response := chain.NewChainInfo(group).ToProto(bp.newMetadata())
+	response := chain.NewChainInfoWithLogger(bp.log, group).ToProto(bp.newMetadata())
 
 	return response, nil
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestAggregatorClose(t *testing.T) {
@@ -20,7 +21,7 @@ func TestAggregatorClose(t *testing.T) {
 		},
 	}
 
-	ac := newWatchAggregator(c, nil, true, 0)
+	ac := newWatchAggregator(testlogger.New(t), c, nil, true, 0)
 
 	err := ac.Close() // should cancel the autoWatch and close the underlying client
 	if err != nil {
@@ -49,7 +50,7 @@ func TestAggregatorPassive(t *testing.T) {
 		},
 	}
 
-	ac := newWatchAggregator(c, wc, false, 0)
+	ac := newWatchAggregator(testlogger.New(t), c, wc, false, 0)
 
 	wc.WatchCh <- &mock.Result{Rnd: 1234}
 	c.WatchCh <- &mock.Result{Rnd: 5678}

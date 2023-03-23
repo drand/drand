@@ -16,6 +16,7 @@ import (
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	testnet "github.com/drand/drand/test/net"
@@ -280,7 +281,7 @@ func nextMockData(d *Data) *Data {
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (net.Listener, net.Service) {
+func NewMockGRPCPublicServer(t *testing.T, l log.Logger, bind string, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (net.Listener, net.Service) {
 	d := generateMockData(sch, clk)
 	testValid(d)
 
@@ -288,7 +289,8 @@ func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch
 	d.Scheme = sch
 
 	server := newMockServer(t, d, clk)
-	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
+	ctx := log.ToContext(context.Background(), l)
+	listener, err := net.NewGRPCListenerForPrivate(ctx, bind, "", "", server, true)
 	if err != nil {
 		panic(err)
 	}

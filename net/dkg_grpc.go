@@ -3,14 +3,20 @@ package net
 import (
 	"fmt"
 
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 func NewDKGControlClient(addr string) (drand.DKGControlClient, error) {
-	conn, err := grpcConnection(addr)
+	l := log.DefaultLogger()
+	return NewDKGControlClientWithLogger(l, addr)
+}
+
+func NewDKGControlClientWithLogger(l log.Logger, addr string) (drand.DKGControlClient, error) {
+	conn, err := grpcConnection(l, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -18,7 +24,7 @@ func NewDKGControlClient(addr string) (drand.DKGControlClient, error) {
 	return drand.NewDKGControlClient(conn), nil
 }
 
-func grpcConnection(addr string) (*grpc.ClientConn, error) {
+func grpcConnection(l log.Logger, addr string) (*grpc.ClientConn, error) {
 	network, host := listenAddrFor(addr)
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
@@ -26,7 +32,7 @@ func grpcConnection(addr string) (*grpc.ClientConn, error) {
 
 	conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.DefaultLogger().Errorw("", "DKG client", "connect failure", "err", err)
+		l.Errorw("", "DKG client", "connect failure", "err", err)
 		return nil, err
 	}
 	return conn, nil

@@ -13,10 +13,11 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 )
 
-func getPublicRandomness(c *cli.Context) error {
+func getPublicRandomness(c *cli.Context, lg log.Logger) error {
 	if !c.Args().Present() {
 		return errors.New("get public command takes a group file as argument")
 	}
@@ -39,12 +40,12 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: group file must contain the distributed public key")
 	}
 
-	info := chain.NewChainInfo(group)
+	info := chain.NewChainInfoWithLogger(lg, group)
 
 	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
-		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS, info.Hash())
+		grpcClient, err := grpc.NewWithLogger(lg, id.Addr, certPath, !id.TLS, info.Hash())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s\n", id.Addr, err)
 			break
@@ -68,7 +69,7 @@ func getPublicRandomness(c *cli.Context) error {
 	return printJSON(c.App.Writer, resp)
 }
 
-func getChainInfo(c *cli.Context) error {
+func getChainInfo(c *cli.Context, lg log.Logger) error {
 	var err error
 	chainHash := make([]byte, 0)
 	if c.IsSet(hashInfoNoReq.Name) {
@@ -77,14 +78,14 @@ func getChainInfo(c *cli.Context) error {
 		}
 	}
 
-	grpcClient := core.NewGrpcClient(chainHash)
+	grpcClient := core.NewGrpcClientWithLogger(lg, chainHash)
 	if c.IsSet(tlsCertFlag.Name) {
-		defaultManager := net.NewCertManager()
+		defaultManager := net.NewCertManagerWithLogger(lg)
 		certPath := c.String(tlsCertFlag.Name)
 		if err := defaultManager.Add(certPath); err != nil {
 			return err
 		}
-		grpcClient = core.NewGrpcClientFromCert(chainHash, defaultManager)
+		grpcClient = core.NewGrpcClientFromCertWithLogger(lg, chainHash, defaultManager)
 	}
 	var ci *chain.Info
 	for _, addr := range c.Args().Slice() {
