@@ -5,13 +5,17 @@ import (
 	"errors"
 	"time"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 // actions_passive contains all internal messaging between nodes triggered by the protocol - things it does automatically
 // upon receiving messages from other nodes: storing proposals, aborting when the leader aborts, etc
 
-func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) Propose(ctx context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.DKGStatus")
+	defer span.End()
+
 	err := d.executeAction("DKG proposal", proposal.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
 		// strictly speaking, we don't actually _know_ this proposal came from the leader here
 		// it will have to be verified by signing later
@@ -21,7 +25,10 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) Accept(ctx context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.Accept")
+	defer span.End()
+
 	err := d.executeAction("DKG acceptance", acceptance.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
 		return current.ReceivedAcceptance(me, acceptance.Acceptor)
 	})
@@ -37,7 +44,10 @@ func (d *DKGProcess) Reject(_ context.Context, rejection *drand.RejectProposal) 
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) Abort(ctx context.Context, abort *drand.AbortDKG) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.Abort")
+	defer span.End()
+
 	err := d.executeAction("abort DKG", abort.Metadata.BeaconID, func(_ *drand.Participant, current *DBState) (*DBState, error) {
 		return current.Aborted()
 	})
@@ -46,6 +56,9 @@ func (d *DKGProcess) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.Emp
 }
 
 func (d *DKGProcess) Execute(ctx context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.Execute")
+	defer span.End()
+
 	beaconID := kickoff.Metadata.BeaconID
 
 	err := d.executeAction("DKG execution", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -69,7 +82,7 @@ func (d *DKGProcess) Execute(ctx context.Context, kickoff *drand.StartExecution)
 		time.Sleep(d.config.KickoffGracePeriod)
 		// copy this to avoid any data races with kyber
 		dkgConfigCopy := *dkgConfig
-		err := d.executeAndFinishDKG(beaconID, dkgConfigCopy)
+		err := d.executeAndFinishDKG(ctx, beaconID, dkgConfigCopy)
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG execution!", "beaconID", beaconID, "error", err)
 		}

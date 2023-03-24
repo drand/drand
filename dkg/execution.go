@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/kyber"
 
 	"github.com/drand/drand/crypto"
@@ -21,6 +22,9 @@ import (
 )
 
 func (d *DKGProcess) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.setupDKG")
+	defer span.End()
+
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
 		return nil, err
@@ -79,7 +83,10 @@ func (d *DKGProcess) setupDKG(ctx context.Context, beaconID string) (*dkg.Config
 // this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy :))
 //
 //nolint:gocritic
-func (d *DKGProcess) executeAndFinishDKG(beaconID string, config dkg.Config) error {
+func (d *DKGProcess) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
+	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
+	defer span.End()
+
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
 		return err
@@ -91,7 +98,7 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string, config dkg.Config) err
 	}
 
 	executeAndStoreDKG := func() error {
-		output, err := d.startDKGExecution(beaconID, current, &config)
+		output, err := d.startDKGExecution(ctx, beaconID, current, &config)
 		if err != nil {
 			return err
 		}
@@ -134,7 +141,10 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string, config dkg.Config) err
 	return rollbackOnError(executeAndStoreDKG, leaveNetwork)
 }
 
-func (d *DKGProcess) startDKGExecution(beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {
+func (d *DKGProcess) startDKGExecution(ctx context.Context, beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
+	defer span.End()
+
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
 	go phaser.Start()
 
@@ -168,7 +178,7 @@ func (d *DKGProcess) startDKGExecution(beaconID string, current *DBState, config
 			finalGroup = append(finalGroup, config.NewNodes[v.Index])
 		}
 
-		groupFile, err := asGroup(current, &share, finalGroup)
+		groupFile, err := asGroup(ctx, current, &share, finalGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +193,10 @@ func (d *DKGProcess) startDKGExecution(beaconID string, current *DBState, config
 	}
 }
 
-func asGroup(details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
+func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.asGroup")
+	defer span.End()
+
 	sch, found := crypto.GetSchemeByID(details.SchemeID)
 	if !found {
 		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
