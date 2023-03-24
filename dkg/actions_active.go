@@ -9,9 +9,10 @@ import (
 
 	"github.com/drand/drand/net"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // actions_active contains all the DKG actions that require user interaction: creating a network,
@@ -260,7 +261,7 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	}
 
 	// set up the DKG broadcaster for first so we're ready to broadcast DKG messages
-	dkgConfig, err := d.setupDKG(beaconID)
+	dkgConfig, err := d.setupDKG(ctx, beaconID)
 	if err != nil {
 		return nil, err
 	}

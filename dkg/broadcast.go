@@ -10,16 +10,16 @@ import (
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/drand/drand/protobuf/common"
-	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
-	"github.com/drand/kyber"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/util"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
+	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/util"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -76,7 +76,7 @@ var _ Broadcast = (*echoBroadcast)(nil)
 
 func newEchoBroadcast(
 	ctx context.Context,
-client net.DKGClient,
+	client net.DKGClient,
 	l log.Logger,
 	version commonutils.Version,
 	beaconID string,

@@ -388,7 +388,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	for {
 		dt.AdvanceMockClock(t, beaconPeriod)
 		time.Sleep(sleepDuration)
-		dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
+		dt.CheckPublicBeacon(dt.NodeAddresses(1, false)[0], false)
 		if dt.clock.Now().Unix() > resharedGroup.TransitionTime {
 			break
 		}
@@ -541,7 +541,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call
 //
-//nolint:funlen // this is a test
+//nolint:funlen // This is a longer test function
 func TestDrandPublicRand(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skip("test is flacky in CI")
@@ -1177,7 +1177,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0o740)
 	require.NoError(t, err)
 
-	err = node.daemon.init()
+	err = node.daemon.init(ctx)
 	require.NoError(t, err)
 	// try and reload the beacon from the store
 	// the updated TLS status will fail verification
@@ -1255,7 +1255,7 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 type brokenBroadcast struct {
 }
 
-func (b brokenBroadcast) PushDeals(bundle *dkg.DealBundle) {
+func (b brokenBroadcast) PushDeals(*dkg.DealBundle) {
 	// no op
 }
 
@@ -1265,7 +1265,7 @@ func (b brokenBroadcast) IncomingDeal() <-chan dkg.DealBundle {
 	return c
 }
 
-func (b brokenBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
+func (b brokenBroadcast) PushResponses(*dkg.ResponseBundle) {
 	// no op
 }
 
@@ -1275,7 +1275,7 @@ func (b brokenBroadcast) IncomingResponse() <-chan dkg.ResponseBundle {
 	return c
 }
 
-func (b brokenBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
+func (b brokenBroadcast) PushJustifications(*dkg.JustificationBundle) {
 	// no op
 }
 

@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -19,7 +20,7 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 )
 
-func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
+func (d *DKGProcess) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
 		return nil, err
@@ -52,6 +53,7 @@ func (d *DKGProcess) setupDKG(beaconID string) (*dkg.Config, error) {
 
 	// create the network over which to send all the DKG packets
 	board, err := newEchoBroadcast(
+		ctx,
 		d.internalClient,
 		d.log,
 		common.GetAppVersion(),

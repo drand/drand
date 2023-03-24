@@ -45,7 +45,7 @@ func (d *DKGProcess) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.Emp
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) Execute(ctx context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
 	beaconID := kickoff.Metadata.BeaconID
 
 	err := d.executeAction("DKG execution", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -58,7 +58,7 @@ func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (
 	}
 
 	d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
-	dkgConfig, err := d.setupDKG(beaconID)
+	dkgConfig, err := d.setupDKG(ctx, beaconID)
 	if err != nil {
 		return nil, err
 	}

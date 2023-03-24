@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"

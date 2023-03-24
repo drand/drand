@@ -85,10 +85,8 @@ func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
 	return nil
 }
 
-// SchemeStore is a store that run different checks depending on what scheme is being used.
-//
-//nolint:gocritic
-type SchemeStore struct {
+// schemeStore is a store that run different checks depending on what scheme is being used.
+type schemeStore struct {
 	chain.Store
 	sch       *crypto.Scheme
 	last      *chain.Beacon
@@ -109,7 +107,7 @@ func NewSchemeStore(ctx context.Context, s chain.Store, sch *crypto.Scheme) (cha
 	}, nil
 }
 
-func (a *SchemeStore) Put(ctx context.Context, b *chain.Beacon) error {
+func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
 	ctx, span := metrics.NewSpan(ctx, "schemeStore.Put")
 	defer span.End()
 

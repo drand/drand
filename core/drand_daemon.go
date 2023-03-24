@@ -8,9 +8,9 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/dkg"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -134,7 +134,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
 	// do not actually use it, so we are passing a background context to be safe.
 	lg := dd.log.With("server", "http")
-	ctx := log.ToContext(context.Background(), lg)
+	ctx = log.ToContext(ctx, lg)
 
 	var err error
 	dd.log.Infow("", "network", "init", "insecure", c.insecure)
@@ -208,7 +208,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 		span.RecordError(err)
 		return nil, err
 	}
-	go bp.StartListeningForDKGUpdates()
+	go bp.StartListeningForDKGUpdates(span.SpanContext())
 
 	dd.state.Lock()
 	dd.beaconProcesses[beaconID] = bp
@@ -383,7 +383,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		return bp, nil
 	}
 
-	if err := bp.Load(); err != nil {
+	if err := bp.Load(ctx); err != nil {
 		return nil, err
 	}
 	dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))

@@ -367,6 +367,8 @@ func (h *Handler) Reset(ctx context.Context) {
 }
 
 // run will wait until it is supposed to start
+//
+//nolint:funlen // This is a long function
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 

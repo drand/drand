@@ -8,13 +8,14 @@ import (
 
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
-func (dd *DrandDaemon) PingPong(ctx context.Context, in *drand.Ping) (*drand.Pong, error) {
+func (dd *DrandDaemon) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong, error) {
 	_, span := metrics.NewSpan(ctx, "dd.PingPong")
 	defer span.End()
 

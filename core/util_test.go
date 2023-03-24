@@ -21,7 +21,6 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -230,10 +229,9 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	return dt
 }
 
-// Ids returns the list of the first n ids given the newGroup parameter (either
+// NodeAddresses returns the list of the first n ids given the newGroup parameter (either
 // in the original group or the reshared one)
-// Deprecated: Rename this to addresses to align naming
-func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
+func (d *DrandTestScenario) NodeAddresses(n int, newGroup bool) []string {
 	nodes := d.nodes
 	if newGroup {
 		nodes = d.resharedNodes
@@ -410,7 +408,7 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 		node, err := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
 		if err != nil {
 			fmt.Println("could not construct mock node")
-			t.Fail()
+			t.Fatal("could not construct mock node")
 		}
 		d.newNodes[i] = node
 		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/drand/drand/dkg"
@@ -112,7 +114,7 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load(ctx context.Context) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.Load")
+	_, span := metrics.NewSpan(ctx, "bp.Load")
 	defer span.End()
 
 	var err error
@@ -121,6 +123,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil || bp.group == nil {
 		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+		span.RecordError(err)
 		return ErrDKGNotStarted
 	}
 
@@ -130,6 +133,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 			"priv", bp.priv.Public.Scheme.Name, "group", bp.group.Scheme.Name)
 		// we need to reload the keypair with the correct scheme
 		if bp.priv, err = bp.store.LoadKeyPair(bp.group.Scheme); err != nil {
+			span.RecordError(err)
 			return err
 		}
 	}
@@ -142,12 +146,15 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 
 	bp.share, err = bp.store.LoadShare(bp.group.Scheme)
 	if err != nil {
+		span.RecordError(err)
 		return err
 	}
 
 	thisBeacon := bp.group.Find(bp.priv.Public)
 	if thisBeacon == nil {
-		return fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+		err := fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+		span.RecordError(err)
+		return err
 	}
 	bp.state.Lock()
 	bp.index = int(thisBeacon.Index)
@@ -189,9 +196,10 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 	return nil
 }
 
-func (bp *BeaconProcess) StartListeningForDKGUpdates() {
+func (bp *BeaconProcess) StartListeningForDKGUpdates(sctx oteltrace.SpanContext) {
+	ctx := oteltrace.ContextWithSpanContext(context.Background(), sctx)
 	for dkgOutput := range bp.completedDKGs {
-		if err := bp.onDKGCompleted(&dkgOutput); err != nil {
+		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
 			bp.log.Errorw("Error performing DKG key transition", "err", err)
 		}
 	}
@@ -199,7 +207,7 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates() {
 
 // onDKGCompleted transitions between an "old" group and a new group. This method is called
 // *after* a DKG has completed.
-func (bp *BeaconProcess) onDKGCompleted(dkgOutput *dkg.SharingOutput) error {
+func (bp *BeaconProcess) onDKGCompleted(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
 	if dkgOutput.BeaconID != bp.beaconID {
 		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
 		return nil
@@ -227,18 +235,18 @@ func (bp *BeaconProcess) onDKGCompleted(dkgOutput *dkg.SharingOutput) error {
 
 	if weWereInLastEpoch {
 		if weAreInNextEpoch {
-			return bp.transitionToNext(dkgOutput)
+			return bp.transitionToNext(ctx, dkgOutput)
 		}
-		return bp.leaveNetwork()
+		return bp.leaveNetwork(ctx)
 	}
 	if weAreInNextEpoch {
-		return bp.joinNetwork(dkgOutput)
+		return bp.joinNetwork(ctx, dkgOutput)
 	}
 
 	return errors.New("failed to join the network during the DKG but somehow got to transition")
 }
 
-func (bp *BeaconProcess) transitionToNext(dkgOutput *dkg.SharingOutput) error {
+func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
 	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
 
@@ -246,23 +254,23 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput *dkg.SharingOutput) error {
 	if err != nil {
 		return err
 	}
-	err = bp.storeDKGOutput(newGroup, newShare)
+	err = bp.storeDKGOutput(ctx, newGroup, newShare)
 	if err != nil {
 		return err
 	}
 
 	// somehow the beacon process isn't set here sometimes o.O
 	if bp.beacon == nil {
-		b, err := bp.newBeacon(context.Background())
+		b, err := bp.newBeacon(ctx)
 		if err != nil {
 			return err
 		}
 		bp.beacon = b
 	}
-	bp.beacon.TransitionNewGroup(newShare, newGroup)
+	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
 
 	// keep the old beacon running until the `TransitionTime`
-	if err := bp.beacon.Transition(dkgOutput.Old.FinalGroup); err != nil {
+	if err := bp.beacon.Transition(ctx, dkgOutput.Old.FinalGroup); err != nil {
 		bp.log.Errorw("", "sync_before", err)
 	} else {
 		bp.log.Infow("", "transition_new", "done")
@@ -271,7 +279,7 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput *dkg.SharingOutput) error {
 	return err
 }
 
-func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) error {
+func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, share *key.Share) error {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 	bp.group = group
@@ -288,14 +296,14 @@ func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) erro
 		return err
 	}
 
-	bp.opts.dkgCallback(share, group)
+	bp.opts.dkgCallback(ctx, share, group)
 
 	return nil
 }
 
-func (bp *BeaconProcess) leaveNetwork() error {
+func (bp *BeaconProcess) leaveNetwork(ctx context.Context) error {
 	timeToStop := bp.group.TransitionTime - 1
-	err := bp.beacon.StopAt(timeToStop)
+	err := bp.beacon.StopAt(ctx, timeToStop)
 	if err != nil {
 		bp.log.Errorw("", "leaving_group", err)
 	} else {
@@ -305,7 +313,7 @@ func (bp *BeaconProcess) leaveNetwork() error {
 	return err
 }
 
-func (bp *BeaconProcess) joinNetwork(dkgOutput *dkg.SharingOutput) error {
+func (bp *BeaconProcess) joinNetwork(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
 	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
 
@@ -317,7 +325,7 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput *dkg.SharingOutput) error {
 		}
 	}
 
-	err := bp.storeDKGOutput(newGroup, newShare)
+	err := bp.storeDKGOutput(ctx, newGroup, newShare)
 	if err != nil {
 		return err
 	}
@@ -328,11 +336,11 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput *dkg.SharingOutput) error {
 		return err
 	}
 
-	bp.beacon.TransitionNewGroup(newShare, newGroup)
+	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
 
-	syncError := b.Start()
+	syncError := b.Start(ctx)
 	if syncError != nil {
-		b.Catchup()
+		b.Catchup(ctx)
 	}
 
 	return nil
