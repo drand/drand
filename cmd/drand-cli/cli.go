@@ -1082,7 +1082,7 @@ func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 				return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
 			}
 			if verbose {
-				fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
+				fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, lastBeacon.Round-startRound)
 			}
 
 			for round := startRound; round <= lastBeacon.Round; round++ {

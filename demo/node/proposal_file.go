@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+
 	cli "github.com/drand/drand/cmd/drand-cli"
 	"github.com/drand/drand/protobuf/drand"
 )

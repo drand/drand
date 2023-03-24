@@ -461,7 +461,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// have to close it afterwards or starting the node will hang
+	// Have to close it afterwards or starting the node will become unrespondive
 	err = dStore.Close()
 	require.NoError(t, err)
 

@@ -44,7 +44,7 @@ type Handler struct {
 	conf *Config
 	// to communicate with other drand peers
 	client net.ProtocolClient
-	// keeps the cryptographic info (group share etc)
+	// keeps the cryptographic info (group share etc.)
 	crypto *vault.Vault
 	// main logic that treats incoming packet / new beacons created
 	chain  *chainStore
@@ -446,7 +446,7 @@ func (h *Handler) run(startTime int64) {
 				// Since that last node is late, nodes must now hurry up to do
 				// the next beacons in time -> we run the next beacon now
 				// already. If that next beacon is created soon after, this
-				// channel will trigger again etc until we arrive at the correct
+				// channel will trigger again etc. until we arrive at the correct
 				// round.
 				go func(c roundInfo, latest chain.Beacon) {
 					defer span.End()

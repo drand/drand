@@ -94,7 +94,7 @@ func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, co
 }
 
 func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
-	in *drand.IdentityRequest, opts ...CallOption) (*drand.IdentityResponse, error) {
+	in *drand.IdentityRequest, _ ...CallOption) (*drand.IdentityResponse, error) {
 	var resp *drand.IdentityResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
@@ -120,12 +120,13 @@ func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRan
 
 const grpcClientRandStreamBacklog = 10
 
-// XXX move that to core/ client
+// PublicRandStream allows clients to stream randomness
+// TODO: move that to core/ client
 func (g *grpcClient) PublicRandStream(
 	ctx context.Context,
 	p Peer,
 	in *drand.PublicRandRequest,
-	opts ...CallOption) (chan *drand.PublicRandResponse, error) {
+	_ ...CallOption) (chan *drand.PublicRandResponse, error) {
 	var outCh = make(chan *drand.PublicRandResponse, grpcClientRandStreamBacklog)
 	c, err := g.conn(ctx, p)
 	if err != nil {
@@ -193,7 +194,7 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 // MaxSyncBuffer is the maximum number of queued rounds when syncing
 const MaxSyncBuffer = 500
 
-func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
+func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, _ ...CallOption) (chan *drand.BeaconPacket, error) {
 	resp := make(chan *drand.BeaconPacket, MaxSyncBuffer)
 	c, err := g.conn(ctx, p)
 	if err != nil {
@@ -360,7 +361,7 @@ func (g *grpcClient) Stop() {
 	g.Lock()
 	defer g.Unlock()
 	for _, c := range g.conns {
-		c.Close()
+		_ = c.Close()
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
 }

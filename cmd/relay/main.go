@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/gorilla/handlers"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/cmd/client/lib"
@@ -79,7 +79,7 @@ func Relay(c *cli.Context) error {
 		metricsListener := metrics.StartWithLogger(cliLog, c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
 
-		if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics); err != nil {
+		if err := metrics.PrivateMetrics.Register(grpcprometheus.DefaultClientMetrics); err != nil {
 			return err
 		}
 	}

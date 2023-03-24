@@ -242,7 +242,7 @@ func (h *httpClient) String() string {
 	return fmt.Sprintf("HTTP(%q)", h.root)
 }
 
-// Implement textMarshaller
+// MarshalText implements encoding.TextMarshaller interface
 func (h *httpClient) MarshalText() ([]byte, error) {
 	return json.Marshal(h.String())
 }
@@ -406,7 +406,7 @@ func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
 }
 
 // Info returns information about the chain.
-func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
+func (h *httpClient) Info(_ context.Context) (*chain.Info, error) {
 	return h.chainInfo, nil
 }
 

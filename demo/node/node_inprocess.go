@@ -306,7 +306,7 @@ func (l *LocalNode) AcceptReshare() error {
 	return nil
 }
 
-func (l *LocalNode) ChainInfo(group string) bool {
+func (l *LocalNode) ChainInfo(_ string) bool {
 	cl := l.ctrl()
 	ci, err := cl.ChainInfo(l.beaconID)
 	if err != nil {
@@ -327,7 +327,7 @@ func (l *LocalNode) Ping() bool {
 	return true
 }
 
-func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
+func (l *LocalNode) GetBeacon(_ string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
 	cert := ""
 	if l.tls {
 		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
@@ -361,7 +361,10 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 
 func (l *LocalNode) WriteCertificate(p string) {
 	if l.tls {
-		exec.Command("cp", path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)), p).Run()
+		err := exec.Command("cp", path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)), p).Run()
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 

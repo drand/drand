@@ -172,7 +172,7 @@ func (s *SyncManager) Run() {
 				// -> time to start a new sync
 				cancel()
 				ctx, cancel = context.WithCancel(s.ctx)
-				//nolint
+				//nolint:errcheck // TODO: Handle this
 				go s.Sync(ctx, request)
 			}
 		case <-s.newSync:

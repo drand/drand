@@ -576,7 +576,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
-func (h *DrandHandler) ChainHashes(w http.ResponseWriter, r *http.Request) {
+func (h *DrandHandler) ChainHashes(w http.ResponseWriter, _ *http.Request) {
 	chainHashes := make([]string, 0)
 	for chainHash := range h.beacons {
 		if chainHash != common.DefaultChainHash {

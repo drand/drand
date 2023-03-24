@@ -227,7 +227,7 @@ func (g *grpcListener) Start() {
 	}()
 }
 
-func (g *grpcListener) Stop(ctx context.Context) {
+func (g *grpcListener) Stop(_ context.Context) {
 	g.grpcServer.Stop()
 	_ = g.lis.Close()
 }

@@ -362,12 +362,12 @@ func (d *DrandTestScenario) CheckBeaconLength(t *testing.T, nodes []*MockNode, e
 }
 
 // CheckPublicBeacon looks if we can get the latest beacon on this node
-func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool) *drand.PublicRandResponse {
+func (d *DrandTestScenario) CheckPublicBeacon(ctx context.Context, nodeAddress string, newGroup bool) *drand.PublicRandResponse {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	client := net.NewGrpcClientFromCertManagerWithLogger(dr.log, dr.opts.certmanager, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)

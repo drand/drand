@@ -220,7 +220,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 			continue
 		}
 		if remoteAddress == bp.priv.Public.Addr {
-			// skipping ourself for the connectivity test
+			// Skipping ourselves for the connectivity test
 			continue
 		}
 

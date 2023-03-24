@@ -192,7 +192,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.CheckBeaconLength(t, dt.nodes, 3)
 
 	t.Log("Check Beacon Public")
-	response := dt.CheckPublicBeacon(lastNode.addr, false)
+	response := dt.CheckPublicBeacon(ctx, lastNode.addr, false)
 	require.Equal(t, uint64(2), response.Round)
 }
 
@@ -352,6 +352,9 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 //
 //nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	oldNodes, newNodes, oldThreshold := 3, 4, 2
 	beaconPeriod := 2 * time.Second
 	offline := 1
@@ -388,7 +391,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	for {
 		dt.AdvanceMockClock(t, beaconPeriod)
 		time.Sleep(sleepDuration)
-		dt.CheckPublicBeacon(dt.NodeAddresses(1, false)[0], false)
+		dt.CheckPublicBeacon(ctx, dt.NodeAddresses(1, false)[0], false)
 		if dt.clock.Now().Unix() > resharedGroup.TransitionTime {
 			break
 		}
@@ -404,8 +407,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	rootID := root.priv.Public
 	cm := root.opts.certmanager
 	client := net.NewGrpcClientFromCertManagerWithLogger(testlogger.New(t), cm)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 
@@ -1149,7 +1151,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	store := key.NewFileStore(dir, beaconID)
 	node.drand.store = store
 
-	// save the key pair, as this was done ephemerally inside of `NewDrandTestScenario` >.>
+	// save the key pair, as this was done ephemerally inside `NewDrandTestScenario` >.>
 	err := store.SaveKeyPair(priv)
 	require.NoError(t, err)
 

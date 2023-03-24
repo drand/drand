@@ -352,7 +352,7 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 	return nil
 }
 
-// GroupHandlers abstracts a helper for relaying http requests to a group peer
+// Handler abstracts a helper for relaying http requests to a group peer
 type Handler func(ctx context.Context, addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
