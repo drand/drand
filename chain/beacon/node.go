@@ -207,7 +207,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		return new(proto.Empty), nil
 	}
 
-	h.chain.NewValidPartial(span.SpanContext(), addr, p)
+	h.chain.NewValidPartial(ctx, addr, p)
 	return new(proto.Empty), nil
 }
 
@@ -519,7 +519,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 		Metadata:          metadata,
 	}
 
-	h.chain.NewValidPartial(span.SpanContext(), h.addr, packet)
+	h.chain.NewValidPartial(ctx, h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
 		select {
 		case <-ctx.Done():

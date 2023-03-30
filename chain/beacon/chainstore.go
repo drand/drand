@@ -110,15 +110,14 @@ func newChainStore(ctx context.Context, l log.Logger, cf *Config, cl net.Protoco
 		cs.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there
-	go func() {
-		cs.runAggregator()
-	}()
+	go cs.runAggregator()
 	return cs, nil
 }
 
-func (c *chainStore) NewValidPartial(spanContext oteltrace.SpanContext, addr string, p *drand.PartialBeaconPacket) {
+func (c *chainStore) NewValidPartial(ctx context.Context, addr string, p *drand.PartialBeaconPacket) {
+	spanCtx := oteltrace.SpanContextFromContext(ctx)
 	c.newPartials <- partialInfo{
-		spanContext: spanContext,
+		spanContext: spanCtx,
 
 		addr: addr,
 		p:    p,
