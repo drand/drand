@@ -13,7 +13,7 @@ import (
 // upon receiving messages from other nodes: storing proposals, aborting when the leader aborts, etc
 
 func (d *DKGProcess) Propose(ctx context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.DKGStatus")
+	_, span := metrics.NewSpan(ctx, "dkg.Propose")
 	defer span.End()
 
 	err := d.executeAction("DKG proposal", proposal.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -36,7 +36,10 @@ func (d *DKGProcess) Accept(ctx context.Context, acceptance *drand.AcceptProposa
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) Reject(ctx context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.Reject")
+	defer span.End()
+
 	err := d.executeAction("DKG rejection", rejection.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
 		return current.ReceivedRejection(me, rejection.Rejector)
 	})
@@ -93,6 +96,9 @@ func (d *DKGProcess) Execute(ctx context.Context, kickoff *drand.StartExecution)
 
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)
 func (d *DKGProcess) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.BroadcastDKG")
+	defer span.End()
+
 	beaconID := packet.Dkg.Metadata.BeaconID
 	d.lock.Lock()
 	broadcaster := d.Executions[beaconID]
