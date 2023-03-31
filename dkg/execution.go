@@ -141,6 +141,7 @@ func (d *DKGProcess) executeAndFinishDKG(ctx context.Context, beaconID string, c
 	return rollbackOnError(executeAndStoreDKG, leaveNetwork)
 }
 
+//nolint:lll // This function has a few, explicitly named, paramteres.
 func (d *DKGProcess) startDKGExecution(ctx context.Context, beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {
 	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
 	defer span.End()
@@ -193,10 +194,7 @@ func (d *DKGProcess) startDKGExecution(ctx context.Context, beaconID string, cur
 	}
 }
 
-func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.asGroup")
-	defer span.End()
-
+func asGroup(_ context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
 	sch, found := crypto.GetSchemeByID(details.SchemeID)
 	if !found {
 		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)

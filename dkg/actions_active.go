@@ -68,9 +68,10 @@ func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstPropo
 	}
 
 	sendProposalAndStoreNextState := func() error {
-		err := d.network.Send(ctx, me, nextState.Joining, func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
-			return client.Propose(ctx, peer, &terms)
-		})
+		err := d.network.Send(ctx, me, nextState.Joining,
+			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				return client.Propose(ctx, peer, &terms)
+			})
 		if err != nil {
 			return err
 		}
@@ -177,9 +178,10 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 		// we make a best effort attempt to send the proposal to the leaver, but if their node is e.g. turned off then
 		// we ignore the error
 		if len(nextState.Leaving) > 0 {
-			err = d.network.Send(ctx, me, nextState.Leaving, func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
-				return client.Propose(ctx, peer, &terms)
-			})
+			err = d.network.Send(ctx, me, nextState.Leaving,
+				func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+					return client.Propose(ctx, peer, &terms)
+				})
 
 			if err != nil {
 				d.log.Warnw("could not send proposal to a leaving participant", "err", err)
