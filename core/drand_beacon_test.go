@@ -2,12 +2,13 @@ package core
 
 import (
 	"context"
-	"github.com/drand/drand/dkg"
-	"github.com/drand/drand/protobuf/drand"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
@@ -222,6 +223,7 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	time.Sleep(sleepDuration)
 
 	err = ts.WaitUntilRound(t, ts.nodes[0], 2)
+	require.NoError(t, err)
 
 	// nuke the DKG state for a node and reload
 	// the DKG process to clear any open handles
@@ -230,7 +232,9 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	require.NoError(t, err)
 	dkgStore, err := dkg.NewDKGStore(node.daemon.opts.configFolder, node.daemon.opts.boltOpts)
 	require.NoError(t, err)
-	node.daemon.dkg = dkg.NewDKGProcess(dkgStore, node.daemon, node.daemon.completedDKGs, node.daemon.privGateway, dkg.Config{}, node.daemon.log)
+	node.daemon.dkg = dkg.NewDKGProcess(
+		dkgStore, node.daemon, node.daemon.completedDKGs, node.daemon.privGateway, dkg.Config{}, node.daemon.log,
+	)
 	require.NoError(t, err)
 
 	// there should be no completed DKGs now for that node

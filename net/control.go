@@ -4,9 +4,10 @@ import (
 	ctx "context"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/net/context"
 	"net"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

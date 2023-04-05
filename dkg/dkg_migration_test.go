@@ -1,14 +1,15 @@
 package dkg
 
 import (
+	"testing"
+	"time"
+
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestNilGroupFails(t *testing.T) {
@@ -33,10 +34,10 @@ func TestEmptyBeaconIDFails(t *testing.T) {
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
-	share := fakeShare()
+	keyShare := fakeShare()
 	group := fakeGroup()
 
-	err = store.MigrateFromGroupfile("", group, share)
+	err = store.MigrateFromGroupfile("", group, keyShare)
 	require.Error(t, err)
 }
 

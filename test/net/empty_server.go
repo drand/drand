@@ -182,3 +182,7 @@ func (s *EmptyServer) StartReject(_ context.Context, options *drand.RejectOption
 func (s *EmptyServer) DKGStatus(_ context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
 	return nil, nil
 }
+
+func (s *EmptyServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+	return nil, nil
+}

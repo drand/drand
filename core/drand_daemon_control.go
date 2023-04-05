@@ -251,7 +251,7 @@ func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, err
 		}
 
 		// then we run the migration using them
-		if err = dd.dkg.Migrate(beaconID, group, share); err != nil {
+		if err := dd.dkg.Migrate(beaconID, group, share); err != nil {
 			return nil, err
 		}
 

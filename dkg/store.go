@@ -2,11 +2,12 @@ package dkg
 
 import (
 	bytes2 "bytes"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/protobuf/drand"
 	"path"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -174,22 +175,22 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	}
 
 	// map all the nodes from the group file into `drand.Participant`s
-	var participants []*drand.Participant
+	participants := make([]*drand.Participant, len(groupFile.Nodes))
 
 	if len(groupFile.Nodes) == 0 {
 		return errors.New("you cannot migrate from a group file that doesn't contain node info")
 	}
-	for _, node := range groupFile.Nodes {
+	for i, node := range groupFile.Nodes {
 		pk, err := node.Key.MarshalBinary()
 		if err != nil {
 			return err
 		}
-		participants = append(participants, &drand.Participant{
+		participants[i] = &drand.Participant{
 			Address:   node.Address(),
 			Tls:       node.TLS,
 			PubKey:    pk,
 			Signature: node.Signature,
-		})
+		}
 	}
 
 	// create an epoch 1 state with the 0th node as the leader
