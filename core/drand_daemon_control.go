@@ -239,7 +239,27 @@ func (dd *DrandDaemon) WaitExit() chan bool {
 func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
 	for beaconID, bp := range dd.beaconProcesses {
 		dd.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
-		if err := dd.dkg.Migrate(beaconID, bp.group, bp.share); err != nil {
+
+		// first we fetch the old group and share from disk
+		group, err := bp.store.LoadGroup()
+		if err != nil {
+			return nil, err
+		}
+		share, err := bp.store.LoadShare(group.Scheme)
+		if err != nil {
+			return nil, err
+		}
+
+		// then we run the migration using them
+		if err = dd.dkg.Migrate(beaconID, group, share); err != nil {
+			return nil, err
+		}
+
+		// then stop and start the beacon process to load the new DKG
+		// state and start listening for messages correctly
+		bp.StopBeacon()
+		_, err = dd.LoadBeaconFromDisk(beaconID)
+		if err != nil {
 			return nil, err
 		}
 	}
