@@ -258,7 +258,7 @@ func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, err
 		// then stop and start the beacon process to load the new DKG
 		// state and start listening for messages correctly
 		bp.StopBeacon()
-		_, err = dd.LoadBeaconFromDisk(beaconID)
+		_, err = dd.LoadBeaconFromStore(beaconID, bp.store)
 		if err != nil {
 			return nil, err
 		}

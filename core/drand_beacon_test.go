@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/protobuf/drand"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -199,4 +202,46 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	expectedRound := chain.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
 	err = ts.WaitUntilRound(t, memDBNode, expectedRound-1)
 	require.NoError(t, err)
+}
+
+func TestMigrateMissingDKGDatabase(t *testing.T) {
+	const nodeCount = 3
+	const thr = 2
+	const period = 1 * time.Second
+	sleepDuration := 100 * time.Millisecond
+
+	// set up a few nodes and run a DKG
+	beaconName := t.Name()
+	ts := NewDrandTestScenario(t, nodeCount, thr, period, beaconName, clockwork.NewFakeClockAt(time.Now()))
+
+	group, err := ts.RunDKG()
+	require.NoError(t, err)
+
+	ts.SetMockClock(t, group.GenesisTime)
+	ts.AdvanceMockClock(t, period)
+	time.Sleep(sleepDuration)
+
+	err = ts.WaitUntilRound(t, ts.nodes[0], 2)
+
+	// nuke the DKG state for a node and reload
+	// the DKG process to clear any open handles
+	node := ts.nodes[0]
+	err = os.Remove(path.Join(node.daemon.opts.configFolder, dkg.BoltFileName))
+	require.NoError(t, err)
+	dkgStore, err := dkg.NewDKGStore(node.daemon.opts.configFolder, node.daemon.opts.boltOpts)
+	require.NoError(t, err)
+	node.daemon.dkg = dkg.NewDKGProcess(dkgStore, node.daemon, node.daemon.completedDKGs, node.daemon.privGateway, dkg.Config{}, node.daemon.log)
+	require.NoError(t, err)
+
+	// there should be no completed DKGs now for that node
+	status, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
+	require.NoError(t, err)
+	require.Nil(t, status.Complete)
+
+	// run the migration and check that there now is a completed DKG
+	_, err = node.daemon.Migrate(context.Background(), &drand.Empty{})
+	require.NoError(t, err)
+	status2, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
+	require.NoError(t, err)
+	require.NotNil(t, status2.Complete)
 }
