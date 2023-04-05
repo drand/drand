@@ -13,24 +13,24 @@ import "common/common.proto";
 import "drand/common.proto";
 
 service Control {
-    // PingPong returns an empty message. Purpose is to test the control port.
-    rpc PingPong(Ping) returns (Pong) { }
-    // Status responds with the actual status of drand process
-    rpc Status(StatusRequest) returns (StatusResponse) { }
-    // ListSchemes responds with the list of ids for the available schemes
-    rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) { }
-    // ListBeaconIDs responds with the list of ids for the running networks on the node
-    rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) { }
-    // PublicKey returns the longterm public key of the drand node
-    rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
-    // PrivateKey returns the longterm private key of the drand node
-    rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
-    // CollectiveKey returns the distributed public key used by the node
-    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) { }
-    // GroupFile returns the TOML-encoded group file
-    // similar to public.Group method but needed for ease of use of the
-    // control functionalities
-    rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) { }
+  // PingPong returns an empty message. Purpose is to test the control port.
+  rpc PingPong(Ping) returns (Pong) {}
+  // Status responds with the actual status of drand process
+  rpc Status(StatusRequest) returns (StatusResponse) {}
+  // ListSchemes responds with the list of ids for the available schemes
+  rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) {}
+  // ListBeaconIDs responds with the list of ids for the running networks on the node
+  rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
+  // PublicKey returns the longterm public key of the drand node
+  rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) {}
+  // PrivateKey returns the longterm private key of the drand node
+  rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) {}
+  // CollectiveKey returns the distributed public key used by the node
+  rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) {}
+  // GroupFile returns the TOML-encoded group file
+  // similar to public.Group method but needed for ease of use of the
+  // control functionalities
+  rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) {}
 
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
 
@@ -44,6 +44,8 @@ service Control {
 
   // RemoteStatus request the status of some remote drand nodes
   rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) {}
+
+  rpc Migrate(Empty) returns (Empty){}
 }
 
 // EntropyInfo contains information about external entropy sources
@@ -104,10 +106,10 @@ message PublicKeyRequest {
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
   bytes pubKey = 1;
-    string addr = 2;
-    bool tls = 3;
-    bytes signature = 4;
-    common.Metadata metadata = 5;
+  string addr = 2;
+  bool tls = 3;
+  bytes signature = 4;
+  common.Metadata metadata = 5;
 }
 
 // PrivateKeyRequest requests the private key of a drand node

@@ -4,6 +4,7 @@ import (
 	ctx "context"
 	"encoding/hex"
 	"fmt"
+	"golang.org/x/net/context"
 	"net"
 	"time"
 
@@ -348,6 +349,11 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
+	return err
+}
+
+func (c *ControlClient) Migrate() error {
+	_, err := c.client.Migrate(context.Background(), &control.Empty{})
 	return err
 }
 

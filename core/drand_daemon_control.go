@@ -235,3 +235,15 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 func (dd *DrandDaemon) WaitExit() chan bool {
 	return dd.exitCh
 }
+
+func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+	for beaconID, bp := range dd.beaconProcesses {
+		dd.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
+		if err := dd.dkg.Migrate(beaconID, bp.group, bp.share); err != nil {
+			return nil, err
+		}
+	}
+
+	dd.log.Debugw("Completed migration from group file")
+	return &drand.Empty{}, nil
+}
