@@ -4,6 +4,10 @@ import (
 	bytes2 "bytes"
 	"path"
 	"sync"
+	"time"
+
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -14,8 +18,9 @@ import (
 
 type boltStore struct {
 	sync.RWMutex
-	db  *bolt.DB
-	log log.Logger
+	db            *bolt.DB
+	log           log.Logger
+	migrationLock sync.Mutex
 }
 
 const BoltFileName = "dkg.db"
@@ -143,4 +148,73 @@ func (s *boltStore) Close() error {
 	}
 
 	return nil
+}
+
+func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
+	if beaconID == "" {
+		return errors.New("you must pass a beacon ID")
+	}
+	if groupFile == nil {
+		return errors.New("you cannot migrate without passing a previous group file")
+	}
+	if share == nil {
+		return errors.New("you cannot migrate without a previous distributed key share")
+	}
+	// we use a separate lock here to avoid reentrancy when calling `.SaveFinished()`
+	s.migrationLock.Lock()
+	defer s.migrationLock.Unlock()
+
+	current, err := s.GetFinished(beaconID)
+	if err != nil {
+		return err
+	}
+
+	// if there has previously been a DKG in the database, abort!
+	if current != nil {
+		return errors.New("cannot migrate from groupfile if DKG state exists for beacon")
+	}
+
+	// map all the nodes from the group file into `drand.Participant`s
+	participants := make([]*drand.Participant, len(groupFile.Nodes))
+
+	if len(groupFile.Nodes) == 0 {
+		return errors.New("you cannot migrate from a group file that doesn't contain node info")
+	}
+	for i, node := range groupFile.Nodes {
+		pk, err := node.Key.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		participants[i] = &drand.Participant{
+			Address:   node.Address(),
+			Tls:       node.TLS,
+			PubKey:    pk,
+			Signature: node.Signature,
+		}
+	}
+
+	// create an epoch 1 state with the 0th node as the leader
+	state := DBState{
+		BeaconID:       beaconID,
+		Epoch:          1,
+		State:          Complete,
+		Threshold:      uint32(groupFile.Threshold),
+		Timeout:        time.Now(),
+		SchemeID:       groupFile.Scheme.Name,
+		GenesisTime:    time.Unix(groupFile.GenesisTime, 0),
+		GenesisSeed:    groupFile.GenesisSeed,
+		TransitionTime: time.Unix(groupFile.TransitionTime, 0),
+		CatchupPeriod:  groupFile.CatchupPeriod,
+		BeaconPeriod:   groupFile.Period,
+		Leader:         participants[0],
+		Remaining:      nil,
+		Joining:        participants,
+		Leaving:        nil,
+		Acceptors:      participants,
+		Rejectors:      nil,
+		FinalGroup:     groupFile,
+		KeyShare:       share,
+	}
+
+	return s.SaveFinished(beaconID, &state)
 }

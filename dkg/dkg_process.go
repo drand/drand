@@ -67,6 +67,11 @@ type Store interface {
 
 	// Close closes and cleans up any database handles
 	Close() error
+
+	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
+	// It will fail if DKG state already exists for the given beaconID
+	// Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
+	MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error
 }
 
 type Network interface {
@@ -121,4 +126,11 @@ func (d *DKGProcess) Close() {
 	if err != nil {
 		d.log.Errorw("error closing the database", "err", err)
 	}
+}
+
+// Migrate takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
+// It will fail if DKG state already exists for the given beaconID
+// Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
+func (d *DKGProcess) Migrate(beaconID string, groupfile *key.Group, share *key.Share) error {
+	return d.store.MigrateFromGroupfile(beaconID, groupfile, share)
 }

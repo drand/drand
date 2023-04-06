@@ -547,3 +547,8 @@ func (m *MockStore) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }
+
+func (m *MockStore) MigrateFromGroupfile(beaconID string, group *key.Group, share *key.Share) error {
+	args := m.Called(beaconID, group, share)
+	return args.Error(0)
+}
