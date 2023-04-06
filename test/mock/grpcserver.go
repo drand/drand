@@ -159,6 +159,10 @@ func (s *Server) EmitRand(closeStream bool) {
 	s.t.Log("MOCK SERVER: emit round done", resp.Round)
 }
 
+func (s *Server) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+	return &drand.Empty{}, nil
+}
+
 func testValid(d *Data) {
 	pub := d.Public
 	pubPoint := d.Scheme.KeyGroup.Point()
