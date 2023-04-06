@@ -46,6 +46,9 @@ func (t *testRandomnessServer) Group(context.Context, *drand.GroupRequest) (*dra
 func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error) {
 	return nil, nil
 }
+func (t *testRandomnessServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+	return &drand.Empty{}, nil
+}
 
 func TestListeners(t *testing.T) {
 	t.Run("without-tls", func(t *testing.T) { testListener(t) })

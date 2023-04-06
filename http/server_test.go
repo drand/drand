@@ -198,7 +198,7 @@ func TestHTTPWaiting(t *testing.T) {
 	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
 	// the expected beacon from above due to lock contention on bh.pendingLk.
 	// Note: Removing this sleep will cause the test to randomly break.
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	done := make(chan time.Time)
 	before := clk.Now()
@@ -315,7 +315,7 @@ func TestHTTPHealth(t *testing.T) {
 	push(false)
 	// Give some time for http server to get it
 	// Note: Removing this sleep will cause the test to randomly break.
-	time.Sleep(50*time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	resp.Body.Close()
 
 	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
