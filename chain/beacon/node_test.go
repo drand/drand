@@ -58,6 +58,10 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
+func (t *testBeaconServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+	return &drand.Empty{}, nil
+}
+
 func dkgShares(_ *testing.T, n, t int, sch *crypto.Scheme) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
