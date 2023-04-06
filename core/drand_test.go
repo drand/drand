@@ -305,7 +305,7 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 
 	dt.SetMockClock(t, group1.GenesisTime)
 	// Note: Removing this sleep will cause the test to randomly break.
-	time.Sleep(1*time.Second)
+	time.Sleep(1 * time.Second)
 	err = dt.WaitUntilChainIsServing(t, dt.nodes[0])
 	require.NoError(t, err)
 
@@ -355,7 +355,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	beaconPeriod := 2 * time.Second
 	offline := 1
 	beaconID := test.GetBeaconIDFromEnv()
-	sleepDuration := 100*time.Millisecond
+	sleepDuration := 100 * time.Millisecond
 
 	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -538,6 +538,8 @@ func TestDrandPublicChainInfo(t *testing.T) {
 }
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call
+//
+//nolint:funlen // this is a test
 func TestDrandPublicRand(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skip("test is flacky in CI")
@@ -636,7 +638,7 @@ func TestDrandPublicStream(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
-	sleepDuration := 100*time.Millisecond
+	sleepDuration := 100 * time.Millisecond
 
 	dt := NewDrandTestScenario(t, n, thr, p, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
