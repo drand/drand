@@ -613,12 +613,12 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return err
 	}
 
-	if terms.TransitionTime == nil {
-		return ErrTransitionTimeMissing
-	}
-
 	if terms.Epoch == 1 {
 		return validateFirstEpoch(terms)
+	}
+
+	if terms.TransitionTime == nil {
+		return ErrTransitionTimeMissing
 	}
 
 	// perhaps this should be stricter?
