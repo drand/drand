@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	"github.com/BurntSushi/toml"
 
@@ -266,7 +267,8 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	if c.IsSet(transitionTimeFlag.Name) {
 		genesisTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
 	} else {
-		genesisTime = time.Now().Add(period * 3)
+		defaultRoundsToWait := period * 3
+		genesisTime = time.Now().Add(defaultRoundsToWait)
 	}
 
 	return &drand.FirstProposalOptions{
