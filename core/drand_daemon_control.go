@@ -275,7 +275,7 @@ func (dd *DrandDaemon) WaitExit() chan bool {
 	return dd.exitCh
 }
 
-func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+func (dd *DrandDaemon) Migrate(context context.Context, _ *drand.Empty) (*drand.Empty, error) {
 	for beaconID, bp := range dd.beaconProcesses {
 		dd.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
 
@@ -296,8 +296,8 @@ func (dd *DrandDaemon) Migrate(context.Context, *drand.Empty) (*drand.Empty, err
 
 		// then stop and start the beacon process to load the new DKG
 		// state and start listening for messages correctly
-		bp.StopBeacon()
-		_, err = dd.LoadBeaconFromStore(beaconID, bp.store)
+		bp.StopBeacon(context)
+		_, err = dd.LoadBeaconFromStore(context, beaconID, bp.store)
 		if err != nil {
 			return nil, err
 		}
