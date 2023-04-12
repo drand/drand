@@ -29,15 +29,17 @@ func TestStoreCallback(t *testing.T) {
 		doneCh <- true
 	})
 
-	cb.Put(ctx, &chain.Beacon{
+	err = cb.Put(ctx, &chain.Beacon{
 		Round: 1,
 	})
+	require.NoError(t, err)
 	require.True(t, checkOne(doneCh))
 
 	cb.AddCallback(id1, func(*chain.Beacon, bool) {})
-	cb.Put(ctx, &chain.Beacon{
+	err = cb.Put(ctx, &chain.Beacon{
 		Round: 1,
 	})
+	require.NoError(t, err)
 	require.False(t, checkOne(doneCh))
 
 	cb.RemoveCallback(id1)

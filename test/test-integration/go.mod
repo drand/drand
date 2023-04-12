@@ -25,4 +25,5 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 )
 
+// This is is required to allow testing against the current code.
 replace github.com/drand/drand => ../../.

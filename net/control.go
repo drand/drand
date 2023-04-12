@@ -20,7 +20,7 @@ import (
 
 const grpcDefaultIPNetwork = "tcp"
 
-// ControlListener is used to keep state of the connections of our drand instance
+// ControlListener is used to keep state for the connections of our drand instance
 type ControlListener struct {
 	log   log.Logger
 	conns *grpc.Server
@@ -32,7 +32,7 @@ func NewGRPCListener(s Service, controlAddr string) (ControlListener, error) {
 	return NewGRPCListenerWithLogger(l, s, controlAddr)
 }
 
-// NewTCPGrpcControlListenerWithLogger registers the pairing between a ControlServer and a grpc server
+// NewGRPCListenerWithLogger registers the pairing between a ControlServer and a grpc server
 func NewGRPCListenerWithLogger(l log.Logger, s Service, controlAddr string) (ControlListener, error) {
 	grpcServer := grpc.NewServer()
 	lis, err := newListener(controlAddr)
@@ -147,24 +147,22 @@ func (c *ControlClient) Ping() error {
 	return err
 }
 
-// LoadBeacon
+// LoadBeacon loads the beacon details
 func (c *ControlClient) LoadBeacon(beaconID string) (*control.LoadBeaconResponse, error) {
 	metadata := protoCommon.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	resp, err := c.client.LoadBeacon(ctx.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
-	return resp, err
+	return c.client.LoadBeacon(ctx.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
 }
 
-// ListBeaconIDs
+// ListBeaconIDs returns a list of all beacon ids
 func (c *ControlClient) ListBeaconIDs() (*control.ListBeaconIDsResponse, error) {
 	metadata := protoCommon.Metadata{
 		NodeVersion: c.version.ToProto(),
 	}
 
-	resp, err := c.client.ListBeaconIDs(ctx.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
-	return resp, err
+	return c.client.ListBeaconIDs(ctx.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
 }
 
 // Status gets the current daemon status
@@ -173,16 +171,14 @@ func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error)
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{Metadata: &metadata})
-	return resp, err
+	return c.client.Status(ctx.Background(), &control.StatusRequest{Metadata: &metadata})
 }
 
 // ListSchemes responds with the list of ids for the available schemes
 func (c *ControlClient) ListSchemes() (*control.ListSchemesResponse, error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
-	resp, err := c.client.ListSchemes(ctx.Background(), &control.ListSchemesRequest{Metadata: metadata})
-	return resp, err
+	return c.client.ListSchemes(ctx.Background(), &control.ListSchemesRequest{Metadata: metadata})
 }
 
 // PublicKey returns the public key of the remote node
@@ -284,6 +280,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 			}
 		}
 	}()
+
 	return outCh, errCh, nil
 }
 
@@ -343,6 +340,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 			}
 		}
 	}()
+
 	return outCh, errCh, nil
 }
 
@@ -364,7 +362,7 @@ type DefaultControlServer struct {
 }
 
 // PingPong sends a ping to the server
-func (s *DefaultControlServer) PingPong(c ctx.Context, in *control.Ping) (*control.Pong, error) {
+func (s *DefaultControlServer) PingPong(_ ctx.Context, _ *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
 }
 

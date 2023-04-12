@@ -8,28 +8,38 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
-func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+func (bp *BeaconProcess) PartialBeacon(ctx context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.PartialBeacon")
+	defer span.End()
+
 	bp.state.RLock()
 	// we need to defer unlock here to avoid races during the partial processing
 	defer bp.state.RUnlock()
 	inst := bp.beacon
 	if inst == nil || len(bp.chainHash) == 0 {
-		return nil, errors.New("DKG not finished yet")
+		err := errors.New("DKG not finished yet")
+		span.RecordError(err)
+		return nil, err
 	}
 
-	_, err := inst.ProcessPartialBeacon(c, in)
+	_, err := inst.ProcessPartialBeacon(ctx, in)
+	span.RecordError(err)
 	return &drand.Empty{Metadata: bp.newMetadata()}, err
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.PublicRand")
+	defer span.End()
+
 	var addr = net.RemoteAddress(ctx)
 
 	bp.state.RLock()
@@ -103,8 +113,11 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 }
 
 // Home provides the address the local node is listening
-func (bp *BeaconProcess) Home(c context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	bp.log.With("module", "public").Infow("", "home", net.RemoteAddress(c))
+func (bp *BeaconProcess) Home(ctx context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.Home")
+	defer span.End()
+
+	bp.log.With("module", "public").Infow("", "home", net.RemoteAddress(ctx))
 
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
@@ -114,7 +127,10 @@ func (bp *BeaconProcess) Home(c context.Context, _ *drand.HomeRequest) (*drand.H
 }
 
 // ChainInfo replies with the chain information this node participates to
-func (bp *BeaconProcess) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+	_, span := metrics.NewSpan(ctx, "bp.ChainInfo")
+	defer span.End()
+
 	bp.state.RLock()
 	group := bp.group
 	chainHash := bp.chainHash
@@ -148,7 +164,10 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 }
 
 // GetIdentity returns the identity of this drand node
-func (bp *BeaconProcess) GetIdentity(context.Context, *drand.IdentityRequest) (*drand.IdentityResponse, error) {
+func (bp *BeaconProcess) GetIdentity(ctx context.Context, _ *drand.IdentityRequest) (*drand.IdentityResponse, error) {
+	_, span := metrics.NewSpan(ctx, "bp.GetIdentity")
+	defer span.End()
+
 	i := bp.priv.Public.ToProto()
 
 	response := &drand.IdentityResponse{

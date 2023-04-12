@@ -15,6 +15,7 @@ import (
 	_ "github.com/lib/pq" // Calls init function.
 
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 // Config is the required properties to use the database.
@@ -102,6 +103,9 @@ func ConfigFromDSN(dsn string) (Config, error) {
 //
 //nolint:gocritic // There is nothing wrong with using value semantics here.
 func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
+	ctx, span := metrics.NewSpan(ctx, "database.Open")
+	defer span.End()
+
 	sslMode := "require"
 	if cfg.DisableTLS {
 		sslMode = "disable"
@@ -133,6 +137,9 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 // StatusCheck returns nil if it can successfully talk to the database. It
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
+	ctx, span := metrics.NewSpan(ctx, "database.StatusCheck")
+	defer span.End()
+
 	var pingError error
 
 	//nolint:gomnd // We want to have a reasonable retry period
@@ -143,7 +150,7 @@ check:
 	for {
 		select {
 		case <-t.C:
-			pingError = db.Ping()
+			pingError = db.PingContext(ctx)
 			if pingError == nil {
 				break check
 			}
@@ -158,7 +165,10 @@ check:
 }
 
 // WithinTran runs passed function and do commit/rollback at the end.
-func WithinTran(l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
+func WithinTran(ctx context.Context, l log.Logger, db *sqlx.DB, fn func(context.Context, *sqlx.Tx) error) error {
+	ctx, span := metrics.NewSpan(ctx, "database.WithinTran")
+	defer span.End()
+
 	l.Infow("begin tran")
 	tx, err := db.Beginx()
 	if err != nil {
@@ -175,7 +185,7 @@ func WithinTran(l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
 		l.Infow("rollback tran")
 	}()
 
-	if err := fn(tx); err != nil {
+	if err := fn(ctx, tx); err != nil {
 		return fmt.Errorf("exec tran: %w", err)
 	}
 

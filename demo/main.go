@@ -37,6 +37,7 @@ var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. 
 
 func main() {
 	flag.Parse()
+
 	if *build {
 		installDrand()
 	}

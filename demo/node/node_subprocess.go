@@ -252,7 +252,7 @@ func (n *NodeProc) Index() int {
 	return n.i
 }
 
-func (n *NodeProc) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error {
+func (n *NodeProc) StartLeaderDKG(thr int, _ int, joiners []*drand.Participant) error {
 	proposal := ProposalFile{
 		Joining: joiners,
 	}
@@ -325,7 +325,7 @@ func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	return nil
 }
 
-func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
 	proposalFileName := "proposal.toml"
 	proposal := ProposalFile{
 		Joining:   joiners,
@@ -395,7 +395,7 @@ func (n *NodeProc) GetGroup() *key.Group {
 	return group
 }
 
-func (n *NodeProc) ChainInfo(group string) bool {
+func (n *NodeProc) ChainInfo(_ string) bool {
 	args := []string{"get", "chain-info"}
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
