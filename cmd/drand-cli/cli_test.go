@@ -1158,6 +1158,7 @@ func (d *drandInstance) startInitialDKG(
 		"dkg",
 		"propose",
 		"--proposal", proposalPath,
+		"--transition-time", fmt.Sprintf("%ds", 30*periodSeconds),
 		"--catchup-period", fmt.Sprintf("%ds", periodSeconds/2),
 		"--threshold", fmt.Sprintf("%d", threshold),
 		"--period", fmt.Sprintf("%ds", periodSeconds),
@@ -1466,4 +1467,34 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	expectedRound := lastRoundBeforeShutdown + uint64(roundsWhileMissing)
 	t.Logf("comparing lastRound %d with lastRoundBeforeShutdown %d\n", status.ChainStore.LastRound, expectedRound)
 	require.GreaterOrEqual(t, status.ChainStore.LastRound, expectedRound)
+}
+
+func TestDKGStatusDoesntBlowUp(t *testing.T) {
+	l := testlogger.New(t)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	// start some nodes
+	n := 4
+	instances := genAndLaunchDrandInstances(t, n)
+
+	// execute a DKG
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	// wait for the DKG to finish
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+	t.Log("waiting for initial set up to settle on all nodes")
+
+	// check the status command runs fine
+	err = CLI().Run([]string{"drand", "dkg", "status", "--control", instances[0].ctrlPort})
+	require.NoError(t, err)
 }
