@@ -555,10 +555,14 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		return err
 	}
 
-	err = bp.group.Scheme.VerifyBeacon(&targetBeacon, bp.group.PublicKey.Key())
-	if err != nil {
-		bp.log.Errorw("failed to verify beacon", "err", err)
-		return err
+	// if no node in the network has created a beacon yet, we will receive the 0th beacon from them
+	// and this will fail to verify in Kyber
+	if targetBeacon.Round != 0 {
+		err = bp.group.Scheme.VerifyBeacon(&targetBeacon, bp.group.PublicKey.Key())
+		if err != nil {
+			bp.log.Errorw("failed to verify beacon", "err", err)
+			return err
+		}
 	}
 
 	err = store.Put(ctx, &targetBeacon)

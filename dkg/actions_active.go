@@ -55,7 +55,7 @@ func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstPropo
 		// GenesisSeed is created after the DKG, so it cannot exist yet
 		GenesisSeed: nil,
 		// for the initial proposal, we want the transition time should be the same as the genesis time
-		TransitionTime:       options.GenesisTime,
+		TransitionTime:       genesisTime,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
 		Joining:              options.Joining,
