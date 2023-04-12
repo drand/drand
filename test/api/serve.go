@@ -22,6 +22,7 @@ type TestJSON struct {
 }
 
 func main() {
+	ctx := context.Background()
 	lg := log.New(nil, log.DebugLevel, false)
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
@@ -29,11 +30,11 @@ func main() {
 	}
 	clk := clock.NewRealClock()
 	listener, server := mock.NewMockGRPCPublicServer(nil, lg, serve, true, sch, clk)
-	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
+	resp, err := server.PublicRand(ctx, &drand.PublicRandRequest{})
 	if err != nil {
 		panic(err)
 	}
-	ci, err := server.ChainInfo(context.TODO(), &drand.ChainInfoRequest{})
+	ci, err := server.ChainInfo(ctx, &drand.ChainInfoRequest{})
 	if err != nil {
 		panic(err)
 	}

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,7 +22,7 @@ func TestMetricReshare(t *testing.T) {
 	calls["nogroup.com"] = 0
 	calls["undefined"] = 0
 
-	hdl := func(addr string) (http.Handler, error) {
+	hdl := func(ctx context.Context, addr string) (http.Handler, error) {
 		switch addr {
 		case "test.com":
 			calls["test.com"]++
@@ -106,12 +107,13 @@ func TestBuildTimestamp(t *testing.T) {
 }
 
 func TestCreatingMetricHandlerWithoutHandlerDoesntPanic(t *testing.T) {
-	funcReturningNil := func(_ string) (http.Handler, error) {
+	ctx := context.Background()
+	funcReturningNil := func(_ context.Context, _ string) (http.Handler, error) {
 		return nil, nil
 	}
 	h := newLazyPeerHandler(testlogger.New(t), []Handler{funcReturningNil})
 
-	_, err := h.handlerForPeer("127.0.0.1")
+	_, err := h.handlerForPeer(ctx, "127.0.0.1")
 
 	require.Error(t, err)
 }

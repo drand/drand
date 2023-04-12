@@ -21,6 +21,7 @@ import (
 
 func TestBeaconProcess_Stop(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -36,12 +37,12 @@ func TestBeaconProcess_Stop(t *testing.T) {
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
+	dd, err := NewDrandDaemon(ctx, NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
 	require.NoError(t, store.SaveKeyPair(privs[0]))
-	proc, err := dd.InstantiateBeaconProcess(t.Name(), store)
+	proc, err := dd.InstantiateBeaconProcess(ctx, t.Name(), store)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
 
@@ -61,6 +62,7 @@ func TestBeaconProcess_Stop(t *testing.T) {
 
 func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -76,16 +78,16 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
+	dd, err := NewDrandDaemon(ctx, NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
 	require.NoError(t, store.SaveKeyPair(privs[0]))
-	proc, err := dd.InstantiateBeaconProcess(t.Name(), store)
+	proc, err := dd.InstantiateBeaconProcess(ctx, t.Name(), store)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
 
-	proc2, err := dd.InstantiateBeaconProcess(t.Name()+"second", store)
+	proc2, err := dd.InstantiateBeaconProcess(ctx, t.Name()+"second", store)
 	require.NoError(t, err)
 	require.NotNil(t, proc2)
 

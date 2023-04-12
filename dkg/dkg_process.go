@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -76,14 +77,16 @@ type Store interface {
 
 type Network interface {
 	Send(
+		ctx context.Context,
 		from *drand.Participant,
 		to []*drand.Participant,
-		action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
+		action SendAction,
 	) error
 	SendIgnoringConnectionError(
+		ctx context.Context,
 		from *drand.Participant,
 		to []*drand.Participant,
-		action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
+		action SendAction,
 	) error
 }
 

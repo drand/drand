@@ -50,7 +50,7 @@ type PublicClient interface {
 // HTTPClient is an optional extension to the protocol client relaying of HTTP over the GRPC connection.
 // it is currently used for relaying metrics between group members.
 type HTTPClient interface {
-	HandleHTTP(p Peer) (http.Handler, error)
+	HandleHTTP(ctx context.Context, p Peer) (http.Handler, error)
 }
 
 // listenAddrFor parses the address specified into a dialable / listenable address

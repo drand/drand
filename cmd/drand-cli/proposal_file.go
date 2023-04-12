@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 
 	"github.com/BurntSushi/toml"
+
 	"github.com/drand/drand/protobuf/drand"
 )
 

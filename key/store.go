@@ -167,7 +167,7 @@ func (f *fileStore) LoadShare(sch *crypto.Scheme) (*Share, error) {
 	return s, Load(f.shareFile, s)
 }
 
-func (f *fileStore) Reset(...ResetOption) error {
+func (f *fileStore) Reset(_ ...ResetOption) error {
 	if err := Delete(f.distKeyFile); err != nil {
 		return fmt.Errorf("drand: err deleting dist. key file: %w", err)
 	}

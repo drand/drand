@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -82,18 +83,52 @@ func New(ctx context.Context, version string) (*DrandHandler, error) {
 		beacons: make(map[string]*BeaconHandler),
 	}
 
+	instrument := func(h http.HandlerFunc, name string) http.HandlerFunc {
+		return withCommonHeaders(
+			version,
+			otelhttp.NewHandler(h, name).ServeHTTP,
+		)
+	}
+
 	mux := chi.NewMux()
 
-	mux.HandleFunc("/{"+chainHashParamKey+"}/public/latest", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/info", withCommonHeaders(version, handler.ChainInfo))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/health", withCommonHeaders(version, handler.Health))
+	mux.HandleFunc(
+		"/{"+chainHashParamKey+"}/public/latest",
+		instrument(handler.LatestRand, chainHashParamKey+".LatestRand"),
+	)
+	mux.HandleFunc(
+		"/{"+chainHashParamKey+"}/public/{"+roundParamKey+"}",
+		instrument(handler.PublicRand, chainHashParamKey+".PublicRand"),
+	)
+	mux.HandleFunc(
+		"/{"+chainHashParamKey+"}/info",
+		instrument(handler.ChainInfo, chainHashParamKey+".ChainInfo"),
+	)
+	mux.HandleFunc(
+		"/{"+chainHashParamKey+"}/health",
+		instrument(handler.Health, chainHashParamKey+".Health"),
+	)
 
-	mux.HandleFunc("/public/latest", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
-	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
-	mux.HandleFunc("/health", withCommonHeaders(version, handler.Health))
-	mux.HandleFunc("/chains", withCommonHeaders(version, handler.ChainHashes))
+	mux.HandleFunc(
+		"/public/latest",
+		instrument(handler.LatestRand, "LatestRand"),
+	)
+	mux.HandleFunc(
+		"/public/{"+roundParamKey+"}",
+		instrument(handler.PublicRand, roundParamKey+".PublicRand"),
+	)
+	mux.HandleFunc(
+		"/info",
+		instrument(handler.ChainInfo, "ChainInfo"),
+	)
+	mux.HandleFunc(
+		"/health",
+		instrument(handler.Health, "Health"),
+	)
+	mux.HandleFunc(
+		"/chains",
+		instrument(handler.ChainHashes, "ChainHashes"),
+	)
 
 	handler.httpHandler = promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -547,7 +582,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
-func (h *DrandHandler) ChainHashes(w http.ResponseWriter, r *http.Request) {
+func (h *DrandHandler) ChainHashes(w http.ResponseWriter, _ *http.Request) {
 	chainHashes := make([]string, 0)
 	for chainHash := range h.beacons {
 		if chainHash != common.DefaultChainHash {

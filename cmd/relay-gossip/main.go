@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/urfave/cli/v2"
 
@@ -96,7 +96,7 @@ var runCmd = &cli.Command{
 		if cctx.IsSet(metricsFlag.Name) {
 			metricsListener := metrics.StartWithLogger(lg, cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
-			if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics); err != nil {
+			if err := metrics.PrivateMetrics.Register(grpcprometheus.DefaultClientMetrics); err != nil {
 				return err
 			}
 		}

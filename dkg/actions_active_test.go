@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/net"
-
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -504,11 +502,11 @@ type MockNetwork struct {
 	mock.Mock
 }
 
-func (n *MockNetwork) Send(from *drand.Participant, to []*drand.Participant, action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error)) error {
+func (n *MockNetwork) Send(_ context.Context, from *drand.Participant, to []*drand.Participant, action SendAction) error {
 	args := n.Called(from, to, action)
 	return args.Error(0)
 }
-func (n *MockNetwork) SendIgnoringConnectionError(from *drand.Participant, to []*drand.Participant, action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error)) error {
+func (n *MockNetwork) SendIgnoringConnectionError(_ context.Context, from *drand.Participant, to []*drand.Participant, action SendAction) error {
 	args := n.Called(from, to, action)
 	return args.Error(0)
 }

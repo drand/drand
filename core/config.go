@@ -40,12 +40,14 @@ type Config struct {
 	pgDSN                 string
 	pgConn                *sqlx.DB
 	memDBSize             int
-	dkgCallback           func(*key.Share, *key.Group)
+	dkgCallback           func(context.Context, *key.Share, *key.Group)
 	certPath              string
 	keyPath               string
 	certmanager           *net.CertManager
 	logger                log.Logger
 	clock                 clock.Clock
+	tracesEndpoint        string
+	tracesProbability     float64
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -313,4 +315,28 @@ func WithVersion(version string) ConfigOption {
 	return func(d *Config) {
 		d.version = version
 	}
+}
+
+// WithTracesEndpoint sets the receiver for the tracing data
+func WithTracesEndpoint(tracesEndpoint string) ConfigOption {
+	return func(d *Config) {
+		d.tracesEndpoint = tracesEndpoint
+	}
+}
+
+// TracesEndpoint retrieves the configured tracing data endpoint
+func (d *Config) TracesEndpoint() string {
+	return d.tracesEndpoint
+}
+
+// WithTracesProbability sets the probability of for traces to be collected and sent to the server
+func WithTracesProbability(tracesProbability float64) ConfigOption {
+	return func(d *Config) {
+		d.tracesProbability = tracesProbability
+	}
+}
+
+// TracesProbability retrieves the probability of for traces to be collected and sent to the server
+func (d *Config) TracesProbability() float64 {
+	return d.tracesProbability
 }

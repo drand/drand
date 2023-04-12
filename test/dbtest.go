@@ -39,7 +39,7 @@ func StartPGDB() (*Container, error) {
 
 // StopPGDB stops a running database instance.
 func StopPGDB(c *Container) {
-	StopContainer(c.ID)
+	_ = StopContainer(c.ID)
 	fmt.Println("Stopped:", c.ID)
 }
 

@@ -16,6 +16,7 @@ import (
 
 func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	// bind a random port on localhost
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err, "Failed to bind port for testing")
@@ -30,13 +31,16 @@ func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 	)
 
+	test.Tracer(t, ctx)
+
 	// an error is returned during daemon creation instead of panicking
-	_, err = NewDrandDaemon(config)
+	_, err = NewDrandDaemon(ctx, config)
 	require.Error(t, err)
 }
 
 func TestDrandDaemon_Stop(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -52,12 +56,12 @@ func TestDrandDaemon_Stop(t *testing.T) {
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
+	dd, err := NewDrandDaemon(ctx, NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
 	require.NoError(t, store.SaveKeyPair(privs[0]))
-	proc, err := dd.InstantiateBeaconProcess(t.Name(), store)
+	proc, err := dd.InstantiateBeaconProcess(ctx, t.Name(), store)
 	require.NoError(t, err)
 	require.NotNil(t, proc)
 
