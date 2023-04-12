@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/common"
 )
 
@@ -17,7 +18,10 @@ type MetadataGetter interface {
 }
 
 func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{},
-	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+	_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+	ctx, span := metrics.NewSpan(ctx, "dd.NodeVersionValidator")
+	defer span.End()
+
 	reqWithContext, ok := req.(MetadataGetter)
 
 	if !ok {
@@ -57,7 +61,7 @@ func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{}
 }
 
 func (dd *DrandDaemon) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream,
-	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	_ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	reqWithContext, ok := srv.(MetadataGetter)
 
 	if !ok {

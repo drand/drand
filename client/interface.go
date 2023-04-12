@@ -30,6 +30,7 @@ type Client interface {
 	// Close will halt the client, any background processes it runs and any
 	// in-flight Get, Watch or Info requests. Behavior for usage of the client
 	// after Close is called is undefined.
+
 	io.Closer
 }
 

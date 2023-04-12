@@ -49,7 +49,7 @@ func (d *drandProxy) Watch(ctx context.Context) <-chan client.Result {
 	go func() {
 		err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
 		if err != nil {
-			proxy.Close(err)
+			proxy.Close()
 		}
 	}()
 	return proxy.outgoing
@@ -116,11 +116,12 @@ func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
 	}
 }
 
-func (s *streamProxy) Close(err error) {
+func (s *streamProxy) Close() {
 	s.cancel()
 }
 
 /* implement the grpc stream interface. not used since messages passed directly. */
+
 func (s *streamProxy) SetHeader(metadata.MD) error {
 	return nil
 }
@@ -132,10 +133,10 @@ func (s *streamProxy) SetTrailer(metadata.MD) {}
 func (s *streamProxy) Context() context.Context {
 	return peer.NewContext(s.ctx, &peer.Peer{Addr: &net.UnixAddr{}})
 }
-func (s *streamProxy) SendMsg(m interface{}) error {
+func (s *streamProxy) SendMsg(_ interface{}) error {
 	return nil
 }
-func (s *streamProxy) RecvMsg(m interface{}) error {
+func (s *streamProxy) RecvMsg(_ interface{}) error {
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
@@ -54,9 +55,12 @@ func NewGrpcClientFromCertWithLogger(lg log.Logger, chainHash []byte, c *net.Cer
 }
 
 // ChainInfo returns the chain info as reported by the given peer.
-func (c *Client) ChainInfo(p net.Peer) (*chain.Info, error) {
+func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain.Info, error) {
+	ctx, span := metrics.NewSpan(ctx, "c.ChainInfo")
+	defer span.End()
+
 	metadata := common.Metadata{ChainHash: c.chainHash}
-	resp, err := c.client.ChainInfo(context.TODO(), p, &drand.ChainInfoRequest{Metadata: &metadata})
+	resp, err := c.client.ChainInfo(ctx, p, &drand.ChainInfoRequest{Metadata: &metadata})
 	if err != nil {
 		return nil, err
 	}

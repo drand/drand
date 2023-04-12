@@ -85,7 +85,7 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 	return ch
 }
 
-func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
+func (m *MockClient) Info(_ context.Context) (*chain.Info, error) {
 	if m.OptionalInfo != nil {
 		return m.OptionalInfo, nil
 	}
@@ -127,7 +127,7 @@ func (m *MockInfoClient) String() string {
 	return "MockInfo"
 }
 
-func (m *MockInfoClient) Info(ctx context.Context) (*chain.Info, error) {
+func (m *MockInfoClient) Info(_ context.Context) (*chain.Info, error) {
 	return m.i, nil
 }
 
@@ -135,11 +135,11 @@ func (m *MockInfoClient) RoundAt(t time.Time) uint64 {
 	return chain.CurrentRound(t.Unix(), m.i.Period, m.i.GenesisTime)
 }
 
-func (m *MockInfoClient) Get(ctx context.Context, round uint64) (Result, error) {
+func (m *MockInfoClient) Get(_ context.Context, _ uint64) (Result, error) {
 	return nil, errors.New("not supported (mock info client get)")
 }
 
-func (m *MockInfoClient) Watch(ctx context.Context) <-chan Result {
+func (m *MockInfoClient) Watch(_ context.Context) <-chan Result {
 	ch := make(chan Result, 1)
 	close(ch)
 	return ch

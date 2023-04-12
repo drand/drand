@@ -1,16 +1,21 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 )
 
 // MetricsHandlerForPeer returns a handler for retrieving metric information from a peer in this group
-func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error) {
+func (bp *BeaconProcess) MetricsHandlerForPeer(ctx context.Context, addr string) (http.Handler, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.MetricsHandlerForPeer")
+	defer span.End()
+
 	if bp.group == nil {
 		return nil, fmt.Errorf("%w for Beacon ID: %s", common.ErrNotPartOfGroup, bp.getBeaconID())
 	}
@@ -27,7 +32,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error
 	for _, n := range bp.group.Nodes {
 		if n.Address() == addr {
 			p := net.CreatePeer(n.Address(), n.IsTLS())
-			h, e := hc.HandleHTTP(p)
+			h, e := hc.HandleHTTP(ctx, p)
 			if e == nil {
 				return h, nil
 			}

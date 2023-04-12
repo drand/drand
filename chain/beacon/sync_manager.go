@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	cl "github.com/jonboulle/clockwork"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
@@ -17,6 +18,7 @@ import (
 	"github.com/drand/drand/crypto"
 	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -26,9 +28,11 @@ import (
 // cancellation of sync requests if not progressing, performs rate limiting of
 // sync requests.
 type SyncManager struct {
-	log   log.Logger
-	clock cl.Clock
-	store chain.Store
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	log       log.Logger
+	clock     cl.Clock
+	store     chain.Store
 	// insecureStore will store beacons without doing any checks
 	insecureStore chain.Store
 	info          *chain.Info
@@ -43,8 +47,6 @@ type SyncManager struct {
 	newReq chan RequestInfo
 	// updated with each new beacon we receive from sync
 	newSync chan *chain.Beacon
-	done    chan bool
-	mu      sync.Mutex
 	// we need to know our current daemon address
 	nodeAddr string
 }
@@ -70,13 +72,17 @@ type SyncConfig struct {
 
 // NewSyncManager returns a sync manager that will use the given store to store
 // newly synced beacon.
-func NewSyncManager(c *SyncConfig) (*SyncManager, error) {
+func NewSyncManager(ctx context.Context, c *SyncConfig) (*SyncManager, error) {
 	sch, err := crypto.SchemeFromName(c.Info.GetSchemeName())
 	if err != nil {
 		return nil, err
 	}
 
+	ctx, ctxCancel := context.WithCancel(ctx)
+
 	return &SyncManager{
+		ctx:           ctx,
+		ctxCancel:     ctxCancel,
 		log:           c.Log.Named("SyncManager"),
 		clock:         c.Clock,
 		store:         c.Store,
@@ -89,17 +95,16 @@ func NewSyncManager(c *SyncConfig) (*SyncManager, error) {
 		factor:        syncExpiryFactor,
 		newReq:        make(chan RequestInfo, syncQueueRequest),
 		newSync:       make(chan *chain.Beacon, 1),
-		done:          make(chan bool, 1),
 	}, nil
 }
 
 func (s *SyncManager) Stop() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	close(s.done)
+	s.ctxCancel()
 }
 
 type RequestInfo struct {
+	spanContext oteltrace.SpanContext
+
 	nodes []net.Peer
 	from  uint64
 	upTo  uint64
@@ -109,12 +114,17 @@ type RequestInfo struct {
 // round. Depending on the current state of the syncing process, there might not
 // be a new process starting (for example if we already have the round
 // requested). upTo == 0 means the syncing process goes on forever.
-func (s *SyncManager) SendSyncRequest(upTo uint64, nodes []net.Peer) {
-	s.newReq <- NewRequestInfo(upTo, nodes)
+func (s *SyncManager) SendSyncRequest(spanContext oteltrace.SpanContext, upTo uint64, nodes []net.Peer) {
+	s.newReq <- NewRequestInfo(spanContext, upTo, nodes)
 }
 
-func NewRequestInfo(upTo uint64, nodes []net.Peer) RequestInfo {
-	return RequestInfo{upTo: upTo, nodes: nodes}
+func NewRequestInfo(spanContext oteltrace.SpanContext, upTo uint64, nodes []net.Peer) RequestInfo {
+	return RequestInfo{
+		spanContext: spanContext,
+
+		upTo:  upTo,
+		nodes: nodes,
+	}
 }
 
 // Run handles non-blocking sync requests coming from the regular operation of the daemon
@@ -126,22 +136,26 @@ func (s *SyncManager) Run() {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(s.ctx)
 	for {
 		select {
-		case <-s.done:
+		case <-s.ctx.Done():
 			s.log.Infow("", "sync_manager", "exits")
 			cancel()
 			return
 		case request := <-s.newReq:
+			_, span := metrics.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
+
 			// check if the request is still valid
 			last, err := s.store.Last(ctx)
 			if err != nil {
+				span.End()
 				s.log.Debugw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 				continue
 			}
 			// do we really need a sync request ?
 			if request.upTo > 0 && last.Round >= request.upTo {
+				span.End()
 				s.log.Debugw("request already filled", "sync_manager", "skipping_request", "last", last.Round, "request", request.upTo)
 				continue
 			}
@@ -153,11 +167,12 @@ func (s *SyncManager) Run() {
 			// must have gotten some data.
 			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
 			if upperBound < int(s.clock.Now().Unix()) {
+				span.End()
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
-				ctx, cancel = context.WithCancel(context.Background())
-				//nolint
+				ctx, cancel = context.WithCancel(s.ctx)
+				//nolint:errcheck // TODO: Handle this
 				go s.Sync(ctx, request)
 			}
 		case <-s.newSync:
@@ -168,6 +183,9 @@ func (s *SyncManager) Run() {
 }
 
 func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	_, span := metrics.NewSpan(ctx, "syncManager.CheckPastBeacons")
+	defer span.End()
+
 	logger := s.log.Named("pastBeaconCheck")
 	logger.Infow("Starting to check past beacons", "upTo", upTo)
 
@@ -237,6 +255,9 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 }
 
 func (s *SyncManager) CorrectPastBeacons(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	_, span := metrics.NewSpan(ctx, "syncManager.CorrectPastBeacons")
+	defer span.End()
+
 	target := uint64(len(faultyBeacons))
 	if target == 0 {
 		return nil
@@ -271,6 +292,9 @@ func (s *SyncManager) CorrectPastBeacons(ctx context.Context, faultyBeacons []ui
 
 // ReSync handles resyncs that where necessarily launched by a CLI.
 func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.Peer) error {
+	ctx, span := metrics.NewSpan(ctx, "syncManager.ReSync")
+	defer span.End()
+
 	s.log.Debugw("Launching re-sync request", "from", from, "upTo", to)
 
 	if from == 0 {
@@ -280,6 +304,8 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 	// we always do it and we block while doing it if it's a resync. Notice that the regular sync will
 	// keep running in the background in their own go routine.
 	err := s.Sync(ctx, RequestInfo{
+		spanContext: span.SpanContext(),
+
 		nodes: nodes,
 		from:  from,
 		upTo:  to,
@@ -288,6 +314,8 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 	if errors.Is(err, ErrFailedAll) {
 		s.log.Warnw("All node have failed resync once, retrying one time")
 		err = s.Sync(ctx, RequestInfo{
+			spanContext: span.SpanContext(),
+
 			nodes: nodes,
 			from:  from,
 			upTo:  to,
@@ -298,7 +326,12 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 }
 
 // Sync will launch the requested sync with the requested peers and returns once done, even if it failed
+//
+//nolint:gocritic // Request size is correct, no need for a pointer.
 func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
+	ctx, span := metrics.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.Sync")
+	defer span.End()
+
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
@@ -330,6 +363,15 @@ func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
 //
 //nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
+	global, span := metrics.NewSpan(global, "dd.LoadBeaconFromStore")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.Int64("fromRound", int64(from)),
+		attribute.Int64("upToRound", int64(upTo)),
+		attribute.String("addr", peer.Address()),
+	)
+
 	logger := s.log.Named("tryNode")
 
 	// we put a cancel to still keep the global context open but stop with this
@@ -342,6 +384,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	last, err := s.store.Last(cnode)
 	if err != nil {
+		span.RecordError(err)
 		logger.Errorw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 		return false
 	}
@@ -349,6 +392,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	if from == 0 {
 		from = last.Round + 1
 	} else if from > upTo {
+		span.RecordError(fmt.Errorf("invalid request from %d upTo %d", from, upTo))
 		logger.Errorw("Invalid request: from > upTo", "from", from, "upTo", upTo)
 		return false
 	}
@@ -360,6 +404,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	beaconCh, err := s.client.SyncChain(cnode, peer, req)
 	if err != nil {
+		span.RecordError(errors.New("unable_to_sync"))
 		logger.Errorw("unable_to_sync", "with_peer", peer.Address(), "err", err)
 		return false
 	}
@@ -378,15 +423,20 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	for {
 		select {
 		case beaconPacket, ok := <-beaconCh:
+			cnode, span := metrics.NewSpan(cnode, "dd.LoadBeaconFromStore")
+
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
+				span.End()
 				return false
 			}
 
 			// Check if we got the right packet
 			metadata := beaconPacket.GetMetadata()
 			if metadata != nil && metadata.BeaconID != s.info.ID {
+				span.RecordError(errors.New("wrong beaconID"))
 				logger.Errorw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
+				span.End()
 				return false
 			}
 
@@ -406,24 +456,31 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			// verify the signature validity
 			if err := s.scheme.VerifyBeacon(beacon, s.info.PublicKey); err != nil {
+				span.RecordError(errors.New("invalid beacon"))
 				logger.Debugw("Invalid_beacon", "from_peer", peer.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
+				span.End()
 				return false
 			}
 
 			if isResync {
 				logger.Debugw("Resync Put: trying to save beacon", "beacon", beacon.Round)
 				if err := s.insecureStore.Put(cnode, beacon); err != nil {
+					span.RecordError(err)
 					logger.Errorw("Resync Put: unable to save", "with_peer", peer.Address(), "err", err)
+					span.End()
 					return false
 				}
 			} else {
 				if err := s.store.Put(cnode, beacon); err != nil {
+					span.RecordError(err)
 					if errors.Is(err, ErrBeaconAlreadyStored) {
 						logger.Debugw("Put: race with aggregation", "with_peer", peer.Address(), "err", err)
+						span.End()
 						return beacon.Round == upTo
 					}
 
 					logger.Errorw("Put: unable to save", "with_peer", peer.Address(), "err", err)
+					span.End()
 					return false
 				}
 			}
@@ -434,9 +491,11 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			last = beacon
 			if last.Round == upTo {
 				logger.Debugw("sync_manager finished syncing up to", "round", upTo)
+				span.End()
 				return true
 			}
 			// else, we keep waiting for the next beacons
+			span.End()
 		case <-cnode.Done():
 			// if global is Done, then so is cnode
 			// it can be the remote note that stopped the syncing or a network error with it
@@ -468,8 +527,10 @@ var ErrCallbackReplaced = errors.New("callback replaced")
 //
 //nolint:funlen,gocyclo // This has the right length
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
+	ctx, span := metrics.NewSpan(stream.Context(), "SyncChain")
+	defer span.End()
+
 	fromRound := req.GetFromRound()
-	ctx := stream.Context()
 	addr := net.RemoteAddress(ctx)
 	id := addr + "SyncChain"
 
@@ -485,6 +546,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	if last.Round < fromRound {
+		span.RecordError(chainerrors.ErrNoBeaconStored)
 		return fmt.Errorf("%w %d < %d", chainerrors.ErrNoBeaconStored, last.Round, fromRound)
 	}
 
@@ -494,6 +556,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 			return ctx.Err()
 		default:
 		}
+
 		packet := beaconToProto(b, beaconID)
 		err := stream.Send(packet)
 		if err != nil {

@@ -584,21 +584,21 @@ func (ws *watchState) closeSlowest() {
 
 func (ws *watchState) nextUnwatched() Client {
 	clients := ws.optimizer.fastestClients()
-CLIENT_LOOP:
+ClientLoop:
 	for _, c := range clients {
 		for _, a := range ws.active {
 			if c == a.Client {
-				continue CLIENT_LOOP
+				continue ClientLoop
 			}
 		}
 		for _, f := range ws.failed {
 			if c == f.Client {
-				continue CLIENT_LOOP
+				continue ClientLoop
 			}
 		}
 		for _, p := range ws.protected {
 			if c == p.Client {
-				continue CLIENT_LOOP
+				continue ClientLoop
 			}
 		}
 		return c

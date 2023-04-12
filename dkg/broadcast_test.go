@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"context"
 	"testing"
 
 	"github.com/drand/drand/crypto"
@@ -17,9 +18,11 @@ import (
 
 func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	gateway := net.PrivateGateway{}
 	sch, _ := crypto.GetSchemeByIDWithDefault("")
 	_, err := newEchoBroadcast(
+		ctx,
 		gateway.DKGClient,
 		l,
 		common.GetAppVersion(),
@@ -34,10 +37,12 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 
 func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 	l := testlogger.New(t)
+	ctx := context.Background()
 	gateway := net.PrivateGateway{}
 	sch, _ := crypto.GetSchemeByIDWithDefault("")
 
 	_, err := newEchoBroadcast(
+		ctx,
 		gateway.DKGClient,
 		l,
 		common.GetAppVersion(),

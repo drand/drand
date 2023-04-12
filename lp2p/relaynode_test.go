@@ -21,7 +21,7 @@ type mockClient struct {
 	watchF    func(context.Context) <-chan client.Result
 }
 
-func (c *mockClient) Get(ctx context.Context, round uint64) (client.Result, error) {
+func (c *mockClient) Get(_ context.Context, _ uint64) (client.Result, error) {
 	return nil, errors.New("unsupported")
 }
 
