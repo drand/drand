@@ -22,6 +22,7 @@ import (
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
 func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
+	ctx := context.Background()
 
 	server := mock.NewMockServer(t, badSecondRound, sch, clk)
 	client := core.Proxy(server)
@@ -64,7 +65,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Sche
 	go httpServer.Serve(listener)
 
 	return listener.Addr().String(), chainInfo, func() {
-		httpServer.Shutdown(context.Background())
+		httpServer.Shutdown(ctx)
 		cancel()
 	}, server.(mock.MockService).EmitRand
 }

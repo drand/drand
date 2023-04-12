@@ -70,6 +70,7 @@ func getPublicRandomness(c *cli.Context, lg log.Logger) error {
 }
 
 func getChainInfo(c *cli.Context, lg log.Logger) error {
+	ctx := c.Context
 	var err error
 	chainHash := make([]byte, 0)
 	if c.IsSet(hashInfoNoReq.Name) {
@@ -93,7 +94,7 @@ func getChainInfo(c *cli.Context, lg log.Logger) error {
 		if err != nil {
 			return fmt.Errorf("invalid address given: %w", err)
 		}
-		ci, err = grpcClient.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
+		ci, err = grpcClient.ChainInfo(ctx, net.CreatePeer(addr, !c.Bool("tls-disable")))
 		if err == nil {
 			break
 		}

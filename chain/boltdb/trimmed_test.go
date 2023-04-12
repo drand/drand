@@ -35,7 +35,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 	store, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 
 	b0 := &chain.Beacon{
@@ -141,7 +141,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	store, err = newTrimmedStore(ctx, l, tmp, nil)
@@ -152,7 +152,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 	bb1, err := store.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	store, err = newTrimmedStore(ctx, l, tmp, nil)
@@ -206,7 +206,7 @@ func TestTrimmedStore_Cursor(t *testing.T) {
 	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, dbStore.Close(ctx))
+		require.NoError(t, dbStore.Close())
 	}()
 
 	sigs := map[int][]byte{

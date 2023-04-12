@@ -38,11 +38,12 @@ type appendStore struct {
 	sync.Mutex
 }
 
-func newAppendStore(s chain.Store) (chain.Store, error) {
-	last, err := s.Last(context.Background())
+func newAppendStore(ctx context.Context, s chain.Store) (chain.Store, error) {
+	last, err := s.Last(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	return &appendStore{
 		Store: s,
 		last:  last,
@@ -53,6 +54,9 @@ func newAppendStore(s chain.Store) (chain.Store, error) {
 var ErrBeaconAlreadyStored = errors.New("beacon value already stored")
 
 func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "appendStore.Put")
+	defer span.End()
+
 	a.Lock()
 	defer a.Unlock()
 
@@ -90,8 +94,8 @@ type schemeStore struct {
 	sync.Mutex
 }
 
-func NewSchemeStore(s chain.Store, sch *crypto.Scheme) (chain.Store, error) {
-	last, err := s.Last(context.Background())
+func NewSchemeStore(ctx context.Context, s chain.Store, sch *crypto.Scheme) (chain.Store, error) {
+	last, err := s.Last(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +108,9 @@ func NewSchemeStore(s chain.Store, sch *crypto.Scheme) (chain.Store, error) {
 }
 
 func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "schemeStore.Put")
+	defer span.End()
+
 	a.Lock()
 	defer a.Unlock()
 
@@ -149,6 +156,9 @@ func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group, cl clock
 }
 
 func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "discrepancyStore.Put")
+	defer span.End()
+
 	// When computing time_discrepancy, time.Now() should be obtained as close as
 	// possible to receiving the beacon, before any other storage layer interaction.
 	// When moved after store.Put(), the value will include the time it takes
@@ -212,6 +222,9 @@ func NewCallbackStore(l log.Logger, s chain.Store) CallbackStore {
 
 // Put stores a new beacon
 func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "callbackStore.Put")
+	defer span.End()
+
 	if err := c.Store.Put(ctx, b); err != nil {
 		return err
 	}
@@ -267,9 +280,9 @@ func (c *callbackStore) RemoveCallback(id string) {
 	}
 }
 
-func (c *callbackStore) Close(ctx context.Context) error {
+func (c *callbackStore) Close() error {
 	close(c.stopping)
-	return c.Store.Close(ctx)
+	return c.Store.Close()
 }
 
 func (c *callbackStore) runWorker(jobChan chan cbPair) {

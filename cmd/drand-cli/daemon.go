@@ -4,31 +4,49 @@ import (
 	"fmt"
 
 	"github.com/urfave/cli/v2"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 func startCmd(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
+	ctx := c.Context
+
+	tracer, tracerShutdown := metrics.InitTracer("drand", conf.TracesEndpoint(), conf.TracesProbability())
+	defer tracerShutdown(ctx)
+
+	ctx, span := tracer.Start(ctx, "startCmd")
 
 	// Create and start drand daemon
-	drandDaemon, err := core.NewDrandDaemon(conf)
+	drandDaemon, err := core.NewDrandDaemon(ctx, conf)
 	if err != nil {
-		return fmt.Errorf("can't instantiate drand daemon %w", err)
+		err = fmt.Errorf("can't instantiate drand daemon %w", err)
+		span.RecordError(err)
+		span.End()
+		return err
 	}
 
 	singleBeacon := false
 	if c.IsSet(beaconIDFlag.Name) {
 		singleBeacon = true
 	}
+	span.SetAttributes(
+		attribute.Bool("singleBeaconMode", singleBeacon),
+	)
 
 	// Check stores and start BeaconProcess
-	err = drandDaemon.LoadBeaconsFromDisk(c.String(metricsFlag.Name), singleBeacon, c.String(beaconIDFlag.Name))
+	err = drandDaemon.LoadBeaconsFromDisk(ctx, c.String(metricsFlag.Name), singleBeacon, c.String(beaconIDFlag.Name))
 	if err != nil {
-		return fmt.Errorf("couldn't load existing beacons: %w", err)
+		err = fmt.Errorf("couldn't load existing beacons: %w", err)
+		span.RecordError(err)
+		span.End()
+		return err
 	}
 
+	span.End()
 	<-drandDaemon.WaitExit()
 	return nil
 }

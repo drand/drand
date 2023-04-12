@@ -69,7 +69,7 @@ type DrandTestScenario struct {
 // client that can reach any drand node.
 // Deprecated: do not use
 //
-//nolint:funlen
+//nolint:funlen // This is a test function
 func BatchNewDrand(
 	t *testing.T,
 	currentNodeCount,
@@ -130,6 +130,11 @@ func BatchNewDrand(
 	l := testlogger.New(t)
 
 	for i := 0; i < n; i++ {
+		ctx := context.Background()
+
+		tracer := test.TracerWithName(t, ctx, ports[i])
+		ctx, span := tracer.Start(ctx, "TestBatchNewDrand")
+
 		s := test.NewKeyStore()
 
 		require.NoError(t, s.SaveKeyPair(privs[i]))
@@ -163,11 +168,13 @@ func BatchNewDrand(
 
 		t.Logf("Creating node %d\n", i)
 
-		daemon, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
+		daemon, err := NewDrandDaemon(ctx, NewConfigWithLogger(l, confOptions...))
 		require.NoError(t, err)
 
-		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
+		bp, err := daemon.InstantiateBeaconProcess(ctx, beaconID, s)
 		require.NoError(t, err)
+
+		span.End()
 
 		daemons[i] = daemon
 		drands[i] = bp
@@ -222,10 +229,9 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	return dt
 }
 
-// Ids returns the list of the first n ids given the newGroup parameter (either
+// NodeAddresses returns the list of the first n ids given the newGroup parameter (either
 // in the original group or the reshared one)
-// Deprecated: Rename this to addresses to align naming
-func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
+func (d *DrandTestScenario) NodeAddresses(n int, newGroup bool) []string {
 	nodes := d.nodes
 	if newGroup {
 		nodes = d.resharedNodes
@@ -240,7 +246,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 }
 
 // GetBeacon returns the beacon of the given round for the specified drand id
-func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
+func (d *DrandTestScenario) GetBeacon(ctx context.Context, id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
 	if newGroup {
 		nodes = d.resharedNodes
@@ -249,7 +255,7 @@ func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*cha
 		if node.addr != id {
 			continue
 		}
-		return node.drand.beacon.Store().Get(context.Background(), uint64(round))
+		return node.drand.beacon.Store().Get(ctx, uint64(round))
 	}
 	return nil, errors.New("that should not happen")
 }
@@ -306,12 +312,12 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 // StartDrand fetches the drand given the id, in the respective group given the
 // newGroup parameter and runs the beacon
-func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup, newGroup bool) {
+func (d *DrandTestScenario) StartDrand(ctx context.Context, t *testing.T, nodeAddress string, catchup, newGroup bool) {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	d.t.Log("[drand] Start")
-	err := dr.StartBeacon(catchup)
+	err := dr.StartBeacon(ctx, catchup)
 	require.NoError(t, err)
 	d.t.Log("[drand] Started")
 }
@@ -356,12 +362,12 @@ func (d *DrandTestScenario) CheckBeaconLength(t *testing.T, nodes []*MockNode, e
 }
 
 // CheckPublicBeacon looks if we can get the latest beacon on this node
-func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool) *drand.PublicRandResponse {
+func (d *DrandTestScenario) CheckPublicBeacon(ctx context.Context, nodeAddress string, newGroup bool) *drand.PublicRandResponse {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	client := net.NewGrpcClientFromCertManagerWithLogger(dr.log, dr.opts.certmanager, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
@@ -402,7 +408,7 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 		node, err := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
 		if err != nil {
 			fmt.Println("could not construct mock node")
-			t.Fail()
+			t.Fatal("could not construct mock node")
 		}
 		d.newNodes[i] = node
 		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))

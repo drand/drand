@@ -6,18 +6,23 @@ import (
 	"time"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 
 	"github.com/drand/drand/net"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // actions_active contains all the DKG actions that require user interaction: creating a network,
 // accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
 func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartNetwork")
+	defer span.End()
+
 	beaconID := options.BeaconID
 	d.log.Infow("Starting initial DKG", "beaconID", beaconID)
 
@@ -63,9 +68,10 @@ func (d *DKGProcess) StartNetwork(ctx context.Context, options *drand.FirstPropo
 	}
 
 	sendProposalAndStoreNextState := func() error {
-		err := d.network.Send(me, nextState.Joining, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
-			return client.Propose(ctx, peer, &terms)
-		})
+		err := d.network.Send(ctx, me, nextState.Joining,
+			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				return client.Propose(ctx, peer, &terms)
+			})
 		if err != nil {
 			return err
 		}
@@ -102,7 +108,10 @@ func (d *DKGProcess) attemptAbort(
 	participants []*drand.Participant,
 	beaconID string,
 ) error {
-	return d.network.Send(me, participants, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.attemptAbort")
+	defer span.End()
+
+	return d.network.Send(ctx, me, participants, func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
 		return client.Abort(
 			ctx,
 			peer,
@@ -113,6 +122,9 @@ func (d *DKGProcess) attemptAbort(
 }
 
 func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartProposal")
+	defer span.End()
+
 	beaconID := options.BeaconID
 	d.log.Infow("Proposing DKG", "beaconID", beaconID)
 
@@ -152,9 +164,10 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 	sendProposalToAllAndStoreState := func() error {
 		// we send the proposal to joiners and remainers and error if they don't respond
 		err = d.network.Send(
+			ctx,
 			me,
 			util.Concat(nextState.Joining, nextState.Remaining),
-			func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
 				return client.Propose(ctx, peer, &terms)
 			},
 		)
@@ -165,9 +178,10 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 		// we make a best effort attempt to send the proposal to the leaver, but if their node is e.g. turned off then
 		// we ignore the error
 		if len(nextState.Leaving) > 0 {
-			err = d.network.Send(me, nextState.Leaving, func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
-				return client.Propose(ctx, peer, &terms)
-			})
+			err = d.network.Send(ctx, me, nextState.Leaving,
+				func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+					return client.Propose(ctx, peer, &terms)
+				})
 
 			if err != nil {
 				d.log.Warnw("could not send proposal to a leaving participant", "err", err)
@@ -193,6 +207,9 @@ func (d *DKGProcess) StartProposal(ctx context.Context, options *drand.ProposalO
 }
 
 func (d *DKGProcess) StartAbort(ctx context.Context, options *drand.AbortOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartAbort")
+	defer span.End()
+
 	beaconID := options.BeaconID
 	d.log.Infow("Aborting DKG", "beaconID", beaconID)
 
@@ -229,6 +246,9 @@ func (d *DKGProcess) StartAbort(ctx context.Context, options *drand.AbortOptions
 }
 
 func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartExecute")
+	defer span.End()
+
 	beaconID := options.BeaconID
 
 	stateTransition := func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -241,9 +261,10 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	callback := func(me *drand.Participant, nextState *DBState) error {
 		allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 		return d.network.SendIgnoringConnectionError(
+			ctx,
 			me,
 			allParticipants,
-			func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
 				return client.Execute(ctx, peer, &drand.StartExecution{
 					Metadata: &drand.DKGMetadata{
 						BeaconID: beaconID,
@@ -260,7 +281,7 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	}
 
 	// set up the DKG broadcaster for first so we're ready to broadcast DKG messages
-	dkgConfig, err := d.setupDKG(beaconID)
+	dkgConfig, err := d.setupDKG(ctx, beaconID)
 	if err != nil {
 		return nil, err
 	}
@@ -272,7 +293,7 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 		time.Sleep(d.config.KickoffGracePeriod)
 		// copy this to avoid any data races with kyber
 		dkgConfigCopy := *dkgConfig
-		err := d.executeAndFinishDKG(beaconID, dkgConfigCopy)
+		err := d.executeAndFinishDKG(ctx, beaconID, dkgConfigCopy)
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
 		}
@@ -281,7 +302,10 @@ func (d *DKGProcess) StartExecute(ctx context.Context, options *drand.ExecutionO
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*drand.EmptyResponse, error) {
+func (d *DKGProcess) StartJoin(ctx context.Context, options *drand.JoinOptions) (*drand.EmptyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.StartJoin")
+	defer span.End()
+
 	beaconID := options.BeaconID
 
 	err := d.executeAction("Joining DKG", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -305,6 +329,9 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 //
 //nolint:dupl
 func (d *DKGProcess) StartAccept(ctx context.Context, options *drand.AcceptOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartAccept")
+	defer span.End()
+
 	beaconID := options.BeaconID
 
 	stateTransition := func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -333,6 +360,9 @@ func (d *DKGProcess) StartAccept(ctx context.Context, options *drand.AcceptOptio
 //
 //nolint:dupl
 func (d *DKGProcess) StartReject(ctx context.Context, options *drand.RejectOptions) (*drand.EmptyResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "dkg.StartReject")
+	defer span.End()
+
 	beaconID := options.BeaconID
 
 	stateTransition := func(me *drand.Participant, current *DBState) (*DBState, error) {
@@ -355,7 +385,10 @@ func (d *DKGProcess) StartReject(ctx context.Context, options *drand.RejectOptio
 	return responseOrError(err)
 }
 
-func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+func (d *DKGProcess) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+	_, span := metrics.NewSpan(ctx, "dkg.DKGStatus")
+	defer span.End()
+
 	finished, err := d.store.GetFinished(request.BeaconID)
 	if err != nil {
 		return nil, err
