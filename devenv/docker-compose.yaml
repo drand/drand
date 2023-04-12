@@ -1,0 +1,86 @@
+version: "3.8"
+
+name: "drand_dev"
+
+configs:
+  prom_conf:
+    file: ./conf/prom.yaml
+  loki_conf:
+    file: ./conf/loki.yaml
+  tempo_conf:
+    file: ./conf/tempo.yaml
+
+services:
+  postgres:
+    hostname: "drand_dev_postgres"
+    image: postgres:15.1-alpine3.16
+    environment:
+      - POSTGRES_USER=drand
+      - POSTGRES_PASSWORD=drand
+      - POSTGRES_DB=drand
+    ports:
+      - 5432:5432
+
+  prometheus:
+    hostname: "drand_dev_prometheus"
+    image: prom/prometheus:v2.42.0
+    command:
+      - "--config.file=/prom_conf"
+      - "--storage.tsdb.path=/prometheus/"
+    configs:
+      - prom_conf
+    ports:
+      - 9090:9090
+
+  tempo:
+    hostname: "drand_dev_tempo"
+    image: grafana/tempo:2.0.1
+    environment:
+      - TERM=linux
+    command:
+      - -config.file=/tempo_conf
+    ports:
+      - 14268:14268
+      - 3200:3200
+      - 4317:4317
+      - 4318:4318
+      - 9411:9411
+    configs:
+      - tempo_conf
+    depends_on:
+      - prometheus
+
+  loki:
+    hostname: "drand_dev_loki"
+    image: grafana/loki:2.7.4
+    configs:
+      - loki_conf
+    environment:
+      - TERM=linux
+    command:
+      - -config.file=/loki_conf
+    ports:
+      - 3100:3100
+    tmpfs:
+      - /wal
+
+  grafana:
+    hostname: "drand_dev_grafana"
+    image: grafana/grafana:9.4.3
+    environment:
+      - TERM=linux
+      - GF_ANALYTICS_REPORTING_ENABLED='false'
+      - GF_ANALYTICS_CHECK_FOR_UPDATES='false'
+      - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES='false'
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE='traceqlEditor'
+    volumes:
+      - ./conf/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources/
+    ports:
+      - 3000:3000
+    depends_on:
+      - prometheus
+      - loki
+      - tempo

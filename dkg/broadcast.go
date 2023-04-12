@@ -8,18 +8,18 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/drand/drand/util"
-
-	"github.com/drand/drand/protobuf/common"
-	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
-	"github.com/drand/kyber"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
+	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/util"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -28,7 +28,7 @@ import (
 // implement the broadcasting mechanism.
 type Broadcast interface {
 	dkg.Board
-	BroadcastDKG(c context.Context, p *drand.DKGPacket) error
+	BroadcastDKG(ctx context.Context, p *drand.DKGPacket) error
 	Stop()
 }
 
@@ -53,6 +53,7 @@ type Broadcast interface {
 // of the node don't accept it because it's too late. Note that even though the
 // DKG library allows to use fast sync the fast sync mode.
 type echoBroadcast struct {
+	ctx context.Context
 	sync.Mutex
 	l        log.Logger
 	version  commonutils.Version
@@ -74,6 +75,7 @@ type packet = dkg.Packet
 var _ Broadcast = (*echoBroadcast)(nil)
 
 func newEchoBroadcast(
+	ctx context.Context,
 	client net.DKGClient,
 	l log.Logger,
 	version commonutils.Version,
@@ -89,10 +91,11 @@ func newEchoBroadcast(
 	// copy the config to avoid races
 	c := *config
 	return &echoBroadcast{
+		ctx:        ctx,
 		l:          l.Named("echoBroadcast"),
 		version:    version,
 		beaconID:   beaconID,
-		dispatcher: newDispatcher(client, l, to, own),
+		dispatcher: newDispatcher(ctx, client, l, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
@@ -104,41 +107,55 @@ func newEchoBroadcast(
 }
 
 func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
+	ctx, span := metrics.NewSpan(b.ctx, "b.PushDeals")
+	defer span.End()
+
 	b.dealCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Infow("push broadcast", "deal", fmt.Sprintf("%x", h[:5]))
-	b.sendout(h, bundle, true, b.beaconID)
+	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
 
 func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
+	ctx, span := metrics.NewSpan(b.ctx, "b.PushResponses")
+	defer span.End()
+
 	b.respCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debugw("push", "response", bundle.String())
-	b.sendout(h, bundle, true, b.beaconID)
+	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
 
 func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
+	ctx, span := metrics.NewSpan(b.ctx, "b.PushJustifications")
+	defer span.End()
+
 	b.justCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debugw("push", "justification", fmt.Sprintf("%x", h[:5]))
-	b.sendout(h, bundle, true, b.beaconID)
+	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
 
-func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
+func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *drand.DKGPacket) error {
+	ctx, span := metrics.NewSpan(ctx, "b.BroadcastDKG")
+	defer span.End()
+
 	b.Lock()
 	defer b.Unlock()
 
-	addr := net.RemoteAddress(c)
+	addr := net.RemoteAddress(ctx)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg(), b.scheme)
 	if err != nil {
 		b.l.Errorw("received invalid packet DKGPacket", "from", addr, "err", err)
-		return errors.New("invalid DKGPacket")
+		err := errors.New("invalid DKGPacket")
+		span.RecordError(err)
+		return err
 	}
 
 	hash := hash(dkgPacket.Hash())
@@ -152,11 +169,13 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 	dkgConfig := b.config
 	if err := dkg.VerifyPacketSignature(&dkgConfig, dkgPacket); err != nil {
 		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "scheme", b.scheme, "err", err)
-		return errors.New("invalid DKGPacket")
+		err := errors.New("invalid DKGPacket")
+		span.RecordError(err)
+		return err
 	}
 
 	b.l.Debugw("received new packet to echoBroadcast", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
-	b.sendout(hash, dkgPacket, false, b.beaconID) // we're using the rate limiting
+	b.sendout(ctx, hash, dkgPacket, false, b.beaconID) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return nil
 }
@@ -178,7 +197,10 @@ func (b *echoBroadcast) passToApplication(p packet) {
 // so it is broadcasted out to all nodes. sendout requires the echoBroadcast
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
-func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool, beaconID string) {
+func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass bool, beaconID string) {
+	_, span := metrics.NewSpan(ctx, "b.sendout")
+	defer span.End()
+
 	if b.isStopped {
 		return
 	}
@@ -196,9 +218,9 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool, beaconID string
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
 		// at most.
-		go b.dispatcher.broadcastDirect(proto)
+		go b.dispatcher.broadcastDirect(span.SpanContext(), proto)
 	} else {
-		b.dispatcher.broadcast(proto)
+		b.dispatcher.broadcast(span.SpanContext(), proto)
 	}
 }
 
@@ -276,7 +298,10 @@ type dispatcher struct {
 	senders []*sender
 }
 
-func newDispatcher(dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
+func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
+	_, span := metrics.NewSpan(ctx, "newDispatcher")
+	defer span.End()
+
 	var senders = make([]*sender, 0, len(to)-1)
 	queue := senderQueueSize(len(to))
 	for _, node := range to {
@@ -284,7 +309,7 @@ func newDispatcher(dkgClient net.DKGClient, l log.Logger, to []*drand.Participan
 			continue
 		}
 		sender := newSender(dkgClient, node, l, queue)
-		go sender.run()
+		go sender.run(span.SpanContext())
 		senders = append(senders, sender)
 	}
 	return &dispatcher{
@@ -294,17 +319,23 @@ func newDispatcher(dkgClient net.DKGClient, l log.Logger, to []*drand.Participan
 
 // broadcast uses the regular channel limitation for messages coming from other
 // nodes.
-func (d *dispatcher) broadcast(p broadcastPacket) {
+func (d *dispatcher) broadcast(octx oteltrace.SpanContext, p broadcastPacket) {
+	ctx, span := metrics.NewSpanFromSpanContext(context.Background(), octx, "d.broadcast")
+	defer span.End()
+
 	for _, i := range rand.Perm(len(d.senders)) {
-		d.senders[i].sendPacket(p)
+		d.senders[i].sendPacket(ctx, p)
 	}
 }
 
 // broadcastDirect directly send to the other peers - it is used only for our
 // own packets so we're not bound to congestion events.
-func (d *dispatcher) broadcastDirect(p broadcastPacket) {
+func (d *dispatcher) broadcastDirect(octx oteltrace.SpanContext, p broadcastPacket) {
+	_, span := metrics.NewSpanFromSpanContext(context.Background(), octx, "d.broadcastDirect")
+	defer span.End()
+
 	for _, i := range rand.Perm(len(d.senders)) {
-		d.senders[i].sendDirect(p)
+		d.senders[i].sendDirect(span.SpanContext(), p)
 	}
 }
 
@@ -330,7 +361,10 @@ func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueS
 	}
 }
 
-func (s *sender) sendPacket(p broadcastPacket) {
+func (s *sender) sendPacket(ctx context.Context, p broadcastPacket) {
+	_, span := metrics.NewSpan(ctx, "s.sendPacket")
+	defer span.End()
+
 	select {
 	case s.newCh <- p:
 	default:
@@ -338,15 +372,21 @@ func (s *sender) sendPacket(p broadcastPacket) {
 	}
 }
 
-func (s *sender) run() {
+func (s *sender) run(sctx oteltrace.SpanContext) {
+	_, span := metrics.NewSpanFromSpanContext(context.Background(), sctx, "s.run")
+	defer span.End()
+
 	for newPacket := range s.newCh {
-		s.sendDirect(newPacket)
+		s.sendDirect(span.SpanContext(), newPacket)
 	}
 }
 
-func (s *sender) sendDirect(newPacket broadcastPacket) {
+func (s *sender) sendDirect(sctx oteltrace.SpanContext, newPacket broadcastPacket) {
+	ctx, span := metrics.NewSpanFromSpanContext(context.Background(), sctx, "s.sendDirect")
+	defer span.End()
+
 	node := util.ToPeer(s.to)
-	_, err := s.client.BroadcastDKG(context.Background(), node, newPacket)
+	_, err := s.client.BroadcastDKG(ctx, node, newPacket)
 	if err != nil {
 		s.l.Errorw("error while sending out", "to", s.to.Address, "err:", err)
 	} else {

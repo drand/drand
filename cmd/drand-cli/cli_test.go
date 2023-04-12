@@ -130,7 +130,7 @@ func TestDeleteBeacon(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, b)
 
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
@@ -461,7 +461,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// have to close it afterwards or starting the node will hang
+	// Have to close it afterwards or starting the node will become unresponsive
 	err = dStore.Close()
 	require.NoError(t, err)
 

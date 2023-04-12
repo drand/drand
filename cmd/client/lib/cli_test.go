@@ -124,7 +124,7 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 	defer cancel()
 
 	var b bytes.Buffer
-	info.ToJSON(&b, nil)
+	require.NoError(t, info.ToJSON(&b, nil))
 
 	infoPath := filepath.Join(t.TempDir(), "info.json")
 
