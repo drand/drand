@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/log"
@@ -166,17 +168,20 @@ var proposalOutputFlag = &cli.StringFlag{
 	Name:  "out",
 	Usage: "the location you wish to save the proposal file to",
 }
+
 var formatFlag = &cli.StringFlag{
 	Name:    "format",
 	Usage:   "Set the format of the status output. Valid options are: pretty, csv",
 	Value:   "pretty",
 	EnvVars: []string{"DRAND_STATUS_FORMAT"},
 }
+
 var transitionTimeFlag = &cli.StringFlag{
 	Name:  "transition-time",
 	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
 	Value: "30s",
 }
+
 var dkgTimeoutFlag = &cli.StringFlag{
 	Name:  "timeout",
 	Usage: "The duration from now in which DKG participants should abort the DKG if it has not completed.",
@@ -243,10 +248,6 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		return nil, fmt.Errorf("%s flag is required for initial proposals", thresholdFlag.Name)
 	}
 
-	if c.IsSet(transitionTimeFlag.Name) {
-		return nil, fmt.Errorf("%s flag may not be set for initial proposals", transitionTimeFlag.Name)
-	}
-
 	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
 	if err != nil {
 		return nil, err
@@ -257,17 +258,27 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		return nil, err
 	}
 
+	period := c.Duration(periodFlag.Name)
 	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
-	transitionTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
+
+	// if a custom time hasn't been added, we set a one based on the period
+	// to make the tests a little more predictable
+	var genesisTime time.Time
+	if c.IsSet(transitionTimeFlag.Name) {
+		genesisTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
+	} else {
+		defaultRoundsToWait := period * 3
+		genesisTime = time.Now().Add(defaultRoundsToWait)
+	}
 
 	return &drand.FirstProposalOptions{
 		BeaconID:             beaconID,
 		Timeout:              timestamppb.New(timeout),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
-		PeriodSeconds:        uint32(c.Duration(periodFlag.Name).Seconds()),
+		PeriodSeconds:        uint32(period.Seconds()),
 		Scheme:               c.String(schemeFlag.Name),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		GenesisTime:          timestamppb.New(transitionTime),
+		GenesisTime:          timestamppb.New(genesisTime),
 		Joining:              proposalFile.Joining,
 	}, nil
 }
@@ -477,8 +488,7 @@ func viewStatus(c *cli.Context) error {
 	}
 
 	if !c.IsSet(formatFlag.Name) || c.String(formatFlag.Name) == "pretty" {
-		prettyPrint(c, "<<Current>>", status.Current)
-		prettyPrint(c, "<<Completed>>", status.Complete)
+		prettyPrint(status)
 	} else if c.String(formatFlag.Name) == "csv" {
 		csvPrint(c, "<<Current>>", status.Current)
 		csvPrint(c, "<<Completed>>", status.Complete)
@@ -514,68 +524,104 @@ func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 	}
 }
 
-func prettyPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
-	out := c.App.Writer
+func prettyPrint(status *drand.DKGStatusResponse) {
+	tw := table.NewWriter()
+	tw.AppendHeader(table.Row{"Field", "Current", "Finished"})
 
-	_, _ = fmt.Fprintln(out, tag)
-	if entry == nil {
-		_, _ = fmt.Fprintln(out, "nil")
+	if dkg.DKGStatus(status.Current.State) == dkg.Fresh {
+		tw.AppendRow(table.Row{"State", "Fresh", "Fresh"})
+		fmt.Println(tw.Render())
 		return
 	}
 
-	if entry.State == uint32(dkg.Fresh) {
-		_, _ = fmt.Fprintln(out, "DKG not yet started!")
-		return
-	}
-
-	_, _ = fmt.Fprintf(out, "BeaconID:\t%s\n", entry.BeaconID)
-	_, _ = fmt.Fprintf(out, "State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
-	_, _ = fmt.Fprintf(out, "Epoch:\t\t%d\n", entry.Epoch)
-	_, _ = fmt.Fprintf(out, "Threshold:\t%d\n", entry.Threshold)
-	_, _ = fmt.Fprintf(out, "Timeout:\t%s\n", entry.Timeout.AsTime().String())
-	_, _ = fmt.Fprintf(out, "GenesisTime:\t%s\n", entry.GenesisTime.AsTime().String())
-	_, _ = fmt.Fprintf(out, "TransitionTime:\t%s\n", entry.TransitionTime.AsTime().String())
-	_, _ = fmt.Fprintf(out, "GenesisSeed:\t%s\n", hex.EncodeToString(entry.GenesisSeed))
-	_, _ = fmt.Fprintf(out, "Leader:\t\t%s\n", entry.Leader.Address)
-	_, _ = fmt.Fprint(out, "Joining: [")
-	for _, joiner := range entry.Joining {
-		_, _ = fmt.Fprintf(out, "\t\t%s\n", joiner.Address)
-	}
-	_, _ = fmt.Fprintln(out, "]")
-
-	_, _ = fmt.Fprintln(out, "Leaving: [")
-	for _, leaver := range entry.Leaving {
-		_, _ = fmt.Fprintf(out, "\t\t%s\n", leaver.Address)
-	}
-	_, _ = fmt.Fprintln(out, "]")
-
-	_, _ = fmt.Fprintln(out, "Remaining: [")
-	for _, remainer := range entry.Remaining {
-		_, _ = fmt.Fprintf(out, "\t\t%s\n", remainer.Address)
-	}
-	_, _ = fmt.Fprintln(out, "]")
-
-	if dkg.DKGStatus(entry.State) == dkg.Proposing {
-		_, _ = fmt.Fprintln(out, "Accepted: [")
-		for _, acceptor := range entry.Acceptors {
-			_, _ = fmt.Fprintf(out, "\t\t%s\n", acceptor.Address)
+	orEmpty := func(entry *drand.DKGEntry, mapping func(entry *drand.DKGEntry) any) any {
+		if entry == nil {
+			return ""
 		}
-		_, _ = fmt.Fprintln(out, "]")
-
-		_, _ = fmt.Fprintln(out, "Rejected: [")
-		for _, rejector := range entry.Rejectors {
-			_, _ = fmt.Fprintf(out, "\t\t%s\n", rejector.Address)
-		}
-		_, _ = fmt.Fprintln(out, "]")
+		return mapping(entry)
 	}
 
-	if dkg.DKGStatus(entry.State) >= dkg.Executing {
-		_, _ = fmt.Fprintln(out, "Final group: [")
-		for _, member := range entry.FinalGroup {
-			_, _ = fmt.Fprintf(out, "\t\t%s\n", member)
-		}
-		_, _ = fmt.Fprintln(out, "]")
+	appendRow := func(key string, status *drand.DKGStatusResponse, mapping func(entry *drand.DKGEntry) any) {
+		tw.AppendRow(table.Row{key, orEmpty(status.Current, mapping), orEmpty(status.Complete, mapping)})
 	}
+
+	formatAddresses := func(arr []*drand.Participant) string {
+		if len(arr) == 0 {
+			return "[]"
+		}
+
+		b := strings.Builder{}
+		b.WriteString("[")
+		for _, a := range arr {
+			b.WriteString(fmt.Sprintf("\n\t%s,", a.Address))
+		}
+		b.WriteString("\n]")
+
+		return b.String()
+	}
+
+	appendRow("Status", status, func(entry *drand.DKGEntry) any {
+		return entry.State
+	})
+	appendRow("BeaconID", status, func(entry *drand.DKGEntry) any {
+		return entry.BeaconID
+	})
+	appendRow("Epoch", status, func(entry *drand.DKGEntry) any {
+		return entry.Epoch
+	})
+	appendRow("Threshold", status, func(entry *drand.DKGEntry) any {
+		return entry.Threshold
+	})
+	appendRow("Timeout", status, func(entry *drand.DKGEntry) any {
+		return entry.Timeout.AsTime().String()
+	})
+	appendRow("GenesisTime", status, func(entry *drand.DKGEntry) any {
+		return entry.GenesisTime.AsTime().String()
+	})
+	appendRow("TransitionTime", status, func(entry *drand.DKGEntry) any {
+		return entry.TransitionTime.AsTime().String()
+	})
+	appendRow("GenesisSeed", status, func(entry *drand.DKGEntry) any {
+		return hex.EncodeToString(entry.GenesisSeed)
+	})
+	appendRow("Leader", status, func(entry *drand.DKGEntry) any {
+		return entry.Leader.Address
+	})
+	appendRow("Joining", status, func(entry *drand.DKGEntry) any {
+		return formatAddresses(entry.Joining)
+	})
+	appendRow("Remaining", status, func(entry *drand.DKGEntry) any {
+		return formatAddresses(entry.Remaining)
+	})
+	appendRow("Leaving", status, func(entry *drand.DKGEntry) any {
+		return formatAddresses(entry.Leaving)
+	})
+
+	if dkg.DKGStatus(status.Current.State) == dkg.Proposing {
+		appendRow("Accepted", status, func(entry *drand.DKGEntry) any {
+			return formatAddresses(entry.Acceptors)
+		})
+		appendRow("Rejected", status, func(entry *drand.DKGEntry) any {
+			return formatAddresses(entry.Rejectors)
+		})
+	}
+
+	if dkg.DKGStatus(status.Current.State) >= dkg.Executing {
+		appendRow("FinalGroup", status, func(entry *drand.DKGEntry) any {
+			if entry.FinalGroup == nil {
+				return ""
+			}
+			b := strings.Builder{}
+			b.WriteString("[")
+			for _, a := range entry.FinalGroup {
+				b.WriteString(fmt.Sprintf("\n\t%s,", a))
+			}
+			b.WriteString("\n]")
+			return b.String()
+		})
+	}
+
+	fmt.Println(tw.Render())
 }
 
 func generateProposalCmd(c *cli.Context, l log.Logger) error {
