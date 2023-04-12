@@ -20,6 +20,7 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
 	"github.com/drand/drand/test/testlogger"
 )
@@ -54,6 +55,8 @@ func TestHTTPRelay(t *testing.T) {
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	test.Tracer(t, ctx)
 
 	clk := clock.NewFakeClockAt(time.Now())
 	c, _ := withClient(t, clk)
@@ -166,6 +169,8 @@ func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	test.Tracer(t, ctx)
+
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 
@@ -243,6 +248,8 @@ func TestHTTPWatchFuture(t *testing.T) {
 	clk := clock.NewFakeClockAt(time.Now())
 	c, _ := withClient(t, clk)
 
+	test.Tracer(t, ctx)
+
 	handler, err := New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
@@ -263,7 +270,8 @@ func TestHTTPWatchFuture(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	nhttp.IsServerReady(listener.Addr().String())
+	err = nhttp.IsServerReady(listener.Addr().String())
+	require.NoError(t, err)
 
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
@@ -283,6 +291,9 @@ func TestHTTPHealth(t *testing.T) {
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	test.Tracer(t, ctx)
+
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 

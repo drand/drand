@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRandomness32BytesDefault(t *testing.T) {
@@ -38,14 +40,16 @@ func TestEntropyRead(t *testing.T) {
 		panic(err)
 	}
 
-	file.Chmod(0740)
+	require.NoError(t, file.Chmod(0740))
 
 	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
 	if err != nil {
 		panic(err)
 	}
 	file.Close()
-	defer os.Remove("./veryrandom.sh")
+	t.Cleanup(func() {
+		os.Remove("./veryrandom.sh")
+	})
 
 	execRand := "./veryrandom.sh"
 	entropyReader := NewScriptReader(execRand)
@@ -58,19 +62,18 @@ func TestEntropyRead(t *testing.T) {
 
 func TestEntropyReadSmallExec(t *testing.T) {
 	file, err := os.Create("./veryrandom2.sh")
+	require.NoError(t, err)
 
-	if err != nil {
-		panic(err)
-	}
-
-	file.Chmod(0740)
+	require.NoError(t, file.Chmod(0740))
 
 	_, err = file.WriteString("#!/bin/sh\necho Hey")
 	if err != nil {
 		panic(err)
 	}
 	file.Close()
-	defer os.Remove("./veryrandom2.sh")
+	t.Cleanup(func() {
+		os.Remove("./veryrandom2.sh")
+	})
 
 	execRand := "./veryrandom2.sh"
 	entropyReader := NewScriptReader(execRand)

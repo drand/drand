@@ -10,6 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/drand/drand/chain/postgresdb/database"
+	"github.com/drand/drand/metrics"
 )
 
 var (
@@ -20,6 +21,9 @@ var (
 // Migrate attempts to bring the schema for db up to date with the migrations
 // defined in this package.
 func Migrate(ctx context.Context, db *sqlx.DB) error {
+	ctx, span := metrics.NewSpan(ctx, "database.Migrate")
+	defer span.End()
+
 	if err := database.StatusCheck(ctx, db); err != nil {
 		return fmt.Errorf("status check database: %w", err)
 	}

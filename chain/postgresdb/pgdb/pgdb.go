@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 // Store represents access to the postgres database for beacon management.
@@ -25,6 +26,9 @@ type Store struct {
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
 func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.NewStore")
+	defer span.End()
+
 	p := Store{
 		log: l,
 		db:  db,
@@ -43,12 +47,15 @@ func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string)
 }
 
 // Close is an noop.
-func (p *Store) Close(context.Context) error {
+func (p *Store) Close() error {
 	return nil
 }
 
 // AddBeaconID adds the beacon to the database if it does not exist.
 func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.AddBeaconID")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -98,6 +105,9 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error)
 
 // Len returns the number of beacons in the configured beacon table.
 func (p *Store) Len(ctx context.Context) (int, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Len")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -137,6 +147,9 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 
 // Put adds the specified beacon to the database.
 func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Put")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -167,6 +180,9 @@ func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 
 // BatchPut is useful if you want to write a lot of beacons to the database at once.
 func (p *Store) BatchPut(ctx context.Context, bs []chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.BatchLen")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -212,6 +228,9 @@ func (p *Store) BatchPut(ctx context.Context, bs []chain.Beacon) error {
 
 // Last returns the last beacon stored in the configured beacon table.
 func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Last")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -241,6 +260,9 @@ func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 
 // Get returns the specified beacon from the configured beacon table.
 func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Get")
+	defer span.End()
+
 	return p.get(ctx, round, true)
 }
 
@@ -275,6 +297,9 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(ctx context.Context, round uint64) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Del")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -302,6 +327,9 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 
 // Cursor returns a cursor for iterating over the beacon table.
 func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -317,13 +345,19 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 }
 
 // SaveTo does something and I am not sure just yet.
-func (p *Store) SaveTo(context.Context, io.Writer) error {
+func (p *Store) SaveTo(ctx context.Context, _ io.Writer) error {
+	_, span := metrics.NewSpan(ctx, "pgStore.SaveTo")
+	defer span.End()
+
 	return fmt.Errorf("saveTo not implemented for Postgres Store")
 }
 
 // DropFK is used to optimize the calls to Store.BatchPut and should be called before it.
 // It drops the relation between beacons and beacon_details tables.
 func (p *Store) DropFK(ctx context.Context) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.DropFK")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -340,6 +374,9 @@ func (p *Store) DropFK(ctx context.Context) error {
 
 // AddFK reconstructs the relation between beacons and beacon_details tables after Store.DropFK was called.
 func (p *Store) AddFK(ctx context.Context) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.AddFK")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -364,6 +401,9 @@ type cursor struct {
 
 // First returns the first beacon from the configured beacon table.
 func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.First")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -396,6 +436,9 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 
 // Next returns the next beacon from the configured beacon table.
 func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Next")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -431,6 +474,9 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 
 // Seek searches the beacon table for the specified round
 func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Seek")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -467,6 +513,9 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 
 // Last returns the last beacon from the configured beacon table.
 func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Last")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -502,6 +551,9 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 
 // seekPosition updates the cursor position in the database for the next operation to work
 func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
+	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.seekPosition")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

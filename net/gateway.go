@@ -102,7 +102,7 @@ func (g *PublicGateway) StopAll(ctx context.Context) {
 func NewRESTPublicGateway(
 	ctx context.Context,
 	listen, certPath, keyPath string,
-	certs *CertManager,
+	_ *CertManager,
 	handler http.Handler,
 	insecure bool) (*PublicGateway, error) {
 	l, err := NewRESTListenerForPublic(ctx, listen, certPath, keyPath, handler, insecure)

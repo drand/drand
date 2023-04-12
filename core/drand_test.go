@@ -153,6 +153,7 @@ func TestRunDKGLarge(t *testing.T) {
 // Restart last node and wait catch up
 // Check beacon still works and length is correct
 func TestDrandDKGFresh(t *testing.T) {
+	ctx := context.Background()
 	n := 4
 	beaconPeriod := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
@@ -179,7 +180,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.CheckBeaconLength(t, restOfNodes, 2)
 
 	t.Logf("Start last node %s\n", lastNode.addr)
-	dt.StartDrand(t, lastNode.addr, true, false)
+	dt.StartDrand(ctx, t, lastNode.addr, true, false)
 
 	// The catchup process will finish when node gets the previous beacons (1st round)
 	err = dt.WaitUntilRound(t, lastNode, 1)
@@ -191,7 +192,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.CheckBeaconLength(t, dt.nodes, 3)
 
 	t.Log("Check Beacon Public")
-	response := dt.CheckPublicBeacon(lastNode.addr, false)
+	response := dt.CheckPublicBeacon(ctx, lastNode.addr, false)
 	require.Equal(t, uint64(2), response.Round)
 }
 
@@ -351,6 +352,9 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 //
 //nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	oldNodes, newNodes, oldThreshold := 3, 4, 2
 	beaconPeriod := 2 * time.Second
 	offline := 1
@@ -387,7 +391,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	for {
 		dt.AdvanceMockClock(t, beaconPeriod)
 		time.Sleep(sleepDuration)
-		dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
+		dt.CheckPublicBeacon(ctx, dt.NodeAddresses(1, false)[0], false)
 		if dt.clock.Now().Unix() > resharedGroup.TransitionTime {
 			break
 		}
@@ -403,8 +407,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	rootID := root.priv.Public
 	cm := root.opts.certmanager
 	client := net.NewGrpcClientFromCertManagerWithLogger(testlogger.New(t), cm)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 
@@ -489,6 +492,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 
 // Check they all have same chain info
 func TestDrandPublicChainInfo(t *testing.T) {
+	ctx := context.Background()
 	n := 10
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -507,7 +511,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	for i, node := range dt.nodes {
 		d := node.drand
 		t.Logf("Getting chain info from node %d \n", i)
-		received, err := client.ChainInfo(d.priv.Public)
+		received, err := client.ChainInfo(ctx, d.priv.Public)
 
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
 
@@ -539,7 +543,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call
 //
-//nolint:funlen // this is a test
+//nolint:funlen // This is a longer test function
 func TestDrandPublicRand(t *testing.T) {
 	if os.Getenv("CI") == "true" {
 		t.Skip("test is flacky in CI")
@@ -892,7 +896,7 @@ func TestDrandFollowChain(t *testing.T) {
 			require.NoError(t, err)
 		}
 		require.NoError(t, err)
-		defer store.Close(ctx)
+		defer store.Close()
 
 		lastB, err := store.Last(ctx)
 		require.NoError(t, err)
@@ -999,7 +1003,7 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
 	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
@@ -1007,7 +1011,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Skip why: This call will create a new database connection.
 	//  However, for the MemDB engine type, this means we create a new backing array from scratch
 	//  thus removing all previous items from memory. At that point, this invalidates the test.
-	dt.StartDrand(t, dt.nodes[0].addr, true, false)
+	dt.StartDrand(ctx, t, dt.nodes[0].addr, true, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
 	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})
@@ -1129,6 +1133,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 }
 
 func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
+	ctx := context.Background()
+
 	// set up 3 nodes for a test
 	n := 3
 	thr := key.DefaultThreshold(n)
@@ -1145,7 +1151,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	store := key.NewFileStore(dir, beaconID)
 	node.drand.store = store
 
-	// save the key pair, as this was done ephemerally inside of `NewDrandTestScenario` >.>
+	// save the key pair, as this was done ephemerally inside `NewDrandTestScenario` >.>
 	err := store.SaveKeyPair(priv)
 	require.NoError(t, err)
 
@@ -1154,7 +1160,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	require.NoError(t, err)
 
 	// stop the node and wait for it
-	node.daemon.Stop(context.Background())
+	node.daemon.Stop(ctx)
 	<-node.daemon.exitCh
 	// although the exit channel has signaled exit, the control client is stopped out of band
 	// without waiting the pessimistic closing time, we may try and restart the daemon below
@@ -1173,11 +1179,11 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0o740)
 	require.NoError(t, err)
 
-	err = node.daemon.init()
+	err = node.daemon.init(ctx)
 	require.NoError(t, err)
 	// try and reload the beacon from the store
 	// the updated TLS status will fail verification
-	_, err = node.daemon.LoadBeaconFromStore(beaconID, store)
+	_, err = node.daemon.LoadBeaconFromStore(ctx, beaconID, store)
 
 	require.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 }
@@ -1251,7 +1257,7 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 type brokenBroadcast struct {
 }
 
-func (b brokenBroadcast) PushDeals(bundle *dkg.DealBundle) {
+func (b brokenBroadcast) PushDeals(*dkg.DealBundle) {
 	// no op
 }
 
@@ -1261,7 +1267,7 @@ func (b brokenBroadcast) IncomingDeal() <-chan dkg.DealBundle {
 	return c
 }
 
-func (b brokenBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
+func (b brokenBroadcast) PushResponses(*dkg.ResponseBundle) {
 	// no op
 }
 
@@ -1271,7 +1277,7 @@ func (b brokenBroadcast) IncomingResponse() <-chan dkg.ResponseBundle {
 	return c
 }
 
-func (b brokenBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
+func (b brokenBroadcast) PushJustifications(*dkg.JustificationBundle) {
 	// no op
 }
 

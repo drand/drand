@@ -12,7 +12,7 @@ import (
 type EmptyServer struct{}
 
 // GetIdentity returns the identity of the server
-func (s *EmptyServer) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.IdentityResponse, error) {
+func (s *EmptyServer) GetIdentity(_ context.Context, _ *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	return nil, nil
 }
 
@@ -106,7 +106,7 @@ func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.
 	return nil, nil
 }
 
-// ReloadBeacon is an empty implementation
+// LoadBeacon is an empty implementation
 func (s *EmptyServer) LoadBeacon(context.Context, *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error) {
 	return nil, nil
 }
@@ -121,65 +121,65 @@ func (s *EmptyServer) BackupDatabase(context.Context, *drand.BackupDBRequest) (*
 	return nil, nil
 }
 
-// Shutdown is an empty implementation
-func (s *EmptyServer) NodeVersionValidator(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+// NodeVersionValidator is an empty implementation
+func (s *EmptyServer) NodeVersionValidator(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
 	return handler(ctx, req)
 }
 
-// Shutdown is an empty implementation
-func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+// NodeVersionStreamValidator is an empty implementation
+func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	return handler(srv, ss)
 }
 
-func (s *EmptyServer) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Accept(_ context.Context, _ *drand.AcceptProposal) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Reject(_ context.Context, _ *drand.RejectProposal) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Propose(_ context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Propose(_ context.Context, _ *drand.ProposalTerms) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Abort(_ context.Context, _ *drand.AbortDKG) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Execute(_ context.Context, _ *drand.StartExecution) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartNetwork(_ context.Context, options *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartNetwork(_ context.Context, _ *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartProposal(_ context.Context, options *drand.ProposalOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartProposal(_ context.Context, _ *drand.ProposalOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartJoin(_ context.Context, options *drand.JoinOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartJoin(_ context.Context, _ *drand.JoinOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartAbort(_ context.Context, options *drand.AbortOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartAbort(_ context.Context, _ *drand.AbortOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartExecute(_ context.Context, options *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartExecute(_ context.Context, _ *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartAccept(_ context.Context, options *drand.AcceptOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartAccept(_ context.Context, _ *drand.AcceptOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) StartReject(_ context.Context, options *drand.RejectOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) StartReject(_ context.Context, _ *drand.RejectOptions) (*drand.EmptyResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) DKGStatus(_ context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+func (s *EmptyServer) DKGStatus(_ context.Context, _ *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
 	return nil, nil
 }
 

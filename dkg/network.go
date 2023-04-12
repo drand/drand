@@ -1,11 +1,13 @@
 package dkg
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/util"
 
@@ -17,33 +19,47 @@ type GrpcNetwork struct {
 	log       log.Logger
 }
 
+type SendAction func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error)
+
 // Send currently sends sequentially (boo!)
 // refactor this to fork join (and attempt all participants, in order that it can be used for rollbacks too)
 func (n *GrpcNetwork) Send(
+	ctx context.Context,
 	from *drand.Participant,
 	to []*drand.Participant,
-	action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
+	action SendAction,
 ) error {
-	return n.send(from, to, action, false)
+	ctx, span := metrics.NewSpan(ctx, "grpc.Send")
+	defer span.End()
+
+	return n.send(ctx, from, to, action, false)
 }
 
 func (n *GrpcNetwork) SendIgnoringConnectionError(
+	ctx context.Context,
 	from *drand.Participant,
 	to []*drand.Participant,
-	action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
+	action SendAction,
 ) error {
-	return n.send(from, to, action, true)
+	ctx, span := metrics.NewSpan(ctx, "grpc.SendIgnoringConnectionError")
+	defer span.End()
+
+	return n.send(ctx, from, to, action, true)
 }
 
 // send forks a goroutine for each recipient and sends a network request to them
 // in the case of error, it returns the first error
 // if they are all successful, it returns nil
 func (n *GrpcNetwork) send(
+	ctx context.Context,
 	from *drand.Participant,
 	to []*drand.Participant,
-	action func(client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error),
+	action SendAction,
 	ignoreConnectionErrors bool,
 ) error {
+	ctx, span := metrics.NewSpan(ctx, "grpc.send")
+	defer span.End()
+
 	wait := sync.WaitGroup{}
 	errs := make(chan error, len(to))
 	wait.Add(len(to))
@@ -58,7 +74,7 @@ func (n *GrpcNetwork) send(
 
 		go func() {
 			defer wait.Done()
-			_, err := action(n.dkgClient, util.ToPeer(p))
+			_, err := action(ctx, n.dkgClient, util.ToPeer(p))
 			if err != nil {
 				if ignoreConnectionErrors && isConnectionError(err) {
 					n.log.Warnw(fmt.Sprintf("connection error to node %s", p.Address), "err", err)

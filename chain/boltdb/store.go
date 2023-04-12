@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 // BoltStore implements the Store interface using the kv storage boltdb (native
@@ -51,6 +52,9 @@ func isThisATest(ctx context.Context) bool {
 
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
 func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (chain.Store, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.NewBoltStore")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -80,6 +84,9 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 }
 
 func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath string, opts *bolt.Options) bool {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.shouldUseTrimmedBolt")
+	defer span.End()
+
 	if isThisATest(ctx) {
 		return false
 	}
@@ -110,7 +117,12 @@ func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath st
 }
 
 // Len performs a big scan over the bucket and is _very_ slow - use sparingly!
+//
+//nolint:dupl // This is a method of a separate type
 func (b *BoltStore) Len(ctx context.Context) (int, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Len")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -130,7 +142,7 @@ func (b *BoltStore) Len(ctx context.Context) (int, error) {
 	return length, err
 }
 
-func (b *BoltStore) Close(context.Context) error {
+func (b *BoltStore) Close() error {
 	err := b.db.Close()
 	if err != nil {
 		b.log.Errorw("", "boltdb", "close", "err", err)
@@ -141,6 +153,9 @@ func (b *BoltStore) Close(context.Context) error {
 // Put implements the Store interface. WARNING: It does NOT verify that this
 // beacon is not already saved in the database or not and will overwrite it.
 func (b *BoltStore) Put(ctx context.Context, beacon *chain.Beacon) error {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Put")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -170,6 +185,9 @@ func (b *BoltStore) Put(ctx context.Context, beacon *chain.Beacon) error {
 
 // Last returns the last beacon signature saved into the db
 func (b *BoltStore) Last(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Last")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -191,6 +209,9 @@ func (b *BoltStore) Last(ctx context.Context) (*chain.Beacon, error) {
 
 // Get returns the beacon saved at this round
 func (b *BoltStore) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Get")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -210,6 +231,9 @@ func (b *BoltStore) Get(ctx context.Context, round uint64) (*chain.Beacon, error
 }
 
 func (b *BoltStore) Del(ctx context.Context, round uint64) error {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Del")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -223,6 +247,9 @@ func (b *BoltStore) Del(ctx context.Context, round uint64) error {
 }
 
 func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.Cursor")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -246,6 +273,9 @@ func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.C
 
 // SaveTo saves the bolt database to an alternate file.
 func (b *BoltStore) SaveTo(ctx context.Context, w io.Writer) error {
+	ctx, span := metrics.NewSpan(ctx, "boltStore.SaveTo")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -263,6 +293,9 @@ type boltCursor struct {
 }
 
 func (c *boltCursor) First(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltCursor.First")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -281,6 +314,9 @@ func (c *boltCursor) First(ctx context.Context) (*chain.Beacon, error) {
 // Next returns the next value in the database for the given cursor.
 // When reaching the end of the database, it emits the ErrNoBeaconStored error to flag that it finished the iteration.
 func (c *boltCursor) Next(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltCursor.Next")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -297,6 +333,9 @@ func (c *boltCursor) Next(ctx context.Context) (*chain.Beacon, error) {
 }
 
 func (c *boltCursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltCursor.Seek")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -313,6 +352,9 @@ func (c *boltCursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, err
 }
 
 func (c *boltCursor) Last(ctx context.Context) (*chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "boltCursor.Last")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()

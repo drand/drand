@@ -40,7 +40,7 @@ func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequ
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }
 
-func (t *testRandomnessServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
+func (t *testRandomnessServer) Group(_ context.Context, _ *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error) {

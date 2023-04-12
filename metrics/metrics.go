@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -358,8 +359,8 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 	return nil
 }
 
-// GroupHandlers abstracts a helper for relaying http requests to a group peer
-type Handler func(addr string) (http.Handler, error)
+// Handler abstracts a helper for relaying http requests to a group peer
+type Handler func(ctx context.Context, addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
 //
@@ -446,7 +447,7 @@ func newLazyPeerHandler(logger log.Logger, metricsHandlers []Handler) *lazyPeerH
 //
 // If the peer is not found, it will return a nil handler and a nil error.
 // If there is any other error it will return false and the given error.
-func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
+func (l *lazyPeerHandler) handlerForPeer(ctx context.Context, addr string) (http.Handler, error) {
 	h, found := l.handlerCache.Load(addr)
 	if found && h != nil {
 		return h.(http.Handler), nil
@@ -455,7 +456,7 @@ func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 	var err error
 
 	for _, handlerFunc := range l.metricsHandlers {
-		h, err = handlerFunc(addr)
+		h, err = handlerFunc(ctx, addr)
 		if err != nil {
 			if errors.Is(err, common.ErrNotPartOfGroup) {
 				continue
@@ -483,7 +484,7 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		addr = addr[:index]
 	}
 
-	handler, err := l.handlerForPeer(addr)
+	handler, err := l.handlerForPeer(r.Context(), addr)
 
 	if err != nil {
 		if errors.Is(err, common.ErrPeerNotFound) {

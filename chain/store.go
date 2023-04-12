@@ -19,7 +19,7 @@ type Store interface {
 	Last(context.Context) (*Beacon, error)
 	Get(ctx context.Context, round uint64) (*Beacon, error)
 	Cursor(context.Context, func(context.Context, Cursor) error) error
-	Close(context.Context) error
+	Close() error
 	Del(ctx context.Context, round uint64) error
 	SaveTo(ctx context.Context, w io.Writer) error
 }

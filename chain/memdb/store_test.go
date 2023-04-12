@@ -21,7 +21,7 @@ func TestStoreBoltOrder(t *testing.T) {
 
 	store := memdb.NewStore(10)
 	defer func() {
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 
 	b1 := &chain.Beacon{
@@ -97,7 +97,7 @@ func TestStoreBolt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
-	err = s.Close(ctx)
+	err = s.Close()
 	require.NoError(t, err)
 
 	s = memdb.NewStore(10)
@@ -107,7 +107,7 @@ func TestStoreBolt(t *testing.T) {
 	bb1, err := s.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	err = s.Close(ctx)
+	err = s.Close()
 	require.NoError(t, err)
 
 	s = memdb.NewStore(10)
@@ -156,7 +156,7 @@ func TestStore_Cursor(t *testing.T) {
 
 	dbStore := memdb.NewStore(10)
 	defer func() {
-		require.NoError(t, dbStore.Close(ctx))
+		require.NoError(t, dbStore.Close())
 	}()
 
 	sigs := map[int][]byte{
