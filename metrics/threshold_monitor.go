@@ -2,10 +2,11 @@ package metrics
 
 import (
 	"context"
-	"github.com/drand/drand/log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/log"
 )
 
 type ThresholdMonitor struct {
@@ -19,11 +20,11 @@ type ThresholdMonitor struct {
 	period            time.Duration
 }
 
-func NewThresholdMonitor(beaconID string, log log.Logger, threshold int) *ThresholdMonitor {
+func NewThresholdMonitor(beaconID string, l log.Logger, threshold int) *ThresholdMonitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ThresholdMonitor{
 		lock:              sync.RWMutex{},
-		log:               log,
+		log:               l,
 		beaconID:          beaconID,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
@@ -51,11 +52,29 @@ func (t *ThresholdMonitor) Start() {
 				}
 
 				if len(failingNodes) >= t.threshold {
-					t.log.Errorw("failed connections crossed threshold in the last minute", "beaconID", t.beaconID, "threshold", t.threshold, "failures", len(failingNodes), "nodes", strings.Join(failingNodes, ","))
+					t.log.Errorw(
+						"failed connections crossed threshold in the last minute",
+						"beaconID", t.beaconID,
+						"threshold", t.threshold,
+						"failures", len(failingNodes),
+						"nodes", strings.Join(failingNodes, ","),
+					)
 				} else if len(failingNodes) >= t.threshold/2 {
-					t.log.Warnw("failed connections crossed half threshold in the last minute", "beaconID", t.beaconID, "threshold", t.threshold, "failures", len(failingNodes), "nodes", strings.Join(failingNodes, ","))
+					t.log.Warnw(
+						"failed connections crossed half threshold in the last minute",
+						"beaconID", t.beaconID,
+						"threshold", t.threshold,
+						"failures", len(failingNodes),
+						"nodes", strings.Join(failingNodes, ","),
+					)
 				} else {
-					t.log.Debugw("threshold monitor healthy", "threshold", t.threshold, "beaconID", t.beaconID, "failures", len(failingNodes), "nodes", strings.Join(failingNodes, ","))
+					t.log.Debugw(
+						"threshold monitor healthy",
+						"threshold", t.threshold,
+						"beaconID", t.beaconID,
+						"failures", len(failingNodes),
+						"nodes", strings.Join(failingNodes, ","),
+					)
 				}
 				t.lock.RUnlock()
 

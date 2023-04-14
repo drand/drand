@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	dmetrics "github.com/drand/drand/metrics"
 	"sync"
 	"time"
+
+	dmetrics "github.com/drand/drand/metrics"
 
 	clock "github.com/jonboulle/clockwork"
 

@@ -2,11 +2,12 @@ package metrics
 
 import (
 	"context"
-	"github.com/drand/drand/log"
-	"github.com/stretchr/testify/mock"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/log"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestLogsErrorsWhenThresholdReached(t *testing.T) {
@@ -239,7 +240,6 @@ func (m *mockLogger) Debugw(msg string, keyvals ...interface{}) {
 
 func (m *mockLogger) Warnw(msg string, keyvals ...interface{}) {
 	m.Called()
-
 }
 
 func (m *mockLogger) Errorw(msg string, keyvals ...interface{}) {
