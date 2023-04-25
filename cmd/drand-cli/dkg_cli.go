@@ -561,7 +561,7 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 	}
 
 	appendRow("Status", status, func(entry *drand.DKGEntry) any {
-		return entry.State
+		return dkg.DKGStatus(entry.State).String()
 	})
 	appendRow("BeaconID", status, func(entry *drand.DKGEntry) any {
 		return entry.BeaconID
