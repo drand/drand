@@ -40,8 +40,14 @@ func testStartup(orch *lib.Orchestrator) (err error) {
 			err = fmt.Errorf("%v", r)
 		}
 	}()
-	orch.StartCurrentNodes()
-	orch.RunDKG(4 * time.Second)
+	err = orch.StartCurrentNodes()
+	if err != nil {
+		return err
+	}
+	err = orch.RunDKG(20 * time.Second)
+	if err != nil {
+		panic(err)
+	}
 	orch.WaitGenesis()
 	orch.WaitPeriod()
 	orch.CheckCurrentBeacon()
@@ -55,10 +61,16 @@ func testReshare(orch *lib.Orchestrator) (err error) {
 		}
 	}()
 
-	orch.StartNewNodes()
+	err = orch.StartNewNodes()
+	if err != nil {
+		return err
+	}
 	// exclude first node
-	orch.CreateResharingGroup(0, 4)
-	orch.RunResharing("2s")
+	resharingGroup, err := orch.CreateResharingGroup(0, 4)
+	if err != nil {
+		panic(err)
+	}
+	orch.RunResharing(resharingGroup, 60*time.Second)
 	orch.WaitTransition()
 	// look if beacon is still up even with the nodeToExclude being offline
 	orch.WaitPeriod()
@@ -123,15 +135,77 @@ func main() {
 
 	startupErr := testStartup(orch)
 	if startupErr != nil {
-		processError(regressionErrors{Startup: startupErr})
-		panic(startupErr)
+		// recover with a fully old-node dkg
+		orch.Shutdown()
+
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Scheme:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+			MemDBSize:    2000,
+		}
+		orch = lib.NewOrchestrator(c)
+
+		orch.UpdateGlobalBinary(*candidate, true)
+		orch.SetupNewNodes(1)
+
+		defer orch.Shutdown()
+
+		err := orch.StartCurrentNodes()
+		if err != nil {
+			panic(err)
+		}
+		err = orch.RunDKG(20 * time.Second)
+		if err != nil {
+			panic(err)
+		}
+		orch.WaitGenesis()
 	}
 
 	// start the new candidate node and reshare to include it.
 	reshareErr := testReshare(orch)
 	if reshareErr != nil {
 		processError(regressionErrors{Reshare: reshareErr})
-		panic(reshareErr)
+		// recover back to a fully old-node dkg
+		orch.Shutdown()
+
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Scheme:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+			MemDBSize:    2000,
+		}
+		orch = lib.NewOrchestrator(c)
+
+		orch.UpdateGlobalBinary(*candidate, true)
+		orch.SetupNewNodes(1)
+
+		defer orch.Shutdown()
+		err := orch.StartCurrentNodes()
+		if err != nil {
+			panic(err)
+		}
+		err = orch.RunDKG(20 * time.Second)
+		if err != nil {
+			panic(err)
+		}
+		orch.WaitGenesis()
 	}
 
 	// upgrade a node to the candidate.

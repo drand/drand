@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"bytes"
@@ -8,12 +8,17 @@ import (
 	"math/rand"
 	"sync"
 
-	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
+
+	"github.com/drand/drand/util"
+
+	"github.com/drand/drand/protobuf/common"
+	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
+	"github.com/drand/kyber"
+
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -55,36 +60,47 @@ type echoBroadcast struct {
 	// responsible for sending out the messages
 	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
-	hashes set
-	dealCh chan dkg.DealBundle
-	respCh chan dkg.ResponseBundle
-	justCh chan dkg.JustificationBundle
-	verif  verifyPacket
-	scheme *crypto.Scheme
+	hashes    set
+	dealCh    chan dkg.DealBundle
+	respCh    chan dkg.ResponseBundle
+	justCh    chan dkg.JustificationBundle
+	scheme    *crypto.Scheme
+	config    dkg.Config
+	isStopped bool
 }
 
 type packet = dkg.Packet
 
 var _ Broadcast = (*echoBroadcast)(nil)
 
-// verifyPacket is a type for  a function that can verify the validity of a dkg
-// Packet, namely that the signature is correct.
-type verifyPacket func(packet) error
-
-func newEchoBroadcast(l log.Logger, version commonutils.Version, beaconID string,
-	c net.ProtocolClient, own string, to []*key.Node, v verifyPacket, s *crypto.Scheme) *echoBroadcast {
+func newEchoBroadcast(
+	client net.DKGClient,
+	l log.Logger,
+	version commonutils.Version,
+	beaconID string,
+	own string,
+	to []*drand.Participant,
+	scheme *crypto.Scheme,
+	config *dkg.Config,
+) (*echoBroadcast, error) {
+	if len(to) == 0 {
+		return nil, errors.New("cannot create a broadcaster with no participants")
+	}
+	// copy the config to avoid races
+	c := *config
 	return &echoBroadcast{
 		l:          l.Named("echoBroadcast"),
 		version:    version,
 		beaconID:   beaconID,
-		dispatcher: newDispatcher(l, c, to, own),
+		dispatcher: newDispatcher(client, l, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
 		hashes:     new(arraySet),
-		verif:      v,
-		scheme:     s,
-	}
+		scheme:     scheme,
+		config:     c,
+		isStopped:  false,
+	}, nil
 }
 
 func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
@@ -93,7 +109,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Infow("push broadcast", "deal", fmt.Sprintf("%x", h[:5]))
-	b.sendout(h, bundle, true)
+	b.sendout(h, bundle, true, b.beaconID)
 }
 
 func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
@@ -102,7 +118,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debugw("push", "response", bundle.String())
-	b.sendout(h, bundle, true)
+	b.sendout(h, bundle, true, b.beaconID)
 }
 
 func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
@@ -111,7 +127,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debugw("push", "justification", fmt.Sprintf("%x", h[:5]))
-	b.sendout(h, bundle, true)
+	b.sendout(h, bundle, true, b.beaconID)
 }
 
 func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
@@ -132,13 +148,15 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 		b.l.Debugw("ignoring duplicate packet", "index", dkgPacket.Index(), "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return nil
 	}
-	if err := b.verif(dkgPacket); err != nil {
+
+	dkgConfig := b.config
+	if err := dkg.VerifyPacketSignature(&dkgConfig, dkgPacket); err != nil {
 		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "scheme", b.scheme, "err", err)
 		return errors.New("invalid DKGPacket")
 	}
 
 	b.l.Debugw("received new packet to echoBroadcast", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
-	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
+	b.sendout(hash, dkgPacket, false, b.beaconID) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return nil
 }
@@ -160,8 +178,12 @@ func (b *echoBroadcast) passToApplication(p packet) {
 // so it is broadcasted out to all nodes. sendout requires the echoBroadcast
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
-func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
-	dkgproto, err := dkgPacketToProto(p)
+func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool, beaconID string) {
+	if b.isStopped {
+		return
+	}
+
+	dkgproto, err := dkgPacketToProto(p, beaconID)
 	if err != nil {
 		b.l.Errorw("can't send packet", "err", err)
 		return
@@ -169,11 +191,7 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
 
-	metadata := common.Metadata{NodeVersion: b.version.ToProto(), BeaconID: b.beaconID}
-	proto := &drand.DKGPacket{
-		Dkg:      dkgproto,
-		Metadata: &metadata,
-	}
+	proto := &drand.DKGPacket{Dkg: dkgproto, Metadata: &drand.DKGMetadata{BeaconID: beaconID}}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
@@ -197,6 +215,9 @@ func (b *echoBroadcast) IncomingJustification() <-chan dkg.JustificationBundle {
 }
 
 func (b *echoBroadcast) Stop() {
+	b.Lock()
+	b.isStopped = true
+	b.Unlock()
 	b.dispatcher.stop()
 }
 
@@ -255,14 +276,14 @@ type dispatcher struct {
 	senders []*sender
 }
 
-func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
+func newDispatcher(dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
 	var senders = make([]*sender, 0, len(to)-1)
 	queue := senderQueueSize(len(to))
 	for _, node := range to {
-		if node.Address() == us {
+		if node.Address == us {
 			continue
 		}
-		sender := newSender(l, client, node, queue)
+		sender := newSender(dkgClient, node, l, queue)
 		go sender.run()
 		senders = append(senders, sender)
 	}
@@ -295,12 +316,12 @@ func (d *dispatcher) stop() {
 
 type sender struct {
 	l      log.Logger
-	client net.ProtocolClient
-	to     net.Peer
+	client net.DKGClient
+	to     *drand.Participant
 	newCh  chan broadcastPacket
 }
 
-func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
+func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueSize int) *sender {
 	return &sender{
 		l:      l.Named("Sender"),
 		client: client,
@@ -313,7 +334,7 @@ func (s *sender) sendPacket(p broadcastPacket) {
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Errorw("sender queue full", "endpoint", s.to.Address())
+		s.l.Errorw("sender queue full", "endpoint", s.to.Address)
 	}
 }
 
@@ -324,14 +345,173 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+	node := util.ToPeer(s.to)
+	_, err := s.client.BroadcastDKG(context.Background(), node, newPacket)
 	if err != nil {
-		s.l.Errorw("error while sending out", "to", s.to.Address(), "err:", err)
+		s.l.Errorw("error while sending out", "to", s.to.Address, "err:", err)
 	} else {
-		s.l.Debugw("sending out", "to", s.to.Address())
+		s.l.Debugw("sending out", "to", s.to.Address)
 	}
 }
 
 func (s *sender) stop() {
 	close(s.newCh)
+}
+
+func protoToDKGPacket(d *pdkg.Packet, sch *crypto.Scheme) (dkg.Packet, error) {
+	switch packet := d.GetBundle().(type) {
+	case *pdkg.Packet_Deal:
+		return protoToDeal(packet.Deal, sch)
+	case *pdkg.Packet_Response:
+		return protoToResp(packet.Response), nil
+	case *pdkg.Packet_Justification:
+		return protoToJustif(packet.Justification, sch)
+	default:
+		return nil, errors.New("unknown packet")
+	}
+}
+
+func dkgPacketToProto(p dkg.Packet, beaconID string) (*pdkg.Packet, error) {
+	switch inner := p.(type) {
+	case *dkg.DealBundle:
+		return dealToProto(inner, beaconID), nil
+	case *dkg.ResponseBundle:
+		return respToProto(inner, beaconID), nil
+	case *dkg.JustificationBundle:
+		return justifToProto(inner, beaconID), nil
+	default:
+		return nil, errors.New("invalid dkg packet")
+	}
+}
+
+func protoToDeal(d *pdkg.DealBundle, sch *crypto.Scheme) (*dkg.DealBundle, error) {
+	bundle := new(dkg.DealBundle)
+	bundle.DealerIndex = d.DealerIndex
+	publics := make([]kyber.Point, 0, len(d.Commits))
+	for _, c := range d.Commits {
+		coeff := sch.KeyGroup.Point()
+		if err := coeff.UnmarshalBinary(c); err != nil {
+			return nil, fmt.Errorf("invalid public coeff:%w", err)
+		}
+		publics = append(publics, coeff)
+	}
+	bundle.Public = publics
+	deals := make([]dkg.Deal, 0, len(d.Deals))
+	for _, dd := range d.Deals {
+		deal := dkg.Deal{
+			EncryptedShare: dd.EncryptedShare,
+			ShareIndex:     dd.ShareIndex,
+		}
+		deals = append(deals, deal)
+	}
+	bundle.Deals = deals
+	bundle.SessionID = d.SessionId
+	bundle.Signature = d.Signature
+	return bundle, nil
+}
+
+func protoToResp(r *pdkg.ResponseBundle) *dkg.ResponseBundle {
+	resp := new(dkg.ResponseBundle)
+	resp.ShareIndex = r.ShareIndex
+	resp.Responses = make([]dkg.Response, 0, len(r.Responses))
+	for _, rr := range r.Responses {
+		response := dkg.Response{
+			DealerIndex: rr.DealerIndex,
+			Status:      rr.Status,
+		}
+		resp.Responses = append(resp.Responses, response)
+	}
+	resp.SessionID = r.SessionId
+	resp.Signature = r.Signature
+	return resp
+}
+
+func protoToJustif(j *pdkg.JustificationBundle, sch *crypto.Scheme) (*dkg.JustificationBundle, error) {
+	just := new(dkg.JustificationBundle)
+	just.DealerIndex = j.DealerIndex
+	just.Justifications = make([]dkg.Justification, len(j.Justifications))
+	for i, j := range j.Justifications {
+		share := sch.KeyGroup.Scalar()
+		if err := share.UnmarshalBinary(j.Share); err != nil {
+			return nil, fmt.Errorf("invalid share: %w", err)
+		}
+		justif := dkg.Justification{
+			ShareIndex: j.ShareIndex,
+			Share:      share,
+		}
+		just.Justifications[i] = justif
+	}
+	just.SessionID = j.SessionId
+	just.Signature = j.Signature
+	return just, nil
+}
+
+func dealToProto(d *dkg.DealBundle, beaconID string) *pdkg.Packet {
+	packet := new(pdkg.Packet)
+	bundle := new(pdkg.DealBundle)
+	bundle.DealerIndex = d.DealerIndex
+	bundle.Deals = make([]*pdkg.Deal, len(d.Deals))
+	for i, deal := range d.Deals {
+		pdeal := &pdkg.Deal{
+			ShareIndex:     deal.ShareIndex,
+			EncryptedShare: deal.EncryptedShare,
+		}
+		bundle.Deals[i] = pdeal
+	}
+
+	bundle.Commits = make([][]byte, len(d.Public))
+	for i, coeff := range d.Public {
+		cbuff, _ := coeff.MarshalBinary()
+		bundle.Commits[i] = cbuff
+	}
+	bundle.Signature = d.Signature
+	bundle.SessionId = d.SessionID
+	packet.Bundle = &pdkg.Packet_Deal{Deal: bundle}
+	packet.Metadata = &common.Metadata{
+		BeaconID: beaconID,
+	}
+	return packet
+}
+
+func respToProto(r *dkg.ResponseBundle, beaconID string) *pdkg.Packet {
+	packet := new(pdkg.Packet)
+	bundle := new(pdkg.ResponseBundle)
+	bundle.ShareIndex = r.ShareIndex
+	bundle.Responses = make([]*pdkg.Response, len(r.Responses))
+	for i, resp := range r.Responses {
+		presp := &pdkg.Response{
+			DealerIndex: resp.DealerIndex,
+			Status:      resp.Status,
+		}
+		bundle.Responses[i] = presp
+	}
+	bundle.SessionId = r.SessionID
+	bundle.Signature = r.Signature
+	packet.Bundle = &pdkg.Packet_Response{Response: bundle}
+	packet.Metadata = &common.Metadata{
+		BeaconID: beaconID,
+	}
+	return packet
+}
+
+func justifToProto(j *dkg.JustificationBundle, beaconID string) *pdkg.Packet {
+	packet := new(pdkg.Packet)
+	bundle := new(pdkg.JustificationBundle)
+	bundle.DealerIndex = j.DealerIndex
+	bundle.Justifications = make([]*pdkg.Justification, len(j.Justifications))
+	for i, just := range j.Justifications {
+		shareBuff, _ := just.Share.MarshalBinary()
+		pjust := &pdkg.Justification{
+			ShareIndex: just.ShareIndex,
+			Share:      shareBuff,
+		}
+		bundle.Justifications[i] = pjust
+	}
+	bundle.SessionId = j.SessionID
+	bundle.Signature = j.Signature
+	packet.Bundle = &pdkg.Packet_Justification{Justification: bundle}
+	packet.Metadata = &common.Metadata{
+		BeaconID: beaconID,
+	}
+	return packet
 }

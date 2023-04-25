@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	json "github.com/nikkolasg/hexjson"
-
 	"github.com/drand/drand/crypto"
+
+	json "github.com/nikkolasg/hexjson"
 )
 
 // Beacon holds the randomness as well as the info to verify it.

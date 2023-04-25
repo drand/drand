@@ -21,32 +21,20 @@ func DefaultConfigFolder() string {
 // It is relative to the DefaultConfigFolder path.
 const DefaultDBFolder = "db"
 
-// DefaultBeaconPeriod is the period in which the beacon logic creates new
-// random beacon.
-const DefaultBeaconPeriod = 1 * time.Minute
-
 // DefaultControlPort is the default port the functionnality control port communicate on.
 const DefaultControlPort = "8888"
 
-// DefaultDKGTimeout is the default time of each DKG period by default. Note
+// DefaultDKGPhaseTimeout is the default time of each DKG period by default. Note
 // that by default, DKG uses the "fast sync" mode that shorten the first phase
 // and the second phase, "as fast as possible" when the protocol runs smoothly
 // (there is no malicious party).
-const DefaultDKGTimeout = 10 * time.Second
+const DefaultDKGPhaseTimeout = 10 * time.Second
 
-// MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
-// can take. If the setup is still not finished after this time, it is
-// canceled.
-var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
+// DefaultDKGKickoffGracePeriod is the amount of time that each node waits after
+// receiving the execution notification from the leader.
+const DefaultDKGKickoffGracePeriod = 5 * time.Second
 
-// DefaultGenesisOffset is the time the leader adds after the maximum DKG time
-// (the full three phases) to compute the genesis time of the randomness chain.
-const DefaultGenesisOffset = 1 * time.Second
-
-// DefaultResharingOffset is the time the leader adds to the current time to set
-// the TransitionTime field in the group file when setting up a resharing. This
-// time will be rounded up to the next round time of the beacon, since a beacon
-// has to keep the same period.
-var DefaultResharingOffset = 30 * time.Second
+// DefaultDKGTimeout is the max amount of time from start of a DKG until it gets aborted automatically
+const DefaultDKGTimeout = 24 * time.Hour
 
 const callMaxTimeout = 10 * time.Second

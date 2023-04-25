@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/util"
 	"os"
 	"os/exec"
 	"path"
@@ -36,6 +38,7 @@ type LocalNode struct {
 	pubAddr    string
 	ctrlAddr   string
 	ctrlClient *net.ControlClient
+	dkgRunner  *test.DKGRunner
 	tls        bool
 	priv       *key.Pair
 
@@ -50,7 +53,7 @@ type LocalNode struct {
 
 func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	nbase := path.Join(cfg.BasePath, fmt.Sprintf("node-%d", i))
-	os.MkdirAll(nbase, 0740)
+	_ = os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 
 	// make certificates for the node.
@@ -61,6 +64,13 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	if err != nil {
 		return nil
 	}
+
+	controlAddr := test.FreeBind(bindAddr)
+	dkgClient, err := net.NewDKGControlClient(controlAddr)
+	if err != nil {
+		return nil
+	}
+
 	l := &LocalNode{
 		base:         nbase,
 		i:            i,
@@ -70,19 +80,20 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		log:          log.NewLogger(nil, log.LogDebug),
 		pubAddr:      test.FreeBind(bindAddr),
 		privAddr:     test.FreeBind(bindAddr),
-		ctrlAddr:     test.FreeBind("localhost"),
+		ctrlAddr:     controlAddr,
 		scheme:       cfg.Scheme,
 		beaconID:     cfg.BeaconID,
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
 		memDBSize:    cfg.MemDBSize,
+		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient},
 	}
 
 	var priv *key.Pair
 	if l.tls {
-		priv, err = key.NewTLSKeyPair(l.privAddr, nil)
+		priv, err = key.NewTLSKeyPair(l.privAddr, l.scheme)
 	} else {
-		priv, err = key.NewKeyPair(l.privAddr, nil)
+		priv, err = key.NewKeyPair(l.privAddr, l.scheme)
 	}
 	if err != nil {
 		panic(err)
@@ -159,12 +170,12 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 			return err
 		}
 
-		freshRun, err := bp.Load()
-		if err != nil {
+		err = bp.Load()
+		isFreshRun := err == core.ErrDKGNotStarted
+		if err != nil && !isFreshRun {
 			return err
 		}
-
-		if freshRun {
+		if isFreshRun {
 			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
 		} else {
 			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
@@ -216,25 +227,40 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	return cl
 }
 
-func (l *LocalNode) RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error) {
-	cl := l.ctrl()
+func (l *LocalNode) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error {
 	p, err := time.ParseDuration(l.period)
 	if err != nil {
-		l.log.Errorw("", "drand", "dkg run failed", "err", err)
-		return nil, err
+		return err
 	}
-	var grp *drand.GroupPacket
-	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, timeout, nil, secretDKG, beaconOffset, l.beaconID)
-	} else {
-		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
-	}
+	timeout := 5 * time.Minute
+	return l.dkgRunner.StartNetwork(thr, int(p.Seconds()), l.scheme.Name, timeout, beaconOffset, joiners)
+}
+
+func (l *LocalNode) ExecuteLeaderDKG() error {
+	return l.dkgRunner.StartExecution()
+}
+
+func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
+	err := l.dkgRunner.WaitForDKG(l.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
-		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return nil, err
 	}
-	return key.GroupFromProto(grp, nil)
+
+	groupPacket, err := l.daemon.GroupFile(context.Background(), &drand.GroupRequest{Metadata: &common.Metadata{
+		BeaconID: l.beaconID,
+	}})
+	if err != nil {
+		return nil, err
+	}
+
+	return key.GroupFromProto(groupPacket, l.scheme)
+}
+func (l *LocalNode) JoinDKG() error {
+	return l.dkgRunner.JoinDKG()
+}
+
+func (l *LocalNode) JoinReshare(oldGroup key.Group) error {
+	return l.dkgRunner.JoinReshare(&oldGroup)
 }
 
 func (l *LocalNode) GetGroup() *key.Group {
@@ -245,7 +271,7 @@ func (l *LocalNode) GetGroup() *key.Group {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
-	group, err := key.GroupFromProto(grp, nil)
+	group, err := key.GroupFromProto(grp, l.scheme)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil
@@ -253,24 +279,26 @@ func (l *LocalNode) GetGroup() *key.Group {
 	return group
 }
 
-func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
-	cl := l.ctrl()
-
-	t, _ := time.ParseDuration(timeout)
-	var grp *drand.GroupPacket
-	var err error
-	if leader {
-		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID)
-	} else {
-		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID)
-	}
+func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+	err := l.dkgRunner.StartProposal(thr, transitionTime, beaconOffset, joiners, remainers, leavers)
 	if err != nil {
-		l.log.Errorw("", "drand", "reshare failed", "err", err)
-		return nil
+		l.log.Errorw("", "drand", "dkg run failed", "err", err)
+		return err
 	}
-	kg, _ := key.GroupFromProto(grp, nil)
-	return kg
+
+	return nil
+}
+func (l *LocalNode) ExecuteLeaderReshare() error {
+	return l.dkgRunner.StartExecution()
+}
+
+func (l *LocalNode) AcceptReshare() error {
+	err := l.dkgRunner.Accept()
+	if err != nil {
+		l.log.Errorw("", "drand", "dkg run failed", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (l *LocalNode) ChainInfo(group string) bool {
@@ -313,7 +341,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	defer cancel()
 	r, err := c.Get(ctx, round)
 	if err != nil || r == nil {
-		l.log.Errorw("", "drand", "can't get becon", "err", err)
+		l.log.Errorw("", "drand", "can't get beacon", "err", err)
 	}
 	if r == nil {
 		return
@@ -355,4 +383,12 @@ func (l *LocalNode) PrintLog() {
 	}
 
 	fmt.Printf("%s\n", string(buff))
+}
+
+func (l *LocalNode) Identity() (*drand.Participant, error) {
+	keypair, err := l.daemon.KeypairFor(l.beaconID)
+	if err != nil {
+		return nil, err
+	}
+	return util.PublicKeyAsParticipant(keypair.Public)
 }

@@ -7,16 +7,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// BroadcastDKG is the public method to call during a DKG protocol.
-func (dd *DrandDaemon) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.BroadcastDKG(c, in)
-}
-
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (dd *DrandDaemon) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
@@ -66,27 +56,7 @@ func (dd *DrandDaemon) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest
 	return bp.ChainInfo(ctx, in)
 }
 
-// SignalDKGParticipant receives a dkg signal packet from another member
-func (dd *DrandDaemon) SignalDKGParticipant(ctx context.Context, in *drand.SignalDKGPacket) (*drand.Empty, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.SignalDKGParticipant(ctx, in)
-}
-
-// PushDKGInfo triggers sending DKG info to other members
-func (dd *DrandDaemon) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.PushDKGInfo(ctx, in)
-}
-
-// SyncChain is a inter-node protocol that replies to a syncing request from a
+// SyncChain is an inter-node protocol that replies to a syncing request from a
 // given round
 func (dd *DrandDaemon) SyncChain(in *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())

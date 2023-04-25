@@ -35,7 +35,7 @@ func registerGRPCMetrics() error {
 
 // NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC.
 func NewGRPCListenerForPrivate(
-	ctx context.Context,
+	_ context.Context,
 	bindingAddr, certPath, keyPath string,
 	s Service,
 	insecure bool,
@@ -62,6 +62,7 @@ func NewGRPCListenerForPrivate(
 
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
+	drand.RegisterDKGServer(grpcServer, s)
 
 	var g Listener
 	if insecure {

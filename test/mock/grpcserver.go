@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -324,4 +325,57 @@ func NewMockBeacon(t *testing.T, sch *crypto.Scheme) (*drand.ChainInfoPacket, *d
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
 
 	return c, r
+}
+
+func (s *Server) Propose(_ context.Context, _ *drand.ProposalTerms) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Accept(_ context.Context, _ *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Reject(_ context.Context, _ *drand.RejectProposal) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Abort(_ context.Context, _ *drand.AbortDKG) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Execute(_ context.Context, _ *drand.StartExecution) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Join(ctx context.Context, options *drand.JoinOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) StartNetwork(ctx context.Context, in *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+
+}
+
+func (s *Server) StartProposal(ctx context.Context, in *drand.ProposalOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) StartAbort(ctx context.Context, in *drand.AbortOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) StartExecute(ctx context.Context, in *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) StartAccept(ctx context.Context, in *drand.AcceptOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) StartReject(ctx context.Context, in *drand.RejectOptions) (*drand.EmptyResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) DKGStatus(ctx context.Context, in *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
 }

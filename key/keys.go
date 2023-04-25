@@ -205,15 +205,22 @@ func (i *Identity) FromTOML(t interface{}) error {
 	return err
 }
 
-// TOML returns a empty TOML-compatible version of the public key
+// TOML returns an empty TOML-compatible version of the public key
 func (i *Identity) TOML() interface{} {
 	hexKey := PointToString(i.Key)
+	var schemeName string
+
+	if i.Scheme == nil {
+		schemeName = crypto.DefaultSchemeID
+	} else {
+		schemeName = i.Scheme.Name
+	}
 	return &PublicTOML{
 		Address:    i.Addr,
 		Key:        hexKey,
 		TLS:        i.TLS,
 		Signature:  hex.EncodeToString(i.Signature),
-		SchemeName: i.Scheme.Name,
+		SchemeName: schemeName,
 	}
 }
 
@@ -286,7 +293,7 @@ type Share struct {
 }
 
 // PubPoly returns the public polynomial that can be used to verify any
-// individual patial signature
+// individual partial signature
 func (s *Share) PubPoly() *share.PubPoly {
 	return share.NewPubPoly(s.Scheme.KeyGroup, s.Scheme.KeyGroup.Point().Base(), s.Commits)
 }

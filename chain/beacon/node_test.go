@@ -574,6 +574,10 @@ func TestBeaconThreshold(t *testing.T) {
 		}()
 	}
 	nRounds := 1
+
+	// first we move to time genesis so that the beacons start
+	bt.MoveTime(t, offsetGenesis)
+
 	// open connections for all but one
 	for i := 0; i < n-1; i++ {
 		bt.CallbackFor(i, myCallBack(i))
@@ -582,11 +586,11 @@ func TestBeaconThreshold(t *testing.T) {
 
 	// start all but one
 	bt.StartBeacons(t, n-1)
+	bt.MoveTime(t, bt.period)
 
 	// move to genesis time and check they ran the round 1
 	currentRound = 1
 	counter.Add(n - 1)
-	bt.MoveTime(t, offsetGenesis)
 	checkWait(t, &counter)
 
 	// make a few rounds

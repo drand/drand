@@ -30,15 +30,6 @@ type ControlClient interface {
 	ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error)
 	// ListBeaconIDs responds with the list of ids for the running networks on the node
 	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
-	// InitDKG sends information to daemon to start a fresh DKG protocol
-	InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error)
-	// InitReshares sends all informations so that the drand node knows how to
-	// proceeed during the next resharing protocol.
-	InitReshare(ctx context.Context, in *InitResharePacket, opts ...grpc.CallOption) (*GroupPacket, error)
-	// Deprecated: Do not use.
-	// Share returns the current private share used by the node
-	// Deprecated
-	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
 	// PrivateKey returns the longterm private key of the drand node
@@ -96,34 +87,6 @@ func (c *controlClient) ListSchemes(ctx context.Context, in *ListSchemesRequest,
 func (c *controlClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error) {
 	out := new(ListBeaconIDsResponse)
 	err := c.cc.Invoke(ctx, "/drand.Control/ListBeaconIDs", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlClient) InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error) {
-	out := new(GroupPacket)
-	err := c.cc.Invoke(ctx, "/drand.Control/InitDKG", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlClient) InitReshare(ctx context.Context, in *InitResharePacket, opts ...grpc.CallOption) (*GroupPacket, error) {
-	out := new(GroupPacket)
-	err := c.cc.Invoke(ctx, "/drand.Control/InitReshare", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Deprecated: Do not use.
-func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
-	out := new(ShareResponse)
-	err := c.cc.Invoke(ctx, "/drand.Control/Share", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,15 +241,6 @@ type ControlServer interface {
 	ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error)
 	// ListBeaconIDs responds with the list of ids for the running networks on the node
 	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
-	// InitDKG sends information to daemon to start a fresh DKG protocol
-	InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error)
-	// InitReshares sends all informations so that the drand node knows how to
-	// proceeed during the next resharing protocol.
-	InitReshare(context.Context, *InitResharePacket) (*GroupPacket, error)
-	// Deprecated: Do not use.
-	// Share returns the current private share used by the node
-	// Deprecated
-	Share(context.Context, *ShareRequest) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)
 	// PrivateKey returns the longterm private key of the drand node
@@ -321,15 +275,6 @@ func (UnimplementedControlServer) ListSchemes(context.Context, *ListSchemesReque
 }
 func (UnimplementedControlServer) ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListBeaconIDs not implemented")
-}
-func (UnimplementedControlServer) InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method InitDKG not implemented")
-}
-func (UnimplementedControlServer) InitReshare(context.Context, *InitResharePacket) (*GroupPacket, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method InitReshare not implemented")
-}
-func (UnimplementedControlServer) Share(context.Context, *ShareRequest) (*ShareResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Share not implemented")
 }
 func (UnimplementedControlServer) PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublicKey not implemented")
@@ -441,60 +386,6 @@ func _Control_ListBeaconIDs_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).ListBeaconIDs(ctx, req.(*ListBeaconIDsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_InitDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitDKGPacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).InitDKG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Control/InitDKG",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).InitDKG(ctx, req.(*InitDKGPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_InitReshare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitResharePacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).InitReshare(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Control/InitReshare",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).InitReshare(ctx, req.(*InitResharePacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_Share_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShareRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).Share(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Control/Share",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).Share(ctx, req.(*ShareRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -707,18 +598,6 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListBeaconIDs",
 			Handler:    _Control_ListBeaconIDs_Handler,
-		},
-		{
-			MethodName: "InitDKG",
-			Handler:    _Control_InitDKG_Handler,
-		},
-		{
-			MethodName: "InitReshare",
-			Handler:    _Control_InitReshare_Handler,
-		},
-		{
-			MethodName: "Share",
-			Handler:    _Control_Share_Handler,
 		},
 		{
 			MethodName: "PublicKey",
