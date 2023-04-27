@@ -38,12 +38,11 @@ func (t *ThresholdMonitor) Start() {
 	t.log.Infow("starting threshold monitor", "beaconID", t.beaconID)
 
 	go func() {
-	FOR:
 		for {
 			select {
 			case <-t.ctx.Done():
 				t.log.Infow("ending threshold monitor", "beaconID", t.beaconID)
-				break FOR
+				return
 			default:
 				t.lock.RLock()
 				var failingNodes []string
