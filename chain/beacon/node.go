@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	dmetrics "github.com/drand/drand/metrics"
-
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -17,6 +15,7 @@ import (
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -49,7 +48,7 @@ type Handler struct {
 	// main logic that treats incoming packet / new beacons created
 	chain            *chainStore
 	ticker           *ticker
-	thresholdMonitor *dmetrics.ThresholdMonitor
+	thresholdMonitor *metrics.ThresholdMonitor
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -100,7 +99,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 		ctxCancel:        ctxCancel,
 		l:                l,
 		version:          version,
-		thresholdMonitor: dmetrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
+		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
 	}
 	return handler, nil
 }
