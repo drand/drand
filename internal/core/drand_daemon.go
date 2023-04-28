@@ -380,8 +380,24 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 
 	freshRun := status.Complete == nil
 	if freshRun {
-		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
-		return bp, nil
+		// migration path from v1-> v2
+		// if there is a group file but no DKG status in the DB, we perform the migration
+		g, err := store.LoadGroup()
+
+		//nolint:nilerr // by default, no group returns a `no such file or directory` error, which we want to ignore
+		if g == nil || err != nil {
+			dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
+			return bp, nil
+		}
+
+		share, err := store.LoadShare(g.Scheme)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := dd.dkg.Migrate(beaconID, g, share); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := bp.Load(ctx); err != nil {

@@ -135,5 +135,12 @@ func (d *Process) Close() {
 // It will fail if DKG state already exists for the given beaconID
 // Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 func (d *Process) Migrate(beaconID string, groupfile *key.Group, share *key.Share) error {
-	return d.store.MigrateFromGroupfile(beaconID, groupfile, share)
+	d.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
+
+	if err := d.store.MigrateFromGroupfile(beaconID, groupfile, share); err != nil {
+		return err
+	}
+
+	d.log.Debugw("Completed migration from group file")
+	return nil
 }
