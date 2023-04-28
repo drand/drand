@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	dmetrics "github.com/drand/drand/metrics"
+
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -45,8 +47,9 @@ type Handler struct {
 	// keeps the cryptographic info (group share etc)
 	crypto *vault.Vault
 	// main logic that treats incoming packet / new beacons created
-	chain  *chainStore
-	ticker *ticker
+	chain            *chainStore
+	ticker           *ticker
+	thresholdMonitor *dmetrics.ThresholdMonitor
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -87,16 +90,17 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	handler := &Handler{
-		conf:      conf,
-		client:    c,
-		crypto:    v,
-		chain:     store,
-		ticker:    ticker,
-		addr:      addr,
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
-		l:         l,
-		version:   version,
+		conf:             conf,
+		client:           c,
+		crypto:           v,
+		chain:            store,
+		ticker:           ticker,
+		addr:             addr,
+		ctx:              ctx,
+		ctxCancel:        ctxCancel,
+		l:                l,
+		version:          version,
+		thresholdMonitor: dmetrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
 	}
 	return handler, nil
 }
@@ -200,6 +204,7 @@ func (h *Handler) Start() error {
 	h.started = true
 	h.Unlock()
 
+	h.thresholdMonitor.Start()
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
@@ -218,6 +223,7 @@ func (h *Handler) Catchup() {
 	h.Unlock()
 
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.chain.RunSync(nRound, nil)
 }
@@ -270,6 +276,7 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 			return
 		}
 		h.crypto.SetInfo(newGroup, newShare)
+		h.thresholdMonitor.UpdateThreshold(newGroup.Threshold)
 		h.chain.RemoveCallback("transition")
 	})
 }
@@ -457,6 +464,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			h.l.Debugw("sending partial", "round", round, "to", i.Address())
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
+				h.thresholdMonitor.ReportFailure(i.Address())
 				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
@@ -476,6 +484,7 @@ func (h *Handler) Stop() {
 
 	h.ticker.Stop()
 	h.chain.Stop()
+	h.thresholdMonitor.Stop()
 
 	h.stopped = true
 	h.running = false
