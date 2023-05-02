@@ -96,6 +96,8 @@ func New(ctx context.Context, version string, logger log.Logger) (*DrandHandler,
 	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
 	mux.HandleFunc("/health", withCommonHeaders(version, handler.Health))
 	mux.HandleFunc("/chains", withCommonHeaders(version, handler.ChainHashes))
+	// an easy fix to avoid getting hammered by requests
+	mux.HandleFunc("/public/18446744073709551615", withCommonHeaders(version, handler.HandleUnderflow))
 
 	handler.httpHandler = promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -557,6 +559,14 @@ func (h *DrandHandler) ChainHashes(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	b, _ := json.Marshal(chainHashes)
 	_, _ = w.Write(b)
+}
+
+//nolint:gomnd
+func (h *DrandHandler) HandleUnderflow(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(29 * time.Second)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "max-age=30")
+	h.LatestRand(w, r)
 }
 
 func readChainHash(r *http.Request) ([]byte, error) {
