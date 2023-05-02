@@ -126,6 +126,7 @@ func (d *Process) Execute(ctx context.Context, kickoff *drand.StartExecution) (*
 func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyResponse, error) {
 	_, span := metrics.NewSpan(ctx, "dkg.BroadcastDKG")
 	defer span.End()
+
 	beaconID := packet.Dkg.Metadata.BeaconID
 	d.lock.Lock()
 	broadcaster := d.Executions[beaconID]
