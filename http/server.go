@@ -77,7 +77,7 @@ func New(ctx context.Context, version string) (*DrandHandler, error) {
 
 	handler := &DrandHandler{
 		timeout: reqTimeout,
-		log:     logger,
+		log:     logger.Named("http"),
 		context: ctx,
 		version: version,
 		beacons: make(map[string]*BeaconHandler),
@@ -281,9 +281,10 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) (*cha
 
 	bh.chainInfoLk.RLock()
 	if bh.chainInfo != nil {
-		info := bh.chainInfo
+		// we want to return a copy in case it changes
+		info := *bh.chainInfo
 		bh.chainInfoLk.RUnlock()
-		return info, nil
+		return &info, nil
 	}
 	bh.chainInfoLk.RUnlock()
 
@@ -359,8 +360,10 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	}
 
 	// make sure we aren't going to ask for a round that doesn't exist yet.
-	if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0).After(time.Now()) {
-		h.log.Warnw("requested round is in the future")
+	if dateOfRound(round, info).After(time.Now()) {
+		bh.pendingLk.RLock()
+		h.log.Debugw("requested round is in the future", "round", round, "latest", bh.latestRound)
+		bh.pendingLk.RUnlock()
 		return nil, nil
 	}
 
@@ -402,13 +405,13 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundExpectedTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+	roundExpectedTime := dateOfRound(roundN, info)
 
 	if roundExpectedTime.After(time.Now().Add(info.Period)) {
 		timeToExpected := int(time.Until(roundExpectedTime).Seconds())
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, must-revalidate, max-age=%d", timeToExpected))
 		w.WriteHeader(http.StatusNotFound)
-		h.log.Warnw("", "http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Debugw("request in the future", "client", r.RemoteAddr, "round", roundN, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
@@ -421,14 +424,14 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	if data == nil {
 		w.Header().Set("Cache-Control", "must-revalidate, no-cache, max-age=0")
 		w.WriteHeader(http.StatusNotFound)
-		h.log.Warnw("", "http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Warnw("round couldn't be retrieved", "client", r.RemoteAddr, "round", roundN, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	// 604800 is one week of caching
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
@@ -476,10 +479,9 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
+	roundTime := dateOfRound(resp.Round(), info)
 	nextTime := time.Now()
-
-	next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+	next := roundTime.Add(info.Period)
 	if next.After(nextTime) {
 		nextTime = next
 	} else {
@@ -526,7 +528,6 @@ func (h *DrandHandler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 }
 
@@ -554,7 +555,6 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	info, err := h.getChainInfo(r.Context(), chainHashHex)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-cache")
 	resp := make(map[string]uint64)
 	resp["current"] = lastSeen
 	resp["expected"] = 0
@@ -566,8 +566,12 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
 		resp["expected"] = expected
 		if lastSeen == expected || lastSeen+1 == expected {
+			timeToExpected := time.Until(dateOfRound(expected+1, info))
+			w.Header().Set("Cache-Control",
+				fmt.Sprintf("public, must-revalidate, max-age=%d", uint64(timeToExpected.Seconds())))
 			w.WriteHeader(http.StatusOK)
 		} else {
+			w.Header().Set("Cache-Control", "no-cache")
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
 	}
@@ -610,6 +614,10 @@ func readChainHash(r *http.Request) ([]byte, error) {
 func readRound(r *http.Request) (uint64, error) {
 	round := chi.URLParam(r, roundParamKey)
 	return strconv.ParseUint(round, roundNumBase, roundNumSize)
+}
+
+func dateOfRound(round uint64, info *chain.Info) time.Time {
+	return time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
 }
 
 func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error) {
