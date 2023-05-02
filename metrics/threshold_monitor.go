@@ -92,10 +92,10 @@ func (t *ThresholdMonitor) Stop() {
 }
 
 func (t *ThresholdMonitor) ReportFailure(beaconID string, round uint64, addr string) {
-	ErrorSendingPartial(beaconID, round, addr)
 	t.lock.Lock()
 	t.failedConnections[addr] = true
 	t.lock.Unlock()
+	ErrorSendingPartial(beaconID, round, addr)
 }
 
 func (t *ThresholdMonitor) UpdateThreshold(newThreshold int) {
