@@ -25,9 +25,6 @@ jobs:
             ${{ runner.os }}-go-
       - name: Build and push Docker image
         run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
           docker build --build-arg major=0 --build-arg minor=0 --build-arg patch=0 --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
-          echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
-          docker push drandorg/go-drand:latest
-        env:
-          DOCKER_PWD: ${{ secrets.DOCKER_PWD }}
-          DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}
+          docker push drand/go-drand:latest

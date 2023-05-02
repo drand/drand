@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,7 +19,8 @@ import (
 func TestClient(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	l, server := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	l, server := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()
@@ -68,7 +70,8 @@ func TestClient(t *testing.T) {
 func TestClientClose(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	l, _ := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch)
+	clk := clock.NewFakeClockAt(time.Now())
+	l, _ := mock.NewMockGRPCPublicServer(t, "localhost:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()

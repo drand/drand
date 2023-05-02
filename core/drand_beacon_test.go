@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
@@ -113,7 +114,7 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	const period = 1 * time.Second
 	beaconName := t.Name()
 
-	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName, clockwork.NewFakeClockAt(time.Now()))
 
 	// We want to explicitly run a node with the chain.MemDB backend
 	newNodes := ts.AddNodesWithOptions(t, 1, beaconName, WithDBStorageEngine(chain.MemDB))
@@ -121,6 +122,7 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 	require.NoError(t, err)
 
 	ts.SetMockClock(t, group.GenesisTime)
+	time.Sleep(test.SleepDuration())
 
 	memDBNode := newNodes[0]
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
@@ -138,19 +140,22 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	const thr = 3
 	const period = 1 * time.Second
 	beaconName := "default"
+	sleepDuration := test.SleepDuration()
 
-	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName)
+	ts := NewDrandTestScenario(t, existingNodesCount, thr, period, beaconName, clockwork.NewFakeClockAt(time.Now()))
 	group, err := ts.RunDKG()
 	require.NoError(t, err)
+	ts.AdvanceMockClock(t, ts.nodes[0].daemon.opts.dkgKickoffGracePeriod)
+	time.Sleep(test.SleepDuration())
 
 	ts.SetMockClock(t, group.GenesisTime)
-	time.Sleep(getSleepDuration())
+	time.Sleep(sleepDuration)
 
 	err = ts.WaitUntilChainIsServing(t, ts.nodes[0])
 	require.NoError(t, err)
 
 	ts.AdvanceMockClock(t, period)
-	time.Sleep(getSleepDuration())
+	time.Sleep(sleepDuration)
 
 	err = ts.WaitUntilRound(t, ts.nodes[0], 2)
 	require.NoError(t, err)
@@ -162,36 +167,32 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	memDBNode := newNodes[0]
 
 	t.Log("running reshare")
-	newGroup, err := ts.RunReshare(t, &reshareConfig{
-		oldRun:  existingNodesCount,
-		newRun:  newNodesCount,
-		newThr:  thr + newNodesCount,
-		timeout: time.Second,
-	})
+	newGroup, err := ts.RunReshare(ts.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
 	for {
 		ts.AdvanceMockClock(t, period)
-		time.Sleep(getSleepDuration())
-		if ts.clock.Now().Unix() >= newGroup.TransitionTime {
+		time.Sleep(sleepDuration)
+		if ts.clock.Now().Unix() > newGroup.TransitionTime {
 			break
 		}
 	}
 
-	ts.AdvanceMockClock(t, newGroup.Period)
-	time.Sleep(getSleepDuration())
+	ts.AdvanceMockClock(t, period)
+	time.Sleep(sleepDuration)
 
 	t.Log("running WaitUntilChainIsServing")
 	err = ts.WaitUntilChainIsServing(t, memDBNode)
 	require.NoError(t, err)
 
 	ts.AdvanceMockClock(t, period)
-	time.Sleep(getSleepDuration())
+	time.Sleep(sleepDuration)
 
 	ts.AdvanceMockClock(t, period)
-	time.Sleep(getSleepDuration())
+	time.Sleep(sleepDuration)
 
-	err = ts.WaitUntilRound(t, memDBNode, 11)
+	expectedRound := chain.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
+	err = ts.WaitUntilRound(t, memDBNode, expectedRound-1)
 	require.NoError(t, err)
 }

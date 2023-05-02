@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/crypto"
@@ -16,10 +18,10 @@ import (
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme) (string, *chain.Info, context.CancelFunc, func(bool)) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 
-	server := mock.NewMockServer(t, badSecondRound, sch)
+	server := mock.NewMockServer(t, badSecondRound, sch, clk)
 	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -48,7 +50,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Sche
 
 	handler.RegisterNewBeaconHandler(client, chainInfo.HashString())
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}

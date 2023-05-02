@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,7 +20,7 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// Config holds the different cryptographc informations necessary to run the
+// Config holds the different cryptographic information necessary to run the
 // randomness beacon.
 type Config struct {
 	// Public key of this node
@@ -48,6 +47,8 @@ type Handler struct {
 	// main logic that treats incoming packet / new beacons created
 	chain  *chainStore
 	ticker *ticker
+
+	killRunInFlight chan bool
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -88,27 +89,27 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	handler := &Handler{
-		conf:      conf,
-		client:    c,
-		crypto:    v,
-		chain:     store,
-		ticker:    ticker,
-		addr:      addr,
-		ctx:       ctx,
-		ctxCancel: ctxCancel,
-		l:         l,
-		version:   version,
+		conf:            conf,
+		client:          c,
+		crypto:          v,
+		chain:           store,
+		ticker:          ticker,
+		addr:            addr,
+		ctx:             ctx,
+		ctxCancel:       ctxCancel,
+		l:               l,
+		version:         version,
+		killRunInFlight: make(chan bool),
 	}
 	return handler, nil
 }
-
-var errOutOfRound = "out-of-round beacon request"
 
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	addr := net.RemoteAddress(c)
-	h.l.Debugw("", "received", "request", "from", addr, "round", p.GetRound())
+	pRound := p.GetRound()
+	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
 
 	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -116,32 +117,42 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// we allow one round off in the future because of small clock drifts
 	// possible, if a node receives a packet very fast just before his local
 	// clock passed to the next round
-	if p.GetRound() > nextRound {
-		h.l.Errorw("", "process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
-		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
+	if pRound > nextRound {
+		h.l.Errorw("ignoring future partial", "from", addr, "round", pRound, "current_round", currentRound)
+		return nil, fmt.Errorf("invalid round: %d instead of %d", pRound, currentRound)
 	}
 
-	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: p.GetRound(), PreviousSig: p.GetPreviousSignature()})
+	// we don't want to process partials for beacons that we've already stored.
+	if latest, err := h.chain.Last(c); err == nil && pRound <= latest.GetRound() {
+		h.l.Debugw("ignoring past partial", "from", addr, "round", pRound, "current_round", currentRound, "latestStored", latest.GetRound())
+		return new(proto.Empty), nil
+	}
+
+	msg := h.crypto.DigestBeacon(&chain.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if idx < 0 {
-		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, p.GetRound())
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 	}
 
 	node := h.crypto.GetGroup().Node(uint32(idx))
-
 	if node == nil {
 		return nil, fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
 	}
 
 	nodeName := node.Address()
+	if nodeName == h.addr {
+		h.l.Warnw("received a partial with our own index", "partial", pRound, "from", addr)
+		return nil, fmt.Errorf("invalid self index %d in partial with msg %v partial_round %v", idx, msg, pRound)
+	}
+
 	// verify if request is valid
 	if err := h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("",
 			"process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSignature()),
 			"curr_round", currentRound,
-			"partial_round", p.GetRound(),
+			"partial_round", pRound,
 			"msg_sign", shortSigStr(msg),
 			"from_idx", idx,
 			"from_node", nodeName)
@@ -151,7 +162,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSignature()),
 		"curr_round", currentRound,
-		"partial_round", p.GetRound(),
+		"partial_round", pRound,
 		"msg_sign", shortSigStr(msg),
 		"from_node", nodeName,
 		"status", "OK")
@@ -160,7 +171,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"process_partial", addr,
 			"index_got", idx,
 			"index_our", h.crypto.Index(),
-			"advance_packet", p.GetRound(),
+			"advance_packet", pRound,
 			"from_node", nodeName)
 		// XXX error or not ?
 		return new(proto.Empty), nil
@@ -247,11 +258,15 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	}
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+
+	go h.run(targetTime)
+
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Errorw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
+	//
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
@@ -307,7 +322,14 @@ func (h *Handler) Reset() {
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
-	h.l.Debugw("", "run_round", "wait", "until", startTime)
+
+	// we cancel the context for any existing handler runs and replace it with a new one
+	select {
+	case <-h.conf.Clock.After(time.Unix(startTime, 0).Sub(h.conf.Clock.Now())):
+		h.killRunInFlight <- true
+	default:
+		h.l.Debugw("", "run_round", "wait", "until", startTime, "now", h.conf.Clock.Now().Unix())
+	}
 
 	var current roundInfo
 	setRunning := sync.Once{}
@@ -319,6 +341,7 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
+		case <-h.killRunInFlight:
 		case <-h.ctx.Done():
 			h.l.Debugw("", "beacon_loop", "finished", "err", h.ctx.Err())
 			return
@@ -413,10 +436,10 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
+		h.l.Fatalw("err creating partial signature", "err", err, "round", round)
 		return
 	}
-	h.l.Debugw("", "broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	h.l.Debugw("", "broadcast_partial", round, "prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
 	metadata := common.NewMetadata(h.version.ToProto())
 	metadata.BeaconID = beaconID
 
@@ -446,13 +469,10 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			default:
 			}
 
-			h.l.Debugw("", "beacon_round", round, "send_to", i.Address())
+			h.l.Debugw("sending partial", "round", round, "to", i.Address())
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
-				h.l.Errorw("", "beacon_round", round, "err_request", err, "from", i.Address())
-				if strings.Contains(err.Error(), errOutOfRound) {
-					h.l.Errorw("", "beacon_round", round, "node", i.Addr, "reply", "out-of-round")
-				}
+				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
 		}(*idt)
@@ -488,7 +508,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 	}
 	duration := time.Duration(stopTime-now) * time.Second
 
-	h.l.Debugw("", "stop_at", stopTime, "sleep_for", duration.Seconds())
+	h.l.Debug("stop_at", stopTime, "sleep_for", duration.Seconds())
 	h.conf.Clock.Sleep(duration)
 	h.Stop()
 	return nil

@@ -12,7 +12,7 @@ type logger struct {
 	*zap.SugaredLogger
 }
 
-// Logger is a interface that can log to different levels.
+// Logger is an interface that can log to different levels.
 //
 //nolint:interfacebloat // We want this interface to implement the original one
 type Logger interface {
@@ -57,7 +57,17 @@ const (
 // DefaultLevel is the default level where statements are logged. Change the
 // value of this variable before init() to change the level of the default
 // logger.
-const DefaultLevel = LogInfo
+var DefaultLevel = LogInfo
+
+// Allows the debug logs to be printed in envs where the test logs are set to debug level.
+//
+//nolint:gochecknoinits // We do want to overwrite the default log level here
+func init() {
+	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
+	if isDebug && debugEnv == "DEBUG" {
+		DefaultLevel = LogDebug
+	}
+}
 
 var isDefaultLoggerSet sync.Once
 

@@ -5,6 +5,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/BurntSushi/toml"
+	drandnet "github.com/drand/drand/net"
+	"github.com/drand/drand/util"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
 	"os"
@@ -38,25 +43,27 @@ type NodeProc struct {
 	// certificate key
 	keyPath string
 	// where all public certs are stored
-	certFolder  string
-	startCmd    *exec.Cmd
-	logPath     string
-	privAddr    string
-	pubAddr     string
-	priv        *key.Pair
-	store       key.Store
-	cancel      context.CancelFunc
-	ctrl        string
-	isCandidate bool
-	tls         bool
-	groupPath   string
-	binary      string
-	scheme      *crypto.Scheme
-	beaconID    string
+	certFolder   string
+	startCmd     *exec.Cmd
+	logPath      string
+	privAddr     string
+	pubAddr      string
+	priv         *key.Pair
+	store        key.Store
+	cancel       context.CancelFunc
+	ctrl         string
+	isCandidate  bool
+	tls          bool
+	groupPath    string
+	proposalPath string
+	binary       string
+	scheme       *crypto.Scheme
+	beaconID     string
+	dkgRunner    *test.DKGRunner
 
 	dbEngineType chain.StorageType
-	pgDSN        string
 	memDBSize    int
+	pgDSN        string
 }
 
 func NewNode(i int, cfg cfg.Config) *NodeProc {
@@ -65,6 +72,7 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 	logPath := path.Join(nbase, "log")
 	publicPath := path.Join(nbase, "public.toml")
 	groupPath := path.Join(nbase, "group.toml")
+	proposalPath := path.Join(nbase, "proposal.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
 		tls:          cfg.WithTLS,
@@ -73,6 +81,7 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 		logPath:      logPath,
 		publicPath:   publicPath,
 		groupPath:    groupPath,
+		proposalPath: proposalPath,
 		period:       cfg.Period,
 		scheme:       cfg.Scheme,
 		binary:       cfg.Binary,
@@ -90,6 +99,19 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 	n.binary = binary
 	n.isCandidate = isCandidate
+}
+
+func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, error) {
+	defaultManager := drandnet.NewCertManager()
+	if err := defaultManager.Add(certPath); err != nil {
+		return nil, err
+	}
+	tlsCredentials := credentials.NewClientTLSFromCert(defaultManager.Pool(), "")
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(tlsCredentials))
+	if err != nil {
+		return nil, err
+	}
+	return drand.NewDKGControlClient(conn), nil
 }
 
 func (n *NodeProc) setup() {
@@ -114,16 +136,23 @@ func (n *NodeProc) setup() {
 				panic(err)
 			}
 		}()
-
 	}
 
+	dkgClient, err := drandnet.NewDKGControlClient(ctrlPort)
+	if err != nil {
+		panic("could not create DKG client")
+	}
+	n.dkgRunner = &test.DKGRunner{
+		BeaconID: n.beaconID,
+		Client:   dkgClient,
+	}
 	// call drand binary
-	n.priv, err = key.NewKeyPair(n.privAddr, nil)
+	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
 	if err != nil {
 		panic(err)
 	}
 
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
 
 	if !n.tls {
 		args = append(args, "--tls-disable")
@@ -198,7 +227,8 @@ func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDS
 			_ = logFile.Close()
 		}()
 		// TODO make the "stop" command returns a graceful error code when stopped
-		cmd.Run()
+		err := cmd.Run()
+		fmt.Printf("Error while running node %s: %s", n.privAddr, err)
 	}()
 	return nil
 }
@@ -219,38 +249,137 @@ func (n *NodeProc) Index() int {
 	return n.i
 }
 
-func (n *NodeProc) RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error) {
-	args := []string{"share", "--control", n.ctrl}
-	args = append(args, pair("--out", n.groupPath)...)
-	if leader {
-		args = append(args, "--leader")
-		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
-		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
-		args = append(args, pair("--timeout", timeout.String())...)
-		args = append(args, pair("--period", n.period)...)
-		args = append(args, pair("--scheme", n.scheme.Name)...)
-
-		// make genesis time offset
-		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
-	} else {
-		args = append(args, pair("--connect", leaderAddr)...)
-		if !n.tls {
-			args = append(args, "--tls-disable")
-		}
+func (n *NodeProc) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error {
+	proposal := ProposalFile{
+		Joining: joiners,
 	}
+	err := WriteProposalFile(n.proposalPath, proposal)
+	if err != nil {
+		return err
+	}
+	proposeArgs := []string{
+		"dkg", "propose",
+		"--control", n.ctrl,
+		"--id", n.beaconID,
+		"--scheme", n.scheme.Name,
+		"--period", n.period,
+		"--catchup-period", "1s",
+		"--proposal", n.proposalPath,
+		"--threshold", strconv.Itoa(thr),
+		"--timeout", (5 * time.Minute).String(),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proposeCmd := exec.CommandContext(ctx, n.binary, proposeArgs...)
+	_ = runCommand(proposeCmd)
+
+	return nil
+}
+
+func (n *NodeProc) ExecuteLeaderDKG() error {
+	executeArgs := []string{"dkg", "execute", "--control", n.ctrl, "--id", n.beaconID}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	executeCmd := exec.CommandContext(ctx, n.binary, executeArgs...)
+	out := runCommand(executeCmd)
+	fmt.Println(n.priv.Public.Address(), string(out))
+	return nil
+}
+
+func (n *NodeProc) JoinDKG() error {
+	args := []string{"dkg", "join", "--control", n.ctrl, "--id", n.beaconID}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, n.binary, args...)
+	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
+	_ = runCommand(cmd)
+	return nil
+}
+
+func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
+	groupFilePath := "group.toml"
+	joinArgs := []string{
+		"dkg", "join",
+		"--control", n.ctrl,
+		"--id", n.beaconID,
+		"--group", groupFilePath,
+	}
+	f, err := os.Create(groupFilePath)
+	if err != nil {
+		return err
+	}
+	err = toml.NewEncoder(f).Encode(oldGroup.TOML())
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proposeCmd := exec.CommandContext(ctx, n.binary, joinArgs...)
+	_ = runCommand(proposeCmd)
+
+	return nil
+}
+
+func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+	proposalFileName := "proposal.toml"
+	proposal := ProposalFile{
+		Joining:   joiners,
+		Remaining: remainers,
+		Leaving:   leavers,
+	}
+	err := WriteProposalFile(proposalFileName, proposal)
+	if err != nil {
+		return err
+	}
+
+	durationUntilTransitionTime := time.Until(transitionTime)
+
+	proposeArgs := []string{
+		"dkg", "propose",
+		"--control", n.ctrl,
+		"--id", n.beaconID,
+		"--proposal", proposalFileName,
+		"--threshold", strconv.Itoa(thr),
+		"--transition-time", durationUntilTransitionTime.String(),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proposeCmd := exec.CommandContext(ctx, n.binary, proposeArgs...)
+	_ = runCommand(proposeCmd)
+
+	return nil
+}
+
+func (n *NodeProc) ExecuteLeaderReshare() error {
+	executeArgs := []string{"dkg", "execute", "--control", n.ctrl, "--id", n.beaconID}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	executeCmd := exec.CommandContext(ctx, n.binary, executeArgs...)
+	out := runCommand(executeCmd)
+	fmt.Println(n.priv.Public.Address(), string(out))
+	return nil
+}
+
+func (n *NodeProc) AcceptReshare() error {
+	args := []string{"dkg", "accept", "--control", n.ctrl, "--id", n.beaconID}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, n.binary, args...)
 	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
 	out := runCommand(cmd)
-	fmt.Println(n.priv.Public.Address(), "FINISHED DKG", string(out))
-	group := new(key.Group)
-	err := key.Load(n.groupPath, group)
+
+	fmt.Println(n.priv.Public.Address(), string(out))
+	return nil
+}
+
+func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
+	err := n.dkgRunner.WaitForDKG(n.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(n.priv.Public.Address(), "FINISHED LOADING GROUP")
-	return group, nil
+	return n.store.LoadGroup()
 }
 
 func (n *NodeProc) GetGroup() *key.Group {
@@ -258,38 +387,6 @@ func (n *NodeProc) GetGroup() *key.Group {
 	args = append(args, pair("--out", n.groupPath)...)
 	cmd := exec.Command(n.binary, args...)
 	runCommand(cmd)
-	group := new(key.Group)
-	checkErr(key.Load(n.groupPath, group))
-	return group
-}
-
-func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
-	args := []string{"share"}
-	args = append(args, pair("--out", n.groupPath)...)
-	args = append(args, pair("--control", n.ctrl)...)
-	if oldGroup != "" {
-		// only append if we are a new node
-		args = append(args, pair("--from", oldGroup)...)
-	} else {
-		// previous node only need to say it's a transition/resharing
-		args = append(args, "--transition")
-	}
-	if leader {
-		args = append(args, "--leader")
-		args = append(args, pair("--timeout", timeout)...)
-		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
-		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
-		// make transition time offset
-		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
-	} else {
-		args = append(args, pair("--connect", leaderAddr)...)
-		if !n.tls {
-			args = append(args, "--tls-disable")
-		}
-	}
-	cmd := exec.Command(n.binary, args...)
-	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretReshare)
-	runCommand(cmd, fmt.Sprintf("drand node %s", n.privAddr))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
 	return group
@@ -311,7 +408,7 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	var r = new(drand.ChainInfoPacket)
 	err = json.Unmarshal(out, r)
 	if err != nil {
-		fmt.Printf("err json decoding %s\n", out)
+		fmt.Println(fmt.Sprintf("\n\n-----\nerr %v json decoding %q\n\n-----\n", err, out))
 	}
 	checkErr(err)
 	sdist := hex.EncodeToString(r.PublicKey)
@@ -388,6 +485,14 @@ func (n *NodeProc) PrintLog() {
 	}
 
 	fmt.Printf("%s\n", string(buff))
+}
+
+func (n *NodeProc) Identity() (*drand.Participant, error) {
+	keypair, err := n.store.LoadKeyPair(nil)
+	if err != nil {
+		return nil, err
+	}
+	return util.PublicKeyAsParticipant(keypair.Public)
 }
 
 func pair(k, v string) []string {

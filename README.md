@@ -125,6 +125,9 @@ Drand can be installed via [Golang](https://golang.org/) or
 files such as the long-term key pair, the group file, and the collective public
 key in the directory `$HOME/.drand/`.
 
+The docker image can also be built manually by running `docker build --build-arg version=$(git describe --tags) --build-arg gitCommit=$(git rev-parse HEAD) -t drandorg/go-drand:latest .` in the project root folder
+Additional instructions for running a node or network using docker can be found in the [docker directory](./docker)
+
 ### Via Golang
 
 Make sure that you have a working [Golang

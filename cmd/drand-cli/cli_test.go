@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	gnet "net"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,16 +26,16 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/crypto"
+	dkg2 "github.com/drand/drand/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
-
-const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
 func TestMigrate(t *testing.T) {
 	tmp := getSBFolderStructure(t)
@@ -217,7 +219,6 @@ func TestKeyGen(t *testing.T) {
 
 // tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
-	t.Skipf("test is broken, doesn't check for errors.")
 	tmpPath := t.TempDir()
 
 	n := 5
@@ -229,12 +230,14 @@ func TestStartAndStop(t *testing.T) {
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, "127.0.0.1:8080"}
+	privateAddr := test.Addresses(1)[0]
+
+	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, privateAddr}
 	require.NoError(t, CLI().Run(args))
 
 	startCh := make(chan bool)
 	go func() {
-		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath}
+		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath, "--private-listen", privateAddr}
 		// Allow the rest of the test to start
 		// Any error will be caught in the error check below
 		startCh <- true
@@ -267,7 +270,7 @@ func TestStartAndStop(t *testing.T) {
 	}
 }
 
-func TestUtilCheck(t *testing.T) {
+func TestUtilCheckReturnsErrorForPortNotMatchingKeypair(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := t.TempDir()
@@ -280,7 +283,7 @@ func TestUtilCheck(t *testing.T) {
 
 	listenPort := test.FreePort()
 	listenAddr := "127.0.0.1:" + listenPort
-	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
+	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", listenAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -302,23 +305,37 @@ func TestUtilCheck(t *testing.T) {
 	// consistent
 	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, listenAddr}
 	require.Error(t, CLI().Run(check))
+}
 
-	// cancel the daemon and make it listen on the right address
-	cancel()
-	ctx, cancel = context.WithCancel(context.Background())
+func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+
+	tmp := t.TempDir()
+
+	keyPort := test.FreePort()
+	keyAddr := "127.0.0.1:" + keyPort
+	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, "--id", beaconID, keyAddr}
+	require.NoError(t, CLI().Run(generate))
+
+	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	waitCh := make(chan bool)
 	go func() {
+		waitCh <- true
 		err := CLI().RunContext(ctx, listen)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("error while starting the node %v\n", err)
+			t.Fail()
+			return
 		}
 	}()
-
+	<-waitCh
+	// XXX can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
 
-	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
+	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
@@ -381,7 +398,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	// fake group
 	_, group := test.BatchIdentities(5, sch, beaconID)
 
-	// fake dkg outuput
+	// fake dkg output
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{
@@ -408,6 +425,39 @@ func TestStartWithoutGroup(t *testing.T) {
 	s := &share.PriShare{I: 2, V: scalarOne}
 	fakeShare := &key.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
 	require.NoError(t, fileStore.SaveShare(fakeShare))
+
+	// save a fake complete DKG in the store
+	dStore, err := dkg2.NewDKGStore(tmpPath, nil)
+	require.NoError(t, err)
+	err = dStore.SaveFinished(beaconID, &dkg2.DBState{
+		BeaconID:       beaconID,
+		Epoch:          1,
+		State:          dkg2.Complete,
+		Threshold:      1,
+		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
+		SchemeID:       crypto.DefaultSchemeID,
+		GenesisTime:    time.Unix(1669718523, 0).UTC(),
+		GenesisSeed:    []byte("deadbeef"),
+		TransitionTime: time.Unix(1669718523, 0).UTC(),
+		CatchupPeriod:  5 * time.Second,
+		BeaconPeriod:   10 * time.Second,
+
+		Leader:    nil,
+		Remaining: nil,
+		Joining:   nil,
+		Leaving:   nil,
+
+		Acceptors: nil,
+		Rejectors: nil,
+
+		FinalGroup: group,
+		KeyShare:   fakeShare,
+	})
+	require.NoError(t, err)
+
+	// have to close it afterwards or starting the node will hang
+	err = dStore.Close()
+	require.NoError(t, err)
 
 	t.Logf(" --- DRAND START --- control %s\n", ctrlPort2)
 
@@ -507,7 +557,7 @@ func testStatus(t *testing.T, ctrlPort, beaconID string) {
 
 	var err error
 
-	t.Logf(" + running STATUS command with %s on beacon [%s]", ctrlPort, beaconID)
+	t.Logf(" + running STATUS command with %s on beacon [%s]\n", ctrlPort, beaconID)
 	for i := 0; i < 3; i++ {
 		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
@@ -524,7 +574,7 @@ func testFailStatus(t *testing.T, ctrlPort, beaconID string) {
 
 	var err error
 
-	t.Logf(" + running STATUS command with %s on beacon [%s]", ctrlPort, beaconID)
+	t.Logf(" + running STATUS command with %s on beacon [%s]\n", ctrlPort, beaconID)
 	for i := 0; i < 3; i++ {
 		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
@@ -552,13 +602,13 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 
 //nolint:funlen //This is a test
 func TestClientTLS(t *testing.T) {
-	t.Skipf("test fails when error checking commands")
+	t.Skip("The test fails because the logic for generating the group has changed")
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(t.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0o740)
+	require.NoError(t, os.Mkdir(tmpPath, 0o740))
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	certPath := path.Join(tmpPath, "server.pem")
@@ -644,7 +694,7 @@ func TestClientTLS(t *testing.T) {
 	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-//nolint:unused // We want to provide convenience functions
+//nolint:unused // This is used but the test it belongs is currently skipped
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
 
@@ -655,9 +705,6 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, grou
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)
 	testCommand(t, chainInfoCmd, expectedOutput)
-
-	showCmd := []string{"drand", "show", "share", "--control", ctrlPort}
-	testCommand(t, showCmd, expectedShareOutput)
 
 	showPublic := []string{"drand", "show", "public", "--control", ctrlPort}
 	b, _ := priv.Public.Key.MarshalBinary()
@@ -680,10 +727,10 @@ func testCommand(t *testing.T, args []string, exp string) {
 	t.Helper()
 
 	var buff bytes.Buffer
-	output = &buff
-	defer func() { output = os.Stdout }()
 	t.Log("--------------")
-	require.NoError(t, CLI().Run(args))
+	cli := CLI()
+	cli.Writer = &buff
+	require.NoError(t, cli.Run(args))
 	if exp == "" {
 		return
 	}
@@ -706,7 +753,7 @@ func getSBFolderStructure(t *testing.T) string {
 
 func TestDrandListSchemes(t *testing.T) {
 	n := 2
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
 	for _, instance := range instances {
 		remote := []string{"drand", "util", "list-schemes", "--control", instance.ctrlPort}
@@ -722,24 +769,20 @@ func TestDrandReloadBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
-	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
-			// Wait a bit after launching the leader to launch the other nodes too.
-			time.Sleep(500 * time.Millisecond)
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
 		} else {
-			go inst.share(t, instances[0].addr, beaconID, done)
+			inst.join(t, beaconID)
 		}
 	}
+	instances[0].executeDKG(t, beaconID)
 
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
 	t.Log("waiting for initial set up to settle on all nodes")
-	for i := 0; i < n; i++ {
-		err := <-done
-		require.NoError(t, err)
-	}
 
 	defer func() {
 		for _, inst := range instances {
@@ -788,23 +831,23 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 
-	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
-			// Wait a bit after launching the leader to launch the other nodes too.
-			time.Sleep(500 * time.Millisecond)
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
 		} else {
-			go inst.share(t, instances[0].addr, beaconID, done)
+			inst.join(t, beaconID)
 		}
 	}
+	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
 
 	t.Log("waiting for initial set up to settle on all nodes")
-	for i := 0; i < n; i++ {
-		err := <-done
-		require.NoError(t, err)
+	err = instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	defer func() {
@@ -831,31 +874,30 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	testFailStatus(t, instances[3].ctrlPort, beaconID)
 }
 
-func TestDrandStatus(t *testing.T) {
-	t.Skipf("test fails when error checking commands")
+func TestDrandStatus_WithoutDKG(t *testing.T) {
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances := genAndLaunchDrandInstances(t, n)
 	allAddresses := make([]string, 0, n)
 	for _, instance := range instances {
 		allAddresses = append(allAddresses, instance.addr)
 	}
-
-	defer func() { output = os.Stdout }()
 
 	// check that each node can reach each other
 	for i, instance := range instances {
 		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
-		output = &buff
 
-		err := CLI().Run(remote)
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
 		require.NoError(t, err)
 		for j, instance := range instances {
 			if i == j {
 				continue
 			}
-			require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
 		}
 	}
 	// stop one and check that all nodes report this node down
@@ -871,18 +913,160 @@ func TestDrandStatus(t *testing.T) {
 		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
-		output = &buff
 
-		err := CLI().Run(remote)
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
 		require.NoError(t, err)
 		for j, instance := range instances {
 			if i == j {
 				continue
 			}
 			if j != toStop {
-				require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
 			} else {
-				require.True(t, strings.Contains(buff.String(), instance.addr+" -> X"))
+				require.Contains(t, buff.String(), instance.addr+" -> X")
+			}
+		}
+	}
+}
+
+func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	n := 4
+	instances := genAndLaunchDrandInstances(t, n)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+	t.Log("waiting for initial set up to settle on all nodes")
+
+	// check that each node can reach each other
+	for i, instance := range instances {
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
+		}
+	}
+	// stop one and check that all nodes report this node down
+	toStop := 2
+	insToStop := instances[toStop]
+	err = insToStop.stopAll()
+	require.NoError(t, err)
+
+	for i, instance := range instances {
+		if i == toStop {
+			continue
+		}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			if j != toStop {
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
+			} else {
+				require.Contains(t, buff.String(), instance.addr+" -> X")
+			}
+		}
+	}
+}
+
+func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	n := 4
+	instances := genAndLaunchDrandInstances(t, n)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+	t.Log("waiting for initial set up to settle on all nodes")
+
+	// check that each node can reach each other
+	for i, instance := range instances {
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, instances[i].addr)
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			require.Contains(t, buff.String(), instance.addr+" -> OK")
+		}
+	}
+	// stop one and check that all nodes report this node down
+	toStop := 2
+	insToStop := instances[toStop]
+	err = insToStop.stopAll()
+	require.NoError(t, err)
+
+	for i, instance := range instances {
+		if i == toStop {
+			continue
+		}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, instances[i].addr)
+		var buff bytes.Buffer
+
+		cli := CLI()
+		cli.Writer = &buff
+
+		err := cli.Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			if j != toStop {
+				require.Contains(t, buff.String(), instance.addr+" -> OK")
+			} else {
+				require.Contains(t, buff.String(), instance.addr+" -> X")
 			}
 		}
 	}
@@ -932,41 +1116,97 @@ func (d *drandInstance) stop(beaconID string) error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
 }
 
-func (d *drandInstance) shareLeader(t *testing.T,
-	nodes, threshold, periodSeconds int,
+func (d *drandInstance) startInitialDKG(
+	t *testing.T,
+	instances []*drandInstance,
+	threshold,
+	//nolint:unparam // This is a parameter
+	periodSeconds int,
 	beaconID string,
 	sch *crypto.Scheme,
-	done chan error) {
+) {
 	t.Helper()
 
-	shareArgs := []string{
+	addrs := make([]string, len(instances))
+	for i, v := range instances {
+		addrs[i] = v.ctrlPort
+	}
+
+	proposal, err := generateJoiningProposal("default", addrs)
+	require.NoError(t, err)
+
+	proposalPath := filepath.Join(t.TempDir(), "proposal.toml")
+	err = os.WriteFile(proposalPath, []byte(proposal), 0755)
+	require.NoError(t, err)
+
+	dkgArgs := []string{
 		"drand",
-		"share",
-		"--leader",
-		"--nodes", strconv.Itoa(nodes),
-		"--threshold", strconv.Itoa(threshold),
+		"dkg",
+		"propose",
+		"--proposal", proposalPath,
+		"--catchup-period", fmt.Sprintf("%ds", periodSeconds/2),
+		"--threshold", fmt.Sprintf("%d", threshold),
 		"--period", fmt.Sprintf("%ds", periodSeconds),
 		"--control", d.ctrlPort,
 		"--scheme", sch.Name,
 		"--id", beaconID,
 	}
 
-	done <- CLI().Run(shareArgs)
+	err = CLI().Run(dkgArgs)
+	require.NoError(t, err)
 }
 
-func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string, done chan error) {
+func (d *drandInstance) executeDKG(t *testing.T, beaconID string) {
 	t.Helper()
-
-	shareArgs := []string{
-
+	dkgArgs := []string{
 		"drand",
-		"share",
-		"--connect", leaderURL,
+		"dkg",
+		"execute",
 		"--control", d.ctrlPort,
 		"--id", beaconID,
 	}
 
-	done <- CLI().Run(shareArgs)
+	err := CLI().Run(dkgArgs)
+	require.NoError(t, err)
+}
+
+func (d *drandInstance) awaitDKGComplete(
+	t *testing.T,
+	beaconID string,
+	//nolint:unparam // This is a parameter
+	epoch uint32,
+	timeoutSeconds int,
+) error {
+	t.Helper()
+	dkgArgs := []string{
+		"drand",
+		"dkg",
+		"status",
+		"--control", d.ctrlPort,
+		"--id", beaconID,
+		"--format", "csv",
+	}
+
+	for i := 0; i < timeoutSeconds; i++ {
+		cli := CLI()
+		var buf bytes.Buffer
+		cli.Writer = &buf
+
+		err := cli.Run(dkgArgs)
+		if err != nil {
+			return err
+		}
+
+		statusOutput := buf.String()
+		expected := fmt.Sprintf("State:Complete,Epoch:%d,", epoch)
+
+		if strings.Contains(statusOutput, expected) {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return errors.New("DKG didn't complete within the timeout")
 }
 
 func (d *drandInstance) load(beaconID string) error {
@@ -983,9 +1223,18 @@ func (d *drandInstance) load(beaconID string) error {
 func (d *drandInstance) run(t *testing.T, beaconID string) {
 	t.Helper()
 
-	startArgs := []string{
+	d.runWithStartArgs(t, beaconID, nil)
+}
+
+func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArgs []string) {
+	t.Helper()
+
+	require.Equal(t, 0, len(startArgs)%2, "start args must be in pairs of option/value")
+
+	baseArgs := []string{
 		"drand",
 		"start",
+		"--verbose",
 		"--tls-cert", d.certPath,
 		"--tls-key", d.keyPath,
 		"--certs-dir", d.certsDir,
@@ -995,19 +1244,47 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 		"--private-listen", d.addr,
 	}
 
+	baseArgs = append(baseArgs, startArgs...)
+
 	go func() {
-		err := CLI().Run(startArgs)
+		err := CLI().Run(baseArgs)
 		require.NoError(t, err)
 	}()
+
+	// Prevent race condition in urfave/cli
+	time.Sleep(100 * time.Millisecond)
 
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort, beaconID)
 }
 
-func launchDrandInstances(t *testing.T, n int) []*drandInstance {
+func (d *drandInstance) join(t *testing.T, id string) {
+	t.Helper()
+	joinArgs := []string{
+		"drand",
+		"dkg",
+		"join",
+		"--id",
+		id,
+		"--control",
+		d.ctrlPort,
+	}
+
+	err := CLI().Run(joinArgs)
+	require.NoError(t, err)
+}
+
+func genAndLaunchDrandInstances(t *testing.T, n int) []*drandInstance {
 	t.Helper()
 
 	beaconID := test.GetBeaconIDFromEnv()
+
+	ins := genDrandInstances(t, beaconID, n)
+	return launchDrandInstances(t, beaconID, ins)
+}
+
+func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
+	t.Helper()
 
 	tmpPath := t.TempDir()
 
@@ -1059,6 +1336,12 @@ func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 		})
 	}
 
+	return ins
+}
+
+func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) []*drandInstance {
+	t.Helper()
+
 	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for _, instance := range ins {
 		instance.run(t, beaconID)
@@ -1066,25 +1349,105 @@ func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 	return ins
 }
 
-func TestSharingWithInvalidFlagCombos(t *testing.T) {
+//nolint:funlen // This is a test
+func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
-	// leader and connect flags can't be used together
-	share1 := []string{
-		"drand", "share", "--tls-disable", "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
-		"--threshold", "2", "--nodes", "3", "--period", "5s",
+	// How many rounds to generate while the node is stopped.
+	roundsWhileMissing := 80
+	// If we are in short mode, let's run less rounds.
+	if testing.Short() {
+		roundsWhileMissing = 20
 	}
 
-	require.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
+	period := 1
+	n := 4
+	instances := genDrandInstances(t, beaconID, n)
+	memDBNodeID := len(instances) - 1
 
-	// transition and from flags can't be used together
-	share3 := []string{
-		"drand", "share", "--tls-disable", "--id", beaconID, "--connect", "127.0.0.1:9090", "--transition", "--from", "somepath.txt",
+	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
+	for i := 0; i < memDBNodeID; i++ {
+		inst := instances[i]
+		inst.run(t, beaconID)
 	}
 
-	require.EqualError(
-		t,
-		CLI().Run(share3),
-		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
-	)
+	instances[memDBNodeID].runWithStartArgs(t, beaconID, []string{"--db", "memdb"})
+	memDBNode := instances[memDBNodeID]
+
+	for i, inst := range instances {
+		inst := inst
+		if i == 0 {
+			inst.startInitialDKG(t, instances, 3, period, beaconID, sch)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+
+	instances[0].executeDKG(t, beaconID)
+
+	t.Log("waiting for initial set up to settle on all nodes")
+	err = instances[0].awaitDKGComplete(t, beaconID, 1, 60)
+	require.NoError(t, err)
+
+	defer func() {
+		for _, inst := range instances {
+			// We want to ignore this error, at least until the stop command won't return an error
+			// when correctly running the stop command.
+			t.Logf("stopping instance %v\n", inst.addr)
+			err := inst.stopAll()
+			require.NoError(t, err)
+			t.Logf("stopped instance %v\n", inst.addr)
+		}
+	}()
+
+	memDBClient, err := net.NewControlClient(memDBNode.ctrlPort)
+	require.NoError(t, err)
+
+	chainInfo, err := memDBClient.ChainInfo(beaconID)
+	require.NoError(t, err)
+
+	// Wait until DKG finishes
+	secondsToGenesisTime := chainInfo.GenesisTime - time.Now().Unix()
+	t.Logf("waiting %ds until DKG finishes\n", secondsToGenesisTime)
+	time.Sleep(time.Duration(secondsToGenesisTime) * time.Second)
+
+	// Wait for some rounds to be generated
+	t.Log("wait for some rounds to be generated")
+	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+
+	// Get the status before stopping the node
+	status, err := memDBClient.Status(beaconID)
+	require.NoError(t, err)
+
+	require.False(t, status.ChainStore.IsEmpty)
+	require.NotZero(t, status.ChainStore.LastRound)
+
+	lastRoundBeforeShutdown := status.ChainStore.LastRound
+
+	// Stop beacon process... not the entire node
+	err = instances[memDBNodeID].stop(beaconID)
+	require.NoError(t, err)
+
+	t.Log("waiting for beacons to be generated while a beacon process is stopped on a node")
+	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+
+	// reload a beacon
+	err = instances[memDBNodeID].load(beaconID)
+	require.NoError(t, err)
+
+	// Wait a bit to allow the node to startup and load correctly
+	time.Sleep(2 * time.Second)
+
+	status, err = memDBClient.Status(beaconID)
+	require.NoError(t, err)
+
+	require.False(t, status.ChainStore.IsEmpty)
+	require.NotZero(t, status.ChainStore.LastRound)
+	expectedRound := lastRoundBeforeShutdown + uint64(roundsWhileMissing)
+	t.Logf("comparing lastRound %d with lastRoundBeforeShutdown %d\n", status.ChainStore.LastRound, expectedRound)
+	require.GreaterOrEqual(t, status.ChainStore.LastRound, expectedRound)
 }

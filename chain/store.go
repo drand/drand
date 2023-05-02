@@ -55,7 +55,8 @@ const (
 	MemDB StorageType = "memdb"
 )
 
-// Metrics values for reporting storage type used
+// Metrics values for reporting storage type used. Only append new values.
+// Also, add new values to the DrandStorageBackend metric Help.
 const (
 	boltDBMetrics = iota + 1
 	postgreSQLMetrics
@@ -72,7 +73,7 @@ func MetricsStorageType(st StorageType) int {
 		return memDBMetrics
 	default:
 		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
-		// Please add the storage type to the Metrics values list above
+		// Please add the storage type to the Metrics values list above and to the DrandStorageBackend metric Help
 		panic(err)
 	}
 }

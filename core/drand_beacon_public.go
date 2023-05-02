@@ -2,10 +2,8 @@ package core
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
@@ -13,39 +11,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
-
-// BroadcastDKG is the public method to call during a DKG protocol.
-func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
-
-	addr := net.RemoteAddress(c)
-
-	if bp.dkgInfo == nil {
-		bp.state.Unlock()
-		// TODO: make sure the DKG refactor removes this racy Broadcast issue.
-		// We do want to use time.Sleep and not the fakeClock here, since this is a workaround for
-		// the locking vs packet arrival happening concurrently
-		time.Sleep(time.Millisecond)
-		bp.state.Lock()
-		if bp.dkgInfo == nil {
-			return nil, fmt.Errorf("drand: no dkg running and yet received a DKGPacket for beacon %s from node %s", bp.beaconID, addr)
-		}
-	}
-
-	if !bp.dkgInfo.started {
-		bp.log.Infow("", "init_dkg", "START DKG",
-			"signal from leader", addr, "group", hex.EncodeToString(bp.dkgInfo.target.Hash()))
-		bp.dkgInfo.started = true
-		go bp.dkgInfo.phaser.Start()
-	}
-	if err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
-		return nil, err
-	}
-
-	response := &drand.Empty{Metadata: bp.newMetadata()}
-	return response, nil
-}
 
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
@@ -163,43 +128,6 @@ func (bp *BeaconProcess) ChainInfo(context.Context, *drand.ChainInfoRequest) (*d
 	return response, nil
 }
 
-// SignalDKGParticipant receives a dkg signal packet from another member
-func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
-	bp.state.RLock()
-	defer bp.state.RUnlock()
-	if bp.manager == nil {
-		bp.log.Errorw("Unable to process incoming SignalDKGPacket, no DKG in progress", "target beacon", p.GetMetadata().GetBeaconID())
-		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.GetMetadata().GetBeaconID())
-	}
-
-	addr := net.RemoteAddress(ctx)
-	// manager will verify if information are correct
-	err := bp.manager.ReceivedKey(addr, p)
-	if err != nil {
-		bp.log.Errorw("Unable to process incoming SignalDKGPacket", "error", err)
-		return nil, err
-	}
-
-	response := &drand.Empty{Metadata: bp.newMetadata()}
-	return response, nil
-}
-
-// PushDKGInfo triggers sending DKG info to other members
-func (bp *BeaconProcess) PushDKGInfo(_ context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
-	bp.state.RLock()
-	defer bp.state.RUnlock()
-
-	if bp.receiver == nil {
-		return nil, errors.New("no receiver setup")
-	}
-	bp.log.Infow("", "push_group", "received_new")
-
-	// the control routine will receive this info and start the dkg at the right
-	// time - if that is the right secret.
-	response := &drand.Empty{Metadata: bp.newMetadata()}
-	return response, bp.receiver.PushDKGInfo(in)
-}
-
 // SyncChain is an inter-node protocol that replies to a syncing request from a
 // given round
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
@@ -224,11 +152,12 @@ func (bp *BeaconProcess) GetIdentity(context.Context, *drand.IdentityRequest) (*
 	i := bp.priv.Public.ToProto()
 
 	response := &drand.IdentityResponse{
-		Address:   i.Address,
-		Key:       i.Key,
-		Tls:       i.Tls,
-		Signature: i.Signature,
-		Metadata:  bp.newMetadata(),
+		Address:    i.Address,
+		Key:        i.Key,
+		Tls:        i.Tls,
+		Signature:  i.Signature,
+		Metadata:   bp.newMetadata(),
+		SchemeName: bp.priv.Scheme().String(),
 	}
 	return response, nil
 }
