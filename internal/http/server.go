@@ -617,7 +617,7 @@ func readRound(r *http.Request) (uint64, error) {
 	return strconv.ParseUint(round, roundNumBase, roundNumSize)
 }
 
-func dateOfRound(round uint64, info *chain.Info) time.Time {
+func dateOfRound(round uint64, info *chain2.Info) time.Time {
 	return time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
 }
 
