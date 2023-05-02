@@ -327,7 +327,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	}
 
 	// make sure we aren't going to ask for a round that doesn't exist yet.
-	if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0).After(time.Now()) {
+	if dateOfRound(round, info).After(time.Now()) {
 		bh.pendingLk.RLock()
 		h.log.Debugw("requested round is in the future", "round", round, "latest", bh.latestRound)
 		bh.pendingLk.RUnlock()
@@ -372,7 +372,7 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundExpectedTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+	roundExpectedTime := dateOfRound(roundN, info)
 
 	if roundExpectedTime.After(time.Now().Add(info.Period)) {
 		timeToExpected := int(time.Until(roundExpectedTime).Seconds())
@@ -446,10 +446,9 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
+	roundTime := dateOfRound(resp.Round(), info)
 	nextTime := time.Now()
-
-	next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+	next := roundTime.Add(info.Period)
 	if next.After(nextTime) {
 		nextTime = next
 	} else {
@@ -534,8 +533,9 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
 		resp["expected"] = expected
 		if lastSeen == expected || lastSeen+1 == expected {
-			timeToExpected := uint64(time.Until(time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, expected)-1, 0)).Seconds())
-			w.Header().Set("Cache-Control", fmt.Sprintf("public, must-revalidate, max-age=%d", timeToExpected))
+			timeToExpected := time.Until(dateOfRound(expected+1, info))
+			w.Header().Set("Cache-Control",
+				fmt.Sprintf("public, must-revalidate, max-age=%d", uint64(timeToExpected.Seconds())))
 			w.WriteHeader(http.StatusOK)
 		} else {
 			w.Header().Set("Cache-Control", "no-cache")
@@ -581,6 +581,10 @@ func readChainHash(r *http.Request) ([]byte, error) {
 func readRound(r *http.Request) (uint64, error) {
 	round := chi.URLParam(r, roundParamKey)
 	return strconv.ParseUint(round, roundNumBase, roundNumSize)
+}
+
+func dateOfRound(round uint64, info *chain.Info) time.Time {
+	return time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
 }
 
 func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error) {
