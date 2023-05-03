@@ -3,6 +3,7 @@ package key
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/drand/drand/crypto"
 	"os"
 	"strconv"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"

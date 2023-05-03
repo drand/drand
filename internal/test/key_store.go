@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 )
 
 type KeyStore struct {

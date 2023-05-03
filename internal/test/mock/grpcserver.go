@@ -9,13 +9,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"sync"
 	"testing"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/net"
 	testnet "github.com/drand/drand/internal/test/net"

@@ -1,7 +1,7 @@
 package cfg
 
 import (
-	"github.com/drand/drand/common/crypto"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 )
 

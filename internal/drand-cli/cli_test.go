@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"

@@ -4,6 +4,7 @@ package test
 
 import (
 	"encoding/hex"
+	"github.com/drand/drand/crypto"
 	n "net"
 	"os"
 	"path"
@@ -15,7 +16,6 @@ import (
 	"github.com/rogpeppe/go-internal/lockedfile"
 
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/kyber"

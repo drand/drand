@@ -3,12 +3,12 @@ package beacon
 import (
 	"bytes"
 	"context"
+	"github.com/drand/drand/crypto"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/boltdb"
 	context2 "github.com/drand/drand/internal/test/context"

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/crypto"
 	"os"
 	"path"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"

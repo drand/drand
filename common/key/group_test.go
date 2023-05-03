@@ -1,6 +1,7 @@
 package key
 
 import (
+	"github.com/drand/drand/crypto"
 	"os"
 	"testing"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"

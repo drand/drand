@@ -1,10 +1,10 @@
 package dkg
 
 import (
+	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/key"
 
 	"github.com/stretchr/testify/require"

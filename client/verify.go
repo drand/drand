@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"sync"
 
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 )
 

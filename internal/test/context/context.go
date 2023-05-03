@@ -2,11 +2,11 @@ package context
 
 import (
 	"context"
+	"github.com/drand/drand/crypto"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/chain"
 )
 

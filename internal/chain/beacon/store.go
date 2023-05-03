@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"sync"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"

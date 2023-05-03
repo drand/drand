@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"math/rand"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 
 	commonutils "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"

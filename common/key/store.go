@@ -2,6 +2,7 @@ package key
 
 import (
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"os"
 	"path"
 	"reflect"
@@ -9,7 +10,6 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/fs"
 )
 

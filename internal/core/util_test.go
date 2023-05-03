@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	gnet "net"
 	"os"
 	"path"
@@ -18,7 +19,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"

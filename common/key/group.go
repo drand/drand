@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"hash"
 	"sort"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"golang.org/x/crypto/blake2b"
 
 	common2 "github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"

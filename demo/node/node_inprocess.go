@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"os"
 	"os/exec"
 	"path"
@@ -12,7 +13,6 @@ import (
 	"github.com/kabukky/httpscerts"
 
 	"github.com/drand/drand/client/grpc"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/demo/cfg"

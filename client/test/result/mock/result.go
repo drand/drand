@@ -5,11 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
 	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"

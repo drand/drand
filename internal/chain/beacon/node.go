@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto/vault"
 	"sync"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	common2 "github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto/vault"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"

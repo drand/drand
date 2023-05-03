@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"errors"
+	"github.com/drand/drand/crypto"
 	"net/http"
 	"sync"
 	"testing"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/test/testlogger"
 )
 

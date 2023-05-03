@@ -3,13 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/template"
 	"time"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/internal/chain"

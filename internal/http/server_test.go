@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"io"
 	"net"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"github.com/drand/drand/client/grpc"
 	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"

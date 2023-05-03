@@ -5,13 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/metrics"
 )

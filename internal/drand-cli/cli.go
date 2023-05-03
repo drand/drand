@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"io"
 	gonet "net"
 	"os"
@@ -23,7 +24,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	common3 "github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"

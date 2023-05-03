@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -15,7 +16,6 @@ import (
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/node"

@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/protobuf/drand"

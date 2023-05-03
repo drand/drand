@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/test"
 )
 

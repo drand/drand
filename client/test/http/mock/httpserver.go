@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"github.com/drand/drand/crypto"
 	"net"
 	"net/http"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	clock "github.com/jonboulle/clockwork"
 
 	chainCommon "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
 	dhttp "github.com/drand/drand/internal/http"

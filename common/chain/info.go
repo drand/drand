@@ -5,13 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/drand/drand/crypto"
 	"os"
 	"time"
 
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/kyber"

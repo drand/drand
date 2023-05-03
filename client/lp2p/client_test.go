@@ -3,6 +3,7 @@ package lp2p
 import (
 	"context"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"net/http"
 	"path"
 	"testing"
@@ -20,7 +21,6 @@ import (
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/lp2p"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"

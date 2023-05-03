@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	dcrypto "github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/cache"
 	chain2 "github.com/drand/drand/common/chain"
-	dcrypto "github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"

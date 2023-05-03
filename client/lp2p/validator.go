@@ -3,6 +3,7 @@ package lp2p
 import (
 	"bytes"
 	"context"
+	"github.com/drand/drand/crypto"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
@@ -12,7 +13,6 @@ import (
 
 	client2 "github.com/drand/drand/client"
 	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
 )

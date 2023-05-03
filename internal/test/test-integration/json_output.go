@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
 )

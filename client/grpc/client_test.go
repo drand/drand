@@ -3,6 +3,7 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"github.com/drand/drand/crypto"
 	"sync"
 	"testing"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
 )

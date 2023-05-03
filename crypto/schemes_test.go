@@ -2,12 +2,12 @@ package crypto_test
 
 import (
 	"encoding/hex"
+	"github.com/drand/drand/crypto"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/kyber/util/random"
 )

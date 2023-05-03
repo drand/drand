@@ -1,13 +1,13 @@
 package core
 
 import (
+	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/crypto"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/kyber"

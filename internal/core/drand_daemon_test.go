@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/crypto"
 	"net"
 	"strconv"
 	"testing"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"
 )
