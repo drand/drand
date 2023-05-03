@@ -198,7 +198,7 @@ func getSleepDuration() time.Duration {
 		fmt.Println("--- Sleeping on CI")
 		return time.Duration(800) * time.Millisecond
 	}
-	return time.Duration(100) * time.Millisecond
+	return time.Duration(500) * time.Millisecond
 }
 
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
