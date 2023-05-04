@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"

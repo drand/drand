@@ -2,11 +2,12 @@ package core
 
 import (
 	"context"
-	"github.com/drand/drand/crypto"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/internal/dkg"
 

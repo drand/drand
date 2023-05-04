@@ -6,9 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	dcrypto "github.com/drand/drand/crypto"
 	"testing"
 	"time"
+
+	dcrypto "github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"

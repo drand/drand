@@ -8,10 +8,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"hash"
 	"sort"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/blake2b"

@@ -1,9 +1,10 @@
 package util
 
 import (
-	"github.com/drand/drand/crypto"
 	"reflect"
 	"sort"
+
+	"github.com/drand/drand/crypto"
 
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/net"

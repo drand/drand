@@ -3,9 +3,10 @@ package client_test
 import (
 	"context"
 	"errors"
-	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"

@@ -5,9 +5,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto/vault"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/crypto/vault"
 
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/metrics"

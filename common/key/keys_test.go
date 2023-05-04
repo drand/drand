@@ -3,10 +3,11 @@ package key
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/drand/drand/crypto"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/require"

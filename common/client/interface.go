@@ -11,7 +11,7 @@ import (
 
 // Client represents the drand Client interface.
 type Client interface {
-	// Get returns a the randomness at `round` or an error.
+	// Get returns the randomness at `round` or an error.
 	// Requesting round = 0 will return randomness for the most
 	// recent known round, bounded at a minimum to the `RoundAt(time.Now())`
 	Get(ctx context.Context, round uint64) (Result, error)

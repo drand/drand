@@ -3,13 +3,14 @@ package http
 import (
 	"context"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"io"
 	"net"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"

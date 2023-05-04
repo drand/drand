@@ -5,9 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/drand/drand/crypto"
 	"os"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 

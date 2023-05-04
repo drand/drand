@@ -2,8 +2,9 @@ package crypto_test
 
 import (
 	"encoding/hex"
-	"github.com/drand/drand/crypto"
 	"testing"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
 

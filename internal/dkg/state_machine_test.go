@@ -3,9 +3,10 @@ package dkg
 
 import (
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"

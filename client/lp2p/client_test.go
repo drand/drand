@@ -3,11 +3,12 @@ package lp2p
 import (
 	"context"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"net/http"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	bds "github.com/ipfs/go-ds-badger2"
 	clock "github.com/jonboulle/clockwork"

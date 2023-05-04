@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/prometheus/client_golang/prometheus"
 

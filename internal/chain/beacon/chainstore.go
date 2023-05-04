@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/crypto/vault"
 
 	"go.opentelemetry.io/otel/attribute"

@@ -2,6 +2,7 @@ package key
 
 import (
 	"encoding/binary"
+
 	"github.com/drand/drand/crypto"
 
 	proto "github.com/drand/drand/protobuf/drand"

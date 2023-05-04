@@ -3,11 +3,12 @@ package http
 import (
 	"context"
 	"errors"
-	"github.com/drand/drand/crypto"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"

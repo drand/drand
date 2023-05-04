@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	cl "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"

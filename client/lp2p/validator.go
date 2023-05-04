@@ -3,8 +3,9 @@ package lp2p
 import (
 	"bytes"
 	"context"
-	"github.com/drand/drand/crypto"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"

@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	gnet "net"
 	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"

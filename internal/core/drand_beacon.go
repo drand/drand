@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 

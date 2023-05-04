@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/drand/drand/crypto"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"

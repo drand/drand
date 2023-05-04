@@ -3,10 +3,11 @@ package grpc
 import (
 	"bytes"
 	"context"
-	"github.com/drand/drand/crypto"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"

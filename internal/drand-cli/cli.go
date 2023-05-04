@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"io"
 	gonet "net"
 	"os"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"

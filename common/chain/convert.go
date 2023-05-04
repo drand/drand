@@ -2,9 +2,10 @@ package chain
 
 import (
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"io"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	json "github.com/nikkolasg/hexjson"
 

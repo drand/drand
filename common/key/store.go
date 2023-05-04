@@ -2,10 +2,11 @@ package key
 
 import (
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"os"
 	"path"
 	"reflect"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 

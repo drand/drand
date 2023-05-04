@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"

@@ -3,8 +3,9 @@ package client_test
 import (
 	"context"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"testing"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
 

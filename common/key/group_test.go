@@ -1,10 +1,11 @@
 package key
 
 import (
-	"github.com/drand/drand/crypto"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
 

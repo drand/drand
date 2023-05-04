@@ -2,8 +2,9 @@ package dkg
 
 import (
 	"context"
-	"github.com/drand/drand/crypto"
 	"testing"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/internal/test/testlogger"

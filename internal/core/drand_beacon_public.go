@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/crypto"
 
 	"github.com/drand/drand/common"

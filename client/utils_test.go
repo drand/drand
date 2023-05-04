@@ -3,9 +3,10 @@ package client
 import (
 	"bytes"
 	"context"
-	"github.com/drand/drand/crypto"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/crypto"
 
 	"github.com/stretchr/testify/require"
 
