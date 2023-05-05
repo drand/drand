@@ -68,7 +68,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	// then we sign the packet and gossip it to the network
 	if packetToGossip != nil {
 		recipients := util.Concat(afterState.Joining, afterState.Leaving, afterState.Remaining)
-		done, errs := d.gossip(me, recipients, packetToGossip, termsFromState(afterState))
+		done, errs := d.gossip(beaconID, me, recipients, packetToGossip, termsFromState(afterState))
 		// if it's a proposal, let's block until it finishes or a timeout
 		if command.GetInitial() != nil || command.GetResharing() != nil {
 			select {

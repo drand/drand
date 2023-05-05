@@ -80,7 +80,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	// we ignore the errors here because it's a best effort gossip
-	_, _ = d.gossip(me, recipients, packet, termsFromState(nextState))
+	_, _ = d.gossip(beaconID, me, recipients, packet, termsFromState(nextState))
 
 	if packet.GetExecute() != nil {
 		if err := d.executeDKG(ctx, beaconID); err != nil {

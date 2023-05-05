@@ -12,17 +12,12 @@ import (
 )
 
 //nolint:gocritic // ewww the linter wants me to use named parameters
-func (d *Process) gossip(
-	me *drand.Participant,
-	recipients []*drand.Participant,
-	packet *drand.GossipPacket,
-	terms *drand.ProposalTerms,
-) (chan bool, chan error) {
+func (d *Process) gossip(beaconID string, me *drand.Participant, recipients []*drand.Participant, packet *drand.GossipPacket, terms *drand.ProposalTerms) (chan bool, chan error) {
 	done := make(chan bool, 1)
 	errChan := make(chan error, 1)
 
 	// first we sign the message and attach it as metadata
-	metadata, err := d.signMessage(packet.Metadata.BeaconID, packet, terms)
+	metadata, err := d.signMessage(beaconID, packet, terms)
 	if err != nil {
 		errChan <- err
 		return done, errChan
