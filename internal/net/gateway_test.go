@@ -46,8 +46,13 @@ func (t *testRandomnessServer) Group(_ context.Context, _ *drand.GroupRequest) (
 func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error) {
 	return nil, nil
 }
-func (t *testRandomnessServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
-	return &drand.Empty{}, nil
+
+func (t *testRandomnessServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyResponse, error) {
+	return &drand.EmptyResponse{}, nil
+}
+
+func (t *testRandomnessServer) Command(context.Context, *drand.DKGCommand) (*drand.EmptyResponse, error) {
+	return &drand.EmptyResponse{}, nil
 }
 
 func TestListeners(t *testing.T) {

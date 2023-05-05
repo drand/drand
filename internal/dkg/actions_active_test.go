@@ -1,42 +1,47 @@
-//nolint:lll,dupl
+//nolint:lll,dupl,funlen
 package dkg
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/util"
 	"testing"
 	"time"
+
+	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/crypto"
+	"google.golang.org/grpc"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	key "github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )
 
-//nolint:funlen
-func TestStartNetwork(t *testing.T) {
+func TestInitialDKG(t *testing.T) {
 	myKeypair, err := key.NewKeyPair("somebody.com", nil)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
-
 	bob := NewParticipant("bob")
+	carol := NewParticipant("carol")
 	beaconID := "someBeaconID"
-
 	tests := []struct {
 		name                     string
 		proposal                 *drand.FirstProposalOptions
-		prepareMocks             func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error)
+		prepareMocks             func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error)
 		expectedError            error
 		expectedNetworkCallCount int
 	}{
 		{
-			name: "valid proposal is stored and does not attempt rollback",
+			name: "valid proposal with successful gossip sends to all parties except leader",
 			proposal: &drand.FirstProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
@@ -45,19 +50,18 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
+				Joining:              []*drand.Participant{alice, bob, carol},
 			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", alice, proposal.Joining, mock.Anything).Return(nil).Once()
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			expectedError:            nil,
-			expectedNetworkCallCount: 1, // no rollback
+			expectedNetworkCallCount: 2,
 		},
 		{
-			name: "error fetching identity is propagated and network is not called",
+			name: "database get failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
@@ -68,52 +72,14 @@ func TestStartNetwork(t *testing.T) {
 				GenesisTime:          timestamppb.New(time.Now()),
 				Joining:              []*drand.Participant{alice, bob},
 			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(nil, expectedError)
-			},
-			expectedError:            errors.New("expected identity error"),
-			expectedNetworkCallCount: 0,
-		},
-		{
-			name: "error fetching the latest DKG state is propagated and network not called",
-			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
-				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(nil, expectedError)
 			},
-			expectedError:            errors.New("expected database error"),
+			expectedError:            errors.New("some-error"),
 			expectedNetworkCallCount: 0,
 		},
 		{
-			name: "invalid proposal propagates error and network not called",
-			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            5, // the threshold is higher than the node count
-				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-			},
-			expectedError:            ErrThresholdHigherThanNodeCount,
-			expectedNetworkCallCount: 0,
-		},
-		{
-			name: "any network call failure returns an error and attempts an abort",
+			name: "database store failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
@@ -124,364 +90,334 @@ func TestStartNetwork(t *testing.T) {
 				GenesisTime:          timestamppb.New(time.Now()),
 				Joining:              []*drand.Participant{alice, bob},
 			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", alice, proposal.Joining, mock.Anything).Return(expectedError)
-			},
-			expectedError:            errors.New("some mysterious network error"),
-			expectedNetworkCallCount: 2, // 1 to send the packet, 1 to abort
-		},
-		{
-			name: "error in saving the state after successful network propagation returns error and attempts rollback",
-			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
-				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
-				network.On("Send", alice, proposal.Joining, mock.Anything).Return(nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(expectedError)
 			},
-			expectedError:            errors.New("some database error"),
-			expectedNetworkCallCount: 2, // 1 to send the packet, 1 to abort
+			expectedError:            errors.New("some-error"),
+			expectedNetworkCallCount: 0,
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			identityProvider := MockIdentityProvider{}
 			store := MockStore{}
-			network := MockNetwork{}
+			client := MockDKGClient{}
 			process := Process{
 				beaconIdentifier: &identityProvider,
-				network:          &network,
 				store:            &store,
+				internalClient:   &client,
 				log:              log.New(nil, log.DebugLevel, true),
+				SeenPackets:      make(map[string]bool),
 				config:           Config{},
 			}
 
-			test.prepareMocks(&identityProvider, &store, &network, test.proposal, test.expectedError)
+			test.prepareMocks(&store, &client, test.proposal, test.expectedError)
+			identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 
-			_, err := process.StartNetwork(context.Background(), test.proposal)
+			_, err = process.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
+				Initial: test.proposal,
+			}, Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			}})
 
-			if test.expectedError == nil {
-				require.NoError(t, err)
+			if test.expectedError != nil {
+				require.Error(t, err, test.expectedError)
 			} else {
-				require.Error(t, err)
+				require.NoError(t, err)
 			}
 
-			// we only expect a single send call, because rollback shouldn't be triggered
-			network.AssertNumberOfCalls(t, "Send", test.expectedNetworkCallCount)
+			client.AssertNumberOfCalls(t, "Packet", test.expectedNetworkCallCount)
 		})
 	}
 }
 
-//nolint:funlen
-func TestStartProposal(t *testing.T) {
+func TestReshare(t *testing.T) {
 	myKeypair, err := key.NewKeyPair("somebody.com", nil)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	bob := NewParticipant("bob")
+	carol := NewParticipant("carol")
 	beaconID := "someBeaconID"
-	startState := DBState{
-		BeaconID:      beaconID,
-		Epoch:         1,
-		State:         Complete,
-		Threshold:     1,
-		Timeout:       time.Now(),
-		SchemeID:      "pedersen-bls-chained",
-		CatchupPeriod: 10,
-		BeaconPeriod:  10,
-		Leader:        alice,
-		Remaining:     nil,
-		Joining:       []*drand.Participant{alice},
-		Leaving:       nil,
-		Acceptors:     []*drand.Participant{alice},
-		Rejectors:     nil,
-		FinalGroup:    &key.Group{},
+	currentState := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+	validProposal := drand.ProposalOptions{
+		BeaconID:             beaconID,
+		Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+		TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Minute)),
+		Threshold:            1,
+		CatchupPeriodSeconds: 10,
+		Joining:              []*drand.Participant{carol},
+		Remaining:            []*drand.Participant{alice, bob},
 	}
 
 	tests := []struct {
 		name                     string
 		proposal                 *drand.ProposalOptions
-		prepareMocks             func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error)
+		prepareMocks             func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error)
 		expectedError            error
+		validateOutput           func(output *DBState)
 		expectedNetworkCallCount int
 	}{
 		{
-			name: "valid proposal is stored and does not attempt rollback",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
+			name:     "valid proposal with successful gossip sends to all parties except leader",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				store.On("GetCurrent", beaconID).Return(currentState, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Proposing, output.State)
+				require.Equal(t, uint32(2), output.Epoch)
 			},
 			expectedError:            nil,
-			expectedNetworkCallCount: 1, // no rollback
+			expectedNetworkCallCount: 2,
 		},
 		{
-			name: "error fetching identity is propagated and network is not called",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
+			name:     "database get failure does not attempt to call network",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				store.On("GetCurrent", beaconID).Return(nil, expectedError)
 			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(nil, expectedError)
-			},
-			expectedError:            errors.New("some identity error"),
+			expectedError:            errors.New("some-error"),
 			expectedNetworkCallCount: 0,
 		},
 		{
-			name: "error fetching the latest DKG state is propagated and network not called",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(nil, expectedError)
-			},
-			expectedError:            errors.New("some database error"),
-			expectedNetworkCallCount: 0,
-		},
-		{
-			name: "invalid proposal propagates error and network not called",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            5, // threshold higher than node count
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
-				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
-			},
-			expectedError:            ErrThresholdHigherThanNodeCount,
-			expectedNetworkCallCount: 0,
-		},
-		{
-			name: "any network call failure returns an error and attempts an abort",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", alice, allParticipants, mock.Anything).Return(expectedError)
-			},
-			expectedError:            errors.New("some network error"),
-			expectedNetworkCallCount: 2, // attempts a rollback
-		},
-		{
-			name: "error in saving the state after successful network propagation returns error and attempts rollback",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				allParticipants := util.Concat(proposal.Joining, proposal.Remaining)
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", alice, allParticipants, mock.Anything).Return(nil)
+			name:     "database store failure does not attempt to call network",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				store.On("GetCurrent", beaconID).Return(currentState, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(expectedError)
 			},
-			expectedError:            errors.New("some database error"),
-			expectedNetworkCallCount: 2, // attempts rollback
+			expectedError:            errors.New("some-error"),
+			expectedNetworkCallCount: 0,
 		},
 		{
-			name: "error signaling to leavers of the proposal does not attempt rollback",
-			proposal: &drand.ProposalOptions{
-				BeaconID:             beaconID,
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
-				Threshold:            1,
-				CatchupPeriodSeconds: 10,
-				Joining:              []*drand.Participant{bob},
-				Remaining:            []*drand.Participant{alice},
-				Leaving:              []*drand.Participant{carol},
-			},
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
-				startState := DBState{
-					BeaconID:      beaconID,
-					Epoch:         1,
-					State:         Complete,
-					Threshold:     1,
-					Timeout:       time.Now(),
-					SchemeID:      "pedersen-bls-chained",
-					CatchupPeriod: 10,
-					BeaconPeriod:  10,
-					Leader:        alice,
-					Remaining:     nil,
-					Joining:       []*drand.Participant{alice, carol},
-					Leaving:       nil,
-					Acceptors:     []*drand.Participant{alice, carol},
-					Rejectors:     nil,
-					FinalGroup:    &key.Group{},
-				}
-				resharers := util.Concat(proposal.Joining, proposal.Remaining)
-				leavers := []*drand.Participant{carol}
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetFinished", beaconID).Return(&startState, nil)
-				network.On("Send", alice, resharers, mock.Anything).Return(nil)
-				network.On("Send", alice, leavers, mock.Anything).Return(errors.New("carol is offline"))
+			name:     "valid proposal after abort does not change epoch",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				abortedState := NewCompleteDKGEntry(t, beaconID, Aborted, alice, bob)
+				abortedState.Epoch = uint32(2)
+				store.On("GetCurrent", beaconID).Return(abortedState, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Proposing, output.State)
+				require.Equal(t, uint32(2), output.Epoch)
 			},
 			expectedError:            nil,
-			expectedNetworkCallCount: 2, // 1 for resharers, 1 for carol, but no rollback
+			expectedNetworkCallCount: 2,
+		},
+		{
+			name:     "valid proposal after timeout does not change epoch",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				abortedState := NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob)
+				abortedState.Epoch = uint32(2)
+				store.On("GetCurrent", beaconID).Return(abortedState, nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Proposing, output.State)
+				require.Equal(t, uint32(2), output.Epoch)
+			},
+			expectedError:            nil,
+			expectedNetworkCallCount: 2,
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			identityProvider := MockIdentityProvider{}
 			store := MockStore{}
-			network := MockNetwork{}
+			client := MockDKGClient{}
 			process := Process{
 				beaconIdentifier: &identityProvider,
-				network:          &network,
 				store:            &store,
+				internalClient:   &client,
 				log:              log.New(nil, log.DebugLevel, true),
+				SeenPackets:      make(map[string]bool),
 				config:           Config{},
 			}
 
-			test.prepareMocks(&identityProvider, &store, &network, test.proposal, test.expectedError)
+			test.prepareMocks(&store, &client, test.proposal, test.expectedError)
+			identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 
-			_, err := process.StartProposal(context.Background(), test.proposal)
+			_, err = process.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
+				Resharing: test.proposal,
+			}, Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			}})
 
-			if test.expectedError == nil {
-				require.NoError(t, err)
+			if test.expectedError != nil {
+				require.Error(t, err, test.expectedError)
 			} else {
-				require.Error(t, err)
+				require.NoError(t, err)
+			}
+			// this tests the DBState stored
+			for _, c := range store.Calls {
+				if c.Method == "SaveCurrent" && test.validateOutput != nil {
+					test.validateOutput(c.Arguments[1].(*DBState))
+				}
 			}
 
-			// we only expect a single send call, because rollback shouldn't be triggered
-			network.AssertNumberOfCalls(t, "Send", test.expectedNetworkCallCount)
+			client.AssertNumberOfCalls(t, "Packet", test.expectedNetworkCallCount)
 		})
 	}
 }
 
-func TestAbort(t *testing.T) {
+func TestJoin(t *testing.T) {
 	myKeypair, err := key.NewKeyPair("somebody.com", nil)
 	require.NoError(t, err)
+
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
-	startState := DBState{
-		BeaconID:      beaconID,
-		Epoch:         2,
-		State:         Proposing,
-		Threshold:     1,
-		Timeout:       time.Now(),
-		SchemeID:      "pedersen-bls-chained",
-		CatchupPeriod: 10,
-		BeaconPeriod:  10,
-		Leader:        alice,
-		Remaining:     []*drand.Participant{alice, bob},
-		Joining:       nil,
-		Leaving:       nil,
-		Acceptors:     nil,
-		Rejectors:     nil,
-		FinalGroup:    &key.Group{},
-	}
+
+	var groupFile bytes.Buffer
+	pub, err := myKeypair.Public.Key.MarshalBinary()
+	require.NoError(t, err)
+	err = toml.NewEncoder(&groupFile).Encode(&key.GroupTOML{
+		Threshold:     2,
+		Period:        "5s",
+		CatchupPeriod: "5s",
+		Nodes: []*key.NodeTOML{
+			{
+				PublicTOML: &key.PublicTOML{
+					Address:    alice.Address,
+					SchemeName: crypto.DefaultSchemeID,
+					TLS:        true,
+					Signature:  "deadbeef",
+					Key:        hex.EncodeToString(pub),
+				},
+				Index: 1,
+			},
+			{
+				PublicTOML: &key.PublicTOML{
+					Address:    bob.Address,
+					SchemeName: crypto.DefaultSchemeID,
+					TLS:        true,
+					Signature:  "deadbeef",
+					Key:        hex.EncodeToString(pub),
+				},
+				Index: 2,
+			},
+			{
+				PublicTOML: &key.PublicTOML{
+					Address:    carol.Address,
+					SchemeName: crypto.DefaultSchemeID,
+					TLS:        true,
+					Signature:  "deadbeef",
+					Key:        hex.EncodeToString(pub),
+				},
+				Index: 3,
+			},
+		},
+	})
+	require.NoError(t, err)
 
 	tests := []struct {
 		name                     string
-		prepareMocks             func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork)
+		joinOptions              *drand.JoinOptions
+		prepareMocks             func(store *MockStore, client *MockDKGClient, expectedError error)
 		expectedError            error
+		validateOutput           func(output *DBState)
 		expectedNetworkCallCount int
 	}{
 		{
-			name: "leader can trigger abort",
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-				store.On("GetCurrent", beaconID).Return(&startState, nil)
-				network.On("Send", alice, startState.Remaining, mock.Anything).Return(nil)
+			name:        "join on first epoch succeeds without group file but does not gossip anything",
+			joinOptions: &drand.JoinOptions{BeaconID: beaconID},
+			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
+				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob)
+				current.Joining = []*drand.Participant{alice, bob, carol}
+				current.Remaining = nil
+				store.On("GetCurrent", beaconID).Return(current, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
-			expectedError:            nil,
-			expectedNetworkCallCount: 1,
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Joined, output.State)
+			},
+			expectedNetworkCallCount: 0,
 		},
 		{
-			name: "non-leader triggering abort returns an error",
-			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork) {
-				identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
-
-				startState.Leader = bob
-				store.On("GetCurrent", beaconID).Return(&startState, nil)
+			name:        "join on second epoch succeeds with group file but does not gossip anything",
+			joinOptions: &drand.JoinOptions{BeaconID: beaconID, GroupFile: groupFile.Bytes()},
+			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
+				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob, carol)
+				current.Epoch = 2
+				current.Joining = []*drand.Participant{alice}
+				store.On("GetCurrent", beaconID).Return(current, nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
-			expectedError:            errors.New("cannot abort the DKG if you aren't the leader"),
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Joined, output.State)
+			},
+			expectedNetworkCallCount: 0,
+		},
+		{
+			name:        "join on second epoch succeeds without group file fails",
+			joinOptions: &drand.JoinOptions{BeaconID: beaconID, GroupFile: nil},
+			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
+				current := NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob)
+				current.Epoch = 2
+				current.Joining = []*drand.Participant{carol}
+				store.On("GetCurrent", beaconID).Return(current, nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Joined, output.State)
+			},
+			expectedError:            errors.New("group file required to join after the first epoch"),
 			expectedNetworkCallCount: 0,
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			identityProvider := MockIdentityProvider{}
 			store := MockStore{}
-			network := MockNetwork{}
+			client := MockDKGClient{}
 			process := Process{
 				beaconIdentifier: &identityProvider,
-				network:          &network,
 				store:            &store,
+				internalClient:   &client,
 				log:              log.New(nil, log.DebugLevel, true),
+				SeenPackets:      make(map[string]bool),
 				config:           Config{},
 			}
 
-			test.prepareMocks(&identityProvider, &store, &network)
+			test.prepareMocks(&store, &client, test.expectedError)
+			identityProvider.On("KeypairFor", beaconID).Return(myKeypair, nil)
 
-			_, err := process.StartAbort(context.Background(), &drand.AbortOptions{BeaconID: beaconID})
+			_, err = process.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+				Join: test.joinOptions,
+			}, Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			}})
 
-			if test.expectedError == nil {
-				require.NoError(t, err)
+			if test.expectedError != nil {
+				require.Error(t, err, test.expectedError)
 			} else {
-				require.Error(t, err)
+				require.NoError(t, err)
 			}
 
-			// we only expect a single send call, because rollback shouldn't be triggered
-			network.AssertNumberOfCalls(t, "Send", test.expectedNetworkCallCount)
+			// this tests the DBState stored
+			for _, c := range store.Calls {
+				if c.Method == "SaveCurrent" && test.validateOutput != nil {
+					test.validateOutput(c.Arguments[1].(*DBState))
+				}
+			}
+
+			client.AssertNumberOfCalls(t, "Packet", test.expectedNetworkCallCount)
 		})
 	}
 }
@@ -496,19 +432,6 @@ func (d *MockIdentityProvider) KeypairFor(beaconID string) (*key.Pair, error) {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*key.Pair), args.Error(1)
-}
-
-type MockNetwork struct {
-	mock.Mock
-}
-
-func (n *MockNetwork) Send(_ context.Context, from *drand.Participant, to []*drand.Participant, action SendAction) error {
-	args := n.Called(from, to, action)
-	return args.Error(0)
-}
-func (n *MockNetwork) SendIgnoringConnectionError(_ context.Context, from *drand.Participant, to []*drand.Participant, action SendAction) error {
-	args := n.Called(from, to, action)
-	return args.Error(0)
 }
 
 type MockStore struct {
@@ -549,4 +472,26 @@ func (m *MockStore) Close() error {
 func (m *MockStore) MigrateFromGroupfile(beaconID string, group *key.Group, share *key.Share) error {
 	args := m.Called(beaconID, group, share)
 	return args.Error(0)
+}
+
+type MockDKGClient struct {
+	mock.Mock
+}
+
+func (m *MockDKGClient) Command(context.Context, net.Peer, *drand.DKGCommand, ...grpc.CallOption) (*drand.EmptyResponse, error) {
+	panic("implement me")
+}
+
+func (m *MockDKGClient) Packet(_ context.Context, _ net.Peer, in *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {
+	args := m.Called(in)
+	return nil, args.Error(0)
+}
+
+func (m *MockDKGClient) DKGStatus(context.Context, net.Peer, *drand.DKGStatusRequest, ...grpc.CallOption) (*drand.DKGStatusResponse, error) {
+	panic("implement me")
+}
+
+func (m *MockDKGClient) BroadcastDKG(ctx context.Context, p net.Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyResponse, error) {
+	args := m.Called(in)
+	return nil, args.Error(0)
 }

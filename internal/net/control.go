@@ -383,3 +383,7 @@ func (s *DefaultControlServer) ChainInfo(c ctx.Context, in *control.ChainInfoReq
 	}
 	return s.C.ChainInfo(c, in)
 }
+
+func (s *DefaultControlServer) Migrate(_ context.Context, empty *control.Empty) (*control.Empty, error) {
+	return empty, nil
+}

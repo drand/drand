@@ -19,6 +19,28 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 )
 
+func (d *Process) executeDKG(ctx context.Context, beaconID string) error {
+	// set up the DKG broadcaster for first so we're ready to broadcast DKG messages
+	dkgConfig, err := d.setupDKG(ctx, beaconID)
+	if err != nil {
+		return err
+	}
+
+	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
+
+	go func() {
+		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters
+		time.Sleep(d.config.KickoffGracePeriod)
+		// copy this to avoid any data races with kyber
+		dkgConfigCopy := *dkgConfig
+		err := d.executeAndFinishDKG(ctx, beaconID, dkgConfigCopy)
+		if err != nil {
+			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
+		}
+	}()
+	return nil
+}
+
 func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
 	ctx, span := metrics.NewSpan(ctx, "dkg.setupDKG")
 	defer span.End()
@@ -70,9 +92,7 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 
 	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
 	// if other nodes try to send us DKG messages before this is set we're in trouble
-	d.lock.Lock()
 	d.Executions[beaconID] = board
-	d.lock.Unlock()
 
 	return config, nil
 }
@@ -135,7 +155,12 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		}
 	}
 
-	return rollbackOnError(executeAndStoreDKG, leaveNetwork)
+	err = executeAndStoreDKG()
+	if err != nil {
+		leaveNetwork(err)
+	}
+
+	return err
 }
 
 func (d *Process) startDKGExecution(ctx context.Context, beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {

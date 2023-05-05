@@ -265,6 +265,24 @@ func NewFreshState(beaconID string) *DBState {
 	}
 }
 
+func (d *DBState) Apply(me *drand.Participant, packet *drand.GossipPacket) (*DBState, error) {
+	switch p := packet.Packet.(type) {
+	case *drand.GossipPacket_Proposal:
+		return d.Proposed(me, p.Proposal, packet.Metadata)
+	case *drand.GossipPacket_Accept:
+		return d.ReceivedAcceptance(p.Accept.Acceptor, packet.Metadata)
+	case *drand.GossipPacket_Reject:
+		return d.ReceivedRejection(p.Reject.Rejector, packet.Metadata)
+	case *drand.GossipPacket_Execute:
+		return d.Executing(me, packet.Metadata)
+	case *drand.GossipPacket_Abort:
+		return d.Aborted(packet.Metadata)
+	case *drand.GossipPacket_Dkg:
+		return nil, errors.New("gossip packets should be handled above")
+	}
+	return nil, errors.New("invalid DKG gossip packet received")
+}
+
 func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBState, error) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange(d.State, Joined)
@@ -328,14 +346,14 @@ func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (
 }
 
 // Proposed is used by non-leader nodes to set their own state when they receive a proposal
-func (d *DBState) Proposed(sender, me *drand.Participant, terms *drand.ProposalTerms) (*DBState, error) {
+func (d *DBState) Proposed(me *drand.Participant, terms *drand.ProposalTerms, metadata *drand.GossipMetadata) (*DBState, error) {
 	if !isValidStateChange(d.State, Proposed) {
 		return nil, InvalidStateChange(d.State, Proposed)
 	}
 
 	// it's important to verify that the sender (and by extension the signature of the sender)
 	// is the same as the proposed leader, to avoid nodes trying to propose DKGs on behalf of somebody else
-	if terms.Leader != sender {
+	if terms.Leader.Address != metadata.Address {
 		return nil, ErrCannotProposeAsNonLeader
 	}
 
@@ -376,9 +394,26 @@ func (d *DBState) TimedOut() (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) Aborted() (*DBState, error) {
+func (d *DBState) StartAbort(me *drand.Participant) (*DBState, error) {
 	if !isValidStateChange(d.State, Aborted) {
 		return nil, InvalidStateChange(d.State, Aborted)
+	}
+
+	if d.Leader.Address != me.Address {
+		return nil, ErrOnlyLeaderCanAbort
+	}
+
+	d.State = Aborted
+	return d, nil
+}
+
+func (d *DBState) Aborted(metadata *drand.GossipMetadata) (*DBState, error) {
+	if !isValidStateChange(d.State, Aborted) {
+		return nil, InvalidStateChange(d.State, Aborted)
+	}
+
+	if d.Leader.Address != metadata.Address {
+		return nil, ErrOnlyLeaderCanAbort
 	}
 
 	d.State = Aborted
@@ -461,7 +496,28 @@ func (d *DBState) Evicted() (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
+func (d *DBState) StartExecuting(me *drand.Participant) (*DBState, error) {
+	if hasTimedOut(d) {
+		return nil, ErrTimeoutReached
+	}
+
+	if util.Contains(d.Leaving, me) {
+		return d.Left(me)
+	}
+
+	if !isValidStateChange(d.State, Executing) {
+		return nil, InvalidStateChange(d.State, Executing)
+	}
+
+	if !util.EqualParticipant(d.Leader, me) {
+		return nil, ErrOnlyLeaderCanTriggerExecute
+	}
+
+	d.State = Executing
+	return d, nil
+}
+
+func (d *DBState) Executing(me *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
 	// we check the timeout first as we have additional branches for leaving
 	if hasTimedOut(d) {
 		return nil, ErrTimeoutReached
@@ -479,6 +535,10 @@ func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
 	// participants not in the DKG should not be executing!
 	if !util.Contains(d.Remaining, me) && !util.Contains(d.Joining, me) {
 		return nil, ErrCannotExecuteIfNotJoinerOrRemainer
+	}
+
+	if metadata.Address != d.Leader.Address {
+		return nil, ErrOnlyLeaderCanTriggerExecute
 	}
 
 	d.State = Executing
@@ -511,13 +571,9 @@ func (d *DBState) Complete(finalGroup *key.Group, share *key.Share) (*DBState, e
 // ReceivedAcceptance is used by nodes when they receive a gossiped acceptance packet
 // they needn't necessarily collect _all_ acceptances for executing, but it gives them some insight into
 // the state of the DKG when they run the status command
-func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, error) {
+func (d *DBState) ReceivedAcceptance(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
-	}
-
-	if !util.EqualParticipant(d.Leader, me) {
-		return nil, ErrNonLeaderCannotReceiveAcceptance
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -526,6 +582,10 @@ func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, err
 
 	if util.Contains(d.Acceptors, them) {
 		return nil, ErrDuplicateAcceptance
+	}
+
+	if metadata.Address != them.Address {
+		return nil, ErrInvalidAcceptor
 	}
 
 	d.Acceptors = append(d.Acceptors, them)
@@ -537,13 +597,9 @@ func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, err
 // ReceivedRejection is used by nodes when they receive a gossiped rejection packet
 // they may not receive all rejections before executing, but it gives them some insight into
 // the state of the DKG when they run the status command
-func (d *DBState) ReceivedRejection(me, them *drand.Participant) (*DBState, error) {
+func (d *DBState) ReceivedRejection(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
-	}
-
-	if !util.EqualParticipant(d.Leader, me) {
-		return nil, ErrNonLeaderCannotReceiveRejection
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -552,6 +608,10 @@ func (d *DBState) ReceivedRejection(me, them *drand.Participant) (*DBState, erro
 
 	if util.Contains(d.Rejectors, them) {
 		return nil, ErrDuplicateRejection
+	}
+
+	if metadata.Address != them.Address {
+		return nil, ErrInvalidRejector
 	}
 
 	d.Acceptors = util.Without(d.Acceptors, them)
@@ -591,9 +651,13 @@ var ErrCannotAcceptProposalWhereJoining = errors.New("you cannot accept a propos
 var ErrCannotRejectProposalWhereLeaving = errors.New("you cannot reject a proposal where your node is leaving")
 var ErrCannotRejectProposalWhereJoining = errors.New("you cannot reject a proposal where your node is joining (just turn your node off)")
 var ErrCannotLeaveIfNotALeaver = errors.New("you cannot execute leave if you were not included as a leaver in the proposal")
+var ErrOnlyLeaderCanTriggerExecute = errors.New("only the leader can trigger the execution")
+var ErrOnlyLeaderCanAbort = errors.New("only the leader can abort the DKG")
 var ErrCannotExecuteIfNotJoinerOrRemainer = errors.New("you cannot start execution if you are not a remainer or joiner to the DKG")
 var ErrUnknownAcceptor = errors.New("somebody unknown tried to accept the proposal")
 var ErrDuplicateAcceptance = errors.New("this participant already accepted the proposal")
+var ErrInvalidAcceptor = errors.New("the node that signed this message is not the one claiming be accepting")
+var ErrInvalidRejector = errors.New("the node that signed this message is not the one claiming be rejecting")
 var ErrUnknownRejector = errors.New("somebody unknown tried to reject the proposal")
 var ErrDuplicateRejection = errors.New("this participant already rejected the proposal")
 var ErrNonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")

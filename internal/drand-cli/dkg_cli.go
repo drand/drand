@@ -172,7 +172,12 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 			return err
 		}
 
-		_, err = client.StartNetwork(c.Context, proposal)
+		_, err = client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Initial{Initial: proposal},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: proposal.BeaconID,
+			},
+		})
 		if err != nil {
 			return err
 		}
@@ -182,7 +187,12 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 			return err
 		}
 
-		_, err = client.StartProposal(context.Background(), proposal)
+		_, err = client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Resharing{Resharing: proposal},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: proposal.BeaconID,
+			},
+		})
 		if err != nil {
 			return err
 		}
@@ -352,10 +362,14 @@ func joinNetwork(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = client.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  beaconID,
-		GroupFile: groupFile,
+	_, err = client.Command(c.Context, &drand.DKGCommand{
+		Command: &drand.DKGCommand_Join{Join: &drand.JoinOptions{
+			BeaconID:  beaconID,
+			GroupFile: groupFile,
+		}},
+		Metadata: &drand.CommandMetadata{
+			BeaconID: beaconID,
+		},
 	})
 
 	if err == nil {
@@ -366,7 +380,14 @@ func joinNetwork(c *cli.Context) error {
 
 func executeDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
-		_, err := client.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: beaconID})
+		_, err := client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Execute{Execute: &drand.ExecutionOptions{
+				BeaconID: beaconID,
+			}},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			},
+		})
 		return err
 	})
 
@@ -378,7 +399,14 @@ func executeDKG(c *cli.Context) error {
 
 func acceptDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
-		_, err := client.StartAccept(context.Background(), &drand.AcceptOptions{BeaconID: beaconID})
+		_, err := client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Accept{Accept: &drand.AcceptOptions{
+				BeaconID: beaconID,
+			}},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			},
+		})
 		return err
 	})
 
@@ -390,7 +418,14 @@ func acceptDKG(c *cli.Context) error {
 
 func rejectDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
-		_, err := client.StartReject(context.Background(), &drand.RejectOptions{BeaconID: beaconID})
+		_, err := client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Reject{Reject: &drand.RejectOptions{
+				BeaconID: beaconID,
+			}},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			},
+		})
 		return err
 	})
 
@@ -403,7 +438,14 @@ func rejectDKG(c *cli.Context) error {
 
 func abortDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
-		_, err := client.StartAbort(context.Background(), &drand.AbortOptions{BeaconID: beaconID})
+		_, err := client.Command(c.Context, &drand.DKGCommand{
+			Command: &drand.DKGCommand_Abort{Abort: &drand.AbortOptions{
+				BeaconID: beaconID,
+			}},
+			Metadata: &drand.CommandMetadata{
+				BeaconID: beaconID,
+			},
+		})
 		return err
 	})
 	if err == nil {

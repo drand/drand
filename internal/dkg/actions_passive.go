@@ -2,124 +2,143 @@ package dkg
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
-	"time"
-
+	"fmt"
 	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/internal/util"
+
 	"github.com/drand/drand/protobuf/drand"
 )
 
 // actions_passive contains all internal messaging between nodes triggered by the protocol - things it does automatically
 // upon receiving messages from other nodes: storing proposals, aborting when the leader aborts, etc
 
-func (d *Process) Propose(ctx context.Context, proposal *drand.ProposalTerms) (*drand.EmptyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.Propose")
+func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyResponse, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	var err error
+
+	packetName := packetName(packet)
+	packetSig := hex.EncodeToString(packet.Metadata.Signature)
+	shortSig := packetSig[1:8]
+	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig)
+	_, span := metrics.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
 	defer span.End()
 
-	if proposal.Epoch == 1 {
-		err := d.verifyMessage("StartNetwork", proposal.Metadata, proposal)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		err := d.verifyMessage("StartProposal", proposal.Metadata, proposal)
-		if err != nil {
-			return nil, err
-		}
+	// we ignore duplicate packets, so we don't try and store/gossip them ad infinitum
+	if d.SeenPackets[packetSig] {
+		d.log.Debugw("ignoring duplicate packet", "sig", shortSig)
+		return &drand.EmptyResponse{}, nil
 	}
 
-	err := d.executeAction("DKG proposal", proposal.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
-		// strictly speaking, we don't actually _know_ this proposal came from the leader here
-		// it will have to be verified by signing later
-		return current.Proposed(proposal.Leader, me, proposal)
-	})
-
-	return responseOrError(err)
-}
-
-//nolint:dupl // it's similar to Reject, but not the same
-func (d *Process) Accept(ctx context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.Accept")
-	defer span.End()
-
-	err := d.executeAction("DKG acceptance", acceptance.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
-		err := d.verifyMessage("StartAccept", acceptance.Metadata, termsFromState(current))
-		if err != nil {
-			return nil, err
+	// we add the packet to the cache at the end and only on non-error, so we don't cache errored packets
+	// and confuse the network into thinking that we processed them correctly
+	defer func() {
+		if err == nil {
+			d.SeenPackets[packetSig] = true
 		}
-		return current.ReceivedAcceptance(me, acceptance.Acceptor)
-	})
+	}()
 
-	return responseOrError(err)
-}
-
-//nolint:dupl // it's similar to Accept, but not the same
-func (d *Process) Reject(ctx context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.Reject")
-	defer span.End()
-	err := d.executeAction("DKG rejection", rejection.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
-		err := d.verifyMessage("StartReject", rejection.Metadata, termsFromState(current))
-		if err != nil {
-			return nil, err
-		}
-		return current.ReceivedRejection(me, rejection.Rejector)
-	})
-
-	return responseOrError(err)
-}
-
-func (d *Process) Abort(ctx context.Context, abort *drand.AbortDKG) (*drand.EmptyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.Abort")
-	defer span.End()
-
-	err := d.executeAction("abort DKG", abort.Metadata.BeaconID, func(_ *drand.Participant, current *DBState) (*DBState, error) {
-		err := d.verifyMessage("StartAbort", abort.Metadata, termsFromState(current))
-		if err != nil {
-			return nil, err
-		}
-		return current.Aborted()
-	})
-
-	return responseOrError(err)
-}
-
-func (d *Process) Execute(ctx context.Context, kickoff *drand.StartExecution) (*drand.EmptyResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.Execute")
-	defer span.End()
-	beaconID := kickoff.Metadata.BeaconID
-
-	err := d.executeAction("DKG execution", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
-		err := d.verifyMessage("StartExecute", kickoff.Metadata, termsFromState(current))
-		if err != nil {
-			return nil, err
-		}
-		return current.Executing(me)
-	})
-
-	if err != nil {
-		d.log.Errorw("There was an error starting the DKG", "beaconID", beaconID, "error", err)
-		return responseOrError(err)
+	// if there's no metadata on the packet, we won't be able to verify the signature or perform other state changes
+	if packet.Metadata == nil {
+		return nil, errors.New("packet missing metadata")
 	}
 
-	d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
-	dkgConfig, err := d.setupDKG(ctx, beaconID)
+	// if we're in the DKG protocol phase, we automatically broadcast it
+	if packet.GetDkg() != nil {
+		return d.BroadcastDKG(ctx, packet.GetDkg())
+	}
+
+	beaconID := packet.Metadata.BeaconID
+	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
 		return nil, err
 	}
 
-	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
+	current, err := d.store.GetCurrent(beaconID)
+	if err != nil {
+		return nil, err
+	}
 
-	go func() {
-		time.Sleep(d.config.KickoffGracePeriod)
-		// copy this to avoid any data races with kyber
-		dkgConfigCopy := *dkgConfig
-		err := d.executeAndFinishDKG(ctx, beaconID, dkgConfigCopy)
-		if err != nil {
-			d.log.Errorw("there was an error during the DKG execution!", "beaconID", beaconID, "error", err)
+	nextState, err := current.Apply(me, packet)
+	if err != nil {
+		return nil, err
+	}
+
+	// we must verify the message against the next state, as the current state upon first proposal will be empty
+	err = d.verifyMessage(packet, packet.Metadata, termsFromState(nextState))
+	if err != nil {
+		return nil, fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
+	}
+
+	err = d.store.SaveCurrent(beaconID, nextState)
+	if err != nil {
+		return nil, err
+	}
+
+	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
+	// we ignore the errors here because it's a best effort gossip
+	_, _ = d.gossip(me, recipients, packet, termsFromState(nextState))
+
+	if packet.GetExecute() != nil {
+		if err := d.executeDKG(ctx, beaconID); err != nil {
+			return nil, err
 		}
-	}()
+	}
 
-	return responseOrError(err)
+	return &drand.EmptyResponse{}, nil
+}
+
+func commandType(command *drand.DKGCommand) string {
+	if command.GetInitial() != nil {
+		return "Initial DKG"
+	}
+	if command.GetReject() != nil {
+		return "Resharing"
+	}
+	if command.GetAccept() != nil {
+		return "Accepting"
+	}
+	if command.GetReject() != nil {
+		return "Rejecting"
+	}
+	if command.GetJoin() != nil {
+		return "Joining"
+	}
+	if command.GetExecute() != nil {
+		//nolint:goconst //the two strings rae in different places
+		return "Executing"
+	}
+	if command.GetAbort() != nil {
+		return "Aborting"
+	}
+
+	return "UnknownCommand"
+}
+
+func packetName(packet *drand.GossipPacket) string {
+	if packet.GetProposal() != nil {
+		return "Proposal"
+	}
+	if packet.GetAccept() != nil {
+		return "Accept"
+	}
+	if packet.GetReject() != nil {
+		return "Reject"
+	}
+	if packet.GetAbort() != nil {
+		return "Abort"
+	}
+	if packet.GetExecute() != nil {
+		return "Execute"
+	}
+	if packet.GetDkg() != nil {
+		return "DKG"
+	}
+
+	return "Unknown"
 }
 
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)

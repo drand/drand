@@ -5,14 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
 	"github.com/BurntSushi/toml"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/dkg"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -29,16 +28,20 @@ func (r *DKGRunner) StartNetwork(
 	catchupPeriod int,
 	joiners []*drand.Participant,
 ) error {
-	_, err := r.Client.StartNetwork(context.Background(), &drand.FirstProposalOptions{
-		BeaconID:             r.BeaconID,
-		Timeout:              timestamppb.New(time.Now().Add(timeout)),
-		Threshold:            uint32(threshold),
-		PeriodSeconds:        uint32(period),
-		Scheme:               schemeID,
-		CatchupPeriodSeconds: uint32(catchupPeriod),
-		// put the genesis a little in the future to give demo nodes some time to do the DKG
-		GenesisTime: timestamppb.New(time.Now().Add(10 * time.Second)),
-		Joining:     joiners,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
+		Initial: &drand.FirstProposalOptions{
+			BeaconID:             r.BeaconID,
+			Timeout:              timestamppb.New(time.Now().Add(timeout)),
+			Threshold:            uint32(threshold),
+			PeriodSeconds:        uint32(period),
+			Scheme:               schemeID,
+			CatchupPeriodSeconds: uint32(catchupPeriod),
+			// put the genesis a little in the future to give demo nodes some time to do the DKG
+			GenesisTime: timestamppb.New(time.Now().Add(10 * time.Second)),
+			Joining:     joiners,
+		},
+	},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
 }
@@ -51,28 +54,37 @@ func (r *DKGRunner) StartProposal(
 	remainers []*drand.Participant,
 	leavers []*drand.Participant,
 ) error {
-	_, err := r.Client.StartProposal(context.Background(), &drand.ProposalOptions{
-		BeaconID:             r.BeaconID,
-		Threshold:            uint32(threshold),
-		CatchupPeriodSeconds: uint32(catchupPeriod),
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
-		TransitionTime:       timestamppb.New(transitionTime),
-		Joining:              joiners,
-		Remaining:            remainers,
-		Leaving:              leavers,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
+		Resharing: &drand.ProposalOptions{
+			BeaconID:             r.BeaconID,
+			Threshold:            uint32(threshold),
+			CatchupPeriodSeconds: uint32(catchupPeriod),
+			Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+			TransitionTime:       timestamppb.New(transitionTime),
+			Joining:              joiners,
+			Remaining:            remainers,
+			Leaving:              leavers,
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
 }
 
 func (r *DKGRunner) StartExecution() error {
-	_, err := r.Client.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: r.BeaconID})
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
+		Execute: &drand.ExecutionOptions{BeaconID: r.BeaconID}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
+	})
 	return err
 }
 
 func (r *DKGRunner) JoinDKG() error {
-	_, err := r.Client.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  r.BeaconID,
-		GroupFile: nil,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+		Join: &drand.JoinOptions{
+			BeaconID:  r.BeaconID,
+			GroupFile: nil,
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err
@@ -84,17 +96,31 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.Client.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  r.BeaconID,
-		GroupFile: groupFileBytes.Bytes(),
+	_, err = r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+		Join: &drand.JoinOptions{
+			BeaconID:  r.BeaconID,
+			GroupFile: groupFileBytes.Bytes(),
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err
 }
 
 func (r *DKGRunner) Accept() error {
-	_, err := r.Client.StartAccept(context.Background(), &drand.AcceptOptions{
-		BeaconID: r.BeaconID,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
+		Accept: &drand.AcceptOptions{
+			BeaconID: r.BeaconID,
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
+	})
+	return err
+}
+
+func (r *DKGRunner) Abort() error {
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
+		Abort: &drand.AbortOptions{BeaconID: r.BeaconID}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err

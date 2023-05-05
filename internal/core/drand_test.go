@@ -458,7 +458,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 			require.NoError(t, err)
 
 			// trigger an abort
-			_, err = leaderClient.StartAbort(context.Background(), &drand.AbortOptions{BeaconID: beaconID})
+			err = leader.dkgRunner.Abort()
 			require.NoError(t, err)
 
 			// ensure that the abort has indeed been stored on the leader node and haven't updated their epoch
@@ -469,6 +469,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 			require.Equal(t, uint32(dkg2.Aborted), leaderStatus.Current.State)
 			require.Equal(t, uint32(1), leaderStatus.Complete.Epoch)
 
+			time.Sleep(1 * time.Second)
 			// ensure that the followers also have the aborted status and haven't updated their epoch
 			follower := dt.nodes[1]
 			followerClient, err := net.NewDKGControlClient(l, follower.drand.opts.controlPort)

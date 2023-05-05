@@ -1,60 +1,83 @@
 package dkg
 
 import (
-	"fmt"
+	"context"
+	"encoding/hex"
+	"sync"
+	"time"
+
+	"github.com/drand/drand/internal/net"
 
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// executeAction fetches the latest DKG state, applies the action to it and stores it back in the database
-func (d *Process) executeAction(
-	name string,
-	beaconID string,
-	action func(me *drand.Participant, current *DBState) (*DBState, error),
-) error {
-	return d.executeActionWithCallback(name, beaconID, action, nil)
-}
+//nolint:gocritic // ewww the linter wants me to use named parameters
+func (d *Process) gossip(
+	me *drand.Participant,
+	recipients []*drand.Participant,
+	packet *drand.GossipPacket,
+	terms *drand.ProposalTerms,
+) (chan bool, chan error) {
+	done := make(chan bool, 1)
+	errChan := make(chan error, 1)
 
-// executeActionWithCallback fetches the latest DKG state, applies the action to it, passes that new state
-// to a callback then stores the new state in the database if the callback was successful
-func (d *Process) executeActionWithCallback(
-	name string,
-	beaconID string,
-	createNewState func(me *drand.Participant, current *DBState) (*DBState, error),
-	callback func(me *drand.Participant, newState *DBState) error,
-) error {
-	var err error
-	d.log.Infow(fmt.Sprintf("Processing %s", name), "beaconID", beaconID)
+	// first we sign the message and attach it as metadata
+	metadata, err := d.signMessage(packet.Metadata.BeaconID, packet, terms)
+	if err != nil {
+		errChan <- err
+		return done, errChan
+	}
+	packet.Metadata = metadata
 
-	defer func() {
-		if err != nil {
-			d.log.Errorw(fmt.Sprintf("Error processing %s", name), "beaconID", beaconID, "error", err)
-		} else {
-			d.log.Infow(fmt.Sprintf("%s successful", name), "beaconID", beaconID)
+	// add the packet to the SeenPackets set,
+	// so we don't try and reprocess it when it gets gossiped back to us!
+	packetSig := hex.EncodeToString(packet.Metadata.Signature)
+	d.SeenPackets[packetSig] = true
+
+	wg := sync.WaitGroup{}
+
+	// we aren't gossiping to our own node, so we can remove one
+	wg.Add(len(recipients) - 1)
+	for _, participant := range recipients {
+		p := participant
+		if p.Address == me.Address {
+			continue
 		}
+
+		// attempt to gossip with exponential backoff
+		go func() {
+			err = d.sendToPeer(p, packet)
+			if err != nil {
+				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "err", err)
+				errChan <- err
+			}
+			wg.Done()
+		}()
+	}
+
+	// signal the done channel when all the gossips + retries have been completed
+	go func() {
+		wg.Wait()
+		done <- true
 	}()
 
-	me, err := d.identityForBeacon(beaconID)
-	if err != nil {
-		return err
-	}
+	return done, errChan
+}
 
-	current, err := d.store.GetCurrent(beaconID)
-	if err != nil {
-		return err
-	}
+func (d *Process) sendToPeer(p *drand.Participant, packet *drand.GossipPacket) error {
+	retries := 10
+	backoff := 250 * time.Millisecond
 
-	nextState, err := createNewState(me, current)
-	if err != nil {
-		return err
-	}
-
-	if callback != nil {
-		err = callback(me, nextState)
-		if err != nil {
-			return err
+	peer := net.CreatePeer(p.Address, p.Tls)
+	var err error
+	for i := 0; i < retries; i++ {
+		// we use a separate context here, so it can continue outside the lifecycle of the gRPC request
+		// that spawned the gossip request
+		_, err = d.internalClient.Packet(context.Background(), peer, packet)
+		if err == nil {
+			break
 		}
+		time.Sleep(time.Duration(i+1) * backoff)
 	}
-	err = d.store.SaveCurrent(beaconID, nextState)
 	return err
 }
