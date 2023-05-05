@@ -19,6 +19,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Broadcast is an interface that represents the minimum functionality required

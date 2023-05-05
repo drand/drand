@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/internal/net"
-
 	"github.com/drand/drand/protobuf/drand"
 )
 

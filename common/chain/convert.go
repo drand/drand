@@ -5,11 +5,10 @@ import (
 	"io"
 	"time"
 
-	json "github.com/nikkolasg/hexjson"
-
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	json "github.com/nikkolasg/hexjson"
 )
 
 // InfoFromProto returns a Info from the protocol description

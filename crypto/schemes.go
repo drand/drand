@@ -8,8 +8,6 @@ import (
 	"hash"
 	"os"
 
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
@@ -26,6 +24,7 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
+	"golang.org/x/crypto/blake2b"
 )
 
 type hashableBeacon interface {
