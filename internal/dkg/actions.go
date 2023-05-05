@@ -32,7 +32,7 @@ func (d *Process) gossip(
 
 	// add the packet to the SeenPackets set,
 	// so we don't try and reprocess it when it gets gossiped back to us!
-	packetSig := hex.EncodeToString(packet.Metadata.Signature)
+	packetSig := hex.EncodeToString(metadata.Signature)
 	d.SeenPackets[packetSig] = true
 
 	wg := sync.WaitGroup{}
@@ -47,7 +47,7 @@ func (d *Process) gossip(
 
 		// attempt to gossip with exponential backoff
 		go func() {
-			err = d.sendToPeer(p, packet)
+			err := sendToPeer(d.internalClient, p, packet)
 			if err != nil {
 				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "err", err)
 				errChan <- err
@@ -65,7 +65,7 @@ func (d *Process) gossip(
 	return done, errChan
 }
 
-func (d *Process) sendToPeer(p *drand.Participant, packet *drand.GossipPacket) error {
+func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
 	retries := 10
 	backoff := 250 * time.Millisecond
 
@@ -74,7 +74,7 @@ func (d *Process) sendToPeer(p *drand.Participant, packet *drand.GossipPacket) e
 	for i := 0; i < retries; i++ {
 		// we use a separate context here, so it can continue outside the lifecycle of the gRPC request
 		// that spawned the gossip request
-		_, err = d.internalClient.Packet(context.Background(), peer, packet)
+		_, err = client.Packet(context.Background(), peer, packet)
 		if err == nil {
 			break
 		}

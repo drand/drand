@@ -80,7 +80,10 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	// we ignore the errors here because it's a best effort gossip
+	// however we can continue with execution
 	_, _ = d.gossip(beaconID, me, recipients, packet, termsFromState(nextState))
+	// we could theoretically ignore when the gossip ends, but due to the mutex we're holding it _could_ lead to a race
+	// condition with future requests
 
 	if packet.GetExecute() != nil {
 		if err := d.executeDKG(ctx, beaconID); err != nil {
