@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -256,6 +257,11 @@ var (
 		Help: "Timestamp when the drand process started up in seconds since the Epoch",
 	})
 
+	ErrorSendingPartialCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "error_sending_partial",
+		Help: "Number of errors sending partial beacons to nodes. A good proxy for whether nodes are up or down",
+	}, []string{"beaconID", "round", "address"})
+
 	metricsBound sync.Once
 )
 
@@ -290,6 +296,7 @@ func bindMetrics(l log.Logger) {
 		IsDrandNode,
 		DrandStartTimestamp,
 		DrandStorageBackend,
+		ErrorSendingPartialCounter,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
@@ -524,4 +531,8 @@ func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	reshareState.WithLabelValues(beaconID).Set(float64(s))
 	reshareStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
 	reshareLeader.WithLabelValues(beaconID).Set(value)
+}
+
+func ErrorSendingPartial(beaconID string, round uint64, address string) {
+	ErrorSendingPartialCounter.WithLabelValues(beaconID, strconv.Itoa(int(round)), address).Inc()
 }

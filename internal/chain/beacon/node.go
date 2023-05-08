@@ -17,6 +17,7 @@ import (
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -555,7 +556,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
 				span.RecordError(err)
-				h.thresholdMonitor.ReportFailure(i.Address())
+				h.thresholdMonitor.ReportFailure(beaconID, round, i.Address())
 				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
