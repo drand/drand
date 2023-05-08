@@ -10,7 +10,7 @@ import (
 
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	dlog "github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
@@ -33,14 +33,14 @@ import (
 // signature requests.
 type BeaconProcess struct {
 	opts      *Config
-	priv      *key2.Pair
+	priv      *key.Pair
 	beaconID  string
 	chainHash []byte
 	// current group this drand node is using
-	group *key2.Group
+	group *key.Group
 	index int
 
-	store       key2.Store
+	store       key.Store
 	dbStore     chain.Store
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
@@ -49,7 +49,7 @@ type BeaconProcess struct {
 	completedDKGs <-chan dkg.SharingOutput
 
 	// dkg private share. can be nil if dkg not finished yet.
-	share *key2.Share
+	share *key.Share
 
 	// version indicates the base code variant
 	version common2.Version
@@ -70,7 +70,7 @@ type BeaconProcess struct {
 func NewBeaconProcess(
 	ctx context.Context,
 	log dlog.Logger,
-	store key2.Store,
+	store key.Store,
 	completedDKGs chan dkg.SharingOutput,
 	beaconID string,
 	opts *Config,
@@ -277,7 +277,7 @@ func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.Sh
 	return err
 }
 
-func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key2.Group, share *key2.Share) error {
+func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, share *key.Share) error {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 	bp.group = group
@@ -468,14 +468,14 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 	return bp.beacon, nil
 }
 
-func checkGroup(l dlog.Logger, group *key2.Group) {
+func checkGroup(l dlog.Logger, group *key.Group) {
 	unsigned := group.UnsignedIdentities()
 	if unsigned == nil {
 		return
 	}
 	info := make([]string, 0, len(unsigned))
 	for _, n := range unsigned {
-		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key2.PointToString(n.Key)[0:10]))
+		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
 	l.Infow("", "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
@@ -635,7 +635,7 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 	return common2.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 }
 
-func (bp *BeaconProcess) computePeers(nodes []*key2.Node) []net.Peer {
+func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {
 	nodeAddr := bp.priv.Public.Address()
 	var peers []net.Peer
 	for i := 0; i < len(nodes); i++ {

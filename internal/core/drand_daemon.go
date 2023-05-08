@@ -8,7 +8,7 @@ import (
 
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/dkg"
@@ -21,7 +21,7 @@ import (
 )
 
 type DrandDaemon struct {
-	initialStores   map[string]*key2.Store
+	initialStores   map[string]*key.Store
 	beaconProcesses map[string]*BeaconProcess
 	// hex encoded chainHash mapping to beaconID
 	chainHashes map[string]string
@@ -64,13 +64,13 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 		exitCh:          make(chan bool, 1),
 		completedDKGs:   make(chan dkg.SharingOutput),
 		version:         common2.GetAppVersion(),
-		initialStores:   make(map[string]*key2.Store),
+		initialStores:   make(map[string]*key.Store),
 		beaconProcesses: make(map[string]*BeaconProcess),
 		chainHashes:     make(map[string]string),
 	}
 
 	// Add callback to register a new handler for http server after finishing DKG successfully
-	c.dkgCallback = func(ctx context.Context, share *key2.Share, group *key2.Group) {
+	c.dkgCallback = func(ctx context.Context, share *key.Share, group *key.Group) {
 		beaconID := common2.GetCanonicalBeaconID(group.ID)
 
 		drandDaemon.state.Lock()
@@ -196,7 +196,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 }
 
 // InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
-func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID string, store key2.Store) (*BeaconProcess, error) {
+func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID string, store key.Store) (*BeaconProcess, error) {
 	ctx, span := metrics.NewSpan(ctx, "dd.InstantiateBeaconProcess")
 	defer span.End()
 
@@ -312,7 +312,7 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(ctx context.Context, metricsFlag stri
 	}
 
 	// Load possible existing stores
-	stores, err := key2.NewFileStores(dd.opts.ConfigFolderMB())
+	stores, err := key.NewFileStores(dd.opts.ConfigFolderMB())
 	if err != nil {
 		span.RecordError(err)
 		return err
@@ -356,11 +356,11 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(ctx context.Context, beaconID string) 
 	ctx, span := metrics.NewSpan(ctx, "dd.LoadBeaconFromDisk")
 	defer span.End()
 
-	store := key2.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
+	store := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
 	return dd.LoadBeaconFromStore(ctx, beaconID, store)
 }
 
-func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string, store key2.Store) (*BeaconProcess, error) {
+func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string, store key.Store) (*BeaconProcess, error) {
 	ctx, span := metrics.NewSpan(ctx, "dd.LoadBeaconFromStore")
 	defer span.End()
 

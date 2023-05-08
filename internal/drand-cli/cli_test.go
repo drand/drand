@@ -19,7 +19,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
@@ -50,8 +50,8 @@ func TestMigrate(t *testing.T) {
 	config := core.NewConfig(l, core.WithConfigFolder(tmp))
 	defaultBeaconPath := path.Join(config.ConfigFolderMB(), common.DefaultBeaconID)
 
-	newGroupFilePath := path.Join(defaultBeaconPath, key2.GroupFolderName)
-	newKeyFilePath := path.Join(defaultBeaconPath, key2.FolderName)
+	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
+	newKeyFilePath := path.Join(defaultBeaconPath, key.FolderName)
 	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
 
 	if !fs.FolderExists(defaultBeaconPath, newGroupFilePath) {
@@ -174,7 +174,7 @@ func TestKeySelfSign(t *testing.T) {
 
 	// load, remove signature and save
 	config := core.NewConfig(l, core.WithConfigFolder(tmp))
-	fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	pair, err := fileStore.LoadKeyPair(nil)
 	require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestKeyGen(t *testing.T) {
 	require.NoError(t, CLI().Run(args))
 
 	config := core.NewConfig(l, core.WithConfigFolder(tmp))
-	fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err := fileStore.LoadKeyPair(nil)
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
@@ -216,7 +216,7 @@ func TestKeyGen(t *testing.T) {
 	require.Error(t, CLI().Run(args))
 
 	config = core.NewConfig(l, core.WithConfigFolder(tmp2))
-	fileStore = key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore = key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err = fileStore.LoadKeyPair(nil)
 	require.Error(t, err)
 	require.Nil(t, priv)
@@ -233,7 +233,7 @@ func TestStartAndStop(t *testing.T) {
 
 	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
-	require.NoError(t, key2.Save(groupPath, group, false))
+	require.NoError(t, key.Save(groupPath, group, false))
 
 	privateAddr := test.Addresses(1)[0]
 
@@ -360,12 +360,12 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	ctrlPort1, ctrlPort2, metricsPort := test.FreePort(), test.FreePort(), test.FreePort()
 
-	priv, err := key2.NewKeyPair(addr, nil)
+	priv, err := key.NewKeyPair(addr, nil)
 	require.NoError(t, err)
-	require.NoError(t, key2.Save(pubPath, priv.Public, false))
+	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(lg, core.WithConfigFolder(tmpPath))
-	fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	require.NoError(t, fileStore.SaveKeyPair(priv))
 
 	startArgs := []string{
@@ -406,7 +406,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	// fake dkg output
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
-	distKey := &key2.DistPublic{
+	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{
 			fakeKey,
 			sch.KeyGroup.Point().Pick(random.New()),
@@ -418,10 +418,10 @@ func TestStartWithoutGroup(t *testing.T) {
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
 	group.PublicKey = distKey
-	group.Nodes[0] = &key2.Node{Identity: priv.Public, Index: 0}
-	group.Nodes[1] = &key2.Node{Identity: priv.Public, Index: 1}
+	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
+	group.Nodes[1] = &key.Node{Identity: priv.Public, Index: 1}
 	groupPath := path.Join(tmpPath, "drand_group.toml")
-	require.NoError(t, key2.Save(groupPath, group, false))
+	require.NoError(t, key.Save(groupPath, group, false))
 
 	// save it also to somewhere drand will find it
 	require.NoError(t, fileStore.SaveGroup(group))
@@ -429,7 +429,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	// fake share
 	scalarOne := sch.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
-	fakeShare := &key2.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
+	fakeShare := &key.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
 	require.NoError(t, fileStore.SaveShare(fakeShare))
 
 	// save a fake complete DKG in the store
@@ -498,7 +498,7 @@ func TestStartWithoutGroup(t *testing.T) {
 }
 
 //nolint:lll // This function has nicely named parameters, so it's long.
-func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key2.Group, fileStore key2.Store, beaconID string) {
+func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
 	lg := testlogger.New(t)
 
@@ -629,12 +629,12 @@ func TestClientTLS(t *testing.T) {
 	ctrlPort := test.FreePort()
 	metricsPort := test.FreePort()
 
-	priv, err := key2.NewTLSKeyPair(addr, nil)
+	priv, err := key.NewTLSKeyPair(addr, nil)
 	require.NoError(t, err)
-	require.NoError(t, key2.Save(pubPath, priv.Public, false))
+	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(lg, core.WithConfigFolder(tmpPath))
-	fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	err = fileStore.SaveKeyPair(priv)
 	require.NoError(t, err)
 
@@ -651,25 +651,25 @@ func TestClientTLS(t *testing.T) {
 	// fake dkg outuput
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
-	distKey := &key2.DistPublic{
+	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{
 			fakeKey,
 			sch.KeyGroup.Point().Pick(random.New()),
 			sch.KeyGroup.Point().Pick(random.New()),
 		},
 	}
-	group.Nodes[0] = &key2.Node{Identity: priv.Public, Index: 0}
+	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
 	group.Period = 2 * time.Minute
 	group.GenesisTime = time.Now().Unix()
 	group.PublicKey = distKey
 	require.NoError(t, fileStore.SaveGroup(group))
-	require.NoError(t, key2.Save(groupPath, group, false))
+	require.NoError(t, key.Save(groupPath, group, false))
 
 	// fake share
 	scalarOne := sch.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
 	// TODO: check DistKeyShare if it needs a scheme
-	fakeShare := &key2.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
+	fakeShare := &key.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
 	err = fileStore.SaveShare(fakeShare)
 	require.NoError(t, err)
 
@@ -704,7 +704,7 @@ func TestClientTLS(t *testing.T) {
 }
 
 //nolint:unused // This is used but the test it belongs is currently skipped
-func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key2.Group, priv *key2.Pair) {
+func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
 	lg := testlogger.New(t)
 
@@ -754,8 +754,8 @@ func getSBFolderStructure(t *testing.T) string {
 
 	tmp := path.Join(t.TempDir(), "drand")
 
-	fs.CreateSecureFolder(path.Join(tmp, key2.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key2.FolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.FolderName))
 	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	return tmp
@@ -1324,11 +1324,11 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 		// generate key so it loads
 		// TODO let's remove this requirement - no need for longterm keys
-		priv, err := key2.NewTLSKeyPair(addr, nil)
+		priv, err := key.NewTLSKeyPair(addr, nil)
 		require.NoError(t, err)
-		require.NoError(t, key2.Save(pubPath, priv.Public, false))
+		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(l, core.WithConfigFolder(nodePath))
-		fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+		fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 		err = fileStore.SaveKeyPair(priv)
 		require.NoError(t, err)
 

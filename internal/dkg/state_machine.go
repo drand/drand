@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"time"
 
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
@@ -87,8 +87,8 @@ type DBState struct {
 	Acceptors []*drand.Participant
 	Rejectors []*drand.Participant
 
-	FinalGroup *key2.Group
-	KeyShare   *key2.Share
+	FinalGroup *key.Group
+	KeyShare   *key.Share
 }
 
 // Equals does a deep equal comparison on all the values in the `DBState`
@@ -145,18 +145,18 @@ type DBStateTOML struct {
 	Acceptors []*drand.Participant
 	Rejectors []*drand.Participant
 
-	FinalGroup *key2.GroupTOML
-	KeyShare   *key2.ShareTOML
+	FinalGroup *key.GroupTOML
+	KeyShare   *key.ShareTOML
 }
 
 func (d *DBState) TOML() DBStateTOML {
-	var finalGroup *key2.GroupTOML
+	var finalGroup *key.GroupTOML
 	if d.FinalGroup != nil {
-		finalGroup = d.FinalGroup.TOML().(*key2.GroupTOML)
+		finalGroup = d.FinalGroup.TOML().(*key.GroupTOML)
 	}
-	var keyShare *key2.ShareTOML
+	var keyShare *key.ShareTOML
 	if d.KeyShare != nil {
-		keyShare = d.KeyShare.TOML().(*key2.ShareTOML)
+		keyShare = d.KeyShare.TOML().(*key.ShareTOML)
 	}
 
 	return DBStateTOML{
@@ -183,18 +183,18 @@ func (d *DBState) TOML() DBStateTOML {
 }
 
 func (d *DBStateTOML) FromTOML() (*DBState, error) {
-	var share *key2.Share
+	var share *key.Share
 	if d.KeyShare != nil {
-		share = &key2.Share{}
+		share = &key.Share{}
 		err := share.FromTOML(d.KeyShare)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	var finalGroup *key2.Group
+	var finalGroup *key.Group
 	if d.FinalGroup != nil {
-		finalGroup = &key2.Group{}
+		finalGroup = &key.Group{}
 		sch, err := crypto.GetSchemeByIDWithDefault(d.SchemeID)
 		if err != nil {
 			return nil, err
@@ -237,7 +237,7 @@ func NewFreshState(beaconID string) *DBState {
 	}
 }
 
-func (d *DBState) Joined(me *drand.Participant, previousGroup *key2.Group) (*DBState, error) {
+func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBState, error) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange(d.State, Joined)
 	}
@@ -442,7 +442,7 @@ func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) Complete(finalGroup *key2.Group, share *key2.Share) (*DBState, error) {
+func (d *DBState) Complete(finalGroup *key.Group, share *key.Share) (*DBState, error) {
 	if !isValidStateChange(d.State, Complete) {
 		return nil, InvalidStateChange(d.State, Complete)
 	}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	common2 "github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/internal/chain"
@@ -25,11 +25,11 @@ import (
 // randomness beacon.
 type Config struct {
 	// Public key of this node
-	Public *key2.Node
+	Public *key.Node
 	// Share of this node in the network
-	Share *key2.Share
+	Share *key.Share
 	// Group listing all nodes and public key of the network
-	Group *key2.Group
+	Group *key.Group
 	// Clock to use - useful to testing
 	Clock clock.Clock
 }
@@ -265,7 +265,7 @@ func (h *Handler) Catchup(ctx context.Context) {
 // "TransitionTime" in the handler's group file, where he will start generating
 // randomness. To sync, he contacts the nodes listed in the previous group file
 // given.
-func (h *Handler) Transition(ctx context.Context, prevGroup *key2.Group) error {
+func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 	ctx, span := metrics.NewSpan(ctx, "h.Transition")
 	defer span.End()
 
@@ -291,7 +291,7 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key2.Group) error {
 }
 
 // TransitionNewGroup prepares the node to transition to the new group
-func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key2.Share, newGroup *key2.Group) {
+func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, newGroup *key.Group) {
 	if h == nil {
 		return
 	}
@@ -530,7 +530,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 		if h.addr == id.Address() {
 			continue
 		}
-		go func(i key2.Identity) {
+		go func(i key.Identity) {
 			ctx, span := metrics.NewSpan(ctx, "h.broadcastNextPartial.SendTo")
 			defer span.End()
 

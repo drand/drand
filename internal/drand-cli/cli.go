@@ -21,7 +21,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	common3 "github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
@@ -868,13 +868,13 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	var priv *key2.Pair
+	var priv *key.Pair
 	if c.Bool(insecureFlag.Name) {
 		fmt.Println("Generating private / public key pair without TLS.")
-		priv, err = key2.NewKeyPair(addr, sch)
+		priv, err = key.NewKeyPair(addr, sch)
 	} else {
 		fmt.Println("Generating private / public key pair with TLS indication")
-		priv, err = key2.NewTLSKeyPair(addr, sch)
+		priv, err = key.NewTLSKeyPair(addr, sch)
 	}
 	if err != nil {
 		return err
@@ -882,7 +882,7 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 
 	config := contextToConfig(c, l)
 	beaconID := getBeaconID(c)
-	fileStore := key2.NewFileStore(config.ConfigFolderMB(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	if _, err := fileStore.LoadKeyPair(sch); err == nil {
 		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
@@ -893,7 +893,7 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("could not save key: %w", err)
 	}
 
-	fullpath := path.Join(config.ConfigFolderMB(), beaconID, key2.FolderName)
+	fullpath := path.Join(config.ConfigFolderMB(), beaconID, key.FolderName)
 	absPath, err := filepath.Abs(fullpath)
 
 	if err != nil {
@@ -911,10 +911,10 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func groupOut(c *cli.Context, group *key2.Group) error {
+func groupOut(c *cli.Context, group *key.Group) error {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
-		if err := key2.Save(groupPath, group, false); err != nil {
+		if err := key.Save(groupPath, group, false); err != nil {
 			return fmt.Errorf("drand: can't save group to specified file name: %w", err)
 		}
 	} else if c.Bool(hashOnly.Name) {
@@ -943,8 +943,8 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 		if err := testEmptyGroup(c.String(groupFlag.Name)); err != nil {
 			return err
 		}
-		group := new(key2.Group)
-		if err := key2.Load(c.String(groupFlag.Name), group); err != nil {
+		group := new(key.Group)
+		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			return fmt.Errorf("loading group failed: %w", err)
 		}
 
@@ -1021,7 +1021,7 @@ func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls boo
 		lg.Errorw("received an invalid SchemeName in identity response", "received", identityResp.SchemeName)
 		return err
 	}
-	id, err := key2.IdentityFromProto(identity, sch)
+	id, err := key.IdentityFromProto(identity, sch)
 	if err != nil {
 		return err
 	}
@@ -1120,13 +1120,13 @@ func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
 
-func getGroup(c *cli.Context) (*key2.Group, error) {
-	g := &key2.Group{}
+func getGroup(c *cli.Context) (*key.Group, error) {
+	g := &key.Group{}
 	groupPath := c.Args().First()
 	if err := testEmptyGroup(groupPath); err != nil {
 		return nil, err
 	}
-	if err := key2.Load(groupPath, g); err != nil {
+	if err := key.Load(groupPath, g); err != nil {
 		return nil, fmt.Errorf("drand: error loading group file: %w", err)
 	}
 	return g, nil
@@ -1217,12 +1217,12 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	return conf
 }
 
-func getNodes(c *cli.Context) ([]*key2.Node, error) {
+func getNodes(c *cli.Context) ([]*key.Node, error) {
 	group, err := getGroup(c)
 	if err != nil {
 		return nil, err
 	}
-	var ids []*key2.Node
+	var ids []*key.Node
 	gids := group.Nodes
 	if c.IsSet("nodes") {
 		// search nodes listed on the flag in the group
@@ -1294,17 +1294,17 @@ func getDBStoresPaths(c *cli.Context, l log.Logger) (map[string]string, error) {
 	return stores, nil
 }
 
-func getKeyStores(c *cli.Context, l log.Logger) (map[string]key2.Store, error) {
+func getKeyStores(c *cli.Context, l log.Logger) (map[string]key.Store, error) {
 	conf := contextToConfig(c, l)
 
 	if c.IsSet(allBeaconsFlag.Name) {
-		return key2.NewFileStores(conf.ConfigFolderMB())
+		return key.NewFileStores(conf.ConfigFolderMB())
 	}
 
 	beaconID := getBeaconID(c)
 
-	store := key2.NewFileStore(conf.ConfigFolderMB(), beaconID)
-	stores := map[string]key2.Store{beaconID: store}
+	store := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
+	stores := map[string]key.Store{beaconID: store}
 
 	return stores, nil
 }

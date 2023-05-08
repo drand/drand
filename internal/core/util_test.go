@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
@@ -47,7 +47,7 @@ type DrandTestScenario struct {
 	beaconID      string
 
 	// only set after the DKG
-	group *key2.Group
+	group *key.Group
 	// needed to give the group to new nodes during a resharing - only set after
 	// a successful DKG
 	groupPath string
@@ -76,10 +76,10 @@ func BatchNewDrand(
 	beaconID string,
 	opts ...ConfigOption,
 ) (
-	daemons []*DrandDaemon, drands []*BeaconProcess, group *key2.Group, dir string, certPaths []string,
+	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
 	t.Logf("Creating %d nodes for beaconID %s\n", n, beaconID)
-	var privs []*key2.Pair
+	var privs []*key.Pair
 	if insecure {
 		privs, group = test.BatchIdentities(n, sch, beaconID)
 	} else {
@@ -415,7 +415,7 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 	return d.newNodes
 }
 
-func (d *DrandTestScenario) RunDKG(t *testing.T) (*key2.Group, error) {
+func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 	if len(d.nodes) == 0 {
 		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")
 	}
@@ -470,7 +470,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key2.Group, error) {
 
 // WaitForDKG waits for the DKG complete and returns the group file
 // it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
-func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint32, numberOfSeconds int) (*key2.Group, error) {
+func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
 	err := node.dkgRunner.WaitForDKG(node.drand.log, d.beaconID, epoch, numberOfSeconds)
 	if err != nil {
 		return nil, err
@@ -490,7 +490,7 @@ func (d *DrandTestScenario) RunReshare(
 	t *testing.T,
 	remainingNodes []*MockNode,
 	joiningNodes []*MockNode,
-) (*key2.Group, error) {
+) (*key.Group, error) {
 	return d.RunReshareWithHooks(t, remainingNodes, joiningNodes, lifecycleHooks{})
 }
 
@@ -500,7 +500,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 	remainingNodes []*MockNode,
 	joiningNodes []*MockNode,
 	hooks lifecycleHooks,
-) (*key2.Group, error) {
+) (*key.Group, error) {
 	if len(remainingNodes) == 0 {
 		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")
 	}

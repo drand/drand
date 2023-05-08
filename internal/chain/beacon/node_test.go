@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
@@ -60,7 +60,7 @@ func (t *testBeaconServer) Migrate(context.Context, *drand.Empty) (*drand.Empty,
 	return &drand.Empty{}, nil
 }
 
-func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key2.Share, []kyber.Point) {
+func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
 	var err error
@@ -86,12 +86,12 @@ func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key2.Share, []k
 	sigs := make([][]byte, n)
 
 	_, commits := pubPoly.Info()
-	dkgShares := make([]*key2.Share, n)
+	dkgShares := make([]*key.Share, n)
 	for i := 0; i < n; i++ {
 		sigs[i], err = sch.ThresholdScheme.Sign(shares[i], msg)
 		require.NoError(t, err)
 
-		dkgShares[i] = &key2.Share{DistKeyShare: dkg.DistKeyShare{Share: shares[i], Commits: commits}, Scheme: sch}
+		dkgShares[i] = &key.Share{DistKeyShare: dkg.DistKeyShare{Share: shares[i], Commits: commits}, Scheme: sch}
 	}
 	sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, sigs, thr, n)
 	require.NoError(t, err)
@@ -103,8 +103,8 @@ func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key2.Share, []k
 
 type node struct {
 	index    int // group index
-	private  *key2.Pair
-	shares   *key2.Share
+	private  *key.Pair
+	shares   *key.Share
 	handler  *Handler
 	listener net.Listener
 	clock    clock.FakeClock
@@ -117,10 +117,10 @@ type BeaconTest struct {
 	n        int
 	thr      int
 	beaconID string
-	shares   []*key2.Share
+	shares   []*key.Share
 	period   time.Duration
-	group    *key2.Group
-	privs    []*key2.Pair
+	group    *key.Group
+	privs    []*key.Pair
 	dpublic  kyber.Point
 	nodes    map[int]*node
 	time     clock.FakeClock
@@ -138,7 +138,7 @@ func NewBeaconTest(ctx context.Context, t *testing.T, n, thr int, period time.Du
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
-	group.PublicKey = &key2.DistPublic{Coefficients: commits}
+	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
 		prefix:   prefix,
@@ -164,7 +164,7 @@ func NewBeaconTest(ctx context.Context, t *testing.T, n, thr int, period time.Du
 }
 
 func (b *BeaconTest) CreateNode(ctx context.Context, t *testing.T, i int) {
-	findShare := func(target int) *key2.Share {
+	findShare := func(target int) *key.Share {
 		for _, s := range b.shares {
 			if s.Share.I == target {
 				return s

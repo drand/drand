@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/client/grpc"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
@@ -39,7 +39,7 @@ type LocalNode struct {
 	ctrlClient *net.ControlClient
 	dkgRunner  *test.DKGRunner
 	tls        bool
-	priv       *key2.Pair
+	priv       *key.Pair
 
 	dbEngineType chain.StorageType
 	pgDSN        func() string
@@ -90,11 +90,11 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient},
 	}
 
-	var priv *key2.Pair
+	var priv *key.Pair
 	if l.tls {
-		priv, err = key2.NewTLSKeyPair(l.privAddr, l.scheme)
+		priv, err = key.NewTLSKeyPair(l.privAddr, l.scheme)
 	} else {
-		priv, err = key2.NewKeyPair(l.privAddr, l.scheme)
+		priv, err = key.NewKeyPair(l.privAddr, l.scheme)
 	}
 	if err != nil {
 		panic(err)
@@ -142,13 +142,13 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 	}
 
 	conf := core.NewConfig(l.log, opts...)
-	ks := key2.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
+	ks := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	err = ks.SaveKeyPair(l.priv)
 	if err != nil {
 		return err
 	}
 
-	err = key2.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
+	err = key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 	}
 
 	// Load possible existing stores
-	stores, err := key2.NewFileStores(conf.ConfigFolderMB())
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (l *LocalNode) ExecuteLeaderDKG() error {
 	return l.dkgRunner.StartExecution()
 }
 
-func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key2.Group, error) {
+func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
 	err := l.dkgRunner.WaitForDKG(l.log, l.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
@@ -256,17 +256,17 @@ func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key2.
 		return nil, err
 	}
 
-	return key2.GroupFromProto(groupPacket, l.scheme)
+	return key.GroupFromProto(groupPacket, l.scheme)
 }
 func (l *LocalNode) JoinDKG() error {
 	return l.dkgRunner.JoinDKG()
 }
 
-func (l *LocalNode) JoinReshare(oldGroup key2.Group) error {
+func (l *LocalNode) JoinReshare(oldGroup key.Group) error {
 	return l.dkgRunner.JoinReshare(&oldGroup)
 }
 
-func (l *LocalNode) GetGroup() *key2.Group {
+func (l *LocalNode) GetGroup() *key.Group {
 	cl := l.ctrl()
 
 	grp, err := cl.GroupFile(l.beaconID)
@@ -274,7 +274,7 @@ func (l *LocalNode) GetGroup() *key2.Group {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
-	group, err := key2.GroupFromProto(grp, l.scheme)
+	group, err := key.GroupFromProto(grp, l.scheme)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil
@@ -367,7 +367,7 @@ func (l *LocalNode) WriteCertificate(p string) {
 }
 
 func (l *LocalNode) WritePublic(p string) {
-	checkErr(key2.Save(p, l.priv.Public, false))
+	checkErr(key.Save(p, l.priv.Public, false))
 }
 
 func (l *LocalNode) Stop() {

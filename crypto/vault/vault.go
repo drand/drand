@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber/share"
@@ -24,16 +24,16 @@ type Vault struct {
 	mu  sync.RWMutex
 	*crypto.Scheme
 	// current share of the node
-	share *key2.Share
+	share *key.Share
 	// public polynomial to verify a partial beacon
 	pub *share.PubPoly
 	// chain info to verify final random beacon
 	chain *chain.Info
 	// to know the threshold, transition time etc
-	group *key2.Group
+	group *key.Group
 }
 
-func NewVault(l log.Logger, currentGroup *key2.Group, ks *key2.Share, sch *crypto.Scheme) *Vault {
+func NewVault(l log.Logger, currentGroup *key.Group, ks *key.Share, sch *crypto.Scheme) *Vault {
 	return &Vault{
 		log:    l,
 		Scheme: sch,
@@ -45,7 +45,7 @@ func NewVault(l log.Logger, currentGroup *key2.Group, ks *key2.Share, sch *crypt
 }
 
 // GetGroup returns the current group
-func (v *Vault) GetGroup() *key2.Group {
+func (v *Vault) GetGroup() *key.Group {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 	return v.group
@@ -77,7 +77,7 @@ func (v *Vault) Index() int {
 	return v.share.Share.I
 }
 
-func (v *Vault) SetInfo(newGroup *key2.Group, ks *key2.Share) {
+func (v *Vault) SetInfo(newGroup *key.Group, ks *key.Share) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.share = ks

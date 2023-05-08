@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/util"
@@ -166,7 +166,7 @@ func (d *Process) startDKGExecution(ctx context.Context, beaconID string, curren
 		if err != nil {
 			return nil, err
 		}
-		share := key2.Share{DistKeyShare: *result.Result.Key, Scheme: keypair.Scheme()}
+		share := key.Share{DistKeyShare: *result.Result.Key, Scheme: keypair.Scheme()}
 
 		var finalGroup []dkg.Node
 		// the index in the for loop may _not_ align with the index returned in QUAL!
@@ -189,27 +189,27 @@ func (d *Process) startDKGExecution(ctx context.Context, beaconID string, curren
 	}
 }
 
-func asGroup(ctx context.Context, details *DBState, keyShare *key2.Share, finalNodes []dkg.Node) (key2.Group, error) {
+func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
 	_, span := metrics.NewSpan(ctx, "dkg.asGroup")
 	defer span.End()
 
 	sch, found := crypto.GetSchemeByID(details.SchemeID)
 	if !found {
-		return key2.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
+		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
 	}
 
 	allSortedParticipants := util.SortedByPublicKey(append(details.Remaining, details.Joining...))
 
-	remainingNodes := make([]*key2.Node, len(finalNodes))
+	remainingNodes := make([]*key.Node, len(finalNodes))
 	for i, v := range finalNodes {
 		mappedNode, err := util.ToKeyNode(int(v.Index), allSortedParticipants[v.Index], keyShare.Scheme)
 		if err != nil {
-			return key2.Group{}, err
+			return key.Group{}, err
 		}
 		remainingNodes[i] = &mappedNode
 	}
 
-	group := key2.Group{
+	group := key.Group{
 		ID:             details.BeaconID,
 		Threshold:      int(details.Threshold),
 		Period:         details.BeaconPeriod,
@@ -229,7 +229,7 @@ func asGroup(ctx context.Context, details *DBState, keyShare *key2.Share, finalN
 	return group, nil
 }
 
-func (d *Process) initialDKGConfig(current *DBState, keypair *key2.Pair, sortedParticipants []*drand.Participant) (*dkg.Config, error) {
+func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedParticipants []*drand.Participant) (*dkg.Config, error) {
 	sch := keypair.Scheme()
 	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, func(index int, participant *drand.Participant) (dkg.Node, error) {
 		return util.ToNode(index, participant, sch)
@@ -270,7 +270,7 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key2.Pair, sortedP
 
 func (d *Process) reshareDKGConfig(
 	current, previous *DBState,
-	keypair *key2.Pair,
+	keypair *key.Pair,
 	sortedParticipants []*drand.Participant,
 ) (*dkg.Config, error) {
 	if previous == nil {

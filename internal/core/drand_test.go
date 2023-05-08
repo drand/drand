@@ -13,7 +13,7 @@ import (
 
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	derrors "github.com/drand/drand/internal/chain/errors"
@@ -100,7 +100,7 @@ func TestRunDKG(t *testing.T) {
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key2.DefaultThreshold(n), expectedBeaconPeriod, beaconID, clockwork.NewFakeClock())
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, beaconID, clockwork.NewFakeClock())
 
 	group, err := dt.RunDKG(t)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestRunDKGLarge(t *testing.T) {
 	dt := NewDrandTestScenario(
 		t,
 		n,
-		key2.DefaultThreshold(n),
+		key.DefaultThreshold(n),
 		expectedBeaconPeriod,
 		beaconID,
 		clockwork.NewFakeClock(),
@@ -158,7 +158,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	beaconPeriod := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key2.DefaultThreshold(n), beaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), beaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
 	// Run DKG
 	finalGroup, err := dt.RunDKG(t)
@@ -442,7 +442,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
-	dt := NewDrandTestScenario(t, n, key2.DefaultThreshold(n), expectedBeaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
 	// first lets run a successful initial DKG
 	group, err := dt.RunDKG(t)
@@ -494,7 +494,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 func TestDrandPublicChainInfo(t *testing.T) {
 	ctx := context.Background()
 	n := 10
-	thr := key2.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -549,7 +549,7 @@ func TestDrandPublicRand(t *testing.T) {
 		t.Skip("test is flacky in CI")
 	}
 	n := 4
-	thr := key2.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -639,7 +639,7 @@ func TestDrandPublicStream(t *testing.T) {
 		t.Skip("test is flacky in CI")
 	}
 	n := 4
-	thr := key2.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 	sleepDuration := 100 * time.Millisecond
@@ -792,7 +792,7 @@ func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key2.DefaultThreshold(n), p, beaconID, clockwork.NewFakeClockAt(time.Now()))
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
 	group, err := dt.RunDKG(t)
 	require.NoError(t, err)
@@ -925,7 +925,7 @@ func TestDrandCheckChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key2.DefaultThreshold(n), p, beaconID, clockwork.NewFakeClockAt(time.Now()))
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
 	group, err := dt.RunDKG(t)
 	require.NoError(t, err)
@@ -1064,7 +1064,7 @@ func TestDrandCheckChain(t *testing.T) {
 // Test if we can correctly fetch the rounds through the local proxy
 func TestDrandPublicStreamProxy(t *testing.T) {
 	n := 4
-	thr := key2.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -1135,7 +1135,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 
 	// set up 3 nodes for a test
 	n := 3
-	thr := key2.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -1146,7 +1146,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	priv := node.drand.priv
 
 	// set a persistent keystore, as the normal test ones are ephemeral
-	store := key2.NewFileStore(dir, beaconID)
+	store := key.NewFileStore(dir, beaconID)
 	node.drand.store = store
 
 	// save the key pair, as this was done ephemerally inside `NewDrandTestScenario` >.>
@@ -1166,7 +1166,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// modify your entry (well, all of them!) in the group file to change the TLS status
-	groupPath := path.Join(dir, beaconID, key2.GroupFolderName, "drand_group.toml")
+	groupPath := path.Join(dir, beaconID, key.GroupFolderName, "drand_group.toml")
 
 	// read
 	groupFileReader, err := os.Open(groupPath)
@@ -1203,7 +1203,7 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 	t.Setenv("SCHEME_ID", "")
 
 	_, err := scenario.RunDKG(t)
-	require.ErrorContainsf(t, err, key2.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
+	require.ErrorContainsf(t, err, key.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
 }
 
 // AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.

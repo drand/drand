@@ -13,7 +13,7 @@ import (
 	"time"
 
 	commonutils "github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/kyber"
@@ -141,35 +141,35 @@ func FreePort() string {
 }
 
 // GenerateIDs returns n keys with random port 127.0.0.1 addresses
-func GenerateIDs(n int) []*key2.Pair {
-	keys := make([]*key2.Pair, n)
+func GenerateIDs(n int) []*key.Pair {
+	keys := make([]*key.Pair, n)
 	addrs := Addresses(n)
 	for i := range addrs {
-		priv, _ := key2.NewKeyPair(addrs[i], nil)
+		priv, _ := key.NewKeyPair(addrs[i], nil)
 		keys[i] = priv
 	}
 	return keys
 }
 
 // BatchIdentities generates n insecure identities
-func BatchIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key2.Pair, *key2.Group) {
+func BatchIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
 	beaconID = commonutils.GetCanonicalBeaconID(beaconID)
 	privs := GenerateIDs(n)
 
-	thr := key2.MinimumT(n)
+	thr := key.MinimumT(n)
 	var dpub []kyber.Point
 	for i := 0; i < thr; i++ {
 		dpub = append(dpub, sch.KeyGroup.Point().Pick(random.New()))
 	}
 
-	dp := &key2.DistPublic{Coefficients: dpub}
-	group := key2.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0, sch, beaconID)
+	dp := &key.DistPublic{Coefficients: dpub}
+	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0, sch, beaconID)
 	group.Threshold = thr
 	return privs, group
 }
 
 // BatchTLSIdentities generates n secure (TLS) identities
-func BatchTLSIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key2.Pair, *key2.Group) {
+func BatchTLSIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
 	pairs, group := BatchIdentities(n, sch, beaconID)
 	for i := 0; i < n; i++ {
 		pairs[i].Public.TLS = true
@@ -178,10 +178,10 @@ func BatchTLSIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key2.Pai
 }
 
 // ListFromPrivates returns a list of Identity from a list of Pair keys.
-func ListFromPrivates(keys []*key2.Pair) []*key2.Node {
-	list := make([]*key2.Node, len(keys))
+func ListFromPrivates(keys []*key.Pair) []*key.Node {
+	list := make([]*key.Node, len(keys))
 	for i := range keys {
-		list[i] = &key2.Node{
+		list[i] = &key.Node{
 			Index:    uint32(i),
 			Identity: keys[i].Public,
 		}

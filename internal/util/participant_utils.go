@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"sort"
 
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -74,7 +74,7 @@ func EqualParticipant(p1, p2 *drand.Participant) bool {
 		reflect.DeepEqual(p1.Signature, p2.Signature)
 }
 
-func PublicKeyAsParticipant(identity *key2.Identity) (*drand.Participant, error) {
+func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {
 	pubKey, err := identity.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
 	public, err := pkToPoint(participant.PubKey, sch)
 	if err != nil {
-		return dkg.Node{}, key2.ErrInvalidKeyScheme
+		return dkg.Node{}, key.ErrInvalidKeyScheme
 	}
 	return dkg.Node{
 		Public: public,
@@ -100,15 +100,15 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 	}, nil
 }
 
-func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (key2.Node, error) {
+func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (key.Node, error) {
 	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
 	public, err := pkToPoint(participant.PubKey, sch)
 	if err != nil {
-		return key2.Node{}, key2.ErrInvalidKeyScheme
+		return key.Node{}, key.ErrInvalidKeyScheme
 	}
 
-	return key2.Node{
-		Identity: &key2.Identity{
+	return key.Node{
+		Identity: &key.Identity{
 			Key:       public,
 			Addr:      participant.Address,
 			TLS:       participant.Tls,

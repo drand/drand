@@ -1,57 +1,57 @@
 package test
 
 import (
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 )
 
 type KeyStore struct {
-	priv  *key2.Pair
-	share *key2.Share
-	group *key2.Group
-	dist  *key2.DistPublic
+	priv  *key.Pair
+	share *key.Share
+	group *key.Group
+	dist  *key.DistPublic
 }
 
-func NewKeyStore() key2.Store {
+func NewKeyStore() key.Store {
 	return &KeyStore{}
 }
 
-func (k *KeyStore) SaveKeyPair(p *key2.Pair) error {
+func (k *KeyStore) SaveKeyPair(p *key.Pair) error {
 	k.priv = p
 	return nil
 }
 
-func (k *KeyStore) LoadKeyPair(_ *crypto.Scheme) (*key2.Pair, error) {
+func (k *KeyStore) LoadKeyPair(_ *crypto.Scheme) (*key.Pair, error) {
 	return k.priv, nil
 }
 
-func (k *KeyStore) SaveShare(share *key2.Share) error {
+func (k *KeyStore) SaveShare(share *key.Share) error {
 	k.share = share
 	return nil
 }
 
-func (k *KeyStore) LoadShare(_ *crypto.Scheme) (*key2.Share, error) {
+func (k *KeyStore) LoadShare(_ *crypto.Scheme) (*key.Share, error) {
 	return k.share, nil
 }
 
-func (k *KeyStore) SaveGroup(g *key2.Group) error {
+func (k *KeyStore) SaveGroup(g *key.Group) error {
 	k.group = g
 	return nil
 }
 
-func (k *KeyStore) LoadGroup() (*key2.Group, error) {
+func (k *KeyStore) LoadGroup() (*key.Group, error) {
 	return k.group, nil
 }
 
-func (k *KeyStore) SaveDistPublic(d *key2.DistPublic) error {
+func (k *KeyStore) SaveDistPublic(d *key.DistPublic) error {
 	k.dist = d
 	return nil
 }
-func (k *KeyStore) LoadDistPublic() (*key2.DistPublic, error) {
+func (k *KeyStore) LoadDistPublic() (*key.DistPublic, error) {
 	return k.dist, nil
 }
 
-func (k *KeyStore) Reset(_ ...key2.ResetOption) error {
+func (k *KeyStore) Reset(_ ...key.ResetOption) error {
 	k.group = nil
 	k.dist = nil
 	k.share = nil

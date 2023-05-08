@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
@@ -1283,8 +1283,8 @@ func TestEviction(t *testing.T) {
 
 func TestCompleteDKG(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
-	finalGroup := key2.Group{}
-	keyShare := key2.Share{}
+	finalGroup := key.Group{}
+	keyShare := key.Share{}
 
 	tests := []stateChangeTableTest{
 		{
@@ -1533,7 +1533,7 @@ func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 
 func NewParticipant(name string) *drand.Participant {
 	sch, _ := crypto.GetSchemeFromEnv()
-	k, _ := key2.NewKeyPair(name, sch)
+	k, _ := key.NewKeyPair(name, sch)
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address: name,
@@ -1569,13 +1569,13 @@ func NewCompleteDKGEntry(t *testing.T, beaconID string, status Status, previousL
 		KeyShare:   nil,
 	}
 	sch, _ := crypto.GetSchemeFromEnv()
-	nodes, err := util.TryMapEach[*key2.Node](state.Remaining, func(index int, p *drand.Participant) (*key2.Node, error) {
+	nodes, err := util.TryMapEach[*key.Node](state.Remaining, func(index int, p *drand.Participant) (*key.Node, error) {
 		n, err := util.ToKeyNode(index, p, sch)
 		return &n, err
 	})
 	require.NoError(t, err, "error mapping participants to node")
 
-	group := key2.Group{
+	group := key.Group{
 		Threshold:      int(state.Threshold),
 		Period:         state.BeaconPeriod,
 		Scheme:         sch,

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/postgresdb/database"
@@ -39,7 +39,7 @@ type Config struct {
 	pgDSN                 string
 	pgConn                *sqlx.DB
 	memDBSize             int
-	dkgCallback           func(context.Context, *key2.Share, *key2.Group)
+	dkgCallback           func(context.Context, *key.Share, *key.Group)
 	certPath              string
 	keyPath               string
 	certmanager           *net.CertManager

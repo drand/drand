@@ -11,7 +11,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/drand/drand/common/chain"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/core/migration"
@@ -235,7 +235,7 @@ func showGroupCmd(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("fetching group file error: %w", err)
 	}
 
-	group, err := key2.GroupFromProto(r, nil)
+	group, err := key.GroupFromProto(r, nil)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func selfSign(c *cli.Context, l log.Logger) error {
 
 	beaconID := getBeaconID(c)
 
-	fs := key2.NewFileStore(conf.ConfigFolderMB(), beaconID)
+	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
 	pair, err := fs.LoadKeyPair(nil)
 
 	if err != nil {

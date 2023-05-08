@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
@@ -46,8 +46,8 @@ type NodeProc struct {
 	logPath      string
 	privAddr     string
 	pubAddr      string
-	priv         *key2.Pair
-	store        key2.Store
+	priv         *key.Pair
+	store        key.Store
 	cancel       context.CancelFunc
 	ctrl         string
 	isCandidate  bool
@@ -148,7 +148,7 @@ func (n *NodeProc) setup() {
 		Client:   dkgClient,
 	}
 	// call drand binary
-	n.priv, err = key2.NewKeyPair(n.privAddr, n.scheme)
+	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
 	if err != nil {
 		panic(err)
 	}
@@ -163,14 +163,14 @@ func (n *NodeProc) setup() {
 	runCommand(newKey)
 
 	config := core.NewConfig(n.lg, core.WithConfigFolder(n.base))
-	n.store = key2.NewFileStore(config.ConfigFolderMB(), n.beaconID)
+	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
 	n.priv, err = n.store.LoadKeyPair(nil)
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
 	}
-	checkErr(key2.Save(n.publicPath, n.priv.Public, false))
+	checkErr(key.Save(n.publicPath, n.priv.Public, false))
 	n.ctrl = ctrlPort
 	checkErr(err)
 }
@@ -298,7 +298,7 @@ func (n *NodeProc) JoinDKG() error {
 	return nil
 }
 
-func (n *NodeProc) JoinReshare(oldGroup key2.Group) error {
+func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	groupFilePath := "group.toml"
 	joinArgs := []string{
 		"dkg", "join",
@@ -375,7 +375,7 @@ func (n *NodeProc) AcceptReshare() error {
 	return nil
 }
 
-func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key2.Group, error) {
+func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
 	err := n.dkgRunner.WaitForDKG(n.lg, n.beaconID, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
@@ -383,13 +383,13 @@ func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key2.G
 	return n.store.LoadGroup()
 }
 
-func (n *NodeProc) GetGroup() *key2.Group {
+func (n *NodeProc) GetGroup() *key.Group {
 	args := []string{"show", "group", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
 	cmd := exec.Command(n.binary, args...)
 	runCommand(cmd)
-	group := new(key2.Group)
-	checkErr(key2.Load(n.groupPath, group))
+	group := new(key.Group)
+	checkErr(key.Load(n.groupPath, group))
 	return group
 }
 
@@ -454,7 +454,7 @@ func (n *NodeProc) WriteCertificate(path string) {
 }
 
 func (n *NodeProc) WritePublic(path string) {
-	checkErr(key2.Save(path, n.priv.Public, false))
+	checkErr(key.Save(path, n.priv.Public, false))
 }
 
 func (n *NodeProc) Stop() {
