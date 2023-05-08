@@ -33,9 +33,9 @@ func TestLogsErrorsWhenThresholdReached(t *testing.T) {
 	l.On("Warnw").Return()
 
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "b")
-	monitor.ReportFailure(beaconID, 1, "c")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("b")
+	monitor.ReportFailure("c")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -65,8 +65,8 @@ func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
 	l.On("Warnw").Return()
 
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "c")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("c")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -128,10 +128,10 @@ func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 
 	monitor.Start()
 	monitor.Stop()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "b")
-	monitor.ReportFailure(beaconID, 1, "c")
-	monitor.ReportFailure(beaconID, 1, "d")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("b")
+	monitor.ReportFailure("c")
+	monitor.ReportFailure("d")
 	time.Sleep(period)
 
 	l.AssertNotCalled(t, "Debugw", mock.Anything)
@@ -162,10 +162,10 @@ func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
 	l.On("Warnw").Return()
 
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("a")
+	monitor.ReportFailure("a")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -197,9 +197,9 @@ func TestStateIsResetEveryPeriod(t *testing.T) {
 	l.On("Warnw").Return()
 
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
+	monitor.ReportFailure("a")
 	time.Sleep(period)
-	monitor.ReportFailure(beaconID, 1, "b")
+	monitor.ReportFailure("b")
 	time.Sleep(period)
 	monitor.Stop()
 
