@@ -12,16 +12,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-chi/chi"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	client2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
-	"github.com/go-chi/chi"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (

@@ -5,13 +5,14 @@ import (
 	"net"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+
 	"github.com/drand/drand/client"
 	chain2 "github.com/drand/drand/common/chain"
 	client2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 )
 
 // drandProxy is used as a proxy between a Public service (e.g. the node as a server)

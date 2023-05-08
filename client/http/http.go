@@ -11,6 +11,10 @@ import (
 	"strings"
 	"time"
 
+	json "github.com/nikkolasg/hexjson"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	client2 "github.com/drand/drand/client"
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
@@ -18,9 +22,6 @@ import (
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var errClientClosed = fmt.Errorf("client closed")

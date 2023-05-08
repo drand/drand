@@ -10,6 +10,13 @@ import (
 	"path"
 	"strings"
 
+	"github.com/google/uuid"
+	bds "github.com/ipfs/go-ds-badger2"
+	clock "github.com/jonboulle/clockwork"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/urfave/cli/v2"
+
 	pubClient "github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	http2 "github.com/drand/drand/client/http"
@@ -19,12 +26,6 @@ import (
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/lp2p"
-	"github.com/google/uuid"
-	bds "github.com/ipfs/go-ds-badger2"
-	clock "github.com/jonboulle/clockwork"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	ma "github.com/multiformats/go-multiaddr"
-	"github.com/urfave/cli/v2"
 )
 
 var (

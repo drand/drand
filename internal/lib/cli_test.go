@@ -11,6 +11,10 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
+
 	client2 "github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	commonutils "github.com/drand/drand/common"
@@ -18,9 +22,6 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli/v2"
 )
 
 var (

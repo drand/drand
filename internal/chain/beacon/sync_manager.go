@@ -8,6 +8,10 @@ import (
 	"strings"
 	"time"
 
+	cl "github.com/jonboulle/clockwork"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	commonutils "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
@@ -19,9 +23,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	cl "github.com/jonboulle/clockwork"
-	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // SyncManager manages all the sync requests to other peers. It performs a

@@ -3,8 +3,9 @@ package beacon
 import (
 	"time"
 
-	"github.com/drand/drand/internal/chain"
 	clock "github.com/jonboulle/clockwork"
+
+	"github.com/drand/drand/internal/chain"
 )
 
 const tickerChanBacklog = 5

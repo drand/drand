@@ -9,6 +9,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/kabukky/httpscerts"
+
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -22,7 +24,6 @@ import (
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/kabukky/httpscerts"
 )
 
 // LocalNode ...

@@ -7,13 +7,14 @@ import (
 	gonet "net"
 	"os"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/net"
-	"github.com/urfave/cli/v2"
 )
 
 func getPublicRandomness(c *cli.Context, lg log.Logger) error {

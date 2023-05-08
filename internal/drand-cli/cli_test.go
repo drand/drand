@@ -17,6 +17,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
@@ -34,9 +38,6 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
-	"github.com/kabukky/httpscerts"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMigrate(t *testing.T) {

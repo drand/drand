@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 )
 
 type boltStore struct {

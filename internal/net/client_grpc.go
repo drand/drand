@@ -11,9 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/weaveworks/common/httpgrpc"
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -22,6 +19,10 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 var _ Client = (*grpcClient)(nil)

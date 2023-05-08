@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	"go.opentelemetry.io/otel/attribute"
+
 	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -17,8 +20,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // Config holds the different cryptographic information necessary to run the

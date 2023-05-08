@@ -20,6 +20,8 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	"github.com/urfave/cli/v2"
+
 	common3 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -32,7 +34,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags

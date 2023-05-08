@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	chain2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 // MeasureHeartbeats periodically tracks latency observed on a set of HTTP clients

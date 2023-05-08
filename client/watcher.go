@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/drand/drand/common/client"
 	"github.com/hashicorp/go-multierror"
+
+	"github.com/drand/drand/common/client"
 )
 
 type watcherClient struct {

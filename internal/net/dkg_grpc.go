@@ -3,10 +3,11 @@ package net
 import (
 	"fmt"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 func NewDKGControlClient(l log.Logger, addr string) (drand.DKGControlClient, error) {

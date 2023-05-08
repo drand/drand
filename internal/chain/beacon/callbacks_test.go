@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/internal/chain/boltdb"
 	context2 "github.com/drand/drand/internal/test/context"
 	"github.com/drand/drand/internal/test/testlogger"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStoreCallback(t *testing.T) {

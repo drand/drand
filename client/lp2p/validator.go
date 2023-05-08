@@ -5,15 +5,16 @@ import (
 	"context"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"google.golang.org/protobuf/proto"
+
 	client2 "github.com/drand/drand/client"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"google.golang.org/protobuf/proto"
 )
 
 func randomnessValidator(info *chain2.Info, cache client2.Cache, c *Client, clk clock.Clock) pubsub.ValidatorEx {

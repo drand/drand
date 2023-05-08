@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test/testlogger"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPClient(t *testing.T) {

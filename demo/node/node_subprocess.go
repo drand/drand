@@ -13,6 +13,11 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -23,10 +28,6 @@ import (
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/kabukky/httpscerts"
-	json "github.com/nikkolasg/hexjson"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var secretDKG = "dkgsecret_____________________32"

@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
@@ -18,9 +22,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/urfave/cli/v2"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var dkgCommand = &cli.Command{

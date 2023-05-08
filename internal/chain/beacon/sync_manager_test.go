@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/peer"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain/boltdb"
 	dcontext "github.com/drand/drand/internal/test/context"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/peer"
 )
 
 type testSyncStream struct {

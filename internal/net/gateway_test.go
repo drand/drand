@@ -9,12 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kabukky/httpscerts"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common/log"
 	testnet "github.com/drand/drand/internal/test/net"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/kabukky/httpscerts"
-	"github.com/stretchr/testify/require"
 )
 
 type testPeer struct {

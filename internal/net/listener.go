@@ -8,9 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/protobuf/drand"
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -19,6 +16,10 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 var isGrpcPrometheusMetricsRegisted = false

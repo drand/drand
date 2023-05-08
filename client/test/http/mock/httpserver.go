@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	chainCommon "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -15,7 +17,6 @@ import (
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.

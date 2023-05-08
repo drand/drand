@@ -11,6 +11,12 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	"github.com/kabukky/httpscerts"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
+	"google.golang.org/grpc"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
@@ -18,11 +24,6 @@ import (
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/kabukky/httpscerts"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
-	"google.golang.org/grpc"
 )
 
 //nolint:gocritic

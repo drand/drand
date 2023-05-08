@@ -8,6 +8,13 @@ import (
 	"testing"
 	"time"
 
+	bds "github.com/ipfs/go-ds-badger2"
+	clock "github.com/jonboulle/clockwork"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	ma "github.com/multiformats/go-multiaddr"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
@@ -18,12 +25,6 @@ import (
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
-	bds "github.com/ipfs/go-ds-badger2"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
-	ma "github.com/multiformats/go-multiaddr"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGRPCClientTestFunc(t *testing.T) {

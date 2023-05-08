@@ -4,12 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNilGroupFails(t *testing.T) {

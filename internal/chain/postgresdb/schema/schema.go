@@ -7,9 +7,10 @@ import (
 	"fmt"
 
 	"github.com/ardanlabs/darwin/v2"
+	"github.com/jmoiron/sqlx"
+
 	"github.com/drand/drand/internal/chain/postgresdb/database"
 	"github.com/drand/drand/internal/metrics"
-	"github.com/jmoiron/sqlx"
 )
 
 var (

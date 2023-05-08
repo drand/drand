@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -24,8 +27,6 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
 )
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService

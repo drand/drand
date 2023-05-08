@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // alice, bob and carol are the actors for all the tests

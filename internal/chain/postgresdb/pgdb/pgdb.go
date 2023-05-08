@@ -7,12 +7,13 @@ import (
 	"io"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	"github.com/drand/drand/internal/metrics"
-	"github.com/jmoiron/sqlx"
 )
 
 // Store represents access to the postgres database for beacon management.

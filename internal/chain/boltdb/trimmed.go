@@ -7,12 +7,13 @@ import (
 	"path"
 	"sync"
 
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	"github.com/drand/drand/internal/metrics"
-	bolt "go.etcd.io/bbolt"
 )
 
 // trimmedStore implements the Store interface using the kv storage boltdb (native

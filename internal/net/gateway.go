@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/protobuf/drand"
-	"google.golang.org/grpc"
 )
 
 // PrivateGateway is the main interface to communicate to other drand nodes. It

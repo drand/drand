@@ -10,7 +10,6 @@ import (
 	"path"
 	"time"
 
-	dlog "github.com/drand/drand/common/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p"
@@ -26,6 +25,8 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/blake2b"
+
+	dlog "github.com/drand/drand/common/log"
 )
 
 const (

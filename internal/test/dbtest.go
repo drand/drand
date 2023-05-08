@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain/postgresdb/database"
 	"github.com/drand/drand/internal/chain/postgresdb/schema"
 	"github.com/drand/drand/internal/test/testlogger"
-	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 )
 
 // StartPGDB starts a database instance.

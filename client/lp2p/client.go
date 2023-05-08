@@ -6,18 +6,19 @@ import (
 	"fmt"
 	"sync"
 
-	client2 "github.com/drand/drand/client"
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/lp2p"
-	"github.com/drand/drand/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"google.golang.org/protobuf/proto"
+
+	client2 "github.com/drand/drand/client"
+	"github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/lp2p"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 // Client is a concrete pubsub client implementation

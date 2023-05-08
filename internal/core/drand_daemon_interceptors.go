@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/protobuf/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/protobuf/common"
 )
 
 type MetadataGetter interface {

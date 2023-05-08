@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
@@ -22,7 +24,6 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // Service provides a way for clients getting the service to be able to call
