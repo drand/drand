@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -260,7 +259,7 @@ var (
 	ErrorSendingPartialCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "error_sending_partial",
 		Help: "Number of errors sending partial beacons to nodes. A good proxy for whether nodes are up or down",
-	}, []string{"beaconID", "round", "address"})
+	}, []string{"beaconID"})
 
 	metricsBound sync.Once
 )
@@ -533,6 +532,6 @@ func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	reshareLeader.WithLabelValues(beaconID).Set(value)
 }
 
-func ErrorSendingPartial(beaconID string, round uint64, address string) {
-	ErrorSendingPartialCounter.WithLabelValues(beaconID, strconv.Itoa(int(round)), address).Inc()
+func ErrorSendingPartial(beaconID string) {
+	ErrorSendingPartialCounter.WithLabelValues(beaconID).Add(1)
 }
