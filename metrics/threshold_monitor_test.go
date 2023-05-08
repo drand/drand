@@ -11,7 +11,6 @@ import (
 )
 
 func TestLogsErrorsWhenThresholdReached(t *testing.T) {
-	beaconID := "my-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -43,7 +42,6 @@ func TestLogsErrorsWhenThresholdReached(t *testing.T) {
 }
 
 func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
-	beaconID := "my-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -105,7 +103,6 @@ func TestLogsDebugWhenAllGood(t *testing.T) {
 }
 
 func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
-	beaconID := "my-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -140,7 +137,6 @@ func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 }
 
 func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
-	beaconID := "my-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 4
@@ -175,7 +171,6 @@ func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
 }
 
 func TestStateIsResetEveryPeriod(t *testing.T) {
-	beaconID := "my-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
