@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain/beacon"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"

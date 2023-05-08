@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"google.golang.org/grpc"
-
 	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/grpc"
 )
 
 // Client implements methods to call on the protocol API and the public API of a

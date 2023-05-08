@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"github.com/BurntSushi/toml"
-
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/net"
 )

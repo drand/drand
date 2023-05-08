@@ -11,16 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	derrors "github.com/drand/drand/internal/chain/errors"
 	dkg2 "github.com/drand/drand/internal/dkg"
@@ -30,6 +24,10 @@ import (
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
+	"github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 func setFDLimit(t *testing.T) {

@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	key "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //nolint:funlen

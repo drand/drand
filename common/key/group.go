@@ -12,16 +12,14 @@ import (
 	"sort"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
-	"golang.org/x/crypto/blake2b"
-
 	common2 "github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
+	"golang.org/x/crypto/blake2b"
 )
 
 // TODO new256 returns an error so we make a wrapper around

@@ -6,16 +6,15 @@ import (
 	"os"
 	"path"
 
-	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/urfave/cli/v2"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/lib"
 	"github.com/drand/drand/internal/lp2p"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/metrics/pprof"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags

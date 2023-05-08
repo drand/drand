@@ -8,9 +8,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
@@ -18,6 +15,8 @@ import (
 	"github.com/drand/drand/internal/chain/postgresdb/pgdb"
 	"github.com/drand/drand/internal/test"
 	context2 "github.com/drand/drand/internal/test/context"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/require"
 )
 
 var c *test.Container

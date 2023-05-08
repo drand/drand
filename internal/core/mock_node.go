@@ -3,10 +3,9 @@ package core
 import (
 	"time"
 
-	clock "github.com/jonboulle/clockwork"
-
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
+	clock "github.com/jonboulle/clockwork"
 )
 
 type MockNode struct {

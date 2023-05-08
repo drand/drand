@@ -8,17 +8,13 @@ import (
 	"time"
 
 	"github.com/drand/drand/crypto"
-
-	"github.com/drand/drand/internal/dkg"
-
-	"github.com/drand/drand/protobuf/drand"
-
-	"github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/drand/drand/protobuf/drand"
+	"github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBeaconProcess_Stop(t *testing.T) {

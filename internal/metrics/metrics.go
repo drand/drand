@@ -11,12 +11,11 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/drand/drand/common"
+	"github.com/drand/drand/common/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	common2 "github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
 )
 
 type DKGState int

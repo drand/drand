@@ -3,12 +3,11 @@ package drand
 import (
 	"fmt"
 
-	"github.com/urfave/cli/v2"
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/metrics"
+	"github.com/urfave/cli/v2"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func startCmd(c *cli.Context, l log.Logger) error {

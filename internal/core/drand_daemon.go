@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"sync"
 
-	"go.opentelemetry.io/otel/attribute"
-
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	key2 "github.com/drand/drand/common/key"
@@ -19,6 +17,7 @@ import (
 	"github.com/drand/drand/internal/metrics/pprof"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/drand"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type DrandDaemon struct {

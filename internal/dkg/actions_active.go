@@ -5,13 +5,12 @@ import (
 	"errors"
 	"time"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // actions_active contains all the DKG actions that require user interaction: creating a network,

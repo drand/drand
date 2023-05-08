@@ -7,15 +7,13 @@ import (
 	"net"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
 	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
 	control "github.com/drand/drand/protobuf/drand"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const grpcDefaultIPNetwork = "tcp"

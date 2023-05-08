@@ -4,13 +4,11 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber/util/random"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkVerifyBeacon(b *testing.B) {

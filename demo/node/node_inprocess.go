@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"os"
 	"os/exec"
 	"path"
 	"time"
 
-	"github.com/kabukky/httpscerts"
-
 	"github.com/drand/drand/client/grpc"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/core"
@@ -24,6 +22,7 @@ import (
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/kabukky/httpscerts"
 )
 
 // LocalNode ...

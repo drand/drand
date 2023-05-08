@@ -10,20 +10,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	clock "github.com/jonboulle/clockwork"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/client/grpc"
 	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
+	clock "github.com/jonboulle/clockwork"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/stretchr/testify/require"
 )
 
 func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {

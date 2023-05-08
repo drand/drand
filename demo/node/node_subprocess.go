@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"net"
 	"os"
 	"os/exec"
@@ -14,13 +13,9 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/kabukky/httpscerts"
-	json "github.com/nikkolasg/hexjson"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/core"
@@ -28,6 +23,10 @@ import (
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var secretDKG = "dkgsecret_____________________32"

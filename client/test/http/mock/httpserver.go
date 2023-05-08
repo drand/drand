@@ -2,21 +2,20 @@ package mock
 
 import (
 	"context"
-	"github.com/drand/drand/crypto"
 	"net"
 	"net/http"
 	"testing"
 	"time"
 
-	clock "github.com/jonboulle/clockwork"
-
 	chainCommon "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/core"
 	dhttp "github.com/drand/drand/internal/http"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
+	clock "github.com/jonboulle/clockwork"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.

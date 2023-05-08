@@ -6,17 +6,16 @@ import (
 	"path"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-	clock "github.com/jonboulle/clockwork"
-	bolt "go.etcd.io/bbolt"
-	"google.golang.org/grpc"
-
 	"github.com/drand/drand/common"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/postgresdb/database"
 	"github.com/drand/drand/internal/net"
+	"github.com/jmoiron/sqlx"
+	clock "github.com/jonboulle/clockwork"
+	bolt "go.etcd.io/bbolt"
+	"google.golang.org/grpc"
 )
 
 // ConfigOption is a function that applies a specific setting to a Config.

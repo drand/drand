@@ -8,13 +8,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber"
 )
 

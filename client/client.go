@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const clientStartupTimeoutDefault = time.Second * 5

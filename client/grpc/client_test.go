@@ -8,14 +8,12 @@ import (
 	"time"
 
 	"github.com/drand/drand/crypto"
-
+	"github.com/drand/drand/internal/test/mock"
+	"github.com/drand/drand/internal/test/testlogger"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/drand/drand/internal/test/mock"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestClient(t *testing.T) {

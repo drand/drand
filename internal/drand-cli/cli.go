@@ -19,14 +19,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/BurntSushi/toml"
-	"github.com/urfave/cli/v2"
-
 	common3 "github.com/drand/drand/common"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/boltdb"
 	"github.com/drand/drand/internal/core"
@@ -35,6 +32,7 @@ import (
 	"github.com/drand/drand/internal/net"
 	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags

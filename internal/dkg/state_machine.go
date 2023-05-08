@@ -11,9 +11,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
 	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )

@@ -8,10 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMetricReshare(t *testing.T) {

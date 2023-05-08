@@ -6,9 +6,8 @@ import (
 	"os"
 	"testing"
 
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/drand/drand/internal/metrics"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Tracer allows building a tracer in the context of a test

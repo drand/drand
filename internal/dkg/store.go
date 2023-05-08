@@ -6,15 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/key"
-
-	"github.com/drand/drand/protobuf/drand"
-
 	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
-
-	"github.com/drand/drand/common/log"
 )
 
 type boltStore struct {

@@ -4,7 +4,6 @@ package test
 
 import (
 	"encoding/hex"
-	"github.com/drand/drand/crypto"
 	n "net"
 	"os"
 	"path"
@@ -13,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rogpeppe/go-internal/lockedfile"
-
 	commonutils "github.com/drand/drand/common"
 	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"
+	"github.com/rogpeppe/go-internal/lockedfile"
 )
 
 type testPeer struct {

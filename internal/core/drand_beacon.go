@@ -8,14 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	key2 "github.com/drand/drand/common/key"
 	dlog "github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/beacon"
 	"github.com/drand/drand/internal/chain/boltdb"
@@ -28,6 +25,7 @@ import (
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it

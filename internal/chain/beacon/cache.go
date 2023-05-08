@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/drand/drand/crypto"
-
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 )
 

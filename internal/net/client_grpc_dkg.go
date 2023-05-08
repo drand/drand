@@ -3,9 +3,8 @@ package net
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
 	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/grpc"
 )
 
 func (g *grpcClient) Propose(ctx context.Context, p Peer, in *drand.ProposalTerms, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {

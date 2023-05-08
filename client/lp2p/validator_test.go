@@ -9,22 +9,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/test/cache"
+	chain2 "github.com/drand/drand/common/chain"
 	dcrypto "github.com/drand/drand/crypto"
-
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/test"
+	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/drand/drand/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pb "github.com/libp2p/go-libp2p-pubsub/pb"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/test/cache"
-	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/internal/test/testlogger"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 type randomDataWrapper struct {

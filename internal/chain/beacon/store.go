@@ -8,16 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	clock "github.com/jonboulle/clockwork"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/internal/metrics"
+	clock "github.com/jonboulle/clockwork"
 )
 
 // CallbackFunc defines the callback type that's accepted by CallbackStore

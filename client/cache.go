@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	lru "github.com/hashicorp/golang-lru"
-
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 // Cache provides a mechanism to check for rounds in the cache.

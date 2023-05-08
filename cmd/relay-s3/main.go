@@ -10,14 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/urfave/cli/v2"
-
 	client2 "github.com/drand/drand/client"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/lib"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -13,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	json "github.com/nikkolasg/hexjson"
-
 	"github.com/drand/drand/common"
 	key2 "github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/node"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
+	json "github.com/nikkolasg/hexjson"
 )
 
 // 1s after dkg finishes, (new or reshared) beacon starts

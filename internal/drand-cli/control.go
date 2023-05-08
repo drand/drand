@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	json "github.com/nikkolasg/hexjson"
-	"github.com/urfave/cli/v2"
-
 	"github.com/drand/drand/common/chain"
 	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -20,6 +17,8 @@ import (
 	"github.com/drand/drand/internal/core/migration"
 	"github.com/drand/drand/internal/net"
 	control "github.com/drand/drand/protobuf/drand"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/urfave/cli/v2"
 )
 
 type beaconIDsStatuses struct {

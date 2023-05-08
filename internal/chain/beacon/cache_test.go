@@ -3,15 +3,13 @@ package beacon
 import (
 	"testing"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
+	"github.com/stretchr/testify/require"
 )
 
 var fakeKey, _ = key.NewKeyPair("127.0.0.1:8080", nil)

@@ -2,12 +2,11 @@ package context
 
 import (
 	"context"
-	"github.com/drand/drand/crypto"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
+	"github.com/stretchr/testify/require"
 )
 
 // PrevSignatureMattersOnContext checks if the previous signature matters or not for future operations

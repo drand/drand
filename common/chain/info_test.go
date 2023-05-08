@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/stretchr/testify/require"
 )
 
 func TestChainInfo(t *testing.T) {

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/drand/drand/crypto"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -11,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/internal/chain"

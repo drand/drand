@@ -5,12 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStoreBoltOrder(t *testing.T) {

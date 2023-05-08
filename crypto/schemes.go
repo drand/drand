@@ -8,13 +8,10 @@ import (
 	"hash"
 	"os"
 
-	"golang.org/x/crypto/blake2b"
-
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 	"github.com/drand/kyber/pairing"
 	"github.com/drand/kyber/sign"
-
 	// The package github.com/drand/kyber/sign/bls is deprecated because it is vulnerable to
 	// rogue public-key attack against BLS aggregated signature. The new version of the protocol can be used to
 	// make sure a signature aggregate cannot be verified by a forged key. You can find the protocol in kyber/sign/bdn.
@@ -26,6 +23,7 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
+	"golang.org/x/crypto/blake2b"
 )
 
 type hashableBeacon interface {

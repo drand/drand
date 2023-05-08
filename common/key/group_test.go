@@ -5,14 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
+	"github.com/stretchr/testify/require"
 )
 
 func newIds(t *testing.T, n int) []*Node {
