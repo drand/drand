@@ -241,6 +241,10 @@ func TestHTTPWaiting(t *testing.T) {
 }
 
 func TestHTTPWatchFuture(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
@@ -336,6 +340,7 @@ func TestHTTPHealth(t *testing.T) {
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf), resp.StatusCode)
 	resp.Body.Close()
 }
+
 func TestHTTP404(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

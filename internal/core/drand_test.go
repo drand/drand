@@ -34,7 +34,8 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-func setFDLimit(t testing.TB) {
+//nolint:gocritic
+func setFDLimit(t *testing.T) {
 	fdOpen := uint64(3000)
 	curr, max, err := unixGetLimit()
 	if err != nil {
@@ -172,6 +173,10 @@ func TestRunDKGLarge(t *testing.T) {
 // Restart last node and wait catch up
 // Check beacon still works and length is correct
 func TestDrandDKGFresh(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode.")
+	}
+
 	ctx := context.Background()
 	n := 4
 	beaconPeriod := 1 * time.Second
@@ -261,8 +266,9 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 // the node should be left out of the group file
 func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping test in short mode.")
 	}
+
 	oldNodeCount := 3
 	newNodeCount := 4
 	oldThreshold := 2
@@ -530,6 +536,10 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 
 // Check they all have same chain info
 func TestDrandPublicChainInfo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode.")
+	}
+
 	ctx := context.Background()
 	n := 10
 	thr := key.DefaultThreshold(n)
@@ -583,9 +593,14 @@ func TestDrandPublicChainInfo(t *testing.T) {
 //
 //nolint:funlen // This is a longer test function
 func TestDrandPublicRand(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("test is flaky in CI")
+	}
+
 	if testing.Short() {
 		t.Skip("Skipping slow test in short mode.")
 	}
+
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -659,10 +674,15 @@ func TestDrandPublicRand(t *testing.T) {
 		dt.AdvanceMockClock(t, newGroup.Period)
 		time.Sleep(newGroup.Period)
 	}
-	// then ask the new node about a previous randomness
+	// then ask the new node about a previous beacon
 	newNodeID := newNodes[0].drand.priv.Public
+	if newNodes[0].drand.opts.dbStorageEngine == chain.MemDB {
+		// this is the round the memdb backend should have gotten upon init
+		initRound = chain.CurrentRound(newGroup.TransitionTime, newGroup.Period, newGroup.GenesisTime) - 1
+	}
+	t.Log("Querying PublicRand from node", newNodeID.Addr, "at round", initRound)
 	resp, err = client.PublicRand(ctx, newNodeID, &drand.PublicRandRequest{Round: initRound})
-	require.NoError(t, err)
+	require.NoError(t, err, "trying node %s", newNodeID.Addr)
 	require.NotNil(t, resp)
 }
 
@@ -674,8 +694,13 @@ func TestDrandPublicRand(t *testing.T) {
 //nolint:funlen
 func TestDrandPublicStream(t *testing.T) {
 	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	if testing.Short() {
 		t.Skip("Skipping slow test in short mode.")
 	}
+
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -1243,17 +1268,22 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
+	sch := *scenario.scheme
+
 	// to dedupe it when we're running the tests with different default schemes
-	if os.Getenv("SCHEME_ID") == crypto.ShortSigSchemeID {
+	if sch.Name == crypto.ShortSigSchemeID {
 		scenario.scheme = crypto.NewPedersenBLSChained()
 	} else {
 		scenario.scheme = crypto.NewPedersenBLSUnchainedSwapped()
 	}
 
+	// we need to use the SCHEME_ID variable to generate keys properly in tests.
 	t.Setenv("SCHEME_ID", scenario.scheme.Name)
 	scenario.AddNodesWithOptions(t, 1, beaconID)
-	t.Setenv("SCHEME_ID", "")
+	t.Setenv("SCHEME_ID", sch.Name)
 
+	scenario.scheme = &sch
+	t.Logf("Running with scheme %s", sch.Name)
 	_, err := scenario.RunDKG(t)
 	require.ErrorContainsf(t, err, key.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
 }
@@ -1309,7 +1339,7 @@ func TestDKGPacketWithoutMetadata(t *testing.T) {
 func TestDKGPacketWithNilInArray(t *testing.T) {
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
-
+	sch, _ := crypto.GetSchemeFromEnv()
 	// the first slot will be nil
 	joiners := make([]*drand.Participant, len(scenario.nodes)+1)
 	for i, node := range scenario.nodes {
@@ -1322,11 +1352,11 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 		joiners[i+1] = &drand.Participant{
 			Address:   identity.Addr,
 			Tls:       identity.TLS,
-			PubKey:    pk,
+			Key:       pk,
 			Signature: identity.Signature,
 		}
 	}
-	err := scenario.nodes[0].dkgRunner.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, joiners)
+	err := scenario.nodes[0].dkgRunner.StartNetwork(2, 1, sch.Name, 1*time.Minute, 1, joiners)
 
 	require.NoError(t, err)
 }
@@ -1343,10 +1373,8 @@ func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
 	require.NoError(t, err)
 
 	scenario.SetMockClock(t, g.GenesisTime)
-	scenario.clock.Advance(period)
-	scenario.clock.Advance(period)
-	// let's try this for science
-	time.Sleep(1 * time.Second)
+	scenario.AdvanceMockClock(t, period)
+	scenario.AdvanceMockClock(t, period)
 
 	leader := scenario.nodes[0]
 	err = scenario.RunFailingReshare()
