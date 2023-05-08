@@ -53,6 +53,8 @@ type Handler struct {
 
 	killRunInFlight chan bool
 
+	killRunInFlight chan bool
+
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
