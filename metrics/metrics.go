@@ -257,7 +257,8 @@ var (
 
 	ErrorSendingPartialCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "error_sending_partial",
-		Help: "Number of errors sending partial beacons to nodes. A good proxy for whether nodes are up or down. 1 = Error occurred, 0 = No error occurred",
+		Help: "Number of errors sending partial beacons to nodes. A good proxy for whether nodes are up or down. " +
+			"1 = Error occurred, 0 = No error occurred",
 	}, []string{"beaconID", "address"})
 
 	metricsBound sync.Once
@@ -525,10 +526,10 @@ func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	reshareLeader.WithLabelValues(beaconID).Set(value)
 }
 
-func ErrorSendingPartial(beaconID string, address string) {
+func ErrorSendingPartial(beaconID, address string) {
 	ErrorSendingPartialCounter.WithLabelValues(beaconID, address).Set(1)
 }
 
-func SuccessfulPartial(beaconID string, address string) {
+func SuccessfulPartial(beaconID, address string) {
 	ErrorSendingPartialCounter.WithLabelValues(beaconID, address).Set(0)
 }
