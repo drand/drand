@@ -103,17 +103,17 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	handler := &Handler{
-		conf:            conf,
-		client:          c,
-		crypto:          v,
-		chain:           store,
-		ticker:          ticker,
-		addr:            addr,
-		ctx:             ctx,
-		ctxCancel:       ctxCancel,
-		l:               l,
-		version:         version,
-		killRunInFlight: make(chan bool),
+		conf:             conf,
+		client:           c,
+		crypto:           v,
+		chain:            store,
+		ticker:           ticker,
+		addr:             addr,
+		ctx:              ctx,
+		ctxCancel:        ctxCancel,
+		l:                l,
+		version:          version,
+		killRunInFlight:  make(chan bool),
 		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
 	}
 	return handler, nil
