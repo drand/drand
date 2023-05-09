@@ -3,7 +3,8 @@ package dkg
 import (
 	"context"
 	"encoding/hex"
-	"github.com/drand/drand/util"
+	"errors"
+	"github.com/drand/drand/internal/util"
 	"sync"
 	"time"
 
@@ -15,11 +16,9 @@ import (
 //
 //nolint:gocritic // ewww the linter wants me to use named parameters
 func (d *Process) gossip(
-	beaconID string,
 	me *drand.Participant,
 	recipients []*drand.Participant,
 	packet *drand.GossipPacket,
-	terms *drand.ProposalTerms,
 ) (chan bool, chan error) {
 	done := make(chan bool, 1)
 	errChan := make(chan error, 1)
@@ -29,17 +28,14 @@ func (d *Process) gossip(
 		return done, errChan
 	}
 
-	// first we sign the message and attach it as metadata
-	metadata, err := d.signMessage(beaconID, packet, terms)
-	if err != nil {
-		errChan <- err
+	if packet.Metadata == nil {
+		errChan <- errors.New("cannot process a packet without metadata")
 		return done, errChan
 	}
-	packet.Metadata = metadata
 
 	// add the packet to the SeenPackets set,
 	// so we don't try and reprocess it when it gets gossiped back to us!
-	packetSig := hex.EncodeToString(metadata.Signature)
+	packetSig := hex.EncodeToString(packet.Metadata.Signature)
 	d.SeenPackets[packetSig] = true
 
 	wg := sync.WaitGroup{}
@@ -61,7 +57,7 @@ func (d *Process) gossip(
 		go func() {
 			err := sendToPeer(d.internalClient, p, packet)
 			if err != nil {
-				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "err", err)
+				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "packet", packetSig[0:8], "err", err)
 				errChan <- err
 			}
 			wg.Done()
@@ -78,7 +74,7 @@ func (d *Process) gossip(
 }
 
 func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
-	retries := 1
+	retries := 10
 	backoff := 250 * time.Millisecond
 
 	peer := net.CreatePeer(p.Address, p.Tls)

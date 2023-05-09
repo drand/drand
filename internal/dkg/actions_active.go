@@ -69,7 +69,13 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		// then we gossip to the joiners and remainers
 		recipients := util.Concat(afterState.Joining, afterState.Remaining)
 		terms := termsFromState(afterState)
-		done, errs := d.gossip(beaconID, me, recipients, packetToGossip, terms)
+		metadata, err := d.signMessage(beaconID, packetToGossip, terms)
+		if err != nil {
+			return nil, err
+		}
+
+		packetToGossip.Metadata = metadata
+		done, errs := d.gossip(me, recipients, packetToGossip)
 		// if it's a proposal, let's block until it finishes or a timeout,
 		// because we want to be sure everybody received it
 		// QUESTION: do we _really_ want to fail on errors? we will probably have to abort if that's the case
@@ -83,7 +89,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		}
 
 		// we gossip the leavers separately - if it fails, no big deal
-		_, _ = d.gossip(beaconID, me, afterState.Leaving, packetToGossip, terms)
+		_, _ = d.gossip(me, afterState.Leaving, packetToGossip)
 	}
 
 	return &drand.EmptyResponse{}, nil
