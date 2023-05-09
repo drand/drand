@@ -33,14 +33,6 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return &drand.EmptyResponse{}, nil
 	}
 
-	// we add the packet to the cache at the end and only on non-error, so we don't cache errored packets
-	// and confuse the network into thinking that we processed them correctly
-	defer func() {
-		if err == nil {
-			d.SeenPackets[packetSig] = true
-		}
-	}()
-
 	// if there's no metadata on the packet, we won't be able to verify the signature or perform other state changes
 	if packet.Metadata == nil {
 		return nil, errors.New("packet missing metadata")
@@ -77,6 +69,9 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	if err != nil {
 		return nil, err
 	}
+
+	// after we've stored the state successfully, we can mark the packet as seen
+	d.SeenPackets[packetSig] = true
 
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	// we ignore the errors here because it's a best effort gossip

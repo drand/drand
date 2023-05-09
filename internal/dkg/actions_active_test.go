@@ -25,7 +25,9 @@ import (
 )
 
 func TestInitialDKG(t *testing.T) {
-	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	myKeypair, err := key.NewKeyPair("somebody.com", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
@@ -134,7 +136,9 @@ func TestInitialDKG(t *testing.T) {
 }
 
 func TestReshare(t *testing.T) {
-	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	myKeypair, err := key.NewKeyPair("somebody.com", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
@@ -272,7 +276,8 @@ func TestReshare(t *testing.T) {
 }
 
 func TestJoin(t *testing.T) {
-	myKeypair, err := key.NewKeyPair("somebody.com", nil)
+	sch, _ := crypto.GetSchemeFromEnv()
+	myKeypair, err := key.NewKeyPair("somebody.com", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)

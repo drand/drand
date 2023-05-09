@@ -361,7 +361,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	ctrlPort1, ctrlPort2, metricsPort := test.FreePort(), test.FreePort(), test.FreePort()
 
-	priv, err := key.NewKeyPair(addr, nil)
+	priv, err := key.NewKeyPair(addr, sch)
 	require.NoError(t, err)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
