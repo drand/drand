@@ -2,7 +2,6 @@ package dkg
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -67,9 +66,13 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	// if there is an output packet to gossip (i.e. if the user isn't joining)
 	// then we sign the packet and gossip it to the network
 	if packetToGossip != nil {
-		recipients := util.Concat(afterState.Joining, afterState.Leaving, afterState.Remaining)
-		done, errs := d.gossip(beaconID, me, recipients, packetToGossip, termsFromState(afterState))
-		// if it's a proposal, let's block until it finishes or a timeout
+		// then we gossip to the joiners and remainers
+		recipients := util.Concat(afterState.Joining, afterState.Remaining)
+		terms := termsFromState(afterState)
+		done, errs := d.gossip(beaconID, me, recipients, packetToGossip, terms)
+		// if it's a proposal, let's block until it finishes or a timeout,
+		// because we want to be sure everybody received it
+		// QUESTION: do we _really_ want to fail on errors? we will probably have to abort if that's the case
 		if command.GetInitial() != nil || command.GetResharing() != nil {
 			select {
 			case err = <-errs:
@@ -78,10 +81,9 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 				break
 			}
 		}
-		// we also add it to the SeenPackets set,
-		// so we don't try and reprocess it when it gets gossiped back to us!
-		packetSig := hex.EncodeToString(packetToGossip.Metadata.Signature)
-		d.SeenPackets[packetSig] = true
+
+		// we gossip the leavers separately - if it fails, no big deal
+		_, _ = d.gossip(beaconID, me, afterState.Leaving, packetToGossip, terms)
 	}
 
 	return &drand.EmptyResponse{}, nil

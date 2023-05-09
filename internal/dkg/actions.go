@@ -3,6 +3,7 @@ package dkg
 import (
 	"context"
 	"encoding/hex"
+	"github.com/drand/drand/util"
 	"sync"
 	"time"
 
@@ -21,6 +22,11 @@ func (d *Process) gossip(
 	done := make(chan bool, 1)
 	errChan := make(chan error, 1)
 
+	if len(recipients) == 0 {
+		done <- true
+		return done, errChan
+	}
+
 	// first we sign the message and attach it as metadata
 	metadata, err := d.signMessage(beaconID, packet, terms)
 	if err != nil {
@@ -36,8 +42,13 @@ func (d *Process) gossip(
 
 	wg := sync.WaitGroup{}
 
-	// we aren't gossiping to our own node, so we can remove one
-	wg.Add(len(recipients) - 1)
+	// we don't want to gossip to our own node
+	if util.Contains(recipients, me) {
+		wg.Add(len(recipients) - 1)
+	} else {
+		wg.Add(len(recipients))
+
+	}
 	for _, participant := range recipients {
 		p := participant
 		if p.Address == me.Address {

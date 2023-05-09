@@ -347,7 +347,7 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, 
 		"--threshold", strconv.Itoa(thr),
 		"--transition-time", durationUntilTransitionTime.String(),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	proposeCmd := exec.CommandContext(ctx, n.binary, proposeArgs...)
 	_ = runCommand(proposeCmd)

@@ -194,7 +194,7 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 			},
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
 		}
 	}
 
