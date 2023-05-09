@@ -28,7 +28,6 @@ import (
 	context2 "github.com/drand/drand/internal/test/context"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share/dkg"
 )
 
 func setFDLimit(t testing.TB) {
@@ -282,7 +281,6 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 	t.Log("Setup reshare done. Starting reshare... Ignoring reshare errors")
 	hooks := lifecycleHooks{
 		postExecutionStart: func() {
-			nodeToStop.daemon.dkg.Executions[beaconID] = brokenBroadcast{}
 			t.Logf("Stopping node %d for test: %s \n", nodeIndexToStop, nodeToStop.addr)
 			nodeToStop.daemon.Stop(context.Background())
 			<-nodeToStop.daemon.WaitExit()
@@ -1261,45 +1259,4 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 	}
 
 	return result
-}
-
-type brokenBroadcast struct {
-}
-
-func (b brokenBroadcast) PushDeals(*dkg.DealBundle) {
-	// no op
-}
-
-func (b brokenBroadcast) IncomingDeal() <-chan dkg.DealBundle {
-	c := make(chan dkg.DealBundle)
-	defer close(c)
-	return c
-}
-
-func (b brokenBroadcast) PushResponses(*dkg.ResponseBundle) {
-	// no op
-}
-
-func (b brokenBroadcast) IncomingResponse() <-chan dkg.ResponseBundle {
-	c := make(chan dkg.ResponseBundle)
-	defer close(c)
-	return c
-}
-
-func (b brokenBroadcast) PushJustifications(*dkg.JustificationBundle) {
-	// no op
-}
-
-func (b brokenBroadcast) IncomingJustification() <-chan dkg.JustificationBundle {
-	c := make(chan dkg.JustificationBundle)
-	defer close(c)
-	return c
-}
-
-func (b brokenBroadcast) BroadcastDKG(context.Context, *drand.DKGPacket) error {
-	return errors.New("this node is broken")
-}
-
-func (b brokenBroadcast) Stop() {
-	// no op
 }
