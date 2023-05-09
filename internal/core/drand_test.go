@@ -139,6 +139,14 @@ func TestRunDKGLarge(t *testing.T) {
 		WithDkgTimeout(3*time.Minute),
 	)
 
+	// let's wait for the last node to be started
+	for {
+		_, err := dt.nodes[n-1].drand.PingPong(context.Background(), &drand.Ping{})
+		if err == nil {
+			break
+		}
+	}
+
 	group, err := dt.RunDKG(t)
 	require.NoError(t, err)
 
