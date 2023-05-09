@@ -1647,13 +1647,14 @@ func NewParticipant(name string) *drand.Participant {
 
 // NewCompleteDKGEntry returns a full DKG state (minus some key material) for epoch 1 - consider it the result of the first DKG
 func NewCompleteDKGEntry(t *testing.T, beaconID string, status Status, previousLeader *drand.Participant, others ...*drand.Participant) *DBState {
+	sch, _ := crypto.GetSchemeFromEnv()
 	state := DBState{
 		BeaconID:       beaconID,
 		Epoch:          1,
 		State:          status,
 		Threshold:      1,
 		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
-		SchemeID:       crypto.DefaultSchemeID,
+		SchemeID:       sch.Name,
 		GenesisTime:    time.Unix(1669718523, 0).UTC(),
 		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: time.Unix(1669718523, 0).UTC(),
@@ -1671,7 +1672,6 @@ func NewCompleteDKGEntry(t *testing.T, beaconID string, status Status, previousL
 		FinalGroup: nil,
 		KeyShare:   nil,
 	}
-	sch, _ := crypto.GetSchemeFromEnv()
 	nodes, err := util.TryMapEach[*key.Node](state.Remaining, func(index int, p *drand.Participant) (*key.Node, error) {
 		n, err := util.ToKeyNode(index, p, sch)
 		return &n, err
@@ -1697,6 +1697,7 @@ func NewCompleteDKGEntry(t *testing.T, beaconID string, status Status, previousL
 }
 
 func NewInitialProposal(beaconID string, leader *drand.Participant, others ...*drand.Participant) *drand.ProposalTerms {
+	sch, _ := crypto.GetSchemeFromEnv()
 	return &drand.ProposalTerms{
 		BeaconID:             beaconID,
 		Epoch:                1,
@@ -1707,12 +1708,13 @@ func NewInitialProposal(beaconID string, leader *drand.Participant, others ...*d
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0).UTC()),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
-		SchemeID:             crypto.DefaultSchemeID,
+		SchemeID:             sch.Name,
 		Joining:              append([]*drand.Participant{leader}, others...),
 	}
 }
 
 func NewValidProposal(beaconID string, epoch uint32, leader *drand.Participant, others ...*drand.Participant) *drand.ProposalTerms {
+	sch, _ := crypto.GetSchemeFromEnv()
 	return &drand.ProposalTerms{
 		BeaconID:             beaconID,
 		Epoch:                epoch,
@@ -1724,7 +1726,7 @@ func NewValidProposal(beaconID string, epoch uint32, leader *drand.Participant, 
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0).UTC()),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
-		SchemeID:             crypto.DefaultSchemeID,
+		SchemeID:             sch.Name,
 		Remaining:            append([]*drand.Participant{leader}, others...),
 	}
 }

@@ -442,7 +442,7 @@ func TestStartWithoutGroup(t *testing.T) {
 		State:          dkg2.Complete,
 		Threshold:      1,
 		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
-		SchemeID:       crypto.DefaultSchemeID,
+		SchemeID:       sch.Name,
 		GenesisTime:    time.Unix(1669718523, 0).UTC(),
 		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: time.Unix(1669718523, 0).UTC(),
