@@ -11,6 +11,8 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
+// gossip marks a DKG packet as seen and sends it to the other parties in the network (that are passed in)
+//
 //nolint:gocritic // ewww the linter wants me to use named parameters
 func (d *Process) gossip(
 	beaconID string,
@@ -76,7 +78,7 @@ func (d *Process) gossip(
 }
 
 func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
-	retries := 10
+	retries := 1
 	backoff := 250 * time.Millisecond
 
 	peer := net.CreatePeer(p.Address, p.Tls)

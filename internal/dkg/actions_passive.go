@@ -18,7 +18,10 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	var err error
+	// if there's no metadata on the packet, we won't be able to verify the signature or perform other state changes
+	if packet.Metadata == nil {
+		return nil, errors.New("packet missing metadata")
+	}
 
 	packetName := packetName(packet)
 	packetSig := hex.EncodeToString(packet.Metadata.Signature)
@@ -31,11 +34,6 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	if d.SeenPackets[packetSig] {
 		d.log.Debugw("ignoring duplicate packet", "sig", shortSig)
 		return &drand.EmptyResponse{}, nil
-	}
-
-	// if there's no metadata on the packet, we won't be able to verify the signature or perform other state changes
-	if packet.Metadata == nil {
-		return nil, errors.New("packet missing metadata")
 	}
 
 	// if we're in the DKG protocol phase, we automatically broadcast it
@@ -69,9 +67,6 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	if err != nil {
 		return nil, err
 	}
-
-	// after we've stored the state successfully, we can mark the packet as seen
-	d.SeenPackets[packetSig] = true
 
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	// we ignore the errors here because it's a best effort gossip
