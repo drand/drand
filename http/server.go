@@ -362,6 +362,12 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = h.getBeaconHandler(chainHashHex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
 	info, err := h.getChainInfo(r.Context(), chainHashHex)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
