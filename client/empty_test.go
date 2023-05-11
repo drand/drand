@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/chain"
+	chain2 "github.com/drand/drand/common/client"
+	"github.com/drand/drand/internal/chain"
 )
 
 func TestEmptyClient(t *testing.T) {
@@ -53,7 +54,7 @@ func TestEmptyClient(t *testing.T) {
 
 	ch := c.Watch(ctx)
 	//nolint
-	var rs []Result
+	var rs []chain2.Result
 	for r := range ch {
 		rs = append(rs, r)
 	}

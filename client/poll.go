@@ -4,14 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/log"
+	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/chain"
 )
 
 // PollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
-func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, l log.Logger) <-chan Result {
-	ch := make(chan Result, 1)
+func PollingWatcher(ctx context.Context, c client.Client, chainInfo *chain2.Info, l log.Logger) <-chan client.Result {
+	ch := make(chan client.Result, 1)
 	r := c.RoundAt(time.Now())
 	val, err := c.Get(ctx, r)
 	if err != nil {

@@ -1,8 +1,8 @@
 package cfg
 
 import (
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/internal/chain"
 )
 
 // Config stores configuration for the orchestrator.

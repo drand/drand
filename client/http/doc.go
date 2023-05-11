@@ -10,10 +10,12 @@ Example:
 	package main
 
 	import (
+		"context"
 		"encoding/hex"
 
 		"github.com/drand/drand/client"
 		"github.com/drand/drand/client/http"
+		"github.com/drand/drand/common/log"
 	)
 
 	var urls = []string{
@@ -24,8 +26,11 @@ Example:
 	var chainHash, _ = hex.DecodeString("8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce")
 
 	func main() {
-		c, err := client.New(
-			client.From(http.ForURLs(urls, chainHash)...),
+		ctx := context.Background()
+		lg := log.New(nil, log.DebugLevel, true)
+
+		c, err := client.New(ctx, lg,
+			client.From(http.ForURLs(ctx, lg, urls, chainHash)...),
 			client.WithChainHash(chainHash),
 		)
 	}

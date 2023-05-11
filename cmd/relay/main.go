@@ -12,12 +12,12 @@ import (
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/drand/drand/cmd/client/lib"
-	"github.com/drand/drand/common"
-	dhttp "github.com/drand/drand/http"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/metrics/pprof"
+	common2 "github.com/drand/drand/common"
+	"github.com/drand/drand/common/log"
+	dhttp "github.com/drand/drand/internal/http"
+	"github.com/drand/drand/internal/lib"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/internal/metrics/pprof"
 )
 
 // Automatically set through -ldflags
@@ -73,10 +73,10 @@ func Relay(c *cli.Context) error {
 	defer tracerShutdown(c.Context)
 
 	cliLog := log.FromContextOrDefault(c.Context)
-	version := common.GetAppVersion()
+	version := common2.GetAppVersion()
 
 	if c.IsSet(metricsFlag.Name) {
-		metricsListener := metrics.StartWithLogger(cliLog, c.String(metricsFlag.Name), pprof.WithProfile(), nil)
+		metricsListener := metrics.Start(cliLog, c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
 
 		if err := metrics.PrivateMetrics.Register(grpcprometheus.DefaultClientMetrics); err != nil {
@@ -103,13 +103,13 @@ func Relay(c *cli.Context) error {
 			hashesMap[hash] = true
 		}
 	} else {
-		hashesMap[common.DefaultChainHash] = true
+		hashesMap[common2.DefaultChainHash] = true
 	}
 
 	skipHashes := make(map[string]bool)
 	for hash := range hashesMap {
 		// todo: don't reuse 'c'
-		if hash != common.DefaultChainHash {
+		if hash != common2.DefaultChainHash {
 			if _, err := hex.DecodeString(hash); err != nil {
 				return fmt.Errorf("failed to decode chain hash value: %w", err)
 			}
@@ -147,7 +147,7 @@ func Relay(c *cli.Context) error {
 		handler.SetHTTPHandler(handlers.CombinedLoggingHandler(os.Stdout, handler.GetHTTPHandler()))
 	}
 
-	bind := "localhost:0"
+	bind := "127.0.0.1:0"
 	if c.IsSet(listenFlag.Name) {
 		bind = c.String(listenFlag.Name)
 	}
@@ -163,7 +163,7 @@ func Relay(c *cli.Context) error {
 		}
 
 		req, _ := http.NewRequest(http.MethodGet, "/public/0", http.NoBody)
-		if hash != common.DefaultChainHash {
+		if hash != common2.DefaultChainHash {
 			req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/%s/public/0", hash), http.NoBody)
 		}
 
@@ -183,7 +183,7 @@ func Relay(c *cli.Context) error {
 }
 
 func main() {
-	version := common.GetAppVersion()
+	version := common2.GetAppVersion()
 	lg := log.New(nil, log.DefaultLevel, false)
 
 	app := &cli.App{

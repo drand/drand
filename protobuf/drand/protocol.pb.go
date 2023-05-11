@@ -12,11 +12,13 @@
 package drand
 
 import (
-	common "github.com/drand/drand/protobuf/common"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+
+	common "github.com/drand/drand/protobuf/common"
 )
 
 const (
@@ -176,8 +178,8 @@ type PartialBeaconPacket struct {
 	PreviousSignature []byte `protobuf:"bytes,2,opt,name=previous_signature,json=previousSignature,proto3" json:"previous_signature,omitempty"`
 	// partial signature - a threshold of them needs to be aggregated to produce
 	// the final beacon at the given round.
-	PartialSig []byte `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
-	Metadata *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	PartialSig []byte           `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
+	Metadata   *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *PartialBeaconPacket) Reset() {
@@ -247,8 +249,8 @@ type SyncRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	FromRound uint64 `protobuf:"varint,1,opt,name=from_round,json=fromRound,proto3" json:"from_round,omitempty"`
-	Metadata *common.Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	FromRound uint64           `protobuf:"varint,1,opt,name=from_round,json=fromRound,proto3" json:"from_round,omitempty"`
+	Metadata  *common.Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *SyncRequest) Reset() {

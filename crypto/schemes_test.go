@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -23,7 +23,7 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -31,16 +31,14 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 	sig, _ := sch.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		beacon := &chain.Beacon{
+		beacon := &common.Beacon{
 			PreviousSig: prevSig,
 			Round:       16,
 			Signature:   sig,
 		}
 
 		err := sch.VerifyBeacon(beacon, public)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(b, err)
 	}
 }
 
@@ -54,7 +52,7 @@ func BenchmarkSignBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -66,15 +64,13 @@ func BenchmarkSignBeacon(b *testing.B) {
 	}
 	b.StopTimer()
 
-	beacon := &chain.Beacon{
+	beacon := &common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 		Signature:   sig,
 	}
 	err = sch.VerifyBeacon(beacon, public)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(b, err)
 }
 
 //nolint:lll
@@ -124,7 +120,7 @@ func TestVerifyBeacon(t *testing.T) {
 		require.NoError(t, err)
 		prev, err := hex.DecodeString(beacon.PrevSig)
 		require.NoError(t, err)
-		err = sch.VerifyBeacon(&chain.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
+		err = sch.VerifyBeacon(&common.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
 		require.NoError(t, err)
 	}
 }

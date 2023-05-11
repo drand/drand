@@ -9,18 +9,18 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/core"
+	chainCommon "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
-	dhttp "github.com/drand/drand/http"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/internal/core"
+	dhttp "github.com/drand/drand/internal/http"
+	"github.com/drand/drand/internal/test/mock"
+	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test/mock"
-	"github.com/drand/drand/test/testlogger"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (string, *chain.Info, context.CancelFunc, func(bool)) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (string, *chainCommon.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -36,14 +36,14 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Sche
 		t.Fatal(err)
 	}
 
-	var chainInfo *chain.Info
+	var chainInfo *chainCommon.Info
 	for i := 0; i < 3; i++ {
 		protoInfo, err := server.ChainInfo(ctx, &drand.ChainInfoRequest{})
 		if err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		chainInfo, err = chain.InfoFromProto(protoInfo)
+		chainInfo, err = chainCommon.InfoFromProto(protoInfo)
 		if err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
@@ -67,5 +67,5 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch *crypto.Sche
 	return listener.Addr().String(), chainInfo, func() {
 		httpServer.Shutdown(ctx)
 		cancel()
-	}, server.(mock.MockService).EmitRand
+	}, server.(mock.Service).EmitRand
 }

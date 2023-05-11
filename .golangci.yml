@@ -22,6 +22,12 @@ issues:
     - path: cmd
       linters:
         - forbidigo # we use Println in our UX
+    - path: internal/lib
+      linters:
+        - forbidigo # we use Println in our UX
+    - path: internal/drand-cli
+      linters:
+        - forbidigo # we use Println in our UX
 #    - path: core/broadcast.go
 #      linters:
 #        - interfacer # Deprecated
@@ -160,7 +166,7 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   goimports:
-    local-prefixes: github.com/golangci/golangci-lint
+    local-prefixes: github.com/drand
   golint:
     min-confidence: 0
   gomnd:

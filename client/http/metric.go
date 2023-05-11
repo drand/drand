@@ -6,13 +6,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/metrics"
+	chain2 "github.com/drand/drand/common/client"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/metrics"
 )
 
 // MeasureHeartbeats periodically tracks latency observed on a set of HTTP clients
-func MeasureHeartbeats(ctx context.Context, c []client.Client) *HealthMetrics {
+func MeasureHeartbeats(ctx context.Context, c []chain2.Client) *HealthMetrics {
 	m := &HealthMetrics{
 		next:    0,
 		clients: c,
@@ -26,11 +26,11 @@ func MeasureHeartbeats(ctx context.Context, c []client.Client) *HealthMetrics {
 // HealthMetrics is a measurement task around HTTP clients
 type HealthMetrics struct {
 	next    int
-	clients []client.Client
+	clients []chain2.Client
 }
 
-// HTTPHeartbeatInterval is the duration between liveness heartbeats sent to an HTTP API.
-const HTTPHeartbeatInterval = 10 * time.Second
+// HeartbeatInterval is the duration between liveness heartbeats sent to an HTTP API.
+const HeartbeatInterval = 10 * time.Second
 
 func (c *HealthMetrics) startObserve(ctx context.Context) {
 	for {
@@ -39,7 +39,7 @@ func (c *HealthMetrics) startObserve(ctx context.Context) {
 			return
 		default:
 		}
-		time.Sleep(time.Duration(int64(HTTPHeartbeatInterval) / int64(len(c.clients))))
+		time.Sleep(time.Duration(int64(HeartbeatInterval) / int64(len(c.clients))))
 		n := c.next % len(c.clients)
 
 		httpClient, ok := c.clients[n].(*httpClient)

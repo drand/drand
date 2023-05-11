@@ -12,8 +12,11 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/common"
+	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/chain"
 )
 
 const (
@@ -35,8 +38,8 @@ const (
 
 type optimizingClient struct {
 	sync.RWMutex
-	clients            []Client
-	passiveClients     []Client
+	clients            []client.Client
+	passiveClients     []client.Client
 	stats              []*requestStat
 	requestTimeout     time.Duration
 	requestConcurrency int
@@ -66,7 +69,7 @@ type optimizingClient struct {
 // ensure no unbounded blocking occurs.
 func newOptimizingClient(
 	l log.Logger,
-	clients []Client,
+	clients []client.Client,
 	requestTimeout time.Duration,
 	requestConcurrency int,
 	speedTestInterval,
@@ -120,7 +123,7 @@ func (oc *optimizingClient) Start() {
 // Note: if a client marked as passive closes its results channel from a `watch` call, the
 // optimizing client will not re-open it, as would be attempted with non-passive clients.
 // MarkPassive must tag clients as passive before `Start` is run.
-func (oc *optimizingClient) MarkPassive(c Client) {
+func (oc *optimizingClient) MarkPassive(c client.Client) {
 	oc.passiveClients = append(oc.passiveClients, c)
 	// push passive clients to the back of the list for `Get`s
 	for _, s := range oc.stats {
@@ -142,7 +145,7 @@ func (oc *optimizingClient) String() string {
 
 type requestStat struct {
 	// client is the client used to make the request.
-	client Client
+	client client.Client
 	// rtt is the time it took to make the request.
 	rtt time.Duration
 	// startTime is the time at which the request was started.
@@ -151,9 +154,9 @@ type requestStat struct {
 
 type requestResult struct {
 	// client is the client used to make the request.
-	client Client
+	client client.Client
 	// result is the return value from the call to Get.
-	result Result
+	result client.Result
 	// err is the error that occurred from a call to Get (not including context error).
 	err error
 	// stat is stats from the call to Get.
@@ -161,7 +164,7 @@ type requestResult struct {
 }
 
 // markedPassive checks if a client should be treated as passive
-func (oc *optimizingClient) markedPassive(c Client) bool {
+func (oc *optimizingClient) markedPassive(c client.Client) bool {
 	for _, p := range oc.passiveClients {
 		if p == c {
 			return true
@@ -171,7 +174,7 @@ func (oc *optimizingClient) markedPassive(c Client) bool {
 }
 
 func (oc *optimizingClient) testSpeed() {
-	clients := make([]Client, 0, len(oc.clients))
+	clients := make([]client.Client, 0, len(oc.clients))
 	for _, c := range oc.clients {
 		if !oc.markedPassive(c) {
 			clients = append(clients, c)
@@ -219,11 +222,11 @@ func (oc *optimizingClient) SetLog(l log.Logger) {
 }
 
 // fastestClients returns a ordered slice of clients - fastest first.
-func (oc *optimizingClient) fastestClients() []Client {
+func (oc *optimizingClient) fastestClients() []client.Client {
 	oc.RLock()
 	defer oc.RUnlock()
 	// copy the current ordered client list so we iterate over a stable slice
-	clients := make([]Client, 0, len(oc.stats))
+	clients := make([]client.Client, 0, len(oc.stats))
 	for _, s := range oc.stats {
 		clients = append(clients, s.client)
 	}
@@ -231,7 +234,7 @@ func (oc *optimizingClient) fastestClients() []Client {
 }
 
 // Get returns the randomness at `round` or an error.
-func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res client.Result, err error) {
 	clients := oc.fastestClients()
 	var stats []*requestStat
 	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
@@ -246,7 +249,7 @@ LOOP:
 			}
 			stats = append(stats, rr.stat)
 			res = rr.result
-			if rr.err != nil && !errors.Is(rr.err, errEmptyClientUnsupportedGet) {
+			if rr.err != nil && !errors.Is(rr.err, common.ErrEmptyClientUnsupportedGet) {
 				err = fmt.Errorf("%v - %w", err, rr.err)
 			} else if rr.err == nil {
 				err = nil
@@ -265,27 +268,27 @@ LOOP:
 }
 
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
-func get(ctx context.Context, client Client, round uint64) *requestResult {
+func get(ctx context.Context, c client.Client, round uint64) *requestResult {
 	start := time.Now()
-	res, err := client.Get(ctx, round)
+	res, err := c.Get(ctx, round)
 	rtt := time.Since(start)
 	var stat requestStat
 
-	// client failure, set a large RTT so it is sent to the back of the list
+	// c failure, set a large RTT so it is sent to the back of the list
 	if err != nil && !errors.Is(err, ctx.Err()) {
-		stat = requestStat{client, math.MaxInt64, start}
-		return &requestResult{client, res, err, &stat}
+		stat = requestStat{c, math.MaxInt64, start}
+		return &requestResult{c, res, err, &stat}
 	}
 
 	if ctx.Err() != nil {
 		return nil
 	}
 
-	stat = requestStat{client, rtt, start}
-	return &requestResult{client, res, err, &stat}
+	stat = requestStat{c, rtt, start}
+	return &requestResult{c, res, err, &stat}
 }
 
-func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
+func raceGet(ctx context.Context, clients []client.Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
 	results := make(chan *requestResult, len(clients))
 
 	go func() {
@@ -313,7 +316,7 @@ func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.D
 	return results
 }
 
-func parallelGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
+func parallelGet(ctx context.Context, clients []client.Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
 	results := make(chan *requestResult, len(clients))
 	token := make(chan struct{}, concurrency)
 
@@ -329,7 +332,7 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 			select {
 			case <-token:
 				wg.Add(1)
-				go func(c Client) {
+				go func(c client.Client) {
 					gctx, cancel := context.WithTimeout(ctx, timeout)
 					rr := get(gctx, c, round)
 					cancel()
@@ -374,11 +377,11 @@ func (oc *optimizingClient) updateStats(stats []*requestStat) {
 }
 
 type watchResult struct {
-	Result
-	Client
+	client.Result
+	client.Client
 }
 
-func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchResult, out chan Result) {
+func (oc *optimizingClient) trackWatchResults(info *chain2.Info, in chan watchResult, out chan client.Result) {
 	defer close(out)
 
 	latest := uint64(0)
@@ -399,8 +402,8 @@ func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchRes
 }
 
 // Watch returns new randomness as it becomes available.
-func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
-	outChan := make(chan Result, defaultChannelBuffer)
+func (oc *optimizingClient) Watch(ctx context.Context) <-chan client.Result {
+	outChan := make(chan client.Result, defaultChannelBuffer)
 	inChan := make(chan watchResult, defaultChannelBuffer)
 
 	info, err := oc.Info(ctx)
@@ -419,7 +422,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		retryInterval: oc.watchRetryInterval,
 	}
 
-	closingClients := make(chan Client, 1)
+	closingClients := make(chan client.Client, 1)
 	for _, c := range oc.passiveClients {
 		c := c
 		go state.watchNext(ctx, c, inChan, closingClients)
@@ -432,12 +435,12 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 }
 
 type watchingClient struct {
-	Client
+	client.Client
 	context.CancelFunc
 }
 
 type failedClient struct {
-	Client
+	client.Client
 	backoffUntil time.Time
 }
 
@@ -450,7 +453,7 @@ type watchState struct {
 	retryInterval time.Duration
 }
 
-func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult, closingClients chan Client) {
+func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult, closingClients chan client.Client) {
 	defer close(resultChan)
 
 	// spin up initial watcher(s)
@@ -489,7 +492,7 @@ func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult, closi
 	}
 }
 
-func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) {
+func (ws *watchState) tryRepopulate(results chan watchResult, done chan client.Client) {
 	ws.clean()
 
 	for {
@@ -508,7 +511,7 @@ func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) 
 	}
 }
 
-func (ws *watchState) watchNext(ctx context.Context, c Client, out chan watchResult, done chan Client) {
+func (ws *watchState) watchNext(ctx context.Context, c client.Client, out chan watchResult, done chan client.Client) {
 	defer func() { done <- c }()
 
 	resultStream := c.Watch(ctx)
@@ -535,7 +538,7 @@ func (ws *watchState) close(clientIdx int) {
 	ws.active = ws.active[:len(ws.active)-1]
 }
 
-func (ws *watchState) done(c Client) {
+func (ws *watchState) done(c client.Client) {
 	idx := ws.hasActive(c)
 	if idx > -1 {
 		ws.close(idx)
@@ -549,7 +552,7 @@ func (ws *watchState) done(c Client) {
 	// this happens when the optimizing client has closed it via `closeSlowest`
 }
 
-func (ws *watchState) hasActive(c Client) int {
+func (ws *watchState) hasActive(c client.Client) int {
 	for i, a := range ws.active {
 		if a.Client == c {
 			return i
@@ -558,7 +561,7 @@ func (ws *watchState) hasActive(c Client) int {
 	return -1
 }
 
-func (ws *watchState) hasProtected(c Client) int {
+func (ws *watchState) hasProtected(c client.Client) int {
 	for i, p := range ws.protected {
 		if p.Client == c {
 			return i
@@ -581,7 +584,7 @@ func (ws *watchState) closeSlowest() {
 	ws.close(idxs[len(idxs)-1])
 }
 
-func (ws *watchState) nextUnwatched() Client {
+func (ws *watchState) nextUnwatched() client.Client {
 	clients := ws.optimizer.fastestClients()
 ClientLoop:
 	for _, c := range clients {
@@ -607,7 +610,7 @@ ClientLoop:
 
 // Info returns the parameters of the chain this client is connected to.
 // The public key, when it started, and how frequently it updates.
-func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, err error) {
+func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain2.Info, err error) {
 	clients := oc.fastestClients()
 	for _, c := range clients {
 		ctx, cancel := context.WithTimeout(ctx, oc.requestTimeout)
