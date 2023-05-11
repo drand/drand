@@ -11,7 +11,7 @@ import (
 )
 
 func TestLogsErrorsWhenThresholdReached(t *testing.T) {
-	beaconID := "my-beacon"
+	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -32,10 +32,11 @@ func TestLogsErrorsWhenThresholdReached(t *testing.T) {
 	l.On("Debugw").Return()
 	l.On("Warnw").Return()
 
+	// starting monitor afterwards to avoid any flakiness on CI
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "b")
+	monitor.ReportFailure(beaconID, "c")
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "b")
-	monitor.ReportFailure(beaconID, 1, "c")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -43,7 +44,7 @@ func TestLogsErrorsWhenThresholdReached(t *testing.T) {
 }
 
 func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
-	beaconID := "my-beacon"
+	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -64,9 +65,10 @@ func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
 	l.On("Debugw").Return()
 	l.On("Warnw").Return()
 
+	// starting monitor afterwards to avoid any flakiness on CI
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "c")
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "c")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -105,7 +107,7 @@ func TestLogsDebugWhenAllGood(t *testing.T) {
 }
 
 func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
-	beaconID := "my-beacon"
+	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -128,10 +130,10 @@ func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 
 	monitor.Start()
 	monitor.Stop()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "b")
-	monitor.ReportFailure(beaconID, 1, "c")
-	monitor.ReportFailure(beaconID, 1, "d")
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "b")
+	monitor.ReportFailure(beaconID, "c")
+	monitor.ReportFailure(beaconID, "d")
 	time.Sleep(period)
 
 	l.AssertNotCalled(t, "Debugw", mock.Anything)
@@ -140,7 +142,7 @@ func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 }
 
 func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
-	beaconID := "my-beacon"
+	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 4
@@ -161,11 +163,12 @@ func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
 	l.On("Debugw").Return()
 	l.On("Warnw").Return()
 
+	// starting monitor afterwards to avoid any flakiness on CI
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "a")
+	monitor.ReportFailure(beaconID, "a")
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
-	monitor.ReportFailure(beaconID, 1, "a")
 	time.Sleep(period)
 	monitor.Stop()
 
@@ -175,7 +178,7 @@ func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
 }
 
 func TestStateIsResetEveryPeriod(t *testing.T) {
-	beaconID := "my-beacon"
+	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
 	threshold := 3
@@ -196,10 +199,11 @@ func TestStateIsResetEveryPeriod(t *testing.T) {
 	l.On("Debugw").Return()
 	l.On("Warnw").Return()
 
+	// starting monitor afterwards to avoid any flakiness on CI
+	monitor.ReportFailure(beaconID, "a")
 	monitor.Start()
-	monitor.ReportFailure(beaconID, 1, "a")
 	time.Sleep(period)
-	monitor.ReportFailure(beaconID, 1, "b")
+	monitor.ReportFailure(beaconID, "b")
 	time.Sleep(period)
 	monitor.Stop()
 
