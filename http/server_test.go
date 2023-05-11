@@ -340,12 +340,18 @@ func TestHTTP404(t *testing.T) {
 
 	u := fmt.Sprintf("http://%s/deadbeef/public/latest", listener.Addr().String())
 	resp, err := http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatal("response should 404 on beacon hash that doesn't exist")
 	}
 
 	u = fmt.Sprintf("http://%s/deadbeef/public/1", listener.Addr().String())
 	resp, err = http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatal("response should 404 on beacon hash that doesn't exist")
 	}
