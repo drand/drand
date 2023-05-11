@@ -15,9 +15,6 @@ issues:
         - gosec
         - nilnil
         - noctx
-        - revive
-    - path: _test\.go
-      text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go
       linters:
         - lll
@@ -25,15 +22,12 @@ issues:
     - path: cmd
       linters:
         - forbidigo # we use Println in our UX
-    - path: lib
+    - path: internal/lib
       linters:
         - forbidigo # we use Println in our UX
-    - path: drand-cli
+    - path: internal/drand-cli
       linters:
         - forbidigo # we use Println in our UX
-    - path: crypto/schemes.go
-      linters:
-        - dupl # we have explicit scheme instantiations
 #    - path: core/broadcast.go
 #      linters:
 #        - interfacer # Deprecated
@@ -120,7 +114,7 @@ linters:
     - predeclared
     # -promlinter #TODO could be enabled
     - reassign
-    # - revive #TODO make sure it's enabled on develop
+    - revive
     - rowserrcheck
     # - scopelint # Deprecated
     - sqlclosecheck

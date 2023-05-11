@@ -54,7 +54,7 @@ do
   fi
 
   ### once the node reports healthy, we know it has caught up and is part of the network
-  response=$(curl --silent --head localhost:22180/health)
+  response=$(curl --silent --head 127.0.0.1:22180/health)
   if [[ $? -eq 0 && $response =~ "200 OK" ]]; then
     break
   fi

@@ -3,6 +3,9 @@ package client
 import (
 	"sync"
 	"testing"
+
+	clientMock "github.com/drand/drand/client/mock"
+	"github.com/drand/drand/common/client"
 )
 
 func TestMetricClose(t *testing.T) {
@@ -10,8 +13,8 @@ func TestMetricClose(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	c := &MockClient{
-		WatchCh: make(chan Result),
+	c := &clientMock.Client{
+		WatchCh: make(chan client.Result),
 		CloseF: func() error {
 			wg.Done()
 			return nil

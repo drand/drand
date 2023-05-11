@@ -5,33 +5,39 @@ optimization features.
 
 Example:
 
+	package main
+
 	import (
 		"context"
 		"encoding/hex"
 		"fmt"
 
 		"github.com/drand/drand/client"
+		"github.com/drand/drand/common/log"
 	)
 
 	var chainHash, _ = hex.DecodeString("8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce")
 
 	func main() {
-		c, err := client.New(
+		ctx := context.Background()
+		lg := log.New(nil, log.DebugLevel, true)
+
+		c, err := client.New(ctx, lg,
 			client.From("..."), // see concrete client implementations
 			client.WithChainHash(chainHash),
 		)
 
 		// e.g. use the client to get the latest randomness round:
-		r := c.Get(context.Background(), 0)
+		r, err := c.Get(ctx, 0)
 
 		fmt.Println(r.Round(), r.Randomness())
 	}
 
 The "From" option allows you to specify clients that work over particular
 transports. HTTP, gRPC and libp2p PubSub clients are provided in drand's
-subpackages https://pkg.go.dev/github.com/drand/drand/client/http,
-https://pkg.go.dev/github.com/drand/drand/client/grpc and
-https://pkg.go.dev/github.com/drand/drand/lp2p/clientlp2p/client
+subpackages https://pkg.go.dev/github.com/drand/drand/internal/client/http,
+https://pkg.go.dev/github.com/drand/drand/internal/client/grpc and
+https://pkg.go.dev/github.com/drand/drand/internal/lp2p/clientlp2p/client
 respectively. Note that you are not restricted to just one client. You can use
 multiple clients of the same type or of different types. The base client will
 periodically "speed test" it's clients, failover, cache results and aggregate

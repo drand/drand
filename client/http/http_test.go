@@ -14,23 +14,24 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/test/testlogger"
+	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestHTTPClient(t *testing.T) {
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, sch, clk)
 	defer cancel()
 
-	err = IsServerReady(addr)
+	err = IsServerReady(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	l := testlogger.New(t)
-	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New(ctx, l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,31 +62,32 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	err = IsServerReady(addr)
+	err = IsServerReady(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	l := testlogger.New(t)
-	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New(ctx, l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel = context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	r0, err := httpClient.Get(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel = context.WithTimeout(ctx, time.Second)
 	defer cancel()
 	r1, err := httpClient.Get(ctx, 0)
 	if err != nil {
@@ -99,19 +101,20 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestForURLsCreation(t *testing.T) {
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	err = IsServerReady(addr)
+	err = IsServerReady(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	l := testlogger.New(t)
-	clients := ForURLsWithLogger(l, []string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
+	clients := ForURLs(ctx, l, []string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned")
 	}
@@ -120,28 +123,25 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
-
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	err = IsServerReady(addr)
+	err = IsServerReady(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	l := testlogger.New(t)
-	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New(ctx, l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	result := httpClient.Watch(ctx)
 	first, ok := <-result
@@ -157,19 +157,20 @@ func TestHTTPWatch(t *testing.T) {
 }
 
 func TestHTTPClientClose(t *testing.T) {
+	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch, clk)
 	defer cancel()
 
-	err = IsServerReady(addr)
+	err = IsServerReady(ctx, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	l := testlogger.New(t)
-	httpClient, err := NewWithLogger(l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New(ctx, l, "http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}

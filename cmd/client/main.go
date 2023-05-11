@@ -13,9 +13,9 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/lib"
 )
 
 // Automatically set through -ldflags
