@@ -328,6 +328,11 @@ for letting me work on this project and helping me grow it.
 - (French)
   [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
 
+## Tracing
+
+In the [./docker](./docker) folder, you can use the [docker-compose.tracing.yaml](./docker/docker-compose.tracing.yaml) to spin up the necessary components for monitoring a drand binary in-depth.
+To run tracing, you will need to pass the `--traces` command line flag with the endpoint of the tool running in the docker-compose file (or another OpenTelemetry endpoint). You can optionally pass the `--traces-probability` flag to configure how many calls you wish to sample for telemetry.
+
 ## License
 
 The drand project is dual-licensed under Apache 2.0 and MIT terms:

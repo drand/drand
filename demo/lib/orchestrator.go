@@ -14,12 +14,12 @@ import (
 
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/node"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -338,9 +338,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		if e.tls {
 			tmp, _ := os.CreateTemp("", "cert")
 			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			defer func() {
-				_ = os.Remove(tmpName)
-			}()
+			defer os.Remove(tmpName)
 			_ = tmp.Close()
 			n.WriteCertificate(tmpName)
 			args = append(args, pair("--cacert", tmpName)...)

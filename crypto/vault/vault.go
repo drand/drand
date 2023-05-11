@@ -3,10 +3,10 @@ package vault
 import (
 	"sync"
 
-	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
 	"github.com/drand/kyber/share"
 )
 
@@ -37,7 +37,7 @@ func NewVault(l log.Logger, currentGroup *key.Group, ks *key.Share, sch *crypto.
 	return &Vault{
 		log:    l,
 		Scheme: sch,
-		chain:  chain.NewChainInfoWithLogger(l, currentGroup),
+		chain:  chain.NewChainInfo(l, currentGroup),
 		share:  ks,
 		pub:    currentGroup.PublicKey.PubPoly(sch),
 		group:  currentGroup,

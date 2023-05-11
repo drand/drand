@@ -8,7 +8,7 @@
 .PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
-CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
+CLI_PACKAGE=github.com/drand/drand/internal/drand-cli
 
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
@@ -24,7 +24,7 @@ drand: build
 ####################  Lint and fmt process ##################
 
 install_lint:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.2
 
 lint:
 	golangci-lint --version
@@ -142,7 +142,7 @@ install:
 
 # create the "drand" binary in the current folder
 build:
-	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
+	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
 # create the "drand-client" binary in the current folder
 client:
@@ -171,7 +171,7 @@ build_docker:
 	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .
 
 build_docker_dev:
-	docker build -f test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
+	docker build -f internal/test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
 PROTOC_VERSION=3.19.6

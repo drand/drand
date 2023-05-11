@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/test/mock"
-	"github.com/drand/drand/test/testlogger"
+	"github.com/drand/drand/internal/test/mock"
+	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestClient(t *testing.T) {
@@ -22,13 +22,13 @@ func TestClient(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
-	l, server := mock.NewMockGRPCPublicServer(t, lg, "localhost:0", false, sch, clk)
+	l, server := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := NewWithLogger(lg, addr, "", true, []byte(""))
+	c, err := New(lg, addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestClient(t *testing.T) {
 	res := c.Watch(ctx)
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		server.(mock.MockService).EmitRand(false)
+		server.(mock.Service).EmitRand(false)
 	}()
 	r3, ok := <-res
 	if !ok {
@@ -74,13 +74,13 @@ func TestClientClose(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	clk := clock.NewFakeClockAt(time.Now())
-	l, _ := mock.NewMockGRPCPublicServer(t, lg, "localhost:0", false, sch, clk)
+	l, _ := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", false, sch, clk)
 	addr := l.Addr()
 
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := NewWithLogger(lg, addr, "", true, []byte(""))
+	c, err := New(lg, addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}

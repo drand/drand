@@ -13,10 +13,11 @@ import (
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
 
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/cmd/client/lib"
+	client2 "github.com/drand/drand/client"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/lib"
 )
 
 // Automatically set through -ldflags
@@ -92,7 +93,7 @@ var runCmd = &cli.Command{
 	},
 }
 
-func watch(ctx context.Context, l log.Logger, c client.Watcher, upr *s3manager.Uploader, buc string) {
+func watch(ctx context.Context, l log.Logger, c client2.Watcher, upr *s3manager.Uploader, buc string) {
 	for {
 		ch := c.Watch(ctx)
 	INNER:
@@ -126,7 +127,7 @@ func watch(ctx context.Context, l log.Logger, c client.Watcher, upr *s3manager.U
 }
 
 func uploadRandomness(ctx context.Context, upr *s3manager.Uploader, buc string, res client.Result) (string, error) {
-	rd, ok := res.(*client.RandomData)
+	rd, ok := res.(*client2.RandomData)
 	if !ok {
 		return "", fmt.Errorf("unexpected underlying result type")
 	}

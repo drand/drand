@@ -18,20 +18,19 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/core"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
-	drandnet "github.com/drand/drand/net"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/core"
+	drandnet "github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/test"
+	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
-	"github.com/drand/drand/util"
 )
 
 var secretDKG = "dkgsecret_____________________32"
-var secretReshare = "sharesecret___________________32"
 
 type NodeProc struct {
 	base       string
@@ -106,7 +105,7 @@ func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 
 func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, error) {
 	l := log.DefaultLogger()
-	defaultManager := drandnet.NewCertManagerWithLogger(l)
+	defaultManager := drandnet.NewCertManager(l)
 	if err := defaultManager.Add(certPath); err != nil {
 		return nil, err
 	}
@@ -133,7 +132,7 @@ func (n *NodeProc) setup() {
 		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
 		n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
 		func() {
-			// XXX how to get rid of that annoying creating cert..
+			// TODO how to get rid of that annoying creating cert..
 			err = httpscerts.Generate(n.certPath, n.keyPath, host)
 			if err != nil {
 				panic(err)
@@ -141,7 +140,7 @@ func (n *NodeProc) setup() {
 		}()
 	}
 
-	dkgClient, err := drandnet.NewDKGControlClientWithLogger(n.lg, ctrlPort)
+	dkgClient, err := drandnet.NewDKGControlClient(n.lg, ctrlPort)
 	if err != nil {
 		panic("could not create DKG client")
 	}
@@ -164,7 +163,7 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
-	config := core.NewConfigWithLogger(n.lg, core.WithConfigFolder(n.base))
+	config := core.NewConfig(n.lg, core.WithConfigFolder(n.base))
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done

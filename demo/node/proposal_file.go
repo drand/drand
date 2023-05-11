@@ -7,7 +7,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	cli "github.com/drand/drand/cmd/drand-cli"
+	cli "github.com/drand/drand/internal/drand-cli"
 	"github.com/drand/drand/protobuf/drand"
 )
 
