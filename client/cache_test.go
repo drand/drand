@@ -5,17 +5,19 @@ import (
 	"sync"
 	"testing"
 
+	clientMock "github.com/drand/drand/client/mock"
 	"github.com/drand/drand/client/test/result/mock"
-	"github.com/drand/drand/test/testlogger"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestCacheGet(t *testing.T) {
-	m := MockClientWithResults(1, 6)
+	m := clientMock.ClientWithResults(1, 6)
 	cache, err := makeCache(3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClientWithLogger(testlogger.New(t), m, cache)
+	c, err := NewCachingClient(testlogger.New(t), m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,12 +53,12 @@ func TestCacheGet(t *testing.T) {
 }
 
 func TestCacheGetLatest(t *testing.T) {
-	m := MockClientWithResults(1, 3)
+	m := clientMock.ClientWithResults(1, 3)
 	cache, err := makeCache(3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClientWithLogger(testlogger.New(t), m, cache)
+	c, err := NewCachingClient(testlogger.New(t), m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,15 +78,15 @@ func TestCacheGetLatest(t *testing.T) {
 }
 
 func TestCacheWatch(t *testing.T) {
-	m := MockClientWithResults(2, 6)
-	rc := make(chan Result, 1)
+	m := clientMock.ClientWithResults(2, 6)
+	rc := make(chan client.Result, 1)
 	m.WatchCh = rc
 	arcCache, err := makeCache(3)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lg := testlogger.New(t)
-	cache, _ := NewCachingClientWithLogger(lg, m, arcCache)
+	cache, _ := NewCachingClient(lg, m, arcCache)
 	c := newWatchAggregator(lg, cache, nil, false, 0)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -108,8 +110,8 @@ func TestCacheClose(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	c := &MockClient{
-		WatchCh: make(chan Result),
+	c := &clientMock.Client{
+		WatchCh: make(chan client.Result),
 		CloseF: func() error {
 			wg.Done()
 			return nil
@@ -120,7 +122,7 @@ func TestCacheClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ca, err := NewCachingClientWithLogger(testlogger.New(t), c, cache)
+	ca, err := NewCachingClient(testlogger.New(t), c, cache)
 	if err != nil {
 		t.Fatal(err)
 	}

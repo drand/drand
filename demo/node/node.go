@@ -3,8 +3,8 @@ package node
 import (
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
 )
 

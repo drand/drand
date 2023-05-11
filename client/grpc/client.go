@@ -12,9 +12,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	grpcInsec "google.golang.org/grpc/credentials/insecure"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/log"
+	chain2 "github.com/drand/drand/common/chain"
+	client2 "github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -30,15 +32,7 @@ type grpcClient struct {
 }
 
 // New creates a drand client backed by a GRPC connection.
-//
-// Deprecated: Use NewWithLogger
-func New(address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
-	l := log.DefaultLogger()
-	return NewWithLogger(l, address, certPath, insecure, chainHash)
-}
-
-// NewWithLogger creates a drand client backed by a GRPC connection.
-func NewWithLogger(l log.Logger, address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
+func New(l log.Logger, address, certPath string, insecure bool, chainHash []byte) (client2.Client, error) {
 	var opts []grpc.DialOption
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -78,7 +72,7 @@ func (g *grpcClient) String() string {
 }
 
 // Get returns a the randomness at `round` or an error.
-func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
+func (g *grpcClient) Get(ctx context.Context, round uint64) (client2.Result, error) {
 	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round, Metadata: g.getMetadata()})
 	if err != nil {
 		return nil, err
@@ -91,9 +85,9 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 }
 
 // Watch returns new randomness as it becomes available.
-func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
+func (g *grpcClient) Watch(ctx context.Context) <-chan client2.Result {
 	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0, Metadata: g.getMetadata()})
-	ch := make(chan client.Result, 1)
+	ch := make(chan client2.Result, 1)
 	if err != nil {
 		close(ch)
 		return ch
@@ -103,7 +97,7 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 }
 
 // Info returns information about the chain.
-func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
+func (g *grpcClient) Info(ctx context.Context) (*chain2.Info, error) {
 	proto, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: g.getMetadata()})
 	if err != nil {
 		return nil, err
@@ -111,10 +105,10 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	if proto == nil {
 		return nil, errors.New("no received group - unexpected gPRC response")
 	}
-	return chain.InfoFromProto(proto)
+	return chain2.InfoFromProto(proto)
 }
 
-func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
+func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out chan<- client2.Result) {
 	defer close(out)
 	for {
 		next, err := stream.Recv()

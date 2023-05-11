@@ -9,22 +9,21 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/util"
-
 	"github.com/kabukky/httpscerts"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client/grpc"
-	"github.com/drand/drand/core"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
-	"github.com/drand/drand/fs"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/net"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/core"
+	"github.com/drand/drand/internal/fs"
+	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/test"
+	"github.com/drand/drand/internal/util"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
 )
 
 // LocalNode ...
@@ -69,7 +68,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	}
 
 	controlAddr := test.FreeBind(bindAddr)
-	dkgClient, err := net.NewDKGControlClientWithLogger(lg, controlAddr)
+	dkgClient, err := net.NewDKGControlClient(lg, controlAddr)
 	if err != nil {
 		return nil
 	}
@@ -143,7 +142,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		opts = append(opts, core.WithInsecure())
 	}
 
-	conf := core.NewConfigWithLogger(l.log, opts...)
+	conf := core.NewConfig(l.log, opts...)
 	ks := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	err = ks.SaveKeyPair(l.priv)
 	if err != nil {
@@ -187,8 +186,8 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 			// Add beacon handler from chain hash for http server
 			drandDaemon.AddBeaconHandler(ctx, beaconID, bp)
 
-			// XXX make it configurable so that new share holder can still start if
-			// nobody started.
+			// TODO make it configurable so that new share holder can still start if
+			//  nobody started.
 			// drand.StartBeacon(!c.Bool(pushFlag.Name))
 			catchup := true
 			err = bp.StartBeacon(ctx, catchup)
@@ -223,7 +222,7 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	if l.ctrlClient != nil {
 		return l.ctrlClient
 	}
-	cl, err := net.NewControlClientWithLogger(l.log, l.ctrlAddr)
+	cl, err := net.NewControlClient(l.log, l.ctrlAddr)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't instantiate control client", "err", err)
 		return nil
@@ -332,7 +331,7 @@ func (l *LocalNode) GetBeacon(_ string, round uint64) (resp *drand.PublicRandRes
 	if l.tls {
 		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
 	}
-	c, _ := grpc.NewWithLogger(l.log, l.privAddr, cert, cert == "", []byte(""))
+	c, _ := grpc.New(l.log, l.privAddr, cert, cert == "", []byte(""))
 
 	group := l.GetGroup()
 	if group == nil {
@@ -369,7 +368,7 @@ func (l *LocalNode) WriteCertificate(p string) {
 }
 
 func (l *LocalNode) WritePublic(p string) {
-	key.Save(p, l.priv.Public, false)
+	checkErr(key.Save(p, l.priv.Public, false))
 }
 
 func (l *LocalNode) Stop() {

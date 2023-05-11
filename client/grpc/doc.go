@@ -10,10 +10,12 @@ Example:
 	package main
 
 	import (
+		"context"
 		"encoding/hex"
 
 		"github.com/drand/drand/client"
 		"github.com/drand/drand/client/grpc"
+		"github.com/drand/drand/common/log"
 	)
 
 	const (
@@ -24,11 +26,13 @@ Example:
 	var chainHash, _ = hex.DecodeString("8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce")
 
 	func main() {
-		gc, err := grpc.New(grpcAddr, certPath, false)
+		ctx := context.Background()
+		lg := log.New(nil, log.DebugLevel, true)
 
-		c, err := client.New(
+		gc, err := grpc.New(lg, grpcAddr, certPath, false, chainHash)
+
+		c, err := client.New(ctx, lg,
 			client.From(gc),
-			client.WithChainHash(chainHash),
 		)
 	}
 

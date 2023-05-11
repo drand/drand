@@ -173,33 +173,46 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alanshaw/drand-gossipsub-client-demo/util"
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/client"
-	gclient "github.com/drand/drand/lp2p/client"
+	p2pClient "github.com/drand/drand/client/lp2p"
+	"github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/log"
 )
 
 const (
-   // listenAddr is the multiaddr the local libp2p node should listen on.
-   listenAddr   = "/ip4/0.0.0.0/tcp/4453"
-   // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
-   relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/QmPeerID"
-   // groupTOMLPath is the path to the group configuration information (in TOML format).
-   groupTOMLPath = "/home/user/.drand/groups/drand_group.toml"
+	// listenAddr is the multiaddr the local libp2p node should listen on.
+	listenAddr = "/ip4/0.0.0.0/tcp/4453"
+	// relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
+	relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/QmPeerID"
+	// groupTOMLPath is the path to the group configuration information (in TOML format).
+	groupTOMLPath = "/home/user/.drand/groups/drand_group.toml"
 )
 
 func main() {
+	ctx := context.Background()
+	l := log.DefaultLogger()
+	clk := clock.NewRealClock()
+
 	// Create libp2p pubsub
-	ps := util.NewPubsub(listenAddr, relayP2PAddr)
-
-	// Extract chain info from group TOML
-	info := util.ChainInfoFromGroupTOML(groupTOMLPath)
-
-	c, err := client.New(gclient.WithPubsub(ps), client.WithChainInfo(info))
+	ps, err := p2pClient.NewPubsub(ctx, listenAddr, relayP2PAddr)
 	if err != nil {
-		panic(err)
+		l.Panicw("while creating new p2pClient.NewPubsub", "err", err)
 	}
 
-	for res := range c.Watch(context.Background()) {
+	// Extract chain info from group TOML
+	info, err := chain.InfoFromGroupTOML(l, groupTOMLPath)
+	if err != nil {
+		l.Panicw("while extracting info from groupTOML", "err", err)
+	}
+
+	c, err := client.New(ctx, l, p2pClient.WithPubsub(l, ps, clk, p2pClient.DefaultBufferSize), client.WithChainInfo(info))
+	if err != nil {
+		l.Panicw("while creating a new client", "err", err)
+	}
+
+	for res := range c.Watch(ctx) {
 		fmt.Printf("round=%v randomness=%v\n", res.Round(), res.Randomness())
 	}
 }
@@ -213,49 +226,58 @@ You do not need to know the full group info to use the pubsub client if you know
 package main
 
 import (
-	"context"
-	"encoding/hex"
-	"fmt"
+  "context"
+  "encoding/hex"
+  "fmt"
 
-	"github.com/alanshaw/drand-gossipsub-client-demo/util"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/http"
-	gclient "github.com/drand/drand/lp2p/client"
+  clock "github.com/jonboulle/clockwork"
+
+  "github.com/drand/drand/client"
+  "github.com/drand/drand/client/http"
+  gclient "github.com/drand/drand/client/lp2p"
+  "github.com/drand/drand/common/log"
 )
 
 const (
-   // listenAddr is the multiaddr the local libp2p node should listen on.
-   listenAddr   = "/ip4/0.0.0.0/tcp/4453"
-   // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
-   relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/12D3KooWAe637xuWdRCYkuaZZce13P1F9zJX5gzGUPWZJpsUGUSH"
-   // chainHash is a hash of the group chain information.
-   chainHash    = "c599c267a0dd386606f7d6132da8327d57e1004760897c9dd4fb8495c29942b2"
-   // httpRelayURL is the URL of a drand HTTP API endpoint.
-   httpRelayURL = "http://127.0.0.1:3002"
+  // listenAddr is the multiaddr the local libp2p node should listen on.
+  listenAddr = "/ip4/0.0.0.0/tcp/4453"
+  // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
+  relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/12D3KooWAe637xuWdRCYkuaZZce13P1F9zJX5gzGUPWZJpsUGUSH"
+  // chainHash is a hash of the group chain information.
+  chainHash = "c599c267a0dd386606f7d6132da8327d57e1004760897c9dd4fb8495c29942b2"
+  // httpRelayURL is the URL of a drand HTTP API endpoint.
+  httpRelayURL = "http://127.0.0.1:3002"
 )
 
 func main() {
-	// Create libp2p pubsub
-	ps := util.NewPubsub(listenAddr, relayP2PAddr)
+  ctx := context.Background()
+  lg := log.New(nil, log.DebugLevel, true)
+  clk := clock.NewRealClock()
 
-	// Chain hash is used to verify endpoints
-	hash, err := hex.DecodeString(chainHash)
-	if err != nil {
-		panic(err)
-	}
+  // Create libp2p pubsub
+  ps, err := gclient.NewPubsub(ctx, listenAddr, relayP2PAddr)
+  if err != nil {
+    panic(err)
+  }
 
-	c, err := client.New(
-		gclient.WithPubsub(ps),
-		client.WithChainHash(hash),
-		client.From(http.ForURLs([]string{httpRelayURL}, hash)...),
-	)
-	if err != nil {
-		panic(err)
-	}
+  // Chain hash is used to verify endpoints
+  hash, err := hex.DecodeString(chainHash)
+  if err != nil {
+    panic(err)
+  }
 
-	for res := range c.Watch(context.Background()) {
-		fmt.Printf("round=%v randomness=%v\n", res.Round(), res.Randomness())
-	}
+  c, err := client.New(ctx, lg,
+    gclient.WithPubsub(lg, ps, clk, gclient.DefaultBufferSize),
+    client.WithChainHash(hash),
+    client.From(http.ForURLs(ctx, lg, []string{httpRelayURL}, hash)...),
+  )
+  if err != nil {
+    panic(err)
+  }
+
+  for res := range c.Watch(ctx) {
+    fmt.Printf("round=%v randomness=%v\n", res.Round(), res.Randomness())
+  }
 }
 ```
 
@@ -267,38 +289,47 @@ If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. No
 package main
 
 import (
-	"context"
-	"fmt"
+  "context"
+  "fmt"
 
-	"github.com/alanshaw/drand-gossipsub-client-demo/util"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/http"
-	gclient "github.com/drand/drand/lp2p/client"
+  clock "github.com/jonboulle/clockwork"
+
+  "github.com/drand/drand/client"
+  "github.com/drand/drand/client/http"
+  gclient "github.com/drand/drand/client/lp2p"
+  "github.com/drand/drand/common/log"
 )
 
 const (
-   // listenAddr is the multiaddr the local libp2p node should listen on.
-   listenAddr   = "/ip4/0.0.0.0/tcp/4453"
-   // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
-   relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/QmPeerID"
-   // httpRelayURL is the URL of a drand HTTP API endpoint.
-   httpRelayURL = "http://127.0.0.1:3002"
+  // listenAddr is the multiaddr the local libp2p node should listen on.
+  listenAddr = "/ip4/0.0.0.0/tcp/4453"
+  // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
+  relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/QmPeerID"
+  // httpRelayURL is the URL of a drand HTTP API endpoint.
+  httpRelayURL = "http://127.0.0.1:3002"
 )
 
 func main() {
-	ps := util.NewPubsub(listenAddr, relayP2PAddr)
+  ctx := context.Background()
+  lg := log.New(nil, log.DebugLevel, true)
+  clk := clock.NewRealClock()
 
-	c, err := client.New(
-		gclient.WithPubsub(ps),
-		client.From(http.ForURLs([]string{httpRelayURL}, nil)...),
-		client.Insecurely(),
-	)
-	if err != nil {
-		panic(err)
-	}
+  ps, err := gclient.NewPubsub(ctx, listenAddr, relayP2PAddr)
+  if err != nil {
+    panic(err)
+  }
 
-	for res := range c.Watch(context.Background()) {
-		fmt.Printf("round=%v randomness=%v\n", res.Round(), res.Randomness())
-	}
+  c, err := client.New(ctx, lg,
+    gclient.WithPubsub(lg, ps, clk, gclient.DefaultBufferSize),
+    client.From(http.ForURLs(ctx, lg, []string{httpRelayURL}, nil)...),
+    client.Insecurely(),
+  )
+  if err != nil {
+    panic(err)
+  }
+
+  for res := range c.Watch(ctx) {
+    fmt.Printf("round=%v randomness=%v\n", res.Round(), res.Randomness())
+  }
 }
 ```
