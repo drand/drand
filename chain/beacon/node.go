@@ -463,10 +463,11 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			h.l.Debugw("sending partial", "round", round, "to", i.Address())
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
-				h.thresholdMonitor.ReportFailure(beaconID, round, i.Address())
+				h.thresholdMonitor.ReportFailure(beaconID, i.Address())
 				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}
+			metrics.SuccessfulPartial(beaconID, i.Address())
 		}(*idt)
 	}
 }
