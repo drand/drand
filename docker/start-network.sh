@@ -85,8 +85,8 @@ do
     exit 1
   fi
 
-  ### once the first round has been created, we know that the DKG happened successfully
-  response=$(curl --silent localhost:9010/public/1)
+  ### once the first round has been created, we know that the DKG happened succesfully
+  response=$(curl --silent 127.0.0.1:9010/public/1)
   code=$?
   if [ $code -eq 0 ]; then
     if [[ $response =~ "round" ]]; then

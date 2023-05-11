@@ -15,11 +15,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
+	client2 "github.com/drand/drand/client"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
+	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/metrics"
 )
 
 var errClientClosed = fmt.Errorf("client closed")
@@ -32,15 +34,7 @@ const httpWaitInterval = 2 * time.Second
 const maxTimeoutHTTPRequest = 5 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
-//
-// Deprecated: Use NewWithLogger
-func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
-	l := log.DefaultLogger()
-	return NewWithLogger(l, url, chainHash, transport)
-}
-
-// NewWithLogger creates a new client pointing to an HTTP endpoint
-func NewWithLogger(l log.Logger, url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
+func New(ctx context.Context, l log.Logger, url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
@@ -60,7 +54,7 @@ func NewWithLogger(l log.Logger, url string, chainHash []byte, transport nhttp.R
 		done:   make(chan struct{}),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
 	chainInfo, err := c.FetchChainInfo(ctx, chainHash)
@@ -73,15 +67,7 @@ func NewWithLogger(l log.Logger, url string, chainHash []byte, transport nhttp.R
 }
 
 // NewWithInfo constructs an http client when the group parameters are already known.
-//
-// Deprecated: Use NewWithLoggerAndInfo
-func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
-	l := log.DefaultLogger()
-	return NewWithLoggerAndInfo(l, url, info, transport)
-}
-
-// NewWithLoggerAndInfo constructs an http client when the group parameters are already known.
-func NewWithLoggerAndInfo(l log.Logger, url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
+func NewWithInfo(l log.Logger, url string, info *chain2.Info, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
@@ -106,37 +92,29 @@ func NewWithLoggerAndInfo(l log.Logger, url string, info *chain.Info, transport 
 }
 
 // ForURLs provides a shortcut for creating a set of HTTP clients for a set of URLs.
-//
-// Deprecated: Use ForURLsWithLogger
-func ForURLs(urls []string, chainHash []byte) []client.Client {
-	l := log.DefaultLogger()
-	return ForURLsWithLogger(l, urls, chainHash)
-}
-
-// ForURLsWithLogger provides a shortcut for creating a set of HTTP clients for a set of URLs.
-func ForURLsWithLogger(l log.Logger, urls []string, chainHash []byte) []client.Client {
+func ForURLs(ctx context.Context, l log.Logger, urls []string, chainHash []byte) []client.Client {
 	clients := make([]client.Client, 0)
-	var info *chain.Info
+	var info *chain2.Info
 	var skipped []string
 	for _, u := range urls {
 		if info == nil {
-			if c, err := NewWithLogger(l, u, chainHash, nil); err == nil {
+			if c, err := New(ctx, l, u, chainHash, nil); err == nil {
 				// Note: this wrapper assumes the current behavior that if `New` succeeds,
 				// Info will have been fetched.
-				info, _ = c.Info(context.Background())
+				info, _ = c.Info(ctx)
 				clients = append(clients, c)
 			} else {
 				skipped = append(skipped, u)
 			}
 		} else {
-			if c, err := NewWithLoggerAndInfo(l, u, info, nil); err == nil {
+			if c, err := NewWithInfo(l, u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
 		}
 	}
 	if info != nil {
 		for _, u := range skipped {
-			if c, err := NewWithLoggerAndInfo(l, u, info, nil); err == nil {
+			if c, err := NewWithInfo(l, u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
 		}
@@ -199,11 +177,11 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	return &hc
 }
 
-func IsServerReady(addr string) (er error) {
+func IsServerReady(ctx context.Context, addr string) (er error) {
 	counter := 0
 	for {
 		// Ping is wrapping its context with a Timeout on maxTimeoutHTTPRequest anyway.
-		err := Ping(context.Background(), "http://"+addr)
+		err := Ping(ctx, "http://"+addr)
 		if err == nil {
 			return nil
 		}
@@ -222,7 +200,7 @@ type httpClient struct {
 	root      string
 	client    *nhttp.Client
 	Agent     string
-	chainInfo *chain.Info
+	chainInfo *chain2.Info
 	l         log.Logger
 	done      chan struct{}
 }
@@ -248,14 +226,14 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 }
 
 type httpInfoResponse struct {
-	chainInfo *chain.Info
+	chainInfo *chain2.Info
 	err       error
 }
 
 // FetchChainInfo attempts to initialize an httpClient when
 // it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
-func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*chain.Info, error) {
+func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*chain2.Info, error) {
 	if h.chainInfo != nil {
 		return h.chainInfo, nil
 	}
@@ -286,7 +264,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 		}
 		defer infoBody.Body.Close()
 
-		chainInfo, err := chain.InfoFromJSON(infoBody.Body)
+		chainInfo, err := chain2.InfoFromJSON(infoBody.Body)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("decoding response: %w", err)}
 			return
@@ -356,7 +334,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		}
 		defer randResponse.Body.Close()
 
-		randResp := client.RandomData{}
+		randResp := client2.RandomData{}
 		if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 			resC <- httpGetResponse{nil, fmt.Errorf("decoding response: %w", err)}
 			return
@@ -389,7 +367,7 @@ func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
 		defer cancel()
 		defer close(out)
 
-		in := client.PollingWatcher(ctx, h, h.chainInfo, h.l)
+		in := client2.PollingWatcher(ctx, h, h.chainInfo, h.l)
 		for {
 			select {
 			case res, ok := <-in:
@@ -406,7 +384,7 @@ func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
 }
 
 // Info returns information about the chain.
-func (h *httpClient) Info(_ context.Context) (*chain.Info, error) {
+func (h *httpClient) Info(_ context.Context) (*chain2.Info, error) {
 	return h.chainInfo, nil
 }
 

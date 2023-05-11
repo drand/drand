@@ -5,16 +5,18 @@ import (
 	"testing"
 	"time"
 
+	clientMock "github.com/drand/drand/client/mock"
 	"github.com/drand/drand/client/test/result/mock"
-	"github.com/drand/drand/test/testlogger"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestAggregatorClose(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	c := &MockClient{
-		WatchCh: make(chan Result),
+	c := &clientMock.Client{
+		WatchCh: make(chan client.Result),
 		CloseF: func() error {
 			wg.Done()
 			return nil
@@ -35,16 +37,16 @@ func TestAggregatorPassive(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	c := &MockClient{
-		WatchCh: make(chan Result, 1),
+	c := &clientMock.Client{
+		WatchCh: make(chan client.Result, 1),
 		CloseF: func() error {
 			wg.Done()
 			return nil
 		},
 	}
 
-	wc := &MockClient{
-		WatchCh: make(chan Result, 1),
+	wc := &clientMock.Client{
+		WatchCh: make(chan client.Result, 1),
 		CloseF: func() error {
 			return nil
 		},

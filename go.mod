@@ -19,6 +19,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger2 v0.1.3
+	github.com/jedib0t/go-pretty/v6 v6.4.6
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/jonboulle/clockwork v0.3.0
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
@@ -104,7 +105,6 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-temp-err-catcher v0.1.0 // indirect
 	github.com/jbenet/goprocess v0.1.4 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.4.6 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kilic/bls12-381 v0.1.0 // indirect
@@ -123,7 +123,6 @@ require (
 	github.com/marten-seemann/tcp v0.0.0-20210406111302-dfbc87cc63fd // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/miekg/dns v1.1.51 // indirect

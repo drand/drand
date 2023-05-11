@@ -10,12 +10,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/urfave/cli/v2"
 
-	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/lp2p"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/metrics/pprof"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/internal/lib"
+	"github.com/drand/drand/internal/lp2p"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/internal/metrics/pprof"
 )
 
 // Automatically set through -ldflags
@@ -94,7 +94,7 @@ var runCmd = &cli.Command{
 	Action: func(cctx *cli.Context) error {
 		lg := log.New(nil, log.DefaultLevel, false)
 		if cctx.IsSet(metricsFlag.Name) {
-			metricsListener := metrics.StartWithLogger(lg, cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
+			metricsListener := metrics.Start(lg, cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
 			if err := metrics.PrivateMetrics.Register(grpcprometheus.DefaultClientMetrics); err != nil {
 				return err

@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.20.1-buster AS builder
+FROM golang:1.19.5-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG major=0
@@ -36,10 +36,11 @@ RUN \
   -ldflags \
   "-X github.com/drand/drand/common.COMMIT=${gitCommit} \
   -X github.com/drand/drand/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
+  -X github.com/drand/drand/internal/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/internal/drand-cli.gitCommit=${gitCommit}" \
+  ./cmd/drand
 
-FROM --platform=linux/amd64 busybox:1-glibc
+FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ENV GOPATH                 /go
