@@ -307,3 +307,52 @@ func TestHTTPHealth(t *testing.T) {
 	}
 	resp.Body.Close()
 }
+func TestHTTP404(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c, _ := withClient(t)
+
+	handler, err := New(ctx, "", test.Logger(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := c.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := http.Server{Handler: handler.GetHTTPHandler()}
+	go func() { _ = server.Serve(listener) }()
+	defer func() { _ = server.Shutdown(ctx) }()
+
+	err = nhttp.IsServerReady(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u := fmt.Sprintf("http://%s/deadbeef/public/latest", listener.Addr().String())
+	resp, err := http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatal("response should 404 on beacon hash that doesn't exist")
+	}
+
+	u = fmt.Sprintf("http://%s/deadbeef/public/1", listener.Addr().String())
+	resp, err = http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatal("response should 404 on beacon hash that doesn't exist")
+	}
+}
