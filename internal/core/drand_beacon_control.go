@@ -544,7 +544,8 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 // sendProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
-func (bp *BeaconProcess) sendProgressCallback(ctx context.Context,
+func (bp *BeaconProcess) sendProgressCallback(
+	ctx context.Context,
 	stream drand.Control_StartFollowChainServer,
 	upTo uint64, info *chain2.Info,
 	clk clock.Clock,
