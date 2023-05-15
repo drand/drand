@@ -380,7 +380,7 @@ func (s *sender) run(ctx context.Context) {
 }
 
 func (s *sender) sendDirect(ctx context.Context, newPacket broadcastPacket) {
-	ctx, span := metrics.NewSpan(ctx, "s.sendDirect")
+	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "s.sendDirect")
 	defer span.End()
 
 	node := util.ToPeer(s.to)

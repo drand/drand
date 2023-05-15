@@ -78,6 +78,12 @@ func NewSpanFromSpanContext(ctx context.Context, spCtx oteltrace.SpanContext, sp
 	return otel.Tracer(myAppName).Start(oteltrace.ContextWithSpanContext(ctx, spCtx), spanName, opts...)
 }
 
+// NewSpanFromContext is like NewSpanFromSpanContext but uses a span from a context to work
+func NewSpanFromContext(ctx, sctx context.Context, spanName string, opts ...oteltrace.SpanStartOption) (context.Context, oteltrace.Span) {
+	spCtx := oteltrace.SpanContextFromContext(sctx)
+	return otel.Tracer(myAppName).Start(oteltrace.ContextWithSpanContext(ctx, spCtx), spanName, opts...)
+}
+
 //nolint:gocritic
 func noopTracer(appName string) (oteltrace.Tracer, func(context.Context)) {
 	traceProvider := oteltrace.NewNoopTracerProvider()
