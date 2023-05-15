@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/drand/drand/internal/util"
 	"sync"
 	"time"
 
 	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -45,7 +45,6 @@ func (d *Process) gossip(
 		wg.Add(len(recipients) - 1)
 	} else {
 		wg.Add(len(recipients))
-
 	}
 	for _, participant := range recipients {
 		p := participant

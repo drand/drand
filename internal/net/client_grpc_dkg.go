@@ -3,8 +3,9 @@ package net
 import (
 	"context"
 
-	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
+
+	"github.com/drand/drand/protobuf/drand"
 )
 
 func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {

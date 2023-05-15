@@ -6,21 +6,20 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/util"
 	"testing"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/crypto"
-	"google.golang.org/grpc"
-
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )
 

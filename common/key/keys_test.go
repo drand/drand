@@ -8,11 +8,12 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
-	"github.com/stretchr/testify/require"
 )
 
 const testAddr = "127.0.0.1:80"

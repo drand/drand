@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/util"
-
 	"github.com/drand/drand/protobuf/drand"
 )
 

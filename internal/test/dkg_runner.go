@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/BurntSushi/toml"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/dkg"
-	"time"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/drand/drand/protobuf/drand"
 )
 

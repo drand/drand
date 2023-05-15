@@ -2,11 +2,12 @@ package dkg
 
 import (
 	"errors"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/util"
-
 	"github.com/drand/drand/protobuf/drand"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (d *Process) signMessage(

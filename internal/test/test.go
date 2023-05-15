@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rogpeppe/go-internal/lockedfile"
+
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
@@ -19,7 +21,6 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"
-	"github.com/rogpeppe/go-internal/lockedfile"
 )
 
 type testPeer struct {

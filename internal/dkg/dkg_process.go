@@ -1,14 +1,14 @@
 package dkg
 
 import (
+	"sync"
+	"time"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/net"
-	"sync"
-	"time"
 )
 
-//nolint:revive
 type Process struct {
 	lock             sync.Mutex
 	store            Store

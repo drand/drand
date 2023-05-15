@@ -3,8 +3,9 @@ package net
 import (
 	"context"
 
-	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
+
+	"github.com/drand/drand/protobuf/drand"
 )
 
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
