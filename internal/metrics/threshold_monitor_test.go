@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/log"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/drand/drand/common/log"
 )
 
 func TestLogsErrorsWhenThresholdReached(t *testing.T) {

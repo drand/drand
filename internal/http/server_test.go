@@ -340,9 +340,9 @@ func TestHTTP404(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, _ := withClient(t)
+	c, _ := withClient(t, clock.NewFakeClock())
 
-	handler, err := New(ctx, "", test.Logger(t))
+	handler, err := New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +362,7 @@ func TestHTTP404(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	err = nhttp.IsServerReady(listener.Addr().String())
+	err = nhttp.IsServerReady(ctx, listener.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
