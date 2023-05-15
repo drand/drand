@@ -390,7 +390,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	for {
 		syncCtx, syncCancel := context.WithCancel(ctx)
 		go func() {
-			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(span.SpanContext(), req.GetUpTo(), peers))
+			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(ctx, req.GetUpTo(), peers))
 		}() // wait for all the callbacks to be called and progress sent before returning
 		select {
 		case <-done:

@@ -8,8 +8,6 @@ import (
 	"math/rand"
 	"sync"
 
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -198,7 +196,7 @@ func (b *echoBroadcast) passToApplication(p packet) {
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
 func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass bool, beaconID string) {
-	sctx, span := metrics.NewSpan(ctx, "b.sendout")
+	ctx, span := metrics.NewSpan(ctx, "b.sendout")
 	defer span.End()
 
 	if b.isStopped {
@@ -218,9 +216,9 @@ func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass 
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
 		// at most.
-		go b.dispatcher.broadcastDirect(sctx, proto)
+		go b.dispatcher.broadcastDirect(ctx, proto)
 	} else {
-		b.dispatcher.broadcast(span.SpanContext(), proto)
+		b.dispatcher.broadcast(ctx, proto)
 	}
 }
 
@@ -299,7 +297,7 @@ type dispatcher struct {
 }
 
 func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
-	sctx, span := metrics.NewSpan(ctx, "newDispatcher")
+	ctx, span := metrics.NewSpan(ctx, "newDispatcher")
 	defer span.End()
 
 	var senders = make([]*sender, 0, len(to)-1)
@@ -309,7 +307,7 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 			continue
 		}
 		sender := newSender(dkgClient, node, l, queue)
-		go sender.run(sctx)
+		go sender.run(ctx)
 		senders = append(senders, sender)
 	}
 	return &dispatcher{
@@ -319,8 +317,8 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 
 // broadcast uses the regular channel limitation for messages coming from other
 // nodes.
-func (d *dispatcher) broadcast(octx oteltrace.SpanContext, p broadcastPacket) {
-	ctx, span := metrics.NewSpanFromSpanContext(context.Background(), octx, "d.broadcast")
+func (d *dispatcher) broadcast(ctx context.Context, p broadcastPacket) {
+	ctx, span := metrics.NewSpan(ctx, "d.broadcast")
 	defer span.End()
 
 	for _, i := range rand.Perm(len(d.senders)) {
@@ -331,11 +329,11 @@ func (d *dispatcher) broadcast(octx oteltrace.SpanContext, p broadcastPacket) {
 // broadcastDirect directly send to the other peers - it is used only for our
 // own packets so we're not bound to congestion events.
 func (d *dispatcher) broadcastDirect(ctx context.Context, p broadcastPacket) {
-	sctx, span := metrics.NewSpan(ctx, "d.broadcastDirect")
+	ctx, span := metrics.NewSpan(ctx, "d.broadcastDirect")
 	defer span.End()
 
 	for _, i := range rand.Perm(len(d.senders)) {
-		d.senders[i].sendDirect(sctx, p)
+		d.senders[i].sendDirect(ctx, p)
 	}
 }
 
@@ -373,11 +371,11 @@ func (s *sender) sendPacket(ctx context.Context, p broadcastPacket) {
 }
 
 func (s *sender) run(ctx context.Context) {
-	sctx, span := metrics.NewSpan(ctx, "s.run")
+	ctx, span := metrics.NewSpan(ctx, "s.run")
 	defer span.End()
 
 	for newPacket := range s.newCh {
-		s.sendDirect(sctx, newPacket)
+		s.sendDirect(ctx, newPacket)
 	}
 }
 
