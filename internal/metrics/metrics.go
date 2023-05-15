@@ -256,6 +256,12 @@ var (
 		Help: "Timestamp when the drand process started up in seconds since the Epoch",
 	})
 
+	ErrorSendingPartialCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "error_sending_partial",
+		Help: "Number of errors sending partial beacons to nodes. A good proxy for whether nodes are up or down. " +
+			"1 = Error occurred, 0 = No error occurred",
+	}, []string{"beaconID", "address"})
+
 	metricsBound sync.Once
 )
 
@@ -290,6 +296,7 @@ func bindMetrics(l log.Logger) {
 		IsDrandNode,
 		DrandStartTimestamp,
 		DrandStorageBackend,
+		ErrorSendingPartialCounter,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
@@ -524,4 +531,12 @@ func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	reshareState.WithLabelValues(beaconID).Set(float64(s))
 	reshareStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
 	reshareLeader.WithLabelValues(beaconID).Set(value)
+}
+
+func ErrorSendingPartial(beaconID, address string) {
+	ErrorSendingPartialCounter.WithLabelValues(beaconID, address).Set(1)
+}
+
+func SuccessfulPartial(beaconID, address string) {
+	ErrorSendingPartialCounter.WithLabelValues(beaconID, address).Set(0)
 }

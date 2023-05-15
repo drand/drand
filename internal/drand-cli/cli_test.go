@@ -498,7 +498,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore, beaconID)
 }
 
-//nolint:lll // This function has nicely named parameters, so it's long.
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
 	lg := testlogger.New(t)
