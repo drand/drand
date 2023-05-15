@@ -281,10 +281,11 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	bp.state.Lock()
+	logger := bp.log.Named("Follow")
 	if bp.syncerCancel != nil {
 		bp.state.Unlock()
 		err := errors.New("syncing is already in progress")
-		bp.log.Debugw("beacon_process", "err", err)
+		logger.Debugw("beacon_process", "err", err)
 		return err
 	}
 
@@ -295,8 +296,8 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	// ctx, cancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	bp.syncerCancel = cancel
-
 	bp.state.Unlock()
+
 	defer func() {
 		bp.state.Lock()
 		if bp.syncerCancel != nil {
@@ -318,9 +319,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 
-	beaconID := bp.getBeaconID()
-
-	info, err := bp.chainInfoFromPeers(ctx, bp.privGateway, peers, bp.log, bp.version, beaconID)
+	info, err := bp.chainInfoFromPeers(ctx, peers)
 	if err != nil {
 		return err
 	}
@@ -331,21 +330,21 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		return fmt.Errorf("chain hash mismatch: rcv(%x) != bp(%x)", info.Hash(), hash)
 	}
 
-	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GenesisSeed))
+	logger.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GenesisSeed))
 
-	if !common2.CompareBeaconIDs(beaconID, info.ID) {
+	if !common2.CompareBeaconIDs(bp.getBeaconID(), info.ID) {
 		return errors.New("invalid beacon id on chain info")
 	}
 
 	store, err := bp.createDBStore(context.Background())
 	if err != nil {
-		bp.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
+		logger.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)
 	}
 
 	// TODO find a better place to put that
 	if err := store.Put(ctx, chain.GenesisBeacon(info.GenesisSeed)); err != nil {
-		bp.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
+		logger.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
 		store.Close()
 		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
@@ -371,7 +370,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	defer cbStore.RemoveCallback(addr)
 
 	syncer, err := beacon.NewSyncManager(ctx, &beacon.SyncConfig{
-		Log:         bp.log,
+		Log:         logger,
 		Store:       cbStore,
 		BoltdbStore: store,
 		Info:        info,
@@ -386,7 +385,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	go syncer.Run()
 	defer syncer.Stop()
 
-	bp.log.Debugw("Launching follow now")
+	logger.Debugw("Launching follow now")
 	var errChan chan error
 
 	for {
@@ -403,7 +402,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 			return ctx.Err()
 		case <-errChan:
 			syncCancel()
-			bp.log.Errorw("Error while trying to follow chain, trying again in 2 periods")
+			logger.Errorw("Error while trying to follow chain, trying again in 2 periods")
 			// in case of error we retry after a period elapsed, since follow must run until canceled
 			time.Sleep(info.Period)
 			continue
@@ -507,11 +506,16 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
-	peers []net.Peer, l log.Logger, version common2.Version, beaconID string,
-) (*chain2.Info, error) {
+func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Peer) (*chain2.Info, error) {
 	ctx, span := metrics.NewSpan(ctx, "bp.chainInfoFromPeers")
 	defer span.End()
+
+	bp.state.RLock()
+	privGateway := bp.privGateway
+	logger := bp.log.Named("InfoFromPeers")
+	version := bp.version
+	beaconID := bp.beaconID
+	bp.state.RUnlock()
 
 	// we first craft our request
 	request := new(drand.ChainInfoRequest)
@@ -523,12 +527,12 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, privGateway *ne
 		var ci *drand.ChainInfoPacket
 		ci, err = privGateway.ChainInfo(ctx, peer, request)
 		if err != nil {
-			l.Errorw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			logger.Errorw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 		info, err = chain2.InfoFromProto(ci)
 		if err != nil {
-			l.Errorw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			logger.Errorw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 	}
