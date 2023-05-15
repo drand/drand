@@ -13,7 +13,6 @@ import (
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/beacon"
@@ -363,7 +362,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	cbStore := beacon.NewCallbackStore(bp.log, ss)
 	defer cbStore.Close()
 
-	cb, done := bp.sendProgressCallback(ctx, stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
+	cb, done := bp.sendProgressCallback(ctx, stream, req.GetUpTo(), info, bp.opts.clock)
 
 	addr := net.RemoteAddress(stream.Context())
 	cbStore.AddCallback(addr, cb)
@@ -445,7 +444,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	}()
 
 	// we don't monitor the channel for this one, instead we'll error out if needed
-	cb, _ := bp.sendPlainProgressCallback(ctx, stream, logger, false)
+	cb, _ := bp.sendPlainProgressCallback(ctx, stream, false)
 
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
@@ -484,7 +483,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	time.Sleep(time.Second)
 
 	// we need the channel to make sure the client has received the progress
-	cb, done := bp.sendPlainProgressCallback(ctx, stream, logger, false)
+	cb, done := bp.sendPlainProgressCallback(ctx, stream, false)
 
 	logger.Infow("Faulty beacons detected in chain, correcting now", "dry-run", false)
 	logger.Debugw("Faulty beacons", "List", faultyBeacons)
@@ -545,25 +544,21 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 // sendProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
-func (bp *BeaconProcess) sendProgressCallback(
-	ctx context.Context,
-	stream drand.Control_StartFollowChainServer, // not ideal since we also reuse it for the StartCheckChain
-	upTo uint64,
-	info *chain2.Info,
+func (bp *BeaconProcess) sendProgressCallback(ctx context.Context,
+	stream drand.Control_StartFollowChainServer,
+	upTo uint64, info *chain2.Info,
 	clk clock.Clock,
-	l log.Logger,
 ) (cb beacon.CallbackFunc, done chan struct{}) {
 	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
 	defer span.End()
 
-	logger := l.Named("progressCb")
 	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
 		targ = upTo
 	}
 
 	var plainProgressCb func(a, b uint64)
-	plainProgressCb, done = bp.sendPlainProgressCallback(ctx, stream, logger, upTo == 0)
+	plainProgressCb, done = bp.sendPlainProgressCallback(ctx, stream, upTo == 0)
 	cb = func(b *common2.Beacon, closed bool) {
 		if closed {
 			return
@@ -578,17 +573,15 @@ func (bp *BeaconProcess) sendProgressCallback(
 // sendPlainProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a value whose round matches the passed upTo value.
-func (bp *BeaconProcess) sendPlainProgressCallback(
-	ctx context.Context,
+func (bp *BeaconProcess) sendPlainProgressCallback(ctx context.Context,
 	stream drand.Control_StartFollowChainServer,
-	l log.Logger,
 	keepFollowing bool,
-) (cb func(curr, targ uint64), done chan struct{}) {
+) (cb func(curr uint64, targ uint64), done chan struct{}) {
 	_, span := metrics.NewSpan(ctx, "bp.sendPlainProgressCallback")
 	defer span.End()
 
 	done = make(chan struct{})
-
+	logger := bp.log.Named("ProgressCB")
 	cb = func(curr, targ uint64) {
 		// avoids wrapping below and sends latest round number to the client
 		if curr > targ {
@@ -604,10 +597,10 @@ func (bp *BeaconProcess) sendPlainProgressCallback(
 			Target:  targ,
 		})
 		if err != nil {
-			l.Errorw("sending_progress", "err", err)
+			logger.Errorw("sending_progress", "err", err)
 		}
 		if !keepFollowing && targ > 0 && curr == targ {
-			l.Debugw("target reached", "target", curr)
+			logger.Debugw("target reached", "target", curr)
 			close(done)
 		}
 	}
