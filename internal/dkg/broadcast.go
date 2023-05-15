@@ -371,7 +371,7 @@ func (s *sender) sendPacket(ctx context.Context, p broadcastPacket) {
 }
 
 func (s *sender) run(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "s.run")
+	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "s.run")
 	defer span.End()
 
 	for newPacket := range s.newCh {
