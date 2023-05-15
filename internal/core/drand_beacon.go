@@ -194,7 +194,7 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 }
 
 func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "bp.StartListeningForDKGUpdates")
+	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
 	for dkgOutput := range bp.completedDKGs {
 		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
