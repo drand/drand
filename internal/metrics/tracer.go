@@ -64,6 +64,8 @@ func InitTracer(appName, endpoint string, probability float64) (oteltrace.Tracer
 }
 
 // NewSpan is a wrapper for metrics.NewSpan(ctx, spanName, opts).
+// If the context.Context provided in `ctx` contains a Span then the newly-created
+// Span will be a child of that span, otherwise it will be a root span.
 // Don't forget to defer span.End and use the newly provided context.
 func NewSpan(ctx context.Context, spanName string, opts ...oteltrace.SpanStartOption) (context.Context, oteltrace.Span) {
 	return otel.Tracer(myAppName).Start(ctx, spanName, opts...)

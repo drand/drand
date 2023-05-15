@@ -393,7 +393,6 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 	dd.AddBeaconHandler(ctx, beaconID, bp)
 
 	err = bp.StartBeacon(ctx, true)
-
 	if err != nil {
 		span.RecordError(err)
 	}
