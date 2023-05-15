@@ -318,7 +318,7 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 // broadcast uses the regular channel limitation for messages coming from other
 // nodes.
 func (d *dispatcher) broadcast(ctx context.Context, p broadcastPacket) {
-	ctx, span := metrics.NewSpan(ctx, "d.broadcast")
+	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "d.broadcast")
 	defer span.End()
 
 	for _, i := range rand.Perm(len(d.senders)) {
