@@ -20,17 +20,42 @@ import (
 type Status uint32
 
 const (
+	// Fresh is the state all nodes start in - both pre-genesis, and if the network is running but they aren't
+	// yet participating
 	Fresh Status = iota
+	// Proposed implies somebody else has sent me a proposal
 	Proposed
+	// Proposing implies I have sent the others in the network a proposal
 	Proposing
+	// Accepted means I have accepted a proposal received from somebody else
+	// note Joiners do not accept/reject proposals
 	Accepted
+	// Rejected means I have rejected a proposal received from somebody else
+	// it doesn't automatically abort the DKG, but the leader is advised to abort and suggest some new terms
 	Rejected
+	// Aborted means the leader has told the network to abort the proposal; a node may have rejected,
+	// they may have found an error in the proposal, or any other reason could have occurred
 	Aborted
+	// Executing means the leader has reviewed accepts/rejects and decided to go ahead with the DKG
+	// this implies that the Kyber DKG process has been started
 	Executing
+	// Complete means the DKG has finished and a new group file has been created successfully
 	Complete
+	// TimedOut means the proposal timeout has been reached without entering the `Executing` state
+	// any node can trigger this for themselves should they identify timeout has been reached
+	// it does _not_ guarantee that other nodes have also timed out - a network partition or something else
+	// could have occurred. If the rest of the network continues, our node will likely transition to `Evicted`
 	TimedOut
+	// Joined is the state a new proposed group member enters when they have been proposed a DKG and they run the
+	// `join` DKG command to signal their acceptance to join the network
 	Joined
+	// Left is used when a node has left the network by their own choice after a DKG. It's not entirely necessary,
+	// an operator could just turn their node off. It's used to determine if an existing state is the current state
+	// of the network, or whether epochs have happened in between times
 	Left
+	// Evicted signals that a DKG execution has happened successfully, but our node was excluded for some reason.
+	// Generally it means that other nodes have been unable to validate its shares, or it was offline during DKG
+	// execution. If a threshold number of nodes are evicted during the DKG, the old state will be reverted.
 	Evicted
 )
 
@@ -92,7 +117,6 @@ type DBState struct {
 }
 
 // Equals does a deep equal comparison on all the values in the `DBState`
-//
 //nolint:gocyclo
 func (d *DBState) Equals(e *DBState) bool {
 	if d == nil {
@@ -124,6 +148,9 @@ func (d *DBState) Equals(e *DBState) bool {
 		reflect.DeepEqual(d.KeyShare, e.KeyShare)
 }
 
+// DBStateTOML is a convenience object for managing de/serialisation of DBStates when reading/writing them
+// from/to disk.
+// Don't forget to update it if you update the `DBState` object!!
 type DBStateTOML struct {
 	BeaconID       string
 	Epoch          uint32
@@ -246,6 +273,8 @@ func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBSt
 		return nil, ErrTimeoutReached
 	}
 
+	// joiners after the first epoch must pass a group file in order to determine
+	// that the proposal is valid (e.g. the `GenesisTime` and `Remaining` group are correct)
 	if d.Epoch != 1 && previousGroup == nil {
 		return nil, ErrJoiningAfterFirstEpochNeedsGroupFile
 	}
@@ -259,6 +288,7 @@ func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBSt
 	return d, nil
 }
 
+// Proposing is used by the leader to set their own local state when proposing a DKG to the network
 func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (*DBState, error) {
 	if !isValidStateChange(d.State, Proposing) {
 		return nil, InvalidStateChange(d.State, Proposing)
@@ -272,6 +302,7 @@ func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (
 		return nil, err
 	}
 
+	// new joiners cannot be the leader except for genesis
 	if d.State == Fresh && terms.Epoch > 1 {
 		return nil, ErrInvalidEpoch
 	}
@@ -295,11 +326,14 @@ func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (
 	}, nil
 }
 
+// Proposed is used by non-leader nodes to set their own state when they receive a proposal
 func (d *DBState) Proposed(sender, me *drand.Participant, terms *drand.ProposalTerms) (*DBState, error) {
 	if !isValidStateChange(d.State, Proposed) {
 		return nil, InvalidStateChange(d.State, Proposed)
 	}
 
+	// it's important to verify that the sender (and by extension the signature of the sender)
+	// is the same as the proposed leader, to avoid nodes trying to propose DKGs on behalf of somebody else
 	if terms.Leader != sender {
 		return nil, ErrCannotProposeAsNonLeader
 	}
@@ -308,6 +342,7 @@ func (d *DBState) Proposed(sender, me *drand.Participant, terms *drand.ProposalT
 		return nil, err
 	}
 
+	// if I've received a proposal, I must surely be in it!
 	if !util.Contains(terms.Joining, me) && !util.Contains(terms.Remaining, me) && !util.Contains(terms.Leaving, me) {
 		return nil, ErrSelfMissingFromProposal
 	}
@@ -358,10 +393,12 @@ func (d *DBState) Accepted(me *drand.Participant) (*DBState, error) {
 		return nil, ErrTimeoutReached
 	}
 
+	// Leavers get no say if the rest of the network wants them out
 	if util.Contains(d.Leaving, me) {
 		return nil, ErrCannotAcceptProposalWhereLeaving
 	}
 
+	// Joiners should run the `Join` command instead
 	if util.Contains(d.Joining, me) {
 		return nil, ErrCannotAcceptProposalWhereJoining
 	}
@@ -379,10 +416,12 @@ func (d *DBState) Rejected(me *drand.Participant) (*DBState, error) {
 		return nil, ErrTimeoutReached
 	}
 
+	// Joiners should just not run the `Join` command if they don't want to join
 	if util.Contains(d.Joining, me) {
 		return nil, ErrCannotRejectProposalWhereJoining
 	}
 
+	// Leavers get no say if the rest of the network wants them out
 	if util.Contains(d.Leaving, me) {
 		return nil, ErrCannotRejectProposalWhereLeaving
 	}
@@ -422,18 +461,21 @@ func (d *DBState) Evicted() (*DBState, error) {
 }
 
 func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
-	if hasTimedOut(d) {
-		return nil, ErrTimeoutReached
-	}
-
-	if util.Contains(d.Leaving, me) {
-		return d.Left(me)
-	}
-
 	if !isValidStateChange(d.State, Executing) {
 		return nil, InvalidStateChange(d.State, Executing)
 	}
 
+	if hasTimedOut(d) {
+		return nil, ErrTimeoutReached
+	}
+
+	// leavers needn't run the DKG at this point
+	// other than a DKG failing, the leader can't abort at this stage
+	if util.Contains(d.Leaving, me) {
+		return d.Left(me)
+	}
+
+	// although we already check above, leavers should not be executing!
 	if !util.Contains(d.Remaining, me) && !util.Contains(d.Joining, me) {
 		return nil, ErrCannotExecuteIfNotJoinerOrRemainer
 	}
@@ -465,6 +507,9 @@ func (d *DBState) Complete(finalGroup *key.Group, share *key.Share) (*DBState, e
 	return d, nil
 }
 
+// ReceivedAcceptance is used by nodes when they receive a gossiped acceptance packet
+// they needn't necessarily collect _all_ acceptances for executing, but it gives them some insight into
+// the state of the DKG when they run the status command
 func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
@@ -488,6 +533,9 @@ func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, err
 	return d, nil
 }
 
+// ReceivedRejection is used by nodes when they receive a gossiped rejection packet
+// they may not receive all rejections before executing, but it gives them some insight into
+// the state of the DKG when they run the status command
 func (d *DBState) ReceivedRejection(me, them *drand.Participant) (*DBState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
@@ -524,7 +572,6 @@ var ErrGenesisSeedCannotChange = errors.New("genesis seed cannot change after th
 var ErrTransitionTimeMustBeGenesisTime = errors.New("transition time must be the same as the genesis time for the first epoch")
 var ErrTransitionTimeMissing = errors.New("transition time must be provided in a proposal")
 var ErrTransitionTimeBeforeGenesis = errors.New("transition time cannot be before the genesis time")
-var ErrTransitionTimeTooSoonAfterGenesis = errors.New("transition time cannot be sooner than one round after genesis")
 var ErrSelfMissingFromProposal = errors.New("you must include yourself in a proposal")
 var ErrCannotJoinIfNotInJoining = errors.New("you cannot join a proposal in which you are not a joiner")
 var ErrJoiningAfterFirstEpochNeedsGroupFile = errors.New("joining after the first epoch requires a previous group file")
@@ -553,6 +600,7 @@ var ErrNonLeaderCannotReceiveRejection = errors.New("you received a rejection bu
 var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a nil final group")
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
 
+// isValidStateChange details all the viable state changes
 //nolint:gocyclo
 func isValidStateChange(current, next Status) bool {
 	switch current {
@@ -590,6 +638,7 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
+	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
 	if currentState.BeaconID != terms.BeaconID {
 		return ErrInvalidBeaconID
 	}
@@ -611,6 +660,8 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return err
 	}
 
+	// some terms (such as genesis seed) get set during the first epoch
+	// additionally, we can't have remainers, `GenesisTime` == `TransitionTime`, amongst other things
 	if terms.Epoch == 1 {
 		return validateFirstEpoch(terms)
 	}
@@ -633,10 +684,14 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return ErrNoNodesRemaining
 	}
 
+	// there's no theoretical reason the leader can't be leaving, but from a practical perspective
+	// it makes sense in case e.g. the DKG fails or aborts
 	if util.Contains(terms.Leaving, terms.Leader) || !util.Contains(terms.Remaining, terms.Leader) {
 		return ErrLeaderNotRemaining
 	}
 
+	// nodes joining after the first epoch accept some things at face value
+	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
 		return validateReshare(currentState, terms)
 	}
@@ -645,6 +700,7 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 }
 
 func validateEpoch(currentState *DBState, terms *drand.ProposalTerms) error {
+	// epochs should be monotonically increasing
 	if terms.Epoch < currentState.Epoch {
 		return ErrInvalidEpoch
 	}
@@ -654,6 +710,7 @@ func validateEpoch(currentState *DBState, terms *drand.ProposalTerms) error {
 		return ErrInvalidEpoch
 	}
 
+	// if we have some leftover state after having left the network, we can accept higher epochs
 	if terms.Epoch > currentState.Epoch+1 && (currentState.State != Left && currentState.State != Fresh && currentState.State != Evicted) {
 		return ErrInvalidEpoch
 	}
