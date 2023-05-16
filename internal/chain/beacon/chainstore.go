@@ -277,7 +277,7 @@ func (c *chainStore) runAggregator() {
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
-				c.syncm.SendSyncRequest(span.SpanContext(), newBeacon.Round, peers)
+				c.syncm.SendSyncRequest(ctx, newBeacon.Round, peers)
 			}
 			span.End()
 		}
@@ -340,14 +340,14 @@ func (c *chainStore) shouldSync(last *common.Beacon, newB likeBeacon) bool {
 // will follow the chain indefinitely. If peers is nil, it uses the peers of
 // the current group.
 func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer) {
-	_, span := metrics.NewSpan(ctx, "c.RunSync")
+	ctx, span := metrics.NewSpan(ctx, "c.RunSync")
 	defer span.End()
 
 	if len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	c.syncm.SendSyncRequest(span.SpanContext(), upTo, peers)
+	c.syncm.SendSyncRequest(ctx, upTo, peers)
 }
 
 // RunReSync will sync up with other nodes to repair the invalid beacons in the store.
