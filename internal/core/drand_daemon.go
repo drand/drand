@@ -209,7 +209,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 		span.RecordError(err)
 		return nil, err
 	}
-	go bp.StartListeningForDKGUpdates(span.SpanContext())
+	go bp.StartListeningForDKGUpdates(ctx)
 
 	dd.state.Lock()
 	dd.beaconProcesses[beaconID] = bp
@@ -393,7 +393,6 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 	dd.AddBeaconHandler(ctx, beaconID, bp)
 
 	err = bp.StartBeacon(ctx, true)
-
 	if err != nil {
 		span.RecordError(err)
 	}
