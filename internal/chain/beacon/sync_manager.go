@@ -115,11 +115,12 @@ type RequestInfo struct {
 // round. Depending on the current state of the syncing process, there might not
 // be a new process starting (for example if we already have the round
 // requested). upTo == 0 means the syncing process goes on forever.
-func (s *SyncManager) SendSyncRequest(spanContext oteltrace.SpanContext, upTo uint64, nodes []net.Peer) {
-	s.newReq <- NewRequestInfo(spanContext, upTo, nodes)
+func (s *SyncManager) SendSyncRequest(ctx context.Context, upTo uint64, nodes []net.Peer) {
+	s.newReq <- NewRequestInfo(ctx, upTo, nodes)
 }
 
-func NewRequestInfo(spanContext oteltrace.SpanContext, upTo uint64, nodes []net.Peer) RequestInfo {
+func NewRequestInfo(ctx context.Context, upTo uint64, nodes []net.Peer) RequestInfo {
+	spanContext := oteltrace.SpanContextFromContext(ctx)
 	return RequestInfo{
 		spanContext: spanContext,
 
