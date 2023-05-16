@@ -462,21 +462,21 @@ func (d *DBState) Evicted() (*DBState, error) {
 }
 
 func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
-	if !isValidStateChange(d.State, Executing) {
-		return nil, InvalidStateChange(d.State, Executing)
-	}
-
+	// we check the timeout first as we have additional branches for leaving
 	if hasTimedOut(d) {
 		return nil, ErrTimeoutReached
 	}
 
-	// leavers needn't run the DKG at this point
-	// other than a DKG failing, the leader can't abort at this stage
-	if util.Contains(d.Leaving, me) {
+	// leavers don't need to participate in the execution, so we can check it first
+	if util.Contains(d.Leaving, me) && isValidStateChange(d.State, Left) {
 		return d.Left(me)
 	}
 
-	// although we already check above, leavers should not be executing!
+	if !isValidStateChange(d.State, Executing) {
+		return nil, InvalidStateChange(d.State, Executing)
+	}
+
+	// participants not in the DKG should not be executing!
 	if !util.Contains(d.Remaining, me) && !util.Contains(d.Joining, me) {
 		return nil, ErrCannotExecuteIfNotJoinerOrRemainer
 	}

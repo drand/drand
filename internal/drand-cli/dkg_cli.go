@@ -175,7 +175,6 @@ var formatFlag = &cli.StringFlag{
 var transitionTimeFlag = &cli.StringFlag{
 	Name:  "transition-time",
 	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
-	Value: "30s",
 }
 
 var dkgTimeoutFlag = &cli.StringFlag{
@@ -231,7 +230,7 @@ func withDefault(first, second string) string {
 
 func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
-	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag}
+	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, transitionTimeFlag}
 
 	for _, flag := range requiredFlags {
 		if !c.IsSet(flag.Name) {
@@ -259,13 +258,7 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 
 	// if a custom time hasn't been added, we set a one based on the period
 	// to make the tests a little more predictable
-	var genesisTime time.Time
-	if c.IsSet(transitionTimeFlag.Name) {
-		genesisTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
-	} else {
-		defaultRoundsToWait := period * 3
-		genesisTime = time.Now().Add(defaultRoundsToWait)
-	}
+	genesisTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
 
 	return &drand.FirstProposalOptions{
 		BeaconID:             beaconID,
