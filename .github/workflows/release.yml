@@ -22,12 +22,12 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@ab6203da1c3118e4406048171b09238ad31ad73e # pin@latest-16.02.2023
         with:
-          version: '3.19.6'
+          version: '3.20.3'
 
       - name: Install Protoc-gen-go
         run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
           go mod tidy
 
       - name: Get latest release version number
