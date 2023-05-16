@@ -24,7 +24,7 @@ drand: build
 ####################  Lint and fmt process ##################
 
 install_lint:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2
 
 lint:
 	golangci-lint --version
