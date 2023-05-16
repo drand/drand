@@ -117,6 +117,7 @@ type DBState struct {
 }
 
 // Equals does a deep equal comparison on all the values in the `DBState`
+//
 //nolint:gocyclo
 func (d *DBState) Equals(e *DBState) bool {
 	if d == nil {
@@ -601,6 +602,7 @@ var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a ni
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
 
 // isValidStateChange details all the viable state changes
+//
 //nolint:gocyclo
 func isValidStateChange(current, next Status) bool {
 	switch current {
@@ -727,6 +729,8 @@ func validateFirstEpoch(terms *drand.ProposalTerms) error {
 	if !util.Contains(terms.Joining, terms.Leader) {
 		return ErrLeaderNotJoining
 	}
+	// for the first epoch, the transition time and genesis time should be equal
+	// as the genesis is in some sense a 'transition'
 	if !terms.TransitionTime.AsTime().Equal(terms.GenesisTime.AsTime()) {
 		return ErrTransitionTimeMustBeGenesisTime
 	}
