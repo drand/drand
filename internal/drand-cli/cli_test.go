@@ -703,7 +703,6 @@ func TestClientTLS(t *testing.T) {
 	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-//nolint:unused // This is used but the test it belongs is currently skipped
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
 	lg := testlogger.New(t)

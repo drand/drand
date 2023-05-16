@@ -28,6 +28,9 @@ issues:
     - path: internal/drand-cli
       linters:
         - forbidigo # we use Println in our UX
+    - path: internal/metrics/threshold_monitor_test.go
+      linters:
+        - revive # we use named parameters as an example for implementer
 #    - path: core/broadcast.go
 #      linters:
 #        - interfacer # Deprecated
