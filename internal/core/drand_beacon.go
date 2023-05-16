@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
@@ -195,8 +193,9 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 	return nil
 }
 
-func (bp *BeaconProcess) StartListeningForDKGUpdates(sctx oteltrace.SpanContext) {
-	ctx := oteltrace.ContextWithSpanContext(context.Background(), sctx)
+func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
+	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
+	defer span.End()
 	for dkgOutput := range bp.completedDKGs {
 		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
 			bp.log.Errorw("Error performing DKG key transition", "err", err)
@@ -207,6 +206,8 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates(sctx oteltrace.SpanContext)
 // onDKGCompleted transitions between an "old" group and a new group. This method is called
 // *after* a DKG has completed.
 func (bp *BeaconProcess) onDKGCompleted(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
+	ctx, span := metrics.NewSpan(ctx, "bp.onDKGCompleted")
+	defer span.End()
 	if dkgOutput.BeaconID != bp.beaconID {
 		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
 		return nil

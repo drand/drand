@@ -54,8 +54,10 @@ var tracesFlag = &cli.StringFlag{
 }
 
 var tracesProbabilityFlag = &cli.Float64Flag{
-	Name:    "traces-probability",
-	Usage:   "Publish metrics to the specific OpenTelemetry compatible host:port server.",
+	Name: "traces-probability",
+	Usage: "The probability for a certain trace to end up being collected." +
+		"Between 0.0 and 1.0 values, that corresponds to 0% and 100%." +
+		"Be careful as a high probability ratio can produce a lot of data.",
 	EnvVars: []string{"DRAND_TRACES_PROBABILITY"},
 	Value:   0.05,
 }
@@ -64,7 +66,7 @@ var tracesProbabilityFlag = &cli.Float64Flag{
 //
 //nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
-	tracesProbability := 0.1
+	tracesProbability := 0.05
 	if c.IsSet(tracesProbabilityFlag.Name) {
 		tracesProbability = c.Float64(tracesProbabilityFlag.Name)
 	}
