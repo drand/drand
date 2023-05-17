@@ -51,7 +51,7 @@ func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream dran
 }
 
 // Home provides the address the local node is listening
-func (dd *DrandDaemon) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+func (dd *DrandDaemon) Home(c context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
 	_, span := metrics.NewSpan(c, "dd.Home")
 	defer span.End()
 
