@@ -811,11 +811,7 @@ func runMigration(c *cli.Context, l log.Logger) error {
 
 	config := contextToConfig(c, l)
 
-	if err := migration.MigrateSBFolderStructure(config.ConfigFolder()); err != nil {
-		return err
-	}
-
-	return nil
+	return migration.MigrateSBFolderStructure(config.ConfigFolder())
 }
 
 func checkMigration(c *cli.Context, l log.Logger) error {

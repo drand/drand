@@ -3,7 +3,8 @@ package dkg
 import (
 	"context"
 	"fmt"
-	"strings"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"sync"
 
 	"github.com/drand/drand/common/log"
@@ -95,5 +96,19 @@ func (n *GrpcNetwork) send(
 }
 
 func isConnectionError(err error) bool {
-	return strings.Contains(err.Error(), "Error while dialing dial")
+	st, ok := status.FromError(err)
+	if !ok {
+		// The error is not a GRPC status error, so it is not a transport error
+		return false
+	}
+
+	// Check if the error's status code indicates a transport error
+	switch st.Code() { //nolint:exhaustive
+	case codes.Canceled, codes.DeadlineExceeded, codes.Unavailable, codes.DataLoss:
+		// These status codes indicate transport errors
+		return true
+	default:
+		// Other status codes are not considered transport errors
+		return false
+	}
 }

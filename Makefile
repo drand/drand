@@ -24,7 +24,7 @@ drand: build
 ####################  Lint and fmt process ##################
 
 install_lint:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.2
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2
 
 lint:
 	golangci-lint --version
@@ -174,7 +174,7 @@ build_docker_dev:
 	docker build -f internal/test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
-PROTOC_VERSION=3.19.6
+PROTOC_VERSION=3.20.3
 PROTOC_ZIP_LINUX=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 PROTOC_ZIP_DARWIN=protoc-$(PROTOC_VERSION)-osx-x86_64.zip
 PROTOC_ZIP_DARWIN_M=protoc-$(PROTOC_VERSION)-osx-aarch_64.zip

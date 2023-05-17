@@ -55,7 +55,7 @@ func TestListeners(t *testing.T) {
 	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t) })
 }
 
-func testListener(t *testing.T) {
+func testListener(t testing.TB) {
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	randServer := &testRandomnessServer{round: 42}
@@ -84,7 +84,7 @@ func testListener(t *testing.T) {
 }
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
-func testListenerTLS(t *testing.T) {
+func testListenerTLS(t testing.TB) {
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 
