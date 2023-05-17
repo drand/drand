@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -513,30 +514,31 @@ func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 	}
 }
 
-func prettyPrint(status *drand.DKGStatusResponse) {
-	tw := table.NewWriter()
-	tw.AppendHeader(table.Row{"Field", "Current", "Finished"})
+type printModel struct {
+	Status         string
+	BeaconID       string
+	Epoch          string
+	Threshold      string
+	Timeout        string
+	GenesisTime    string
+	TransitionTime string
+	GenesisSeed    string
+	Leader         string
+	Joining        string
+	Remaining      string
+	Leaving        string
+	Accepted       string
+	Rejected       string
+	FinalGroup     string
+}
 
-	if dkg.Status(status.Current.State) == dkg.Fresh {
-		tw.AppendRow(table.Row{"State", "Fresh", "Fresh"})
-		fmt.Println(tw.Render())
-		return
-	}
-
-	orEmpty := func(entry *drand.DKGEntry, mapping func(entry *drand.DKGEntry) any) any {
-		if entry == nil {
-			return ""
-		}
-		return mapping(entry)
-	}
-
-	appendRow := func(key string, status *drand.DKGStatusResponse, mapping func(entry *drand.DKGEntry) any) {
-		tw.AppendRow(table.Row{key, orEmpty(status.Current, mapping), orEmpty(status.Complete, mapping)})
-	}
-
+func convert(entry *drand.DKGEntry) printModel {
 	formatAddresses := func(arr []*drand.Participant) string {
 		if len(arr) == 0 {
 			return "[]"
+		}
+		if len(arr) == 1 {
+			return fmt.Sprintf("[%s]", arr[0].Address)
 		}
 
 		b := strings.Builder{}
@@ -549,66 +551,66 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 		return b.String()
 	}
 
-	appendRow("Status", status, func(entry *drand.DKGEntry) any {
-		return dkg.Status(entry.State).String()
-	})
-	appendRow("BeaconID", status, func(entry *drand.DKGEntry) any {
-		return entry.BeaconID
-	})
-	appendRow("Epoch", status, func(entry *drand.DKGEntry) any {
-		return entry.Epoch
-	})
-	appendRow("Threshold", status, func(entry *drand.DKGEntry) any {
-		return entry.Threshold
-	})
-	appendRow("Timeout", status, func(entry *drand.DKGEntry) any {
-		return entry.Timeout.AsTime().String()
-	})
-	appendRow("GenesisTime", status, func(entry *drand.DKGEntry) any {
-		return entry.GenesisTime.AsTime().String()
-	})
-	appendRow("TransitionTime", status, func(entry *drand.DKGEntry) any {
-		return entry.TransitionTime.AsTime().String()
-	})
-	appendRow("GenesisSeed", status, func(entry *drand.DKGEntry) any {
-		return hex.EncodeToString(entry.GenesisSeed)
-	})
-	appendRow("Leader", status, func(entry *drand.DKGEntry) any {
-		return entry.Leader.Address
-	})
-	appendRow("Joining", status, func(entry *drand.DKGEntry) any {
-		return formatAddresses(entry.Joining)
-	})
-	appendRow("Remaining", status, func(entry *drand.DKGEntry) any {
-		return formatAddresses(entry.Remaining)
-	})
-	appendRow("Leaving", status, func(entry *drand.DKGEntry) any {
-		return formatAddresses(entry.Leaving)
-	})
-
-	if dkg.Status(status.Current.State) == dkg.Proposing {
-		appendRow("Accepted", status, func(entry *drand.DKGEntry) any {
-			return formatAddresses(entry.Acceptors)
-		})
-		appendRow("Rejected", status, func(entry *drand.DKGEntry) any {
-			return formatAddresses(entry.Rejectors)
-		})
+	formatFinalGroup := func(group []string) string {
+		if group == nil || dkg.Status(entry.State) <= dkg.Executing {
+			return ""
+		}
+		b := strings.Builder{}
+		b.WriteString("[")
+		for _, a := range group {
+			b.WriteString(fmt.Sprintf("\n\t%s,", a))
+		}
+		b.WriteString("\n]")
+		return b.String()
 	}
 
-	if dkg.Status(status.Current.State) >= dkg.Executing {
-		appendRow("FinalGroup", status, func(entry *drand.DKGEntry) any {
-			if entry.FinalGroup == nil {
-				return ""
-			}
-			b := strings.Builder{}
-			b.WriteString("[")
-			for _, a := range entry.FinalGroup {
-				b.WriteString(fmt.Sprintf("\n\t%s,", a))
-			}
-			b.WriteString("\n]")
-			return b.String()
-		})
+	return printModel{
+		Status:         dkg.Status(entry.State).String(),
+		BeaconID:       entry.BeaconID,
+		Epoch:          strconv.Itoa(int(entry.Epoch)),
+		Threshold:      strconv.Itoa(int(entry.Threshold)),
+		Timeout:        entry.Timeout.AsTime().Format(time.RFC3339),
+		GenesisTime:    entry.GenesisTime.AsTime().Format(time.RFC3339),
+		TransitionTime: entry.TransitionTime.AsTime().Format(time.RFC3339),
+		GenesisSeed:    string(entry.GenesisSeed),
+		Leader:         entry.Leader.Address,
+		Joining:        formatAddresses(entry.Joining),
+		Remaining:      formatAddresses(entry.Remaining),
+		Leaving:        formatAddresses(entry.Leaving),
+		Accepted:       formatAddresses(entry.Acceptors),
+		Rejected:       formatAddresses(entry.Rejectors),
+		FinalGroup:     formatFinalGroup(entry.FinalGroup),
 	}
+}
+
+func prettyPrint(status *drand.DKGStatusResponse) {
+	tw := table.NewWriter()
+	tw.AppendHeader(table.Row{"Field", "Current", "Finished"})
+
+	if dkg.Status(status.Current.State) == dkg.Fresh {
+		tw.AppendRow(table.Row{"State", "Fresh", "Fresh"})
+		fmt.Println(tw.Render())
+		return
+	}
+
+	currentModel := convert(status.Current)
+	finishedModel := convert(status.Complete)
+
+	tw.AppendRow(table.Row{"Status", currentModel.Status, finishedModel.Status})
+	tw.AppendRow(table.Row{"Epoch", currentModel.Epoch, finishedModel.Epoch})
+	tw.AppendRow(table.Row{"BeaconID", currentModel.BeaconID, finishedModel.BeaconID})
+	tw.AppendRow(table.Row{"Threshold", currentModel.Threshold, finishedModel.Threshold})
+	tw.AppendRow(table.Row{"Timeout", currentModel.Timeout, finishedModel.Timeout})
+	tw.AppendRow(table.Row{"GenesisTime", currentModel.GenesisTime, finishedModel.GenesisTime})
+	tw.AppendRow(table.Row{"TransitionTime", currentModel.TransitionTime, finishedModel.TransitionTime})
+	tw.AppendRow(table.Row{"GenesisSeed", currentModel.GenesisSeed, finishedModel.GenesisSeed})
+	tw.AppendRow(table.Row{"Leader", currentModel.Leader, finishedModel.Leader})
+	tw.AppendRow(table.Row{"Joining", currentModel.Joining, finishedModel.Joining})
+	tw.AppendRow(table.Row{"Remaining", currentModel.Remaining, finishedModel.Remaining})
+	tw.AppendRow(table.Row{"Leaving", currentModel.Leaving, finishedModel.Leaving})
+	tw.AppendRow(table.Row{"Accepted", currentModel.Accepted, finishedModel.Accepted})
+	tw.AppendRow(table.Row{"Rejected", currentModel.Rejected, finishedModel.Rejected})
+	tw.AppendRow(table.Row{"FinalGroup", currentModel.FinalGroup, finishedModel.FinalGroup})
 
 	fmt.Println(tw.Render())
 }
