@@ -213,7 +213,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 				c.log.Debugw("client.Watch done")
 				end()
 				// drain leftover on innerCh
-				for range innerCh {
+				for range innerCh { //nolint:revive
 				}
 				c.log.Debugw("client.Watch finished draining the innerCh")
 				return

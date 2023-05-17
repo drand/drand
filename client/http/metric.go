@@ -52,9 +52,10 @@ func (c *HealthMetrics) startObserve(ctx context.Context) {
 		if err != nil {
 			metrics.ClientHTTPHeartbeatFailure.With(prometheus.Labels{"http_address": httpClient.root}).Inc()
 			continue
-		} else {
-			metrics.ClientHTTPHeartbeatSuccess.With(prometheus.Labels{"http_address": httpClient.root}).Inc()
 		}
+
+		metrics.ClientHTTPHeartbeatSuccess.With(prometheus.Labels{"http_address": httpClient.root}).Inc()
+
 		// compute the latency metric
 		actual := time.Now().UnixNano()
 		expected := chain.TimeOfRound(httpClient.chainInfo.Period, httpClient.chainInfo.GenesisTime, result.Round()) * 1e9

@@ -8,7 +8,7 @@ import (
 )
 
 // Level returns the level to default the logger based on the DRAND_TEST_LOGS presence
-func Level(t *testing.T) int {
+func Level(t testing.TB) int {
 	logLevel := log.InfoLevel
 	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
 	if isDebug && debugEnv == "DEBUG" {
@@ -20,7 +20,7 @@ func Level(t *testing.T) int {
 }
 
 // New returns a configured logger
-func New(t *testing.T) log.Logger {
+func New(t testing.TB) log.Logger {
 	return log.New(nil, Level(t), true).
 		With("testName", t.Name())
 }
