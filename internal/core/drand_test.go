@@ -31,7 +31,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
-func setFDLimit(t *testing.T) {
+func setFDLimit(t testing.TB) {
 	fdOpen := uint64(3000)
 	curr, max, err := unixGetLimit()
 	if err != nil {
