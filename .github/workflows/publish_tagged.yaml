@@ -1,26 +1,35 @@
 name: "Publish tagged image"
 
-on:
-  workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
-  release:
-    types:
-      - created
-    tags:
-      - 'v*'
+#on:
+#  workflow_dispatch:
+#  push:
+#    tags:
+#      - 'v*'
+#  release:
+#    types:
+#      - created
+#    tags:
+#      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: drand/go-drand
 
 jobs:
   tagged-deploy:
     environment: dockerhub
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+
       - uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # pin@v3.5.0
         with:
           go-version: '1.19.5'
+
       - uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # pin@v3.2.3
         id: cache
         with:
@@ -28,8 +37,24 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
       - name: Build and push tagged Docker image
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-          docker build --build-arg gitCommit=`git rev-parse HEAD` -t drand/go-drand:`git describe --tags` .
-          docker push drand/go-drand:`git describe --tags`
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
