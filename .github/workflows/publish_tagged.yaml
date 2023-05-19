@@ -1,18 +1,15 @@
 name: "Publish tagged image"
 
 on:
-  pull_request:
-    branches: [ master ]
-#on:
-#  workflow_dispatch:
-#  push:
-#    tags:
-#      - 'v*'
-#  release:
-#    types:
-#      - created
-#    tags:
-#      - 'v*'
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+  release:
+    types:
+      - created
+    tags:
+      - 'v*'
 
 env:
   REGISTRY: ghcr.io
