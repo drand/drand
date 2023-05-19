@@ -17,7 +17,6 @@ env:
 
 jobs:
   tagged-deploy:
-    environment: dockerhub
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,6 +49,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: drand/go-drand:${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           build-args: |
             gitCommit: ${{ github.sha }}
