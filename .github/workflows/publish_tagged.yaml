@@ -1,5 +1,8 @@
 name: "Publish tagged image"
 
+on:
+  pull_request:
+    branches: [ master ]
 #on:
 #  workflow_dispatch:
 #  push:
