@@ -97,7 +97,6 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	drain(t, ch, 5*time.Second)
 }
 
-//nolint:unused
 func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 	for {
 		select {
@@ -169,7 +168,6 @@ func TestHTTPClientTestFunc(t *testing.T) {
 	drain(t, ch, 5*time.Second)
 }
 
-//nolint:unused
 func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
 	dataDir := t.TempDir()
 	identityDir := t.TempDir()
@@ -207,7 +205,6 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	return c, nil
 }
 
-//nolint:unused
 func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
 	ai, err := peer.AddrInfoFromP2pAddr(addr)
 	if err != nil {
@@ -216,7 +213,6 @@ func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
 	return ai.ID, nil
 }
 
-//nolint:unused
 func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
 	t := time.NewTimer(timeout)
 	for {
