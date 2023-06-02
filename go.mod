@@ -47,9 +47,11 @@ require (
 )
 
 //nolint:gomoddirectives // Without this replace, urfave/cli will have race conditions
-replace github.com/urfave/cli/v2 => github.com/urfave/cli/v2 v2.19.3
-
-replace github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.34.0
+replace (
+	github.com/libp2p/go-nat => github.com/libp2p/go-nat v0.1.0
+	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.34.0
+	github.com/urfave/cli/v2 => github.com/urfave/cli/v2 v2.19.3
+)
 
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
