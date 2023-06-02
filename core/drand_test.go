@@ -24,6 +24,7 @@ import (
 	context2 "github.com/drand/drand/test/context"
 )
 
+//nolint:gocritic
 func setFDLimit(t *testing.T) {
 	fdOpen := uint64(3000)
 	curr, max, err := unixGetLimit()

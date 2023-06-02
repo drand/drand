@@ -15,11 +15,18 @@ issues:
         - gosec
         - nilnil
         - noctx
+        - revive
     - path: protobuf/gen.go
       linters:
         - lll
       source: "^//go:generate "
     - path: cmd
+      linters:
+        - forbidigo # we use Println in our UX
+    - path: lib
+      linters:
+        - forbidigo # we use Println in our UX
+    - path: drand-cli
       linters:
         - forbidigo # we use Println in our UX
 #    - path: core/broadcast.go
@@ -74,7 +81,7 @@ linters:
     - goimports
     # -golint # Deprecated
     - gomnd
-    - gomoddirectives
+    #- gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
@@ -108,7 +115,7 @@ linters:
     - predeclared
     # -promlinter #TODO could be enabled
     - reassign
-    - revive
+    # - revive #TODO make sure it's enabled on develop
     - rowserrcheck
     # - scopelint # Deprecated
     - sqlclosecheck
@@ -160,7 +167,7 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   goimports:
-    local-prefixes: github.com/golangci/golangci-lint
+    local-prefixes: github.com/drand
   golint:
     min-confidence: 0
   gomnd:

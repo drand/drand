@@ -50,6 +50,7 @@ func TestListeners(t *testing.T) {
 	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t) })
 }
 
+//nolint:gocritic
 func testListener(t *testing.T) {
 	ctx := context.Background()
 	randServer := &testRandomnessServer{round: 42}
@@ -78,6 +79,8 @@ func testListener(t *testing.T) {
 }
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
+//
+//nolint:gocritic
 func testListenerTLS(t *testing.T) {
 	ctx := context.Background()
 	if run.GOOS == runtimeGOOSWindows {

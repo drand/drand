@@ -645,7 +645,6 @@ func TestClientTLS(t *testing.T) {
 	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-//nolint:unused // We want to provide convenience functions
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	t.Helper()
 
