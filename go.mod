@@ -26,7 +26,7 @@ require (
 	github.com/jonboulle/clockwork v0.3.0
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 	github.com/lib/pq v1.10.9
-	github.com/libp2p/go-libp2p v0.27.4
+	github.com/libp2p/go-libp2p v0.27.5
 	github.com/libp2p/go-libp2p-pubsub v0.9.3
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
