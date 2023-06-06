@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -384,8 +385,8 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		// if there is a group file but no DKG status in the DB, we perform the migration
 		g, err := store.LoadGroup()
 
-		//nolint:nilerr // by default, no group returns a `no such file or directory` error, which we want to ignore
-		if g == nil || err != nil {
+		// by default, no group returns a `no such file or directory` error, which we want to ignore
+		if g == nil || err != nil && errors.Is(err, fs.ErrNotExist) {
 			dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
 			return bp, nil
 		}
