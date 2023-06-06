@@ -8,6 +8,12 @@ import (
 	"hash"
 	"os"
 
+	"golang.org/x/crypto/blake2b"
+
+	"github.com/drand/kyber"
+	bls "github.com/drand/kyber-bls12381"
+	"github.com/drand/kyber/pairing"
+	"github.com/drand/kyber/sign"
 	// The package github.com/drand/kyber/sign/bls is deprecated because it is vulnerable to
 	// rogue public-key attack against BLS aggregated signature. The new version of the protocol can be used to
 	// make sure a signature aggregate cannot be verified by a forged key. You can find the protocol in kyber/sign/bdn.
@@ -15,12 +21,6 @@ import (
 	// The way we are using this package does not do any aggregation and we're only using simple signatures and thus
 	// this is not a security issue for drand.
 	//nolint:staticcheck
-	"golang.org/x/crypto/blake2b"
-
-	"github.com/drand/kyber"
-	bls "github.com/drand/kyber-bls12381"
-	"github.com/drand/kyber/pairing"
-	"github.com/drand/kyber/sign"
 	signBls "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"

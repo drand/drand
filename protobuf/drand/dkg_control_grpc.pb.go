@@ -8,7 +8,6 @@ package drand
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -23,10 +22,10 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DKGControlClient interface {
-	Command(ctx context.Context, in *DKGCommand, opts ...grpc.CallOption) (*EmptyResponse, error)
-	Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyResponse, error)
+	Command(ctx context.Context, in *DKGCommand, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
+	Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
 	DKGStatus(ctx context.Context, in *DKGStatusRequest, opts ...grpc.CallOption) (*DKGStatusResponse, error)
-	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyResponse, error)
+	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
 }
 
 type dKGControlClient struct {
@@ -37,8 +36,8 @@ func NewDKGControlClient(cc grpc.ClientConnInterface) DKGControlClient {
 	return &dKGControlClient{cc}
 }
 
-func (c *dKGControlClient) Command(ctx context.Context, in *DKGCommand, opts ...grpc.CallOption) (*EmptyResponse, error) {
-	out := new(EmptyResponse)
+func (c *dKGControlClient) Command(ctx context.Context, in *DKGCommand, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
+	out := new(EmptyDKGResponse)
 	err := c.cc.Invoke(ctx, "/drand.DKGControl/Command", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -46,8 +45,8 @@ func (c *dKGControlClient) Command(ctx context.Context, in *DKGCommand, opts ...
 	return out, nil
 }
 
-func (c *dKGControlClient) Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyResponse, error) {
-	out := new(EmptyResponse)
+func (c *dKGControlClient) Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
+	out := new(EmptyDKGResponse)
 	err := c.cc.Invoke(ctx, "/drand.DKGControl/Packet", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -64,8 +63,8 @@ func (c *dKGControlClient) DKGStatus(ctx context.Context, in *DKGStatusRequest, 
 	return out, nil
 }
 
-func (c *dKGControlClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyResponse, error) {
-	out := new(EmptyResponse)
+func (c *dKGControlClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
+	out := new(EmptyDKGResponse)
 	err := c.cc.Invoke(ctx, "/drand.DKGControl/BroadcastDKG", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -77,26 +76,26 @@ func (c *dKGControlClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts
 // All implementations should embed UnimplementedDKGControlServer
 // for forward compatibility
 type DKGControlServer interface {
-	Command(context.Context, *DKGCommand) (*EmptyResponse, error)
-	Packet(context.Context, *GossipPacket) (*EmptyResponse, error)
+	Command(context.Context, *DKGCommand) (*EmptyDKGResponse, error)
+	Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error)
 	DKGStatus(context.Context, *DKGStatusRequest) (*DKGStatusResponse, error)
-	BroadcastDKG(context.Context, *DKGPacket) (*EmptyResponse, error)
+	BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error)
 }
 
 // UnimplementedDKGControlServer should be embedded to have forward compatible implementations.
 type UnimplementedDKGControlServer struct {
 }
 
-func (UnimplementedDKGControlServer) Command(context.Context, *DKGCommand) (*EmptyResponse, error) {
+func (UnimplementedDKGControlServer) Command(context.Context, *DKGCommand) (*EmptyDKGResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Command not implemented")
 }
-func (UnimplementedDKGControlServer) Packet(context.Context, *GossipPacket) (*EmptyResponse, error) {
+func (UnimplementedDKGControlServer) Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Packet not implemented")
 }
 func (UnimplementedDKGControlServer) DKGStatus(context.Context, *DKGStatusRequest) (*DKGStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DKGStatus not implemented")
 }
-func (UnimplementedDKGControlServer) BroadcastDKG(context.Context, *DKGPacket) (*EmptyResponse, error) {
+func (UnimplementedDKGControlServer) BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
 }
 

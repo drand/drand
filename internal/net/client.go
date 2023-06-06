@@ -65,6 +65,6 @@ func listenAddrFor(listenAddr string) (network, addr string) {
 }
 
 type DKGClient interface {
-	Packet(ctx context.Context, p Peer, packet *drand.GossipPacket, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
-	BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyResponse, error)
+	Packet(ctx context.Context, p Peer, packet *drand.GossipPacket, opts ...grpc.CallOption) (*drand.EmptyDKGResponse, error)
+	BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyDKGResponse, error)
 }

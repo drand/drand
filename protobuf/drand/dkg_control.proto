@@ -7,13 +7,13 @@ import "crypto/dkg/dkg.proto";
 option go_package = "github.com/drand/drand/protobuf/drand";
 
 service DKGControl {
-  rpc Command(DKGCommand) returns (EmptyResponse){}
-  rpc Packet(GossipPacket) returns (EmptyResponse) {}
+  rpc Command(DKGCommand) returns (EmptyDKGResponse){}
+  rpc Packet(GossipPacket) returns (EmptyDKGResponse) {}
   rpc DKGStatus(DKGStatusRequest) returns (DKGStatusResponse) {}
-  rpc BroadcastDKG(DKGPacket) returns (EmptyResponse) {}
+  rpc BroadcastDKG(DKGPacket) returns (EmptyDKGResponse) {}
 }
 
-message EmptyResponse {
+message EmptyDKGResponse {
 }
 
 message DKGCommand {

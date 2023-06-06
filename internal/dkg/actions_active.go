@@ -18,7 +18,7 @@ import (
 // accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
 //nolint:gocyclo //
-func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyResponse, error) {
+func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	beaconID := command.Metadata.BeaconID
 	commandName := commandType(command)
 	d.lock.Lock()
@@ -92,7 +92,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		_, _ = d.gossip(me, afterState.Leaving, packetToGossip)
 	}
 
-	return &drand.EmptyResponse{}, nil
+	return &drand.EmptyDKGResponse{}, nil
 }
 
 func (d *Process) StartNetwork(

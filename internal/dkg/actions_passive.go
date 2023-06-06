@@ -14,7 +14,7 @@ import (
 // actions_passive contains all internal messaging between nodes triggered by the protocol - things it does automatically
 // upon receiving messages from other nodes: storing proposals, aborting when the leader aborts, etc
 
-func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyResponse, error) {
+func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -33,7 +33,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	// we ignore duplicate packets, so we don't try and store/gossip them ad infinitum
 	if d.SeenPackets[packetSig] {
 		d.log.Debugw("ignoring duplicate packet", "sig", shortSig)
-		return &drand.EmptyResponse{}, nil
+		return &drand.EmptyDKGResponse{}, nil
 	}
 
 	// if we're in the DKG protocol phase, we automatically broadcast it
@@ -81,7 +81,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		}
 	}
 
-	return &drand.EmptyResponse{}, nil
+	return &drand.EmptyDKGResponse{}, nil
 }
 
 func commandType(command *drand.DKGCommand) string {
@@ -135,7 +135,7 @@ func packetName(packet *drand.GossipPacket) string {
 }
 
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)
-func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyResponse, error) {
+func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
 	_, span := metrics.NewSpan(ctx, "dkg.BroadcastDKG")
 	defer span.End()
 
@@ -151,5 +151,5 @@ func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*d
 	if err != nil {
 		return nil, err
 	}
-	return &drand.EmptyResponse{}, nil
+	return &drand.EmptyDKGResponse{}, nil
 }

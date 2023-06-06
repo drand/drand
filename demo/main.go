@@ -100,7 +100,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
 
 	err = orch.RunDKG(1 * time.Minute)
 	if err != nil {

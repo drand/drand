@@ -18,7 +18,7 @@ func (dd *DrandDaemon) DKGStatus(ctx context.Context, request *drand.DKGStatusRe
 	return dd.dkg.DKGStatus(ctx, request)
 }
 
-func (dd *DrandDaemon) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyResponse, error) {
+func (dd *DrandDaemon) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	if command.Metadata == nil {
 		return nil, errors.New("could not find command metadata to read beaconID")
 	}
@@ -31,7 +31,7 @@ func (dd *DrandDaemon) Command(ctx context.Context, command *drand.DKGCommand) (
 	return dd.dkg.Command(ctx, command)
 }
 
-func (dd *DrandDaemon) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyResponse, error) {
+func (dd *DrandDaemon) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	if packet.Metadata == nil {
 		return nil, errors.New("could not find command metadata to read beaconID")
 	}
@@ -44,7 +44,7 @@ func (dd *DrandDaemon) Packet(ctx context.Context, packet *drand.GossipPacket) (
 	return dd.dkg.Packet(ctx, packet)
 }
 
-func (dd *DrandDaemon) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyResponse, error) {
+func (dd *DrandDaemon) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
 	beaconID := packet.Dkg.Metadata.BeaconID
 
 	if !dd.beaconExists(beaconID) {

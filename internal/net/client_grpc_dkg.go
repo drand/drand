@@ -8,8 +8,8 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {
-	var resp *drand.EmptyResponse
+func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
@@ -21,8 +21,8 @@ func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand, 
 	return resp, err
 }
 
-func (g *grpcClient) Packet(ctx context.Context, p Peer, in *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {
-	var resp *drand.EmptyResponse
+func (g *grpcClient) Packet(ctx context.Context, p Peer, in *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
@@ -52,8 +52,8 @@ func (g *grpcClient) DKGStatus(
 	return resp, err
 }
 
-func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, _ ...grpc.CallOption) (*drand.EmptyResponse, error) {
-	var resp *drand.EmptyResponse
+func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err

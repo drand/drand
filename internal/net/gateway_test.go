@@ -47,12 +47,12 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 	return nil, nil
 }
 
-func (t *testRandomnessServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyResponse, error) {
-	return &drand.EmptyResponse{}, nil
+func (t *testRandomnessServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
+	return &drand.EmptyDKGResponse{}, nil
 }
 
-func (t *testRandomnessServer) Command(context.Context, *drand.DKGCommand) (*drand.EmptyResponse, error) {
-	return &drand.EmptyResponse{}, nil
+func (t *testRandomnessServer) Command(context.Context, *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
+	return &drand.EmptyDKGResponse{}, nil
 }
 
 func TestListeners(t *testing.T) {

@@ -37,7 +37,7 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 }
 
 // BroadcastDKG is an empty implementation
-func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
@@ -131,11 +131,11 @@ func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.Server
 	return handler(srv, ss)
 }
 
-func (s *EmptyServer) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 

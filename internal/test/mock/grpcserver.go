@@ -335,11 +335,11 @@ func NewMockBeacon(t *testing.T, sch *crypto.Scheme, clk clock.Clock) (*drand.Ch
 	return c, r
 }
 
-func (s *Server) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyResponse, error) {
+func (s *Server) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }
 
-func (s *Server) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyResponse, error) {
+func (s *Server) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }
 
