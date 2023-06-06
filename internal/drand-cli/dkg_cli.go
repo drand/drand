@@ -257,8 +257,6 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	period := c.Duration(periodFlag.Name)
 	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
 
-	// if a custom time hasn't been added, we set a one based on the period
-	// to make the tests a little more predictable
 	genesisTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
 
 	return &drand.FirstProposalOptions{
@@ -552,7 +550,7 @@ func convert(entry *drand.DKGEntry) printModel {
 	}
 
 	formatFinalGroup := func(group []string) string {
-		if group == nil || dkg.Status(entry.State) <= dkg.Executing {
+		if group == nil {
 			return ""
 		}
 		b := strings.Builder{}
