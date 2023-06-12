@@ -273,35 +273,3 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 func (dd *DrandDaemon) WaitExit() chan bool {
 	return dd.exitCh
 }
-
-func (dd *DrandDaemon) Migrate(ctx context.Context, _ *drand.Empty) (*drand.Empty, error) {
-	for beaconID, bp := range dd.beaconProcesses {
-		dd.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
-
-		// first we fetch the old group and share from disk
-		group, err := bp.store.LoadGroup()
-		if err != nil {
-			return nil, err
-		}
-		share, err := bp.store.LoadShare(group.Scheme)
-		if err != nil {
-			return nil, err
-		}
-
-		// then we run the migration using them
-		if err := dd.dkg.Migrate(beaconID, group, share); err != nil {
-			return nil, err
-		}
-
-		// then stop and start the beacon process to load the new DKG
-		// state and start listening for messages correctly
-		bp.StopBeacon(ctx)
-		_, err = dd.LoadBeaconFromStore(ctx, beaconID, bp.store)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	dd.log.Debugw("Completed migration from group file")
-	return &drand.Empty{}, nil
-}

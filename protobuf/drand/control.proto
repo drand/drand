@@ -44,8 +44,6 @@ service Control {
 
   // RemoteStatus request the status of some remote drand nodes
   rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) {}
-
-  rpc Migrate(Empty) returns (Empty){}
 }
 
 // EntropyInfo contains information about external entropy sources
