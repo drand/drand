@@ -231,6 +231,10 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 // Test the dkg reshare can be forced to restart and finish successfully
 // when another dkg reshare was running before
 func TestRunDKGReshareForce(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	oldNodes := 4
 	oldThreshold := 3
 	timeout := 1 * time.Second
@@ -311,6 +315,10 @@ func TestRunDKGReshareForce(t *testing.T) {
 // This tests when a node first signal his intention to participate into a
 // resharing but is down right after  - he shouldn't be in the final group
 func TestRunDKGReshareAbsentNode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	oldNodes, newNodes := 3, 4
 	oldThreshold, newThreshold := 2, 3
 	timeout, beaconPeriod := 1*time.Second, 2*time.Second
@@ -494,8 +502,8 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 //
 //nolint:funlen
 func TestRunDKGResharePreempt(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping testing in CI environment")
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
 	}
 
 	oldN := 3
@@ -657,6 +665,10 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 // Test if we can correctly fetch the rounds after a DKG using the PublicRand RPC call
 func TestDrandPublicRand(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -725,6 +737,10 @@ func TestDrandPublicRand(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandPublicStream(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -873,6 +889,10 @@ func expectChanFail(t *testing.T, errCh chan error) {
 //
 //nolint:funlen // This is a test function
 func TestDrandFollowChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -994,6 +1014,9 @@ func TestDrandFollowChain(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	cfg := Config{}
 	WithTestDB(t, "")[0](&cfg)
 	if cfg.dbStorageEngine == chain.MemDB {
@@ -1143,6 +1166,10 @@ func TestDrandCheckChain(t *testing.T) {
 
 // Test if we can correctly fetch the rounds through the local proxy
 func TestDrandPublicStreamProxy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second

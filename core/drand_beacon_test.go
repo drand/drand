@@ -133,6 +133,10 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	const existingNodesCount = 3
 	const newNodesCount = 1
 	const thr = 3

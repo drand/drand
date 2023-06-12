@@ -75,6 +75,10 @@ func TestClientMultiple(t *testing.T) {
 }
 
 func TestClientWithChainInfo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	id := test.GenerateIDs(1)[0]
 	chainInfo := &chain.Info{
 		PublicKey:   id.Public.Key,

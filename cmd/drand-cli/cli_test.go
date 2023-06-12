@@ -269,6 +269,9 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheck(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := t.TempDir()
@@ -717,6 +720,10 @@ func TestDrandListSchemes(t *testing.T) {
 }
 
 func TestDrandReloadBeacon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -783,6 +790,10 @@ func TestDrandReloadBeacon(t *testing.T) {
 }
 
 func TestDrandLoadNotPresentBeacon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
@@ -1115,16 +1126,16 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
 	// How many rounds to generate while the node is stopped.
 	roundsWhileMissing := 80
-	// If we are in short mode, let's run less rounds.
-	if testing.Short() {
-		roundsWhileMissing = 20
-	}
 
 	period := 1
 	n := 4

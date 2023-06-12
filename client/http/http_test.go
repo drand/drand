@@ -112,6 +112,10 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
