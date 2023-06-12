@@ -239,7 +239,7 @@ refer to the
 
 Here is a list of all documentation related to drand:
 
-- To learn more about the protocol, the motivation and its backgronund
+- To learn more about the protocol, the motivation and its background
   - For a high level presentation of motivations and background, here are some public
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
   about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).

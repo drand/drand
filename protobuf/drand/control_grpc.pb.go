@@ -69,7 +69,6 @@ type ControlClient interface {
 	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(ctx context.Context, in *RemoteStatusRequest, opts ...grpc.CallOption) (*RemoteStatusResponse, error)
-	Migrate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type controlClient struct {
@@ -252,15 +251,6 @@ func (c *controlClient) RemoteStatus(ctx context.Context, in *RemoteStatusReques
 	return out, nil
 }
 
-func (c *controlClient) Migrate(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, Control_Migrate_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ControlServer is the server API for Control service.
 // All implementations should embed UnimplementedControlServer
 // for forward compatibility
@@ -290,7 +280,6 @@ type ControlServer interface {
 	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error)
-	Migrate(context.Context, *Empty) (*Empty, error)
 }
 
 // UnimplementedControlServer should be embedded to have forward compatible implementations.
@@ -338,9 +327,6 @@ func (UnimplementedControlServer) BackupDatabase(context.Context, *BackupDBReque
 }
 func (UnimplementedControlServer) RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoteStatus not implemented")
-}
-func (UnimplementedControlServer) Migrate(context.Context, *Empty) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Migrate not implemented")
 }
 
 // UnsafeControlServer may be embedded to opt out of forward compatibility for this service.
@@ -612,24 +598,6 @@ func _Control_RemoteStatus_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Control_Migrate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).Migrate(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Control_Migrate_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).Migrate(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Control_ServiceDesc is the grpc.ServiceDesc for Control service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -684,10 +652,6 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoteStatus",
 			Handler:    _Control_RemoteStatus_Handler,
-		},
-		{
-			MethodName: "Migrate",
-			Handler:    _Control_Migrate_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
