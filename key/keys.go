@@ -239,7 +239,7 @@ func (b ByKey) Less(i, j int) bool {
 	return bytes.Compare(is, js) < 0
 }
 
-var ErrInvalidKeyScheme = errors.New("could not unmarshal key - likely, the scheme did not match the beacon's scheme")
+var ErrInvalidKeyScheme = errors.New("the key's scheme may not match the beacon's scheme")
 
 // IdentityFromProto creates an identity from its wire representation and
 // verifies it validity.
@@ -254,7 +254,7 @@ func IdentityFromProto(n *proto.Identity, targetScheme *crypto.Scheme) (*Identit
 
 	public := targetScheme.KeyGroup.Point()
 	if err := public.UnmarshalBinary(n.GetKey()); err != nil {
-		return nil, ErrInvalidKeyScheme
+		return nil, fmt.Errorf("could not unmarshal key - %w", ErrInvalidKeyScheme)
 	}
 
 	id := &Identity{

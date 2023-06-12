@@ -1336,17 +1336,21 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID)
 
+	sch := *scenario.scheme
+
 	// to dedupe it when we're running the tests with different default schemes
-	if os.Getenv("SCHEME_ID") == crypto.ShortSigSchemeID {
+	if sch.Name == crypto.ShortSigSchemeID {
 		scenario.scheme = crypto.NewPedersenBLSChained()
 	} else {
 		scenario.scheme = crypto.NewPedersenBLSUnchainedSwapped()
 	}
 
+	// we need to use the SCHEME_ID variable to generate keys properly in tests.
 	t.Setenv("SCHEME_ID", scenario.scheme.Name)
 	scenario.AddNodesWithOptions(t, 1, beaconID)
-	t.Setenv("SCHEME_ID", "")
+	t.Setenv("SCHEME_ID", sch.Name)
 
+	scenario.scheme = &sch
 	_, err := scenario.RunDKG()
 	require.ErrorContainsf(t, err, key.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
 }

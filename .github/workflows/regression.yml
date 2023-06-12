@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: ["boltdb", "memdb", "postgres"]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc" ]
     steps:
       # Deps
       - name: Install Go

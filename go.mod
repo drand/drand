@@ -1,6 +1,6 @@
 module github.com/drand/drand
 
-go 1.19
+go 1.20
 
 require (
 	github.com/BurntSushi/toml v1.3.0
@@ -11,7 +11,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.23.0
 	github.com/drand/kyber v1.2.0
-	github.com/drand/kyber-bls12381 v0.2.6
+	github.com/drand/kyber-bls12381 v0.3.0
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1

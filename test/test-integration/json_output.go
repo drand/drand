@@ -7,7 +7,6 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -22,7 +21,7 @@ func main() {
 
 	private := sch.KeyGroup.Scalar().Pick(random.New())
 	public := sch.KeyGroup.Point().Mul(private, nil)
-	scheme := bls.NewSchemeOnG2(sch.Pairing)
+	scheme := sch.AuthScheme
 	round := 1984
 
 	previousSig, err := scheme.Sign(private, []byte("Test Signature"))

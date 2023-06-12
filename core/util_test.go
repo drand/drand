@@ -122,8 +122,6 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaco
 			if httpscerts.Check(certPath, keyPath) != nil {
 				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
 				require.NoError(t, err)
-
-				t.Logf("generate keys for drand %d", i)
 				err = httpscerts.Generate(certPath, keyPath, h)
 				require.NoError(t, err)
 			}

@@ -112,6 +112,11 @@ func TestVerifyBeacon(t *testing.T) {
 			Scheme: "bls-unchained-on-g1",
 			Round:  3,
 			Sig:    "ac7c3ca14bc88bd014260f22dc016b4fe586f9313c3a549c83d195811a99a5d2d4999d4df6daec73ff51fafadd6d5bb5",
+		}, {
+			PubKey: "a0b862a7527fee3a731bcb59280ab6abd62d5c0b6ea03dc4ddf6612fdfc9d01f01c31542541771903475eb1ec6615f8d0df0b8b6dce385811d6dcf8cbefb8759e5e616a3dfd054c928940766d9a5b9db91e3b697e5d70a975181e007f87fca5e",
+			Scheme: "bls-unchained-on-g1",
+			Round:  2,
+			Sig:    "a050676d1a1b6ceedb5fb3281cdfe88695199971426ff003c0862460b3a72811328a07ecd53b7d57fc82bb67f35efaf1",
 		},
 	}
 

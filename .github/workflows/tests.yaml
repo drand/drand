@@ -46,7 +46,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
@@ -75,7 +75,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
@@ -104,7 +104,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
@@ -133,7 +133,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc" ]
     env:
       CI: "true"
     steps:
