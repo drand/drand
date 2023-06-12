@@ -219,6 +219,10 @@ func TestHTTPWaiting(t *testing.T) {
 }
 
 func TestHTTPWatchFuture(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c, _ := withClient(t)
