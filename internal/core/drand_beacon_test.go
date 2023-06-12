@@ -244,7 +244,8 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	require.Nil(t, status.Complete)
 
 	// run the migration and check that there now is a completed DKG
-	_, err = node.daemon.Migrate(context.Background(), &drand.Empty{})
+	share := node.drand.share
+	err = node.daemon.dkg.Migrate(ts.beaconID, group, share)
 	require.NoError(t, err)
 	status2, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
 	require.NoError(t, err)

@@ -114,32 +114,7 @@ var dkgCommand = &cli.Command{
 				return generateProposalCmd(c, l)
 			},
 		},
-		{
-			Name: "migrate",
-			Flags: toArray(
-				controlFlag,
-			),
-			Action: migrateDKG,
-		},
 	},
-}
-
-func migrateDKG(c *cli.Context) error {
-	if !c.IsSet(controlFlag.Name) {
-		return errors.New("you must set the control port")
-	}
-
-	port := c.String(controlFlag.Name)
-	ctrl, err := net.NewControlClient(log.DefaultLogger(), port)
-	if err != nil {
-		return err
-	}
-
-	err = ctrl.Migrate()
-	if err == nil {
-		fmt.Println("Migration completed successfully!")
-	}
-	return err
 }
 
 var joinerFlag = &cli.StringSliceFlag{

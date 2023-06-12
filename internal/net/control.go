@@ -7,7 +7,6 @@ import (
 	"net"
 	"time"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -333,11 +332,6 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
-	return err
-}
-
-func (c *ControlClient) Migrate() error {
-	_, err := c.client.Migrate(context.Background(), &control.Empty{})
 	return err
 }
 
