@@ -28,16 +28,14 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string) error {
 
 	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
 
-	go func() {
+	go func(config dkg.Config) {
 		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters
 		time.Sleep(d.config.KickoffGracePeriod)
-		// copy this to avoid any data races with kyber
-		dkgConfigCopy := *dkgConfig
-		err := d.executeAndFinishDKG(ctx, beaconID, dkgConfigCopy)
+		err := d.executeAndFinishDKG(ctx, beaconID, config)
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
 		}
-	}()
+	}(*dkgConfig)
 	return nil
 }
 

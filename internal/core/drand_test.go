@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/common"
+	dkg3 "github.com/drand/drand/protobuf/crypto/dkg"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 	"os"
 	"path"
@@ -11,12 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
-	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
@@ -28,6 +26,9 @@ import (
 	context2 "github.com/drand/drand/internal/test/context"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setFDLimit(t testing.TB) {
@@ -1213,6 +1214,56 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 
 	_, err := scenario.RunDKG(t)
 	require.ErrorContainsf(t, err, key.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
+}
+
+func TestPacketWithoutMetadata(t *testing.T) {
+	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
+	beaconID := "blah"
+	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
+
+	_, err := scenario.RunDKG(t)
+	require.NoError(t, err)
+
+	_, err = scenario.nodes[0].daemon.Packet(context.Background(), &drand.GossipPacket{Packet: &drand.GossipPacket_Proposal{
+		Proposal: &drand.ProposalTerms{
+			BeaconID:             beaconID,
+			Epoch:                2,
+			Leader:               nil,
+			Threshold:            uint32(scenario.thr),
+			Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+			CatchupPeriodSeconds: 6,
+			TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
+		}}, Metadata: nil},
+	)
+
+	// should error but not panic
+	require.Error(t, err)
+}
+
+func TestDKGPacketWithoutMetadata(t *testing.T) {
+	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
+	beaconID := "blah"
+	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
+
+	_, err := scenario.RunDKG(t)
+	require.NoError(t, err)
+
+	_, err = scenario.nodes[0].daemon.BroadcastDKG(context.Background(), &drand.DKGPacket{
+		Dkg: &dkg3.Packet{
+			Bundle: &dkg3.Packet_Deal{
+				Deal: &dkg3.DealBundle{
+					DealerIndex: 1,
+					Commits:     nil,
+					Deals:       nil,
+					SessionId:   nil,
+					Signature:   nil,
+				}},
+			Metadata: nil,
+		},
+	})
+
+	// should error but not panic
+	require.Error(t, err)
 }
 
 // AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.

@@ -85,53 +85,43 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 }
 
 func commandType(command *drand.DKGCommand) string {
-	if command.GetInitial() != nil {
+	switch command.Command.(type) {
+	case *drand.DKGCommand_Initial:
 		return "Initial DKG"
-	}
-	if command.GetReject() != nil {
+	case *drand.DKGCommand_Resharing:
 		return "Resharing"
-	}
-	if command.GetAccept() != nil {
+	case *drand.DKGCommand_Accept:
 		return "Accepting"
-	}
-	if command.GetReject() != nil {
+	case *drand.DKGCommand_Reject:
 		return "Rejecting"
-	}
-	if command.GetJoin() != nil {
+	case *drand.DKGCommand_Join:
 		return "Joining"
-	}
-	if command.GetExecute() != nil {
-		//nolint:goconst //the two strings rae in different places
+	case *drand.DKGCommand_Execute:
 		return "Executing"
-	}
-	if command.GetAbort() != nil {
+	case *drand.DKGCommand_Abort:
 		return "Aborting"
+	default:
+		return "UnknownCommand"
 	}
-
-	return "UnknownCommand"
 }
 
 func packetName(packet *drand.GossipPacket) string {
-	if packet.GetProposal() != nil {
+	switch packet.Packet.(type) {
+	case *drand.GossipPacket_Proposal:
 		return "Proposal"
-	}
-	if packet.GetAccept() != nil {
+	case *drand.GossipPacket_Accept:
 		return "Accept"
-	}
-	if packet.GetReject() != nil {
+	case *drand.GossipPacket_Reject:
 		return "Reject"
-	}
-	if packet.GetAbort() != nil {
+	case *drand.GossipPacket_Abort:
 		return "Abort"
-	}
-	if packet.GetExecute() != nil {
+	case *drand.GossipPacket_Execute:
 		return "Execute"
-	}
-	if packet.GetDkg() != nil {
+	case *drand.GossipPacket_Dkg:
 		return "DKG"
+	default:
+		return "Unknown"
 	}
-
-	return "Unknown"
 }
 
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)

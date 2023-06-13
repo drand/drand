@@ -8,8 +8,6 @@ import (
 	"math/rand"
 	"sync"
 
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"

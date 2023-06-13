@@ -73,7 +73,7 @@ func (d *Process) gossip(
 }
 
 func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
-	retries := 10
+	retries := 8
 	backoff := 250 * time.Millisecond
 
 	peer := net.CreatePeer(p.Address, p.Tls)

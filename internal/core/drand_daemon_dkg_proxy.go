@@ -45,6 +45,12 @@ func (dd *DrandDaemon) Packet(ctx context.Context, packet *drand.GossipPacket) (
 }
 
 func (dd *DrandDaemon) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
+	if packet.GetDkg() == nil {
+		return nil, errors.New("DKG was missing from packet")
+	}
+	if packet.GetDkg().Metadata == nil {
+		return nil, errors.New("could not find packet metadata to read beaconID")
+	}
 	beaconID := packet.Dkg.Metadata.BeaconID
 
 	if !dd.beaconExists(beaconID) {
