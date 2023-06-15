@@ -92,7 +92,11 @@ const DefaultSchemeID = "pedersen-bls-chained"
 // available. This however means this scheme is not compatible with "timelock encryption" as done by tlock.
 // This schemes has the group public key on G1, so 48 bytes, and the beacon signatures on G2, so 96 bytes.
 func NewPedersenBLSChained() (cs *Scheme) {
-	var Pairing = bls.NewBLS12381Suite()
+	var Pairing = bls.NewBLS12381SuiteWithDST(
+		[]byte("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G1
+		[]byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G2
+	)
+
 	var KeyGroup = Pairing.G1()
 	var SigGroup = Pairing.G2()
 	var ThresholdScheme = tbls.NewThresholdSchemeOnG2(Pairing)
@@ -129,10 +133,11 @@ const UnchainedSchemeID = "pedersen-bls-unchained"
 // with the previous ones by only hashing the round number as the message being signed. This scheme is compatible with
 // "timelock encryption" as done by tlock.
 // This schemes has the group public key on G1, so 48 bytes, and the beacon signatures on G2, so 96 bytes.
-//
-//nolint:dupl
 func NewPedersenBLSUnchained() (cs *Scheme) {
-	var Pairing = bls.NewBLS12381Suite()
+	var Pairing = bls.NewBLS12381SuiteWithDST(
+		[]byte("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G1
+		[]byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G2
+	)
 	var KeyGroup = Pairing.G1()
 	var SigGroup = Pairing.G2()
 	var ThresholdScheme = tbls.NewThresholdSchemeOnG2(Pairing)
@@ -166,11 +171,14 @@ const ShortSigSchemeID = "bls-unchained-on-g1"
 // "timelock encryption" as done by tlock.
 // This schemes has the group public key on G2, so 96 bytes, and the beacon signatures on G1, so 48 bytes.
 // This means databases of beacons produced with this scheme are almost half the size of the other schemes.
-// Deprecated: However this scheme is using the DST from G2 for Hash to Curve, which means it is not spec compliant.
 //
-//nolint:dupl
+// Deprecated: However this scheme is using the DST from G2 for Hash to Curve, which means it is not spec compliant.
 func NewPedersenBLSUnchainedSwapped() (cs *Scheme) {
-	var Pairing = bls.NewBLS12381SuiteWithDST(bls.DefaultDomainG2(), nil)
+	var Pairing = bls.NewBLS12381SuiteWithDST(
+		[]byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"), // this is the G2 DST instead of the G1 DST
+		[]byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G1
+	)
+
 	// We are using the same domain as for G2 but on G1, this is not spec-compliant with the BLS and HashToCurve RFCs.
 	var KeyGroup = Pairing.G2()
 	var SigGroup = Pairing.G1()
@@ -201,17 +209,18 @@ func NewPedersenBLSUnchainedSwapped() (cs *Scheme) {
 
 // SigsOnG1ID is the scheme id used to set unchained randomness on beacons with signatures on G1 that are
 // compliant with the hash to curve RFC.
-const SigsOnG1ID = "bls-unchained-g1-rfc"
+const SigsOnG1ID = "bls-unchained-g1-rfc9380"
 
 // NewPedersenBLSUnchainedG1 instantiate a scheme of type "bls-unchained-on-g1" which is also unchained, only
 // hashing the round number as the message being signed in beacons. This scheme is also compatible with
 // "timelock encryption" as done by tlock.
 // This schemes has the group public key on G2, so 96 bytes, and the beacon signatures on G1, so 48 bytes.
 // This means databases of beacons produced with this scheme are almost half the size of the other schemes.
-//
-//nolint:dupl
 func NewPedersenBLSUnchainedG1() (cs *Scheme) {
-	var Pairing = bls.NewBLS12381Suite()
+	var Pairing = bls.NewBLS12381SuiteWithDST(
+		[]byte("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G1
+		[]byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_"), // default RFC9380 DST for G2
+	)
 	var KeyGroup = Pairing.G2()
 	var SigGroup = Pairing.G1()
 	// using G1 for the ThresholdScheme since it allows beacons to have shorter signatures, reducing the size of any
