@@ -18,8 +18,7 @@ func PrevSignatureMattersOnContext(t *testing.T, ctx context.Context) (context.C
 	require.NoError(t, err)
 
 	prevMatters := true
-	if sch.Name == crypto.UnchainedSchemeID ||
-		sch.Name == crypto.ShortSigSchemeID {
+	if sch.Name != crypto.DefaultSchemeID {
 		prevMatters = false
 	}
 

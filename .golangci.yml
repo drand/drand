@@ -16,6 +16,8 @@ issues:
         - nilnil
         - noctx
         - revive
+    - path: _test\.go
+      text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go
       linters:
         - lll
@@ -29,6 +31,9 @@ issues:
     - path: drand-cli
       linters:
         - forbidigo # we use Println in our UX
+    - path: crypto/schemes.go
+      linters:
+        - dupl # we have explicit scheme instantiations
 #    - path: core/broadcast.go
 #      linters:
 #        - interfacer # Deprecated
