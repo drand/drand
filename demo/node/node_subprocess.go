@@ -266,6 +266,7 @@ func (n *NodeProc) StartLeaderDKG(thr int, _ int, joiners []*drand.Participant) 
 		"--scheme", n.scheme.Name,
 		"--period", n.period,
 		"--catchup-period", "1s",
+		"--transition-time", "1m",
 		"--proposal", n.proposalPath,
 		"--threshold", strconv.Itoa(thr),
 		"--timeout", (5 * time.Minute).String(),
