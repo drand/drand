@@ -618,6 +618,18 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 			},
 			expectedError: ErrCannotJoinIfNotInJoining,
 		},
+		{
+			name: "joining after first epoch without group file fails",
+			startingState: func() *DBState {
+				entry := NewCompleteDKGEntry(t, beaconID, Proposed, bob)
+				entry.Epoch = 2
+				return entry
+			}(),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(alice, nil)
+			},
+			expectedError: ErrJoiningAfterFirstEpochNeedsGroupFile,
+		},
 	}
 
 	RunStateChangeTest(t, tests)
@@ -1505,6 +1517,58 @@ func TestReceivedRejection(t *testing.T) {
 	}
 
 	RunStateChangeTest(t, tests)
+}
+
+func TestCompletion(t *testing.T) {
+	beaconID := "some-wonderful-beacon-id"
+	group := key.Group{
+		GenesisSeed: []byte("deadbeef"),
+	}
+	keyShare := key.Share{}
+	tests := []stateChangeTableTest{
+		{
+			name:          "receiving a valid share and group file succeeds",
+			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Complete(&group, &keyShare)
+			},
+			expectedResult: func() *DBState {
+				d := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+				d.KeyShare = &keyShare
+				d.FinalGroup = &group
+				d.GenesisSeed = group.GenesisSeed
+				return d
+			}(),
+		},
+		{
+			name:          "cannot complete from non-executing state",
+			startingState: NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Complete(&group, &keyShare)
+			},
+			expectedError: InvalidStateChange(Proposed, Complete),
+		},
+		{
+			name:          "empty group file fails",
+			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Complete(nil, &keyShare)
+			},
+			expectedError: ErrFinalGroupCannotBeEmpty,
+		},
+
+		{
+			name:          "empty key share fails",
+			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Complete(&group, nil)
+			},
+			expectedError: ErrKeyShareCannotBeEmpty,
+		},
+	}
+
+	RunStateChangeTest(t, tests)
+
 }
 
 type stateChangeTableTest struct {
