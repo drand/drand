@@ -59,6 +59,12 @@ func (d *Process) StartNetwork(ctx context.Context, options *drand.FirstProposal
 		Joining:              options.Joining,
 	}
 
+	metadata, err := d.signMessage(beaconID, "StartNetwork", &terms)
+	if err != nil {
+		return nil, err
+	}
+	terms.Metadata = metadata
+
 	// apply our enriched DKG payload onto the current DKG state to create a new state
 	nextState, err := currentState.Proposing(me, &terms)
 	if err != nil {
@@ -85,7 +91,7 @@ func (d *Process) StartNetwork(ctx context.Context, options *drand.FirstProposal
 	// if there's an error sending to a party or saving the state, attempt a rollback by issuing an abort
 	rollback := func(err error) {
 		d.log.Errorw("there was an error starting the network. Attempting rollback", "beaconID", beaconID, "error", err)
-		_ = d.attemptAbort(ctx, me, nextState.Joining, beaconID)
+		_ = d.attemptAbort(ctx, me, nextState.Joining, beaconID, &terms)
 	}
 
 	return responseOrError(rollbackOnError(sendProposalAndStoreNextState, rollback))
@@ -105,17 +111,21 @@ func (d *Process) attemptAbort(
 	me *drand.Participant,
 	participants []*drand.Participant,
 	beaconID string,
+	proposal *drand.ProposalTerms,
 ) error {
 	ctx, span := metrics.NewSpan(ctx, "dkg.attemptAbort")
 	defer span.End()
 
 	return d.network.Send(ctx, me, participants, func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+		metadata, err := d.signMessage(beaconID, "StartAbort", proposal)
+		if err != nil {
+			return nil, err
+		}
 		return client.Abort(
 			ctx,
 			peer,
-			&drand.AbortDKG{Metadata: &drand.DKGMetadata{
-				BeaconID: beaconID,
-			}})
+			&drand.AbortDKG{Metadata: metadata},
+		)
 	})
 }
 
@@ -166,7 +176,14 @@ func (d *Process) StartProposal(ctx context.Context, options *drand.ProposalOpti
 			me,
 			util.Concat(nextState.Joining, nextState.Remaining),
 			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
-				return client.Propose(ctx, peer, &terms)
+				metadata, err := d.signMessage(beaconID, "StartProposal", &terms)
+				//nolint:govet // the copied lock isn't used, it's just magic protobuf and the race checker complains if we don't copy the terms
+				t := terms
+				if err != nil {
+					return nil, err
+				}
+				t.Metadata = metadata
+				return client.Propose(ctx, peer, &t)
 			},
 		)
 		if err != nil {
@@ -198,7 +215,7 @@ func (d *Process) StartProposal(ctx context.Context, options *drand.ProposalOpti
 	rollback := func(err error) {
 		allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 		d.log.Errorw("There was an error proposing a DKG", "err", err, "beaconID", beaconID)
-		_ = d.attemptAbort(ctx, me, allParticipants, beaconID)
+		_ = d.attemptAbort(ctx, me, allParticipants, beaconID, &terms)
 	}
 
 	return responseOrError(rollbackOnError(sendProposalToAllAndStoreState, rollback))
@@ -231,7 +248,7 @@ func (d *Process) StartAbort(ctx context.Context, options *drand.AbortOptions) (
 	}
 
 	allParticipants := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	if err := d.attemptAbort(ctx, me, allParticipants, beaconID); err != nil {
+	if err := d.attemptAbort(ctx, me, allParticipants, beaconID, termsFromState(current)); err != nil {
 		return nil, err
 	}
 
@@ -263,11 +280,14 @@ func (d *Process) StartExecute(ctx context.Context, options *drand.ExecutionOpti
 			me,
 			allParticipants,
 			func(ctx context.Context, client net.DKGClient, peer net.Peer) (*drand.EmptyResponse, error) {
+				metadata, err := d.signMessage(beaconID, "StartExecute", termsFromState(nextState))
+				if err != nil {
+					return nil, err
+				}
+
 				return client.Execute(ctx, peer, &drand.StartExecution{
-					Metadata: &drand.DKGMetadata{
-						BeaconID: beaconID,
-					}},
-				)
+					Metadata: metadata,
+				})
 			},
 		)
 	}
@@ -337,14 +357,17 @@ func (d *Process) StartAccept(ctx context.Context, options *drand.AcceptOptions)
 	}
 
 	callback := func(me *drand.Participant, nextState *DBState) error {
-		_, err := d.internalClient.Accept(
+		metadata, err := d.signMessage(beaconID, "StartAccept", termsFromState(nextState))
+		if err != nil {
+			return err
+		}
+		_, err = d.internalClient.Accept(
 			ctx,
 			util.ToPeer(nextState.Leader),
+
 			&drand.AcceptProposal{
 				Acceptor: me,
-				Metadata: &drand.DKGMetadata{
-					BeaconID: beaconID,
-				},
+				Metadata: metadata,
 			})
 		return err
 	}
@@ -368,13 +391,15 @@ func (d *Process) StartReject(ctx context.Context, options *drand.RejectOptions)
 	}
 
 	callback := func(me *drand.Participant, nextState *DBState) error {
-		_, err := d.internalClient.Reject(ctx,
+		metadata, err := d.signMessage(beaconID, "StartReject", termsFromState(nextState))
+		if err != nil {
+			return err
+		}
+		_, err = d.internalClient.Reject(ctx,
 			util.ToPeer(nextState.Leader),
 			&drand.RejectProposal{
 				Rejector: me,
-				Metadata: &drand.DKGMetadata{
-					BeaconID: beaconID,
-				},
+				Metadata: metadata,
 			})
 		return err
 	}

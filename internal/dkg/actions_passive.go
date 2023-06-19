@@ -16,6 +16,18 @@ func (d *Process) Propose(ctx context.Context, proposal *drand.ProposalTerms) (*
 	_, span := metrics.NewSpan(ctx, "dkg.Propose")
 	defer span.End()
 
+	if proposal.Epoch == 1 {
+		err := d.verifyMessage("StartNetwork", proposal.Metadata, proposal)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := d.verifyMessage("StartProposal", proposal.Metadata, proposal)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	err := d.executeAction("DKG proposal", proposal.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
 		// strictly speaking, we don't actually _know_ this proposal came from the leader here
 		// it will have to be verified by signing later
@@ -25,21 +37,31 @@ func (d *Process) Propose(ctx context.Context, proposal *drand.ProposalTerms) (*
 	return responseOrError(err)
 }
 
+//nolint:dupl // it's similar to Reject, but not the same
 func (d *Process) Accept(ctx context.Context, acceptance *drand.AcceptProposal) (*drand.EmptyResponse, error) {
 	_, span := metrics.NewSpan(ctx, "dkg.Accept")
 	defer span.End()
 
 	err := d.executeAction("DKG acceptance", acceptance.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
+		err := d.verifyMessage("StartAccept", acceptance.Metadata, termsFromState(current))
+		if err != nil {
+			return nil, err
+		}
 		return current.ReceivedAcceptance(me, acceptance.Acceptor)
 	})
 
 	return responseOrError(err)
 }
 
+//nolint:dupl // it's similar to Accept, but not the same
 func (d *Process) Reject(ctx context.Context, rejection *drand.RejectProposal) (*drand.EmptyResponse, error) {
 	_, span := metrics.NewSpan(ctx, "dkg.Reject")
 	defer span.End()
 	err := d.executeAction("DKG rejection", rejection.Metadata.BeaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
+		err := d.verifyMessage("StartReject", rejection.Metadata, termsFromState(current))
+		if err != nil {
+			return nil, err
+		}
 		return current.ReceivedRejection(me, rejection.Rejector)
 	})
 
@@ -51,6 +73,10 @@ func (d *Process) Abort(ctx context.Context, abort *drand.AbortDKG) (*drand.Empt
 	defer span.End()
 
 	err := d.executeAction("abort DKG", abort.Metadata.BeaconID, func(_ *drand.Participant, current *DBState) (*DBState, error) {
+		err := d.verifyMessage("StartAbort", abort.Metadata, termsFromState(current))
+		if err != nil {
+			return nil, err
+		}
 		return current.Aborted()
 	})
 
@@ -63,6 +89,10 @@ func (d *Process) Execute(ctx context.Context, kickoff *drand.StartExecution) (*
 	beaconID := kickoff.Metadata.BeaconID
 
 	err := d.executeAction("DKG execution", beaconID, func(me *drand.Participant, current *DBState) (*DBState, error) {
+		err := d.verifyMessage("StartExecute", kickoff.Metadata, termsFromState(current))
+		if err != nil {
+			return nil, err
+		}
 		return current.Executing(me)
 	})
 
