@@ -72,56 +72,13 @@ service DKG {
   rpc BroadcastDKG(DKGPacket) returns (EmptyResponse) {}
 }
 
+message DKGMetadata {
+  string beaconID = 1;
+  string address = 2;
+  bytes signature = 3;
+}
+
 message EmptyResponse {
-}
-
-message InitialProposal {
-  string beaconID = 1;
-  uint32 epoch = 2;
-  Participant leader = 3;
-  uint32 threshold = 4;
-
-  // the time at which the proposal can be automatically cancelled if the leader
-  // has not kicked off execution
-  google.protobuf.Timestamp proposal_timeout = 5;
-
-  // the minimum beacon period when in catchup
-  uint32 catchup_period = 6;
-
-  // the period time of the beacon in seconds.
-  uint32 beacon_period = 7;
-
-  // the cryptographic (and protocol) scheme used to generate randomness beacons
-  // used only in a fresh dkg
-  uint32 schemeID = 8;
-
-  // the start time of the network
-  google.protobuf.Timestamp genesis_time = 9;
-
-  // a list of the participants taking part in the initial DKG
-  repeated Participant joining = 10;
-}
-
-message Proposal {
-  string beaconID = 1;
-  uint32 epoch = 2;
-  Participant leader = 3;
-  uint32 threshold = 4;
-  // the time at which the proposal can be automatically cancelled if the leader
-  // has not kicked off execution
-  google.protobuf.Timestamp timeout = 5;
-
-  // the time at which a DKG should go live
-  google.protobuf.Timestamp transition_time = 6;
-
-  // a list of the participants joining for this epoch
-  repeated Participant joining = 7;
-
-  // a list of the participants from the current epoch that will remain for the next epoch
-  repeated Participant remaining = 8;
-
-  // a list of the participants from the current epoch that will leave for the next epoch
-  repeated Participant leaving = 9;
 }
 
 message ProposalTerms {
@@ -140,6 +97,7 @@ message ProposalTerms {
   repeated Participant joining = 12;
   repeated Participant remaining = 13;
   repeated Participant leaving = 14;
+  DKGMetadata metadata = 15;
 }
 
 message Participant {
@@ -185,10 +143,6 @@ message StartExecution {
   DKGMetadata metadata = 1;
 }
 
-message DKGMetadata {
-  string beaconID = 1;
-}
-
 message DKGStatusRequest {
   string beaconID = 1;
 }
@@ -218,7 +172,7 @@ message DKGEntry {
 
 // DKGPacket is the packet that nodes send to others nodes as part of the
 // broadcasting protocol.
-message DKGPacket{
+message DKGPacket {
   dkg.Packet dkg = 1;
   DKGMetadata metadata = 2;
 }
