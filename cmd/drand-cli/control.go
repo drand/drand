@@ -612,7 +612,7 @@ func backupDBCmd(c *cli.Context) error {
 		return err
 	}
 
-	outDir := c.String(outFlag.Name)
+	outDir := c.String(backupOutFlag.Name)
 	beaconID := getBeaconID(c)
 	err = client.BackupDB(outDir, beaconID)
 	if err != nil {
