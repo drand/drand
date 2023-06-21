@@ -1,4 +1,4 @@
-FROM golang:1.19.2-buster AS builder
+FROM golang:1.20.5-bookworm AS builder
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
