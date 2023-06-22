@@ -386,7 +386,11 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		g, err := store.LoadGroup()
 
 		// by default, no group returns a `no such file or directory` error, which we want to ignore
-		if g == nil || err != nil && errors.Is(err, fs.ErrNotExist) {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+
+		if g == nil {
 			dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
 			return bp, nil
 		}
