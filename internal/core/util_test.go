@@ -492,7 +492,14 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 	leader := d.nodes[0]
 	followers := d.nodes[1:]
 
-	err := leader.dkgRunner.StartProposal(d.thr, d.clock.Now().Add(10*time.Second), 1, []*drand.Participant{}, remainers, []*drand.Participant{})
+	err := leader.dkgRunner.StartProposal(
+		d.thr,
+		d.clock.Now().Add(10*time.Second),
+		1,
+		[]*drand.Participant{},
+		remainers,
+		[]*drand.Participant{},
+	)
 	if err != nil {
 		return err
 	}

@@ -58,7 +58,7 @@ const (
 	// execution. If a threshold number of nodes are evicted during the DKG, the old state will be reverted.
 	Evicted
 	// Failed signals that a key resharing execution completed, but a threshold number of nodes were evicted. This would
-	// jeopardise the liveness of the network, so participants are to continue the existing network without transitioning
+	// jeopardize the liveness of the network, so participants are to continue the existing network without transitioning
 	Failed
 )
 
@@ -154,7 +154,7 @@ func (d *DBState) Equals(e *DBState) bool {
 		reflect.DeepEqual(d.KeyShare, e.KeyShare)
 }
 
-// DBStateTOML is a convenience object for managing de/serialisation of DBStates when reading/writing them
+// DBStateTOML is a convenience object for managing de/serialization of DBStates when reading/writing them
 // from/to disk.
 // Don't forget to update it if you update the `DBState` object!!
 type DBStateTOML struct {
@@ -842,6 +842,7 @@ func validateReshare(currentState *DBState, terms *drand.ProposalTerms) error {
 }
 
 func isProposalPhase(d *DBState) bool {
+	//nolint:exhaustive // we aren't matching all states here, just cleaner than if
 	switch d.State {
 	case Proposing:
 	case Proposed:

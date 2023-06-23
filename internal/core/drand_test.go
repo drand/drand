@@ -4,16 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/common"
-	dkg3 "github.com/drand/drand/protobuf/crypto/dkg"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/drand/drand/common"
+	dkg3 "github.com/drand/drand/protobuf/crypto/dkg"
+
+	"github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
@@ -26,9 +32,6 @@ import (
 	context2 "github.com/drand/drand/internal/test/context"
 	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func setFDLimit(t testing.TB) {

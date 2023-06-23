@@ -1637,7 +1637,6 @@ func TestFailed(t *testing.T) {
 		},
 	}
 	RunStateChangeTest(t, tests)
-
 }
 
 type stateChangeTableTest struct {
