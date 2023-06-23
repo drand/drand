@@ -1407,12 +1407,12 @@ func TestReceivedAcceptance(t *testing.T) {
 			expectedError: ErrUnknownAcceptor,
 		},
 		{
-			name:          "receiving acceptance from non-proposing state returns an error",
-			startingState: NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob),
+			name:          "receiving acceptance from non-proposal state returns an error",
+			startingState: NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedAcceptance(bob, &drand.GossipMetadata{Address: bob.Address})
 			},
-			expectedError: InvalidStateChange(Proposed, Proposing),
+			expectedError: ErrReceivedAcceptance,
 		},
 		{
 			name: "acceptances are appended to acceptors",
@@ -1500,11 +1500,11 @@ func TestReceivedRejection(t *testing.T) {
 		},
 		{
 			name:          "receiving rejection from non-proposing state returns an error",
-			startingState: NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob),
+			startingState: NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedRejection(bob, &drand.GossipMetadata{Address: bob.Address})
 			},
-			expectedError: InvalidStateChange(Proposed, Proposing),
+			expectedError: ErrReceivedRejection,
 		},
 		{
 			name: "rejections are appended to rejectors",

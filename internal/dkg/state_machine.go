@@ -845,9 +845,13 @@ func isProposalPhase(d *DBState) bool {
 	//nolint:exhaustive // we aren't matching all states here, just cleaner than if
 	switch d.State {
 	case Proposing:
+		return true
 	case Proposed:
+		return true
 	case Accepted:
+		return true
 	case Rejected:
+		return true
 	case Joined:
 		return true
 	}
