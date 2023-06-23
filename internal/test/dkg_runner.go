@@ -128,9 +128,10 @@ func (r *DKGRunner) Abort() error {
 }
 
 var ErrTimeout = errors.New("DKG timed out")
+var ErrDKGFailed = errors.New("DKG failed")
 
 func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
-	waitForGroupFile := func() error {
+	for i := 0; i < numberOfSeconds; i++ {
 		res, err := r.Client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
 		if err != nil {
 			return err
@@ -138,36 +139,29 @@ func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, num
 
 		switch res.Current.State {
 		case uint32(dkg.Evicted):
-			panic("leader got evicted")
+			return errors.New("leader got evicted")
 		case uint32(dkg.TimedOut):
-			panic("DKG timed out")
-		case uint32(dkg.Aborted):
-			panic("DKG was aborted")
-		}
-
-		if res.Complete == nil || res.Complete.Epoch != epoch {
-			return errors.New("DKG not finished yet")
-		}
-
-		if res.Complete.State == uint32(dkg.TimedOut) {
 			return ErrTimeout
+		case uint32(dkg.Aborted):
+			return errors.New("DKG aborted")
+		case uint32(dkg.Failed):
+			return ErrDKGFailed
+		}
+		if res.Complete == nil || res.Complete.Epoch != epoch {
+			time.Sleep(1 * time.Second)
+			continue
 		}
 
 		if res.Complete.State != uint32(dkg.Complete) {
 			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", dkg.Status(res.Complete.State).String()))
 		}
-		return nil
-	}
 
-	var err error
-	for i := 0; i < numberOfSeconds; i++ {
-		err = waitForGroupFile()
 		if err == nil {
-			break
+			return nil
 		}
 		lg.Infow("DKG not finished... retrying")
 		time.Sleep(1 * time.Second)
 	}
 
-	return err
+	return errors.New("DKG never finished")
 }

@@ -1606,6 +1606,37 @@ func TestCompletion(t *testing.T) {
 	}
 
 	RunStateChangeTest(t, tests)
+}
+
+func TestFailed(t *testing.T) {
+	beaconID := "some-beacon-id"
+	tests := []stateChangeTableTest{
+		{
+			name:          "can call failed from executing",
+			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
+			transitionFn: func(starting *DBState) (*DBState, error) {
+				return starting.Failed()
+			},
+			expectedResult: NewCompleteDKGEntry(t, beaconID, Failed, alice, bob),
+		},
+		{
+			name:          "can't call failed from fresh",
+			startingState: NewFreshState(beaconID),
+			transitionFn: func(starting *DBState) (*DBState, error) {
+				return starting.Failed()
+			},
+			expectedError: InvalidStateChange(Fresh, Failed),
+		},
+		{
+			name:          "can't call failed from complete",
+			startingState: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob),
+			transitionFn: func(starting *DBState) (*DBState, error) {
+				return starting.Failed()
+			},
+			expectedError: InvalidStateChange(Complete, Failed),
+		},
+	}
+	RunStateChangeTest(t, tests)
 
 }
 

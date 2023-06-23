@@ -1292,6 +1292,23 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
+	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
+	period := 1 * time.Second
+	beaconID := "blah"
+	scenario := NewDrandTestScenario(t, 2, 2, period, beaconID, clockwork.NewFakeClockAt(time.Now()))
+
+	g, err := scenario.RunDKG(t)
+	require.NoError(t, err)
+
+	scenario.SetMockClock(t, g.GenesisTime)
+
+	leader := scenario.nodes[0]
+	err = scenario.RunFailingReshare()
+	require.Equal(t, test.ErrDKGFailed, err)
+	require.Equal(t, leader.drand.group, g)
+}
+
 // AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
 // The options set will overwrite the existing ones.
 func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID string, opts ...ConfigOption) []*MockNode {

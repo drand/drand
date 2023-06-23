@@ -115,7 +115,20 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	executeAndStoreDKG := func() error {
 		output, err := d.startDKGExecution(ctx, beaconID, current, &config)
 		if err != nil {
-			return err
+			// if the DKG doesn't reach threshold, we must transition to `Failed` instead of
+			// returning an error and rolling back
+			if !util.ErrorContains(err, "dkg: too many uncompliant new participants") && !util.ErrorContains(err, "dkg abort") {
+				return err
+			}
+
+			d.log.Errorw("DKG failed as too many nodes were evicted. Storing failed state")
+
+			next, err := current.Failed()
+			if err != nil {
+				return err
+			}
+
+			return d.store.SaveCurrent(beaconID, next)
 		}
 
 		finalState, err := current.Complete(output.FinalGroup, output.KeyShare)

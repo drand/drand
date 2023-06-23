@@ -57,6 +57,9 @@ const (
 	// Generally it means that other nodes have been unable to validate its shares, or it was offline during DKG
 	// execution. If a threshold number of nodes are evicted during the DKG, the old state will be reverted.
 	Evicted
+	// Failed signals that a key resharing execution completed, but a threshold number of nodes were evicted. This would
+	// jeopardise the liveness of the network, so participants are to continue the existing network without transitioning
+	Failed
 )
 
 func (s Status) String() string {
@@ -85,6 +88,8 @@ func (s Status) String() string {
 		return "Left"
 	case Evicted:
 		return "Evicted"
+	case Failed:
+		return "Failed"
 	default:
 		panic("impossible DKG state received")
 	}
@@ -572,8 +577,8 @@ func (d *DBState) Complete(finalGroup *key.Group, share *key.Share) (*DBState, e
 // they needn't necessarily collect _all_ acceptances for executing, but it gives them some insight into
 // the state of the DKG when they run the status command
 func (d *DBState) ReceivedAcceptance(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
-	if d.State != Proposing {
-		return nil, InvalidStateChange(d.State, Proposing)
+	if !isProposalPhase(d) {
+		return nil, ErrReceivedAcceptance
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -598,8 +603,8 @@ func (d *DBState) ReceivedAcceptance(them *drand.Participant, metadata *drand.Go
 // they may not receive all rejections before executing, but it gives them some insight into
 // the state of the DKG when they run the status command
 func (d *DBState) ReceivedRejection(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
-	if d.State != Proposing {
-		return nil, InvalidStateChange(d.State, Proposing)
+	if !isProposalPhase(d) {
+		return nil, ErrReceivedRejection
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -617,6 +622,14 @@ func (d *DBState) ReceivedRejection(them *drand.Participant, metadata *drand.Gos
 	d.Acceptors = util.Without(d.Acceptors, them)
 	d.Rejectors = append(d.Rejectors, them)
 
+	return d, nil
+}
+
+func (d *DBState) Failed() (*DBState, error) {
+	if !isValidStateChange(d.State, Failed) {
+		return nil, InvalidStateChange(d.State, Failed)
+	}
+	d.State = Failed
 	return d, nil
 }
 
@@ -663,6 +676,8 @@ var ErrUnknownRejector = errors.New("somebody unknown tried to reject the propos
 var ErrDuplicateRejection = errors.New("this participant already rejected the proposal")
 var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a nil final group")
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
+var ErrReceivedAcceptance = errors.New("received acceptance but not during proposal phase")
+var ErrReceivedRejection = errors.New("received rejection but not during proposal phase")
 
 // isValidStateChange details all the viable state changes
 //
@@ -690,9 +705,11 @@ func isValidStateChange(current, next Status) bool {
 	case Rejected:
 		return next == Aborted || next == TimedOut
 	case Executing:
-		return next == Complete || next == TimedOut || next == Evicted
+		return next == Complete || next == TimedOut || next == Evicted || next == Failed
 	case Evicted:
 		return next == Joined
+	case Failed:
+		return next == Proposing || next == Proposed
 	}
 	return false
 }
@@ -822,4 +839,16 @@ func validateReshare(currentState *DBState, terms *drand.ProposalTerms) error {
 	}
 
 	return nil
+}
+
+func isProposalPhase(d *DBState) bool {
+	switch d.State {
+	case Proposing:
+	case Proposed:
+	case Accepted:
+	case Rejected:
+	case Joined:
+		return true
+	}
+	return false
 }
