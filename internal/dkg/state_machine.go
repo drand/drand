@@ -339,9 +339,9 @@ func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (
 		GenesisSeed:    d.GenesisSeed, // does not exist until the first DKG has completed
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
-		Remaining:      terms.Remaining,
-		Joining:        terms.Joining,
-		Leaving:        terms.Leaving,
+		Remaining:      util.Filter(terms.Remaining, util.NonEmpty),
+		Joining:        util.Filter(terms.Joining, util.NonEmpty),
+		Leaving:        util.Filter(terms.Leaving, util.NonEmpty),
 	}, nil
 }
 
@@ -379,9 +379,9 @@ func (d *DBState) Proposed(me *drand.Participant, terms *drand.ProposalTerms, me
 		GenesisSeed:    terms.GenesisSeed,
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
-		Remaining:      terms.Remaining,
-		Joining:        terms.Joining,
-		Leaving:        terms.Leaving,
+		Remaining:      util.Filter(terms.Remaining, util.NonEmpty),
+		Joining:        util.Filter(terms.Joining, util.NonEmpty),
+		Leaving:        util.Filter(terms.Leaving, util.NonEmpty),
 	}, nil
 }
 

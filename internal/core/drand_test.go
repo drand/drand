@@ -1266,6 +1266,32 @@ func TestDKGPacketWithoutMetadata(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDKGPacketWithNilInArray(t *testing.T) {
+	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
+	beaconID := "blah"
+	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
+
+	// the first slot will be nil
+	joiners := make([]*drand.Participant, len(scenario.nodes)+1)
+	for i, node := range scenario.nodes {
+		identity := node.drand.priv.Public
+		pk, err := identity.Key.MarshalBinary()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// + 1 here, so the first entry is nil
+		joiners[i+1] = &drand.Participant{
+			Address:   identity.Addr,
+			Tls:       identity.TLS,
+			PubKey:    pk,
+			Signature: identity.Signature,
+		}
+	}
+	err := scenario.nodes[0].dkgRunner.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, joiners)
+
+	require.NoError(t, err)
+}
+
 // AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
 // The options set will overwrite the existing ones.
 func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID string, opts ...ConfigOption) []*MockNode {

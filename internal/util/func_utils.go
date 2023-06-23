@@ -8,3 +8,13 @@ func Concat[T any](arrs ...[]T) []T {
 	}
 	return out
 }
+
+func Filter[T any](arr []T, predicate func(T) bool) []T {
+	var out []T
+	for _, v := range arr {
+		if predicate(v) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
