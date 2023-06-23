@@ -19,6 +19,9 @@ import (
 
 //nolint:gocyclo //
 func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
+	if command == nil {
+		return nil, errors.New("command cannot be nil")
+	}
 	beaconID := command.Metadata.BeaconID
 	commandName := commandType(command)
 	d.lock.Lock()

@@ -18,6 +18,9 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
+	if packet == nil {
+		return nil, errors.New("packet cannot be nil")
+	}
 	// if there's no metadata on the packet, we won't be able to verify the signature or perform other state changes
 	if packet.Metadata == nil {
 		return nil, errors.New("packet missing metadata")

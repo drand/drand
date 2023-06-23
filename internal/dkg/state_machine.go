@@ -624,6 +624,7 @@ func InvalidStateChange(from, to Status) error {
 	return fmt.Errorf("invalid transition attempt from %s to %s", from.String(), to.String())
 }
 
+var ErrMissingTerms = errors.New("proposal terms cannot be empty")
 var ErrTimeoutReached = errors.New("timeout has been reached")
 var ErrInvalidBeaconID = errors.New("BeaconID was invalid")
 var ErrInvalidScheme = errors.New("the scheme proposed does not exist")
@@ -660,8 +661,6 @@ var ErrInvalidAcceptor = errors.New("the node that signed this message is not th
 var ErrInvalidRejector = errors.New("the node that signed this message is not the one claiming be rejecting")
 var ErrUnknownRejector = errors.New("somebody unknown tried to reject the proposal")
 var ErrDuplicateRejection = errors.New("this participant already rejected the proposal")
-var ErrNonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")
-var ErrNonLeaderCannotReceiveRejection = errors.New("you received a rejection but are not the leader of this DKG - cannot do anything")
 var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a nil final group")
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
 
@@ -704,6 +703,9 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
+	if terms == nil {
+		return ErrMissingTerms
+	}
 	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
 	if currentState.BeaconID != terms.BeaconID {
 		return ErrInvalidBeaconID
