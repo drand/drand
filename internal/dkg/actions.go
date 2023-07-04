@@ -23,7 +23,7 @@ func (d *Process) gossip(
 	done := make(chan bool, 1)
 	errChan := make(chan error, 1)
 
-	// we first filter the recipients to avoid a malicious leader sending `nil`
+	// we first filter the recipients to avoid a malicious broadcaster sending `nil`
 	recipients = util.Filter(recipients, func(p *drand.Participant) bool {
 		return p != nil && p.Address != ""
 	})
