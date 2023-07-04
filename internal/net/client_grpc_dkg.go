@@ -8,7 +8,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
@@ -38,7 +38,6 @@ func (g *grpcClient) DKGStatus(
 	ctx context.Context,
 	p Peer,
 	in *drand.DKGStatusRequest,
-	_ ...grpc.CallOption,
 ) (*drand.DKGStatusResponse, error) {
 	var resp *drand.DKGStatusResponse
 	c, err := g.conn(ctx, p)
