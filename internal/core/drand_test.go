@@ -130,6 +130,8 @@ func TestRunDKGLarge(t *testing.T) {
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
+	dkgTimeout := 3 * time.Minute
+
 	// we need to increase some DKG timings for bigger DKGs!
 	dt := NewDrandTestScenario(
 		t,
@@ -140,14 +142,18 @@ func TestRunDKGLarge(t *testing.T) {
 		clockwork.NewFakeClock(),
 		WithDkgKickoffGracePeriod(15*time.Second),
 		WithDkgPhaseTimeout(45*time.Second),
-		WithDkgTimeout(3*time.Minute),
+		WithDkgTimeout(dkgTimeout),
 	)
 
 	// let's wait for the last node to be started
+	timeout := time.Now().Add(dkgTimeout)
 	for {
 		_, err := dt.nodes[n-1].drand.PingPong(context.Background(), &drand.Ping{})
 		if err == nil {
 			break
+		}
+		if time.Now().After(timeout) {
+			t.Fatal("large DKG timed out")
 		}
 	}
 
@@ -1200,7 +1206,6 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 }
 
 func TestDKGWithMismatchedSchemes(t *testing.T) {
-	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -1220,7 +1225,6 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 }
 
 func TestPacketWithoutMetadata(t *testing.T) {
-	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -1244,7 +1248,6 @@ func TestPacketWithoutMetadata(t *testing.T) {
 }
 
 func TestDKGPacketWithoutMetadata(t *testing.T) {
-	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -1270,7 +1273,6 @@ func TestDKGPacketWithoutMetadata(t *testing.T) {
 }
 
 func TestDKGPacketWithNilInArray(t *testing.T) {
-	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -1296,7 +1298,6 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 }
 
 func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
-	t.Setenv("DRAND_TEST_LOGS", "DEBUG")
 	period := 1 * time.Second
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, period, beaconID, clockwork.NewFakeClockAt(time.Now()))
