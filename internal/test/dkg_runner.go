@@ -31,7 +31,6 @@ func (r *DKGRunner) StartNetwork(
 ) error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
 		Initial: &drand.FirstProposalOptions{
-			BeaconID:             r.BeaconID,
 			Timeout:              timestamppb.New(time.Now().Add(timeout)),
 			Threshold:            uint32(threshold),
 			PeriodSeconds:        uint32(period),
@@ -57,7 +56,6 @@ func (r *DKGRunner) StartProposal(
 ) error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
 		Resharing: &drand.ProposalOptions{
-			BeaconID:             r.BeaconID,
 			Threshold:            uint32(threshold),
 			CatchupPeriodSeconds: uint32(catchupPeriod),
 			Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
@@ -73,7 +71,7 @@ func (r *DKGRunner) StartProposal(
 
 func (r *DKGRunner) StartExecution() error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
-		Execute: &drand.ExecutionOptions{BeaconID: r.BeaconID}},
+		Execute: &drand.ExecutionOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
@@ -82,7 +80,6 @@ func (r *DKGRunner) StartExecution() error {
 func (r *DKGRunner) JoinDKG() error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
 		Join: &drand.JoinOptions{
-			BeaconID:  r.BeaconID,
 			GroupFile: nil,
 		}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
@@ -99,7 +96,6 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 	}
 	_, err = r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
 		Join: &drand.JoinOptions{
-			BeaconID:  r.BeaconID,
 			GroupFile: groupFileBytes.Bytes(),
 		}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
@@ -110,9 +106,7 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 
 func (r *DKGRunner) Accept() error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
-		Accept: &drand.AcceptOptions{
-			BeaconID: r.BeaconID,
-		}},
+		Accept: &drand.AcceptOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
@@ -120,7 +114,7 @@ func (r *DKGRunner) Accept() error {
 
 func (r *DKGRunner) Abort() error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
-		Abort: &drand.AbortOptions{BeaconID: r.BeaconID}},
+		Abort: &drand.AbortOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 

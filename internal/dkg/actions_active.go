@@ -22,6 +22,9 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	if command == nil {
 		return nil, errors.New("command cannot be nil")
 	}
+	if command.Metadata == nil {
+		return nil, errors.New("command metadata cannot be nil")
+	}
 	beaconID := command.Metadata.BeaconID
 	commandName := commandType(command)
 	d.lock.Lock()
@@ -115,7 +118,7 @@ func (d *Process) StartNetwork(
 
 	// remap the CLI payload into one useful for applying to the DKG state
 	terms := drand.ProposalTerms{
-		BeaconID:    options.BeaconID,
+		BeaconID:    beaconID,
 		Threshold:   options.Threshold,
 		Epoch:       1,
 		Timeout:     options.Timeout,
@@ -144,6 +147,8 @@ func (d *Process) StartNetwork(
 		Packet: &drand.GossipPacket_Proposal{
 			Proposal: &terms,
 		},
+		// this gets set in the enclosing scope
+		Metadata: nil,
 	}, nil
 }
 

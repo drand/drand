@@ -52,45 +52,38 @@ message GossipMetadata {
 }
 
 message FirstProposalOptions {
-  string beaconID = 1;
-  google.protobuf.Timestamp timeout = 2;
-  uint32 threshold = 3;
-  uint32 period_seconds = 4;
-  string scheme = 5;
-  uint32 catchup_period_seconds = 6;
-  google.protobuf.Timestamp genesis_time = 7;
-  repeated Participant joining = 8;
+  google.protobuf.Timestamp timeout = 1;
+  uint32 threshold = 2;
+  uint32 period_seconds = 3;
+  string scheme = 4;
+  uint32 catchup_period_seconds = 5;
+  google.protobuf.Timestamp genesis_time = 6;
+  repeated Participant joining = 7;
 }
 
 message ProposalOptions {
-  string beaconID = 1;
-  google.protobuf.Timestamp timeout = 2;
-  uint32 threshold = 3;
-  uint32 catchup_period_seconds = 4;
-  google.protobuf.Timestamp transition_time = 5;
-  repeated Participant joining = 6;
-  repeated Participant leaving = 7;
-  repeated Participant remaining = 8;
+  google.protobuf.Timestamp timeout = 1;
+  uint32 threshold = 2;
+  uint32 catchup_period_seconds = 3;
+  google.protobuf.Timestamp transition_time = 4;
+  repeated Participant joining = 5;
+  repeated Participant leaving = 6;
+  repeated Participant remaining = 7;
 }
 
 message AbortOptions {
-  string beaconID = 1;
 }
 
 message ExecutionOptions {
-  string beaconID = 1;
 }
 
 message JoinOptions {
-  string beaconID = 1;
-  bytes groupFile = 2;
+  bytes groupFile = 1;
 }
 message AcceptOptions {
-  string beaconID = 1;
 }
 
 message RejectOptions {
-  string beaconID = 1;
 }
 
 message ProposalTerms {

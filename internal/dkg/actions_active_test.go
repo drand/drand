@@ -44,7 +44,6 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "valid proposal with successful gossip sends to all parties except leader",
 			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
@@ -64,7 +63,6 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "database get failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
@@ -82,7 +80,6 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "database store failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
-				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
@@ -147,7 +144,6 @@ func TestReshare(t *testing.T) {
 	beaconID := "someBeaconID"
 	currentState := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
 	validProposal := drand.ProposalOptions{
-		BeaconID:             beaconID,
 		Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 		TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Minute)),
 		Threshold:            1,
@@ -336,7 +332,7 @@ func TestJoin(t *testing.T) {
 	}{
 		{
 			name:        "join on first epoch succeeds without group file but does not gossip anything",
-			joinOptions: &drand.JoinOptions{BeaconID: beaconID},
+			joinOptions: &drand.JoinOptions{},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
 				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob)
 				current.Joining = []*drand.Participant{alice, bob, carol}
@@ -352,7 +348,7 @@ func TestJoin(t *testing.T) {
 		},
 		{
 			name:        "join on second epoch succeeds with group file but does not gossip anything",
-			joinOptions: &drand.JoinOptions{BeaconID: beaconID, GroupFile: groupFile.Bytes()},
+			joinOptions: &drand.JoinOptions{GroupFile: groupFile.Bytes()},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
 				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob, carol)
 				current.Epoch = 2
@@ -368,7 +364,7 @@ func TestJoin(t *testing.T) {
 		},
 		{
 			name:        "join on second epoch succeeds without group file fails",
-			joinOptions: &drand.JoinOptions{BeaconID: beaconID, GroupFile: nil},
+			joinOptions: &drand.JoinOptions{GroupFile: nil},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
 				current := NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob)
 				current.Epoch = 2

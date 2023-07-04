@@ -95,9 +95,9 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 	return config, nil
 }
 
-// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy :))
+// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
 //
-//nolint:gocritic
+//nolint:funlen
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
 	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
@@ -152,7 +152,10 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	}
 
 	leaveNetwork := func(err error) {
-		d.log.Errorw("There was an error during the DKG - we were likely evicted. Will attempt to store failed state", "error", err)
+		d.log.Errorw(
+			"There was an error during the DKG - we were likely evicted. Will attempt to store failed state",
+			"error", err,
+		)
 		// could this also be a timeout? is that semantically the same as eviction after DKG execution was triggered?
 		evictedState, err := current.Evicted()
 		if err != nil {
@@ -174,7 +177,12 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	return err
 }
 
-func (d *Process) startDKGExecution(ctx context.Context, beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {
+func (d *Process) startDKGExecution(
+	ctx context.Context,
+	beaconID string,
+	current *DBState,
+	config *dkg.Config,
+) (*ExecutionOutput, error) {
 	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
 	defer span.End()
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)

@@ -2,6 +2,7 @@ package dkg
 
 import (
 	"errors"
+	"google.golang.org/protobuf/proto"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -66,8 +67,7 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 func messageForProto(proposal *drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
 	// we remove the metadata for verification of the packet, as the signer hasn't created the metadta
 	// upon signing
-	//nolint:govet
-	packetWithoutMetadata := *packet
+	packetWithoutMetadata := proto.Clone(packet).(*drand.GossipPacket)
 	packetWithoutMetadata.Metadata = nil
 	return []byte(proposal.String() + packetWithoutMetadata.String() + beaconID)
 }

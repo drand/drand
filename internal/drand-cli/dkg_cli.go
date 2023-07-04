@@ -166,6 +166,8 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
+	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
+
 	if isInitialProposal(c) {
 		proposal, err := parseInitialProposal(c)
 		if err != nil {
@@ -175,7 +177,7 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 		_, err = client.Command(c.Context, &drand.DKGCommand{
 			Command: &drand.DKGCommand_Initial{Initial: proposal},
 			Metadata: &drand.CommandMetadata{
-				BeaconID: proposal.BeaconID,
+				BeaconID: beaconID,
 			},
 		})
 		if err != nil {
@@ -190,7 +192,7 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 		_, err = client.Command(c.Context, &drand.DKGCommand{
 			Command: &drand.DKGCommand_Resharing{Resharing: proposal},
 			Metadata: &drand.CommandMetadata{
-				BeaconID: proposal.BeaconID,
+				BeaconID: beaconID,
 			},
 		})
 		if err != nil {
@@ -215,7 +217,6 @@ func withDefault(first, second string) string {
 }
 
 func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
-	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, transitionTimeFlag}
 
 	for _, flag := range requiredFlags {
@@ -245,7 +246,6 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	genesisTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
 
 	return &drand.FirstProposalOptions{
-		BeaconID:             beaconID,
 		Timeout:              timestamppb.New(timeout),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		PeriodSeconds:        uint32(period.Seconds()),
@@ -333,7 +333,6 @@ func parseProposal(c *cli.Context, l log.Logger) (*drand.ProposalOptions, error)
 	actualTransitionTime := chain.TimeOfRound(time.Duration(info.Period)*time.Second, info.GenesisTime, transitionRound)
 
 	return &drand.ProposalOptions{
-		BeaconID:             beaconID,
 		Timeout:              timestamppb.New(timeout),
 		TransitionTime:       timestamppb.New(time.Unix(actualTransitionTime, 0)),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
@@ -364,7 +363,6 @@ func joinNetwork(c *cli.Context) error {
 	}
 	_, err = client.Command(c.Context, &drand.DKGCommand{
 		Command: &drand.DKGCommand_Join{Join: &drand.JoinOptions{
-			BeaconID:  beaconID,
 			GroupFile: groupFile,
 		}},
 		Metadata: &drand.CommandMetadata{
@@ -381,9 +379,7 @@ func joinNetwork(c *cli.Context) error {
 func executeDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
 		_, err := client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Execute{Execute: &drand.ExecutionOptions{
-				BeaconID: beaconID,
-			}},
+			Command: &drand.DKGCommand_Execute{Execute: &drand.ExecutionOptions{}},
 			Metadata: &drand.CommandMetadata{
 				BeaconID: beaconID,
 			},
@@ -400,9 +396,7 @@ func executeDKG(c *cli.Context) error {
 func acceptDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
 		_, err := client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Accept{Accept: &drand.AcceptOptions{
-				BeaconID: beaconID,
-			}},
+			Command: &drand.DKGCommand_Accept{Accept: &drand.AcceptOptions{}},
 			Metadata: &drand.CommandMetadata{
 				BeaconID: beaconID,
 			},
@@ -419,9 +413,7 @@ func acceptDKG(c *cli.Context) error {
 func rejectDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
 		_, err := client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Reject{Reject: &drand.RejectOptions{
-				BeaconID: beaconID,
-			}},
+			Command: &drand.DKGCommand_Reject{Reject: &drand.RejectOptions{}},
 			Metadata: &drand.CommandMetadata{
 				BeaconID: beaconID,
 			},
@@ -439,9 +431,7 @@ func rejectDKG(c *cli.Context) error {
 func abortDKG(c *cli.Context) error {
 	err := runSimpleAction(c, func(beaconID string, client drand.DKGControlClient) error {
 		_, err := client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Abort{Abort: &drand.AbortOptions{
-				BeaconID: beaconID,
-			}},
+			Command: &drand.DKGCommand_Abort{Abort: &drand.AbortOptions{}},
 			Metadata: &drand.CommandMetadata{
 				BeaconID: beaconID,
 			},
