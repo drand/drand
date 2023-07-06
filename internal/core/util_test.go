@@ -510,6 +510,7 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 		}
 
 		follower.daemon.Stop(context.Background())
+		<-follower.daemon.exitCh
 	}
 
 	err = leader.dkgRunner.StartExecution()

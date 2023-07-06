@@ -456,7 +456,6 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 // this aborts a DKG and then runs another straight after successfully
 func TestAbortDKGAndStartANewOne(t *testing.T) {
-	require.NoError(t, os.Setenv("DRAND_TEST_LOGS", "DEBUG"))
 	l := testlogger.New(t)
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
@@ -1313,6 +1312,8 @@ func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
 	scenario.SetMockClock(t, g.GenesisTime)
 	scenario.clock.Advance(period)
 	scenario.clock.Advance(period)
+	// let's try this for science
+	time.Sleep(1 * time.Second)
 
 	leader := scenario.nodes[0]
 	err = scenario.RunFailingReshare()
