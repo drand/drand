@@ -542,15 +542,17 @@ type lifecycleHooks struct {
 
 func (d *DrandTestScenario) RunReshare(
 	t *testing.T,
+	transitionTime time.Time,
 	remainingNodes []*MockNode,
 	joiningNodes []*MockNode,
 ) (*key.Group, error) {
-	return d.RunReshareWithHooks(t, remainingNodes, joiningNodes, lifecycleHooks{})
+	return d.RunReshareWithHooks(t, transitionTime, remainingNodes, joiningNodes, lifecycleHooks{})
 }
 
 //nolint:funlen
 func (d *DrandTestScenario) RunReshareWithHooks(
 	t *testing.T,
+	transitionTime time.Time,
 	remainingNodes []*MockNode,
 	joiningNodes []*MockNode,
 	hooks lifecycleHooks,
@@ -595,8 +597,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 	}
 
-	// set the transition time to round 3
-	transitionTime := time.Unix(d.group.GenesisTime+(3*int64(d.period.Seconds())), 0)
 	err := leader.dkgRunner.StartProposal(
 		d.thr,
 		transitionTime,

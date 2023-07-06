@@ -146,13 +146,13 @@ func TestRunDKGLarge(t *testing.T) {
 	)
 
 	// let's wait for the last node to be started
-	timeout := time.Now().Add(dkgTimeout)
+	timeout := dt.clock.Now().Add(dkgTimeout)
 	for {
 		_, err := dt.nodes[n-1].drand.PingPong(context.Background(), &drand.Ping{})
 		if err == nil {
 			break
 		}
-		if time.Now().After(timeout) {
+		if dt.clock.Now().After(timeout) {
 			t.Fatal("large DKG timed out")
 		}
 	}
@@ -246,7 +246,7 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 	dt.SetMockClock(t, group1.GenesisTime)
 	dt.AdvanceMockClock(t, 1*time.Second)
 
-	group2, err := dt.RunReshare(t, dt.nodes, nil)
+	group2, err := dt.RunReshare(t, dt.clock.Now().Add(3*beaconPeriod), dt.nodes, nil)
 	require.NoError(t, err)
 	require.NotNil(t, group2)
 
@@ -276,7 +276,7 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 	dt.CheckBeaconLength(t, dt.nodes, 2)
 
 	// so nodes think they are going forward with round 2
-	dt.AdvanceMockClock(t, 1*time.Second)
+	dt.AdvanceMockClock(t, beaconPeriod)
 
 	t.Log("Adding new nodes to the group")
 	nodesToAdd := newNodeCount - oldNodeCount
@@ -297,7 +297,7 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
+	newGroup, err := dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*beaconPeriod), currentNodes, newNodes, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -308,7 +308,7 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 }
 
 // This tests when a node first signal his intention to participate in a resharing
-// and does not receive the execution message. The DKG should continue regardlee and
+// and does not receive the execution message. The DKG should continue regardless and
 // the node should be left out of the final group file
 func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 	oldNodeCount := 3
@@ -332,7 +332,7 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 	dt.CheckBeaconLength(t, dt.nodes, 2)
 
 	// so nodes think they are going forward with round 2
-	dt.AdvanceMockClock(t, 1*time.Second)
+	dt.AdvanceMockClock(t, 1*beaconPeriod)
 
 	t.Log("Adding new nodes to the group")
 	nodesToAdd := newNodeCount - oldNodeCount
@@ -352,7 +352,7 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
+	newGroup, err := dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*beaconPeriod), currentNodes, newNodes, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -401,7 +401,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	t.Log("Setup reshare done. Starting reshare.")
 
-	resharedGroup, err := dt.RunReshare(t, dt.nodes, nil)
+	resharedGroup, err := dt.RunReshare(t, dt.clock.Now().Add(3*beaconPeriod), dt.nodes, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resharedGroup)
 	t.Logf("[reshare] Group: %s\n", resharedGroup)
@@ -456,6 +456,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 // this aborts a DKG and then runs another straight after successfully
 func TestAbortDKGAndStartANewOne(t *testing.T) {
+	require.NoError(t, os.Setenv("DRAND_TEST_LOGS", "DEBUG"))
 	l := testlogger.New(t)
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
@@ -465,6 +466,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	// first lets run a successful initial DKG
 	group, err := dt.RunDKG(t)
 	require.NoError(t, err)
+	dt.SetMockClock(t, group.GenesisTime)
 
 	assert.Equal(t, n, len(group.Nodes))
 
@@ -501,11 +503,14 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	}
 
 	// naturally, we want the reshare to have errored!
-	_, err = dt.RunReshareWithHooks(t, dt.nodes, nil, hooks)
+	_, err = dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*expectedBeaconPeriod), dt.nodes, nil, hooks)
 	require.Error(t, err)
 
+	// we must advance the clock or the proposal will be the exact same, and be filtered out by the duplicate packet filter
+	dt.AdvanceMockClock(t, 1*expectedBeaconPeriod)
+
 	// now we re-run it without the abort and it should succeed
-	_, err = dt.RunReshare(t, dt.nodes, nil)
+	_, err = dt.RunReshare(t, dt.clock.Now().Add(3*expectedBeaconPeriod), dt.nodes, nil)
 	require.NoError(t, err)
 }
 
@@ -630,7 +635,7 @@ func TestDrandPublicRand(t *testing.T) {
 	newN := 5
 	toAdd := newN - n
 	newNodes := dt.SetupNewNodes(t, toAdd)
-	newGroup, err := dt.RunReshare(t, dt.nodes, newNodes)
+	newGroup, err := dt.RunReshare(t, dt.clock.Now().Add(3*p), dt.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 	dt.SetMockClock(t, newGroup.TransitionTime)
@@ -1237,9 +1242,9 @@ func TestPacketWithoutMetadata(t *testing.T) {
 			Epoch:                2,
 			Leader:               nil,
 			Threshold:            uint32(scenario.thr),
-			Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+			Timeout:              timestamppb.New(scenario.clock.Now().Add(1 * time.Minute)),
 			CatchupPeriodSeconds: 6,
-			TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
+			TransitionTime:       timestamppb.New(scenario.clock.Now().Add(10 * time.Second)),
 		}}, Metadata: nil},
 	)
 
