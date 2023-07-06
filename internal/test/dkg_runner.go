@@ -20,7 +20,7 @@ import (
 type DKGRunner struct {
 	Client   drand.DKGControlClient
 	BeaconID string
-	Clock    clock.FakeClock
+	Clock    clock.Clock
 }
 
 func (r *DKGRunner) StartNetwork(

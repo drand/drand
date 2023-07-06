@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	clock "github.com/jonboulle/clockwork"
 	"net"
 	"os"
 	"os/exec"
@@ -147,6 +148,7 @@ func (n *NodeProc) setup() {
 	n.dkgRunner = &test.DKGRunner{
 		BeaconID: n.beaconID,
 		Client:   dkgClient,
+		Clock:    clock.NewRealClock(),
 	}
 	// call drand binary
 	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
