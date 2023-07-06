@@ -95,7 +95,6 @@ func TestClientClose(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		//nolint:revive // we drain the channel
 		for range c.Watch(context.Background()) {
 		}
 		wg.Done()
