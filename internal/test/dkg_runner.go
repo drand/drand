@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	clock "github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -19,6 +20,7 @@ import (
 type DKGRunner struct {
 	Client   drand.DKGControlClient
 	BeaconID string
+	Clock    clock.FakeClock
 }
 
 func (r *DKGRunner) StartNetwork(
@@ -31,13 +33,13 @@ func (r *DKGRunner) StartNetwork(
 ) error {
 	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
 		Initial: &drand.FirstProposalOptions{
-			Timeout:              timestamppb.New(time.Now().Add(timeout)),
+			Timeout:              timestamppb.New(r.Clock.Now().Add(timeout)),
 			Threshold:            uint32(threshold),
 			PeriodSeconds:        uint32(period),
 			Scheme:               schemeID,
 			CatchupPeriodSeconds: uint32(catchupPeriod),
 			// put the genesis a little in the future to give demo nodes some time to do the DKG
-			GenesisTime: timestamppb.New(time.Now().Add(10 * time.Second)),
+			GenesisTime: timestamppb.New(r.Clock.Now().Add(20 * time.Second)),
 			Joining:     joiners,
 		},
 	},
@@ -58,7 +60,7 @@ func (r *DKGRunner) StartProposal(
 		Resharing: &drand.ProposalOptions{
 			Threshold:            uint32(threshold),
 			CatchupPeriodSeconds: uint32(catchupPeriod),
-			Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+			Timeout:              timestamppb.New(r.Clock.Now().Add(1 * time.Minute)),
 			TransitionTime:       timestamppb.New(transitionTime),
 			Joining:              joiners,
 			Remaining:            remainers,
