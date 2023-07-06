@@ -22,7 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 
-	common3 "github.com/drand/drand/common"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -48,7 +48,7 @@ var SetVersionPrinter sync.Once
 const defaultPort = "8080"
 
 func banner(w io.Writer) {
-	version := common3.GetAppVersion()
+	version := common.GetAppVersion()
 	_, _ = fmt.Fprintf(w, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
 }
 
@@ -699,7 +699,7 @@ var appCommands = []*cli.Command{
 
 // CLI runs the drand app
 func CLI() *cli.App {
-	version := common3.GetAppVersion()
+	version := common.GetAppVersion()
 
 	app := cli.NewApp()
 	app.Name = "drand"
@@ -948,7 +948,7 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
-		beaconID = common3.GetCanonicalBeaconID(group.ID)
+		beaconID = common.GetCanonicalBeaconID(group.ID)
 	} else if c.Args().Present() {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
@@ -957,7 +957,7 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 			}
 			names = append(names, serverAddr)
 		}
-		beaconID = common3.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
+		beaconID = common.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
 	} else {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
@@ -1147,7 +1147,7 @@ func checkArgs(c *cli.Context) error {
 
 func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	var opts []core.ConfigOption
-	version := common3.GetAppVersion()
+	version := common.GetAppVersion()
 
 	if c.IsSet(pubListenFlag.Name) {
 		opts = append(opts, core.WithPublicListenAddress(c.String(pubListenFlag.Name)))
@@ -1260,7 +1260,7 @@ func testEmptyGroup(filePath string) error {
 }
 
 func getBeaconID(c *cli.Context) string {
-	return common3.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
+	return common.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
 }
 
 func getDBStoresPaths(c *cli.Context, l log.Logger) (map[string]string, error) {

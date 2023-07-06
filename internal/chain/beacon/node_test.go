@@ -57,8 +57,12 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
-func (t *testBeaconServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
-	return &drand.Empty{}, nil
+func (t *testBeaconServer) Command(context.Context, *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
+	return &drand.EmptyDKGResponse{}, nil
+}
+
+func (t *testBeaconServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
+	return &drand.EmptyDKGResponse{}, nil
 }
 
 func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []kyber.Point) {
@@ -129,7 +133,7 @@ type BeaconTest struct {
 	scheme   *crypto.Scheme
 }
 
-func NewBeaconTest(ctx context.Context, t *testing.T, n, thr int, period time.Duration, genesisTime int64, beaconID string) *BeaconTest {
+func NewBeaconTest(ctx context.Context, t *testing.T, clock clock.FakeClock, n, thr int, period time.Duration, genesisTime int64, beaconID string) *BeaconTest {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	prefix := t.TempDir()
@@ -154,7 +158,7 @@ func NewBeaconTest(ctx context.Context, t *testing.T, n, thr int, period time.Du
 		group:    group,
 		dpublic:  group.PublicKey.PubPoly(sch).Commit(),
 		nodes:    make(map[int]*node),
-		time:     clock.NewFakeClock(),
+		time:     clock,
 	}
 
 	for i := 0; i < n; i++ {
@@ -386,10 +390,11 @@ func TestBeaconSync(t *testing.T) {
 	ctx := context.Background()
 
 	genesisOffset := 2 * time.Second
-	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
+	fakeClock := clock.NewFakeClock()
+	genesisTime := fakeClock.Now().Add(genesisOffset).Unix()
 	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(ctx, t, n, thr, period, genesisTime, beaconID)
+	bt := NewBeaconTest(ctx, t, fakeClock, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) CallbackFunc {
@@ -467,10 +472,11 @@ func TestBeaconSimple(t *testing.T) {
 	thr := n/2 + 1
 	period := 2 * time.Second
 
-	genesisTime := clock.NewFakeClock().Now().Unix() + 2
+	fakeClock := clock.NewFakeClock()
+	genesisTime := fakeClock.Now().Unix() + 2
 	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(ctx, t, n, thr, period, genesisTime, beaconID)
+	bt := NewBeaconTest(ctx, t, fakeClock, n, thr, period, genesisTime, beaconID)
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
@@ -530,10 +536,11 @@ func TestBeaconThreshold(t *testing.T) {
 	period := 2 * time.Second
 
 	offsetGenesis := 2 * time.Second
-	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
+	fakeClock := clock.NewFakeClock()
+	genesisTime := fakeClock.Now().Add(offsetGenesis).Unix()
 	beaconID := test.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(ctx, t, n, thr, period, genesisTime, beaconID)
+	bt := NewBeaconTest(ctx, t, fakeClock, n, thr, period, genesisTime, beaconID)
 
 	currentRound := uint64(0)
 	var counter sync.WaitGroup
@@ -612,7 +619,7 @@ func TestBeaconThreshold(t *testing.T) {
 
 func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T) {
 	ctx := context.Background()
-	bt := NewBeaconTest(ctx, t, 3, 2, 30*time.Second, 0, "default")
+	bt := NewBeaconTest(ctx, t, clock.NewFakeClock(), 3, 2, 30*time.Second, 0, "default")
 
 	packet := drand.PartialBeaconPacket{
 		Round:             1,
