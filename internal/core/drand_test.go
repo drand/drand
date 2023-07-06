@@ -1306,6 +1306,8 @@ func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
 	require.NoError(t, err)
 
 	scenario.SetMockClock(t, g.GenesisTime)
+	scenario.clock.Advance(period)
+	scenario.clock.Advance(period)
 
 	leader := scenario.nodes[0]
 	err = scenario.RunFailingReshare()
