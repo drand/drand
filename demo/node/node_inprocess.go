@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	clock "github.com/jonboulle/clockwork"
 	"os"
 	"os/exec"
 	"path"
@@ -88,7 +89,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
 		memDBSize:    cfg.MemDBSize,
-		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient},
+		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
 	}
 
 	var priv *key.Pair

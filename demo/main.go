@@ -100,6 +100,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	err = orch.RunDKG(1 * time.Minute)
 	if err != nil {
 		panic(err)

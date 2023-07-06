@@ -57,6 +57,9 @@ const (
 	// Generally it means that other nodes have been unable to validate its shares, or it was offline during DKG
 	// execution. If a threshold number of nodes are evicted during the DKG, the old state will be reverted.
 	Evicted
+	// Failed signals that a key resharing execution completed, but a threshold number of nodes were evicted. This would
+	// jeopardize the liveness of the network, so participants are to continue the existing network without transitioning
+	Failed
 )
 
 func (s Status) String() string {
@@ -85,6 +88,8 @@ func (s Status) String() string {
 		return "Left"
 	case Evicted:
 		return "Evicted"
+	case Failed:
+		return "Failed"
 	default:
 		panic("impossible DKG state received")
 	}
@@ -149,7 +154,7 @@ func (d *DBState) Equals(e *DBState) bool {
 		reflect.DeepEqual(d.KeyShare, e.KeyShare)
 }
 
-// DBStateTOML is a convenience object for managing de/serialisation of DBStates when reading/writing them
+// DBStateTOML is a convenience object for managing de/serialization of DBStates when reading/writing them
 // from/to disk.
 // Don't forget to update it if you update the `DBState` object!!
 type DBStateTOML struct {
@@ -265,6 +270,24 @@ func NewFreshState(beaconID string) *DBState {
 	}
 }
 
+func (d *DBState) Apply(me *drand.Participant, packet *drand.GossipPacket) (*DBState, error) {
+	switch p := packet.Packet.(type) {
+	case *drand.GossipPacket_Proposal:
+		return d.Proposed(me, p.Proposal, packet.Metadata)
+	case *drand.GossipPacket_Accept:
+		return d.ReceivedAcceptance(p.Accept.Acceptor, packet.Metadata)
+	case *drand.GossipPacket_Reject:
+		return d.ReceivedRejection(p.Reject.Rejector, packet.Metadata)
+	case *drand.GossipPacket_Execute:
+		return d.Executing(me, packet.Metadata)
+	case *drand.GossipPacket_Abort:
+		return d.Aborted(packet.Metadata)
+	case *drand.GossipPacket_Dkg:
+		return nil, errors.New("gossip packets should be handled above")
+	}
+	return nil, errors.New("invalid DKG gossip packet received")
+}
+
 func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBState, error) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange(d.State, Joined)
@@ -321,21 +344,21 @@ func (d *DBState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (
 		GenesisSeed:    d.GenesisSeed, // does not exist until the first DKG has completed
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
-		Remaining:      terms.Remaining,
-		Joining:        terms.Joining,
-		Leaving:        terms.Leaving,
+		Remaining:      util.Filter(terms.Remaining, util.NonEmpty),
+		Joining:        util.Filter(terms.Joining, util.NonEmpty),
+		Leaving:        util.Filter(terms.Leaving, util.NonEmpty),
 	}, nil
 }
 
 // Proposed is used by non-leader nodes to set their own state when they receive a proposal
-func (d *DBState) Proposed(sender, me *drand.Participant, terms *drand.ProposalTerms) (*DBState, error) {
+func (d *DBState) Proposed(me *drand.Participant, terms *drand.ProposalTerms, metadata *drand.GossipMetadata) (*DBState, error) {
 	if !isValidStateChange(d.State, Proposed) {
 		return nil, InvalidStateChange(d.State, Proposed)
 	}
 
 	// it's important to verify that the sender (and by extension the signature of the sender)
 	// is the same as the proposed leader, to avoid nodes trying to propose DKGs on behalf of somebody else
-	if terms.Leader != sender {
+	if terms.Leader.Address != metadata.Address {
 		return nil, ErrCannotProposeAsNonLeader
 	}
 
@@ -361,9 +384,9 @@ func (d *DBState) Proposed(sender, me *drand.Participant, terms *drand.ProposalT
 		GenesisSeed:    terms.GenesisSeed,
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
-		Remaining:      terms.Remaining,
-		Joining:        terms.Joining,
-		Leaving:        terms.Leaving,
+		Remaining:      util.Filter(terms.Remaining, util.NonEmpty),
+		Joining:        util.Filter(terms.Joining, util.NonEmpty),
+		Leaving:        util.Filter(terms.Leaving, util.NonEmpty),
 	}, nil
 }
 
@@ -376,9 +399,26 @@ func (d *DBState) TimedOut() (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) Aborted() (*DBState, error) {
+func (d *DBState) StartAbort(me *drand.Participant) (*DBState, error) {
 	if !isValidStateChange(d.State, Aborted) {
 		return nil, InvalidStateChange(d.State, Aborted)
+	}
+
+	if d.Leader.Address != me.Address {
+		return nil, ErrOnlyLeaderCanAbort
+	}
+
+	d.State = Aborted
+	return d, nil
+}
+
+func (d *DBState) Aborted(metadata *drand.GossipMetadata) (*DBState, error) {
+	if !isValidStateChange(d.State, Aborted) {
+		return nil, InvalidStateChange(d.State, Aborted)
+	}
+
+	if d.Leader.Address != metadata.Address {
+		return nil, ErrOnlyLeaderCanAbort
 	}
 
 	d.State = Aborted
@@ -461,7 +501,28 @@ func (d *DBState) Evicted() (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
+func (d *DBState) StartExecuting(me *drand.Participant) (*DBState, error) {
+	if hasTimedOut(d) {
+		return nil, ErrTimeoutReached
+	}
+
+	if util.Contains(d.Leaving, me) {
+		return d.Left(me)
+	}
+
+	if !isValidStateChange(d.State, Executing) {
+		return nil, InvalidStateChange(d.State, Executing)
+	}
+
+	if !util.EqualParticipant(d.Leader, me) {
+		return nil, ErrOnlyLeaderCanTriggerExecute
+	}
+
+	d.State = Executing
+	return d, nil
+}
+
+func (d *DBState) Executing(me *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
 	// we check the timeout first as we have additional branches for leaving
 	if hasTimedOut(d) {
 		return nil, ErrTimeoutReached
@@ -479,6 +540,10 @@ func (d *DBState) Executing(me *drand.Participant) (*DBState, error) {
 	// participants not in the DKG should not be executing!
 	if !util.Contains(d.Remaining, me) && !util.Contains(d.Joining, me) {
 		return nil, ErrCannotExecuteIfNotJoinerOrRemainer
+	}
+
+	if metadata.Address != d.Leader.Address {
+		return nil, ErrOnlyLeaderCanTriggerExecute
 	}
 
 	d.State = Executing
@@ -511,13 +576,9 @@ func (d *DBState) Complete(finalGroup *key.Group, share *key.Share) (*DBState, e
 // ReceivedAcceptance is used by nodes when they receive a gossiped acceptance packet
 // they needn't necessarily collect _all_ acceptances for executing, but it gives them some insight into
 // the state of the DKG when they run the status command
-func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, error) {
-	if d.State != Proposing {
-		return nil, InvalidStateChange(d.State, Proposing)
-	}
-
-	if !util.EqualParticipant(d.Leader, me) {
-		return nil, ErrNonLeaderCannotReceiveAcceptance
+func (d *DBState) ReceivedAcceptance(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
+	if !isProposalPhase(d) {
+		return nil, ErrReceivedAcceptance
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -526,6 +587,10 @@ func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, err
 
 	if util.Contains(d.Acceptors, them) {
 		return nil, ErrDuplicateAcceptance
+	}
+
+	if metadata.Address != them.Address {
+		return nil, ErrInvalidAcceptor
 	}
 
 	d.Acceptors = append(d.Acceptors, them)
@@ -537,13 +602,9 @@ func (d *DBState) ReceivedAcceptance(me, them *drand.Participant) (*DBState, err
 // ReceivedRejection is used by nodes when they receive a gossiped rejection packet
 // they may not receive all rejections before executing, but it gives them some insight into
 // the state of the DKG when they run the status command
-func (d *DBState) ReceivedRejection(me, them *drand.Participant) (*DBState, error) {
-	if d.State != Proposing {
-		return nil, InvalidStateChange(d.State, Proposing)
-	}
-
-	if !util.EqualParticipant(d.Leader, me) {
-		return nil, ErrNonLeaderCannotReceiveRejection
+func (d *DBState) ReceivedRejection(them *drand.Participant, metadata *drand.GossipMetadata) (*DBState, error) {
+	if !isProposalPhase(d) {
+		return nil, ErrReceivedRejection
 	}
 
 	if !util.Contains(d.Remaining, them) {
@@ -554,9 +615,21 @@ func (d *DBState) ReceivedRejection(me, them *drand.Participant) (*DBState, erro
 		return nil, ErrDuplicateRejection
 	}
 
+	if metadata.Address != them.Address {
+		return nil, ErrInvalidRejector
+	}
+
 	d.Acceptors = util.Without(d.Acceptors, them)
 	d.Rejectors = append(d.Rejectors, them)
 
+	return d, nil
+}
+
+func (d *DBState) Failed() (*DBState, error) {
+	if !isValidStateChange(d.State, Failed) {
+		return nil, InvalidStateChange(d.State, Failed)
+	}
+	d.State = Failed
 	return d, nil
 }
 
@@ -564,6 +637,7 @@ func InvalidStateChange(from, to Status) error {
 	return fmt.Errorf("invalid transition attempt from %s to %s", from.String(), to.String())
 }
 
+var ErrMissingTerms = errors.New("proposal terms cannot be empty")
 var ErrTimeoutReached = errors.New("timeout has been reached")
 var ErrInvalidBeaconID = errors.New("BeaconID was invalid")
 var ErrInvalidScheme = errors.New("the scheme proposed does not exist")
@@ -591,15 +665,19 @@ var ErrCannotAcceptProposalWhereJoining = errors.New("you cannot accept a propos
 var ErrCannotRejectProposalWhereLeaving = errors.New("you cannot reject a proposal where your node is leaving")
 var ErrCannotRejectProposalWhereJoining = errors.New("you cannot reject a proposal where your node is joining (just turn your node off)")
 var ErrCannotLeaveIfNotALeaver = errors.New("you cannot execute leave if you were not included as a leaver in the proposal")
+var ErrOnlyLeaderCanTriggerExecute = errors.New("only the leader can trigger the execution")
+var ErrOnlyLeaderCanAbort = errors.New("only the leader can abort the DKG")
 var ErrCannotExecuteIfNotJoinerOrRemainer = errors.New("you cannot start execution if you are not a remainer or joiner to the DKG")
 var ErrUnknownAcceptor = errors.New("somebody unknown tried to accept the proposal")
 var ErrDuplicateAcceptance = errors.New("this participant already accepted the proposal")
+var ErrInvalidAcceptor = errors.New("the node that signed this message is not the one claiming be accepting")
+var ErrInvalidRejector = errors.New("the node that signed this message is not the one claiming be rejecting")
 var ErrUnknownRejector = errors.New("somebody unknown tried to reject the proposal")
 var ErrDuplicateRejection = errors.New("this participant already rejected the proposal")
-var ErrNonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")
-var ErrNonLeaderCannotReceiveRejection = errors.New("you received a rejection but are not the leader of this DKG - cannot do anything")
 var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a nil final group")
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
+var ErrReceivedAcceptance = errors.New("received acceptance but not during proposal phase")
+var ErrReceivedRejection = errors.New("received rejection but not during proposal phase")
 
 // isValidStateChange details all the viable state changes
 //
@@ -627,9 +705,11 @@ func isValidStateChange(current, next Status) bool {
 	case Rejected:
 		return next == Aborted || next == TimedOut
 	case Executing:
-		return next == Complete || next == TimedOut || next == Evicted
+		return next == Complete || next == TimedOut || next == Evicted || next == Failed
 	case Evicted:
 		return next == Joined
+	case Failed:
+		return next == Proposing || next == Proposed
 	}
 	return false
 }
@@ -640,6 +720,9 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
+	if terms == nil {
+		return ErrMissingTerms
+	}
 	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
 	if currentState.BeaconID != terms.BeaconID {
 		return ErrInvalidBeaconID
@@ -756,4 +839,21 @@ func validateReshare(currentState *DBState, terms *drand.ProposalTerms) error {
 	}
 
 	return nil
+}
+
+func isProposalPhase(d *DBState) bool {
+	//nolint:exhaustive // we aren't matching all states here, just cleaner than if
+	switch d.State {
+	case Proposing:
+		return true
+	case Proposed:
+		return true
+	case Accepted:
+		return true
+	case Rejected:
+		return true
+	case Joined:
+		return true
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	clock "github.com/jonboulle/clockwork"
 	"net"
 	"os"
 	"os/exec"
@@ -147,6 +148,7 @@ func (n *NodeProc) setup() {
 	n.dkgRunner = &test.DKGRunner{
 		BeaconID: n.beaconID,
 		Client:   dkgClient,
+		Clock:    clock.NewRealClock(),
 	}
 	// call drand binary
 	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
@@ -347,7 +349,7 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, 
 		"--threshold", strconv.Itoa(thr),
 		"--transition-time", durationUntilTransitionTime.String(),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	proposeCmd := exec.CommandContext(ctx, n.binary, proposeArgs...)
 	_ = runCommand(proposeCmd)

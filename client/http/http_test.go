@@ -151,7 +151,7 @@ func TestHTTPWatch(t *testing.T) {
 	if len(first.Randomness()) == 0 {
 		t.Fatal("should get randomness from watching")
 	}
-	//nolint:revive // draining channel until the context expires
+
 	for range result {
 	}
 	_ = httpClient.Close()
@@ -186,7 +186,6 @@ func TestHTTPClientClose(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		//nolint:revive // draining channel
 		for range httpClient.Watch(context.Background()) {
 		}
 		wg.Done()

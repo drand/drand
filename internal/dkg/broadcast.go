@@ -211,7 +211,7 @@ func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass 
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
 
-	proto := &drand.DKGPacket{Dkg: dkgproto, Metadata: &drand.DKGMetadata{BeaconID: beaconID}}
+	proto := &drand.DKGPacket{Dkg: dkgproto}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
