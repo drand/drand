@@ -1,27 +1,25 @@
 package dkg
 
 import (
-	"context"
 	"sync"
 	"time"
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
 )
 
-// Process holds the DKG process
 type Process struct {
 	lock             sync.Mutex
 	store            Store
-	network          Network
 	internalClient   net.DKGClient
 	beaconIdentifier BeaconIdentifier
 	log              log.Logger
 	config           Config
 	// this is public in order to replace it in the test code to simulate failures
-	Executions    map[string]Broadcast
+	Executions map[string]Broadcast
+	// a set of the packets that have been seen already for easy deduping
+	SeenPackets   map[string]bool
 	completedDKGs chan<- SharingOutput
 }
 
@@ -40,7 +38,6 @@ type Config struct {
 	SkipKeyVerification bool
 }
 
-// ExecutionOutput defines the output of the DKG process
 type ExecutionOutput struct {
 	FinalGroup *key.Group
 	KeyShare   *key.Share
@@ -75,21 +72,6 @@ type Store interface {
 	MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error
 }
 
-type Network interface {
-	Send(
-		ctx context.Context,
-		from *drand.Participant,
-		to []*drand.Participant,
-		action SendAction,
-	) error
-	SendIgnoringConnectionError(
-		ctx context.Context,
-		from *drand.Participant,
-		to []*drand.Participant,
-		action SendAction,
-	) error
-}
-
 // BeaconIdentifier is necessary because we need to get our identity on a per-beacon basis from the `DrandDaemon`
 // but that would introduce a circular dependency
 type BeaconIdentifier interface {
@@ -105,15 +87,12 @@ func NewDKGProcess(
 	l log.Logger,
 ) *Process {
 	return &Process{
-		store: store,
-		network: &GrpcNetwork{
-			dkgClient: privateGateway.DKGClient,
-			log:       l,
-		},
+		store:            store,
 		beaconIdentifier: beaconIdentifier,
 		internalClient:   privateGateway.DKGClient,
 		log:              l,
 		Executions:       make(map[string]Broadcast),
+		SeenPackets:      make(map[string]bool),
 		config:           config,
 		completedDKGs:    completedDKGs,
 	}

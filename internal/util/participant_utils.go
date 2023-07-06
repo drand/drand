@@ -151,3 +151,7 @@ func TryMapEach[T any](arr []*drand.Participant, fn func(index int, participant 
 	}
 	return out, nil
 }
+
+func NonEmpty(p *drand.Participant) bool {
+	return p != nil && p.Address != ""
+}

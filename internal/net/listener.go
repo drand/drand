@@ -80,7 +80,7 @@ func NewGRPCListenerForPrivate(
 
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
-	drand.RegisterDKGServer(grpcServer, s)
+	drand.RegisterDKGControlServer(grpcServer, s)
 
 	var g Listener
 	if insecure {

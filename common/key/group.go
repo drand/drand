@@ -254,7 +254,7 @@ func (g *Group) FromTOML(i interface{}) error {
 	}
 
 	if g.Threshold < dkg.MinimumT(len(gt.Nodes)) {
-		return errors.New("group file have threshold 0")
+		return errors.New("group file has threshold 0")
 	} else if g.Threshold > g.Len() {
 		return errors.New("group file threshold greater than number of participants")
 	}

@@ -37,7 +37,7 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 }
 
 // BroadcastDKG is an empty implementation
-func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
@@ -131,51 +131,11 @@ func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.Server
 	return handler(srv, ss)
 }
 
-func (s *EmptyServer) Accept(_ context.Context, _ *drand.AcceptProposal) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Reject(_ context.Context, _ *drand.RejectProposal) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) Propose(_ context.Context, _ *drand.ProposalTerms) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) Abort(_ context.Context, _ *drand.AbortDKG) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) Execute(_ context.Context, _ *drand.StartExecution) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartNetwork(_ context.Context, _ *drand.FirstProposalOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartProposal(_ context.Context, _ *drand.ProposalOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartJoin(_ context.Context, _ *drand.JoinOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartAbort(_ context.Context, _ *drand.AbortOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartExecute(_ context.Context, _ *drand.ExecutionOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartAccept(_ context.Context, _ *drand.AcceptOptions) (*drand.EmptyResponse, error) {
-	return nil, nil
-}
-
-func (s *EmptyServer) StartReject(_ context.Context, _ *drand.RejectOptions) (*drand.EmptyResponse, error) {
+func (s *EmptyServer) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
@@ -183,6 +143,6 @@ func (s *EmptyServer) DKGStatus(_ context.Context, _ *drand.DKGStatusRequest) (*
 	return nil, nil
 }
 
-func (s *EmptyServer) Migrate(context.Context, *drand.Empty) (*drand.Empty, error) {
+func (s *EmptyServer) Migrate(_ context.Context, empty *drand.Empty) (*drand.Empty, error) {
 	return nil, nil
 }

@@ -250,7 +250,6 @@ LOOP:
 			stats = append(stats, rr.stat)
 			res = rr.result
 			if rr.err != nil && !errors.Is(rr.err, common.ErrEmptyClientUnsupportedGet) {
-				//nolint:errorlint
 				err = fmt.Errorf("%v - %w", err, rr.err)
 			} else if rr.err == nil {
 				err = nil

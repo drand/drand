@@ -19,6 +19,26 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 )
 
+func (d *Process) executeDKG(ctx context.Context, beaconID string) error {
+	// set up the DKG broadcaster for first so we're ready to broadcast DKG messages
+	dkgConfig, err := d.setupDKG(ctx, beaconID)
+	if err != nil {
+		return err
+	}
+
+	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
+
+	go func(config dkg.Config) {
+		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters
+		time.Sleep(d.config.KickoffGracePeriod)
+		err := d.executeAndFinishDKG(ctx, beaconID, config)
+		if err != nil {
+			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
+		}
+	}(*dkgConfig)
+	return nil
+}
+
 func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
 	ctx, span := metrics.NewSpan(ctx, "dkg.setupDKG")
 	defer span.End()
@@ -70,16 +90,14 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 
 	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
 	// if other nodes try to send us DKG messages before this is set we're in trouble
-	d.lock.Lock()
 	d.Executions[beaconID] = board
-	d.lock.Unlock()
 
 	return config, nil
 }
 
-// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy :))
+// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
 //
-//nolint:gocritic
+//nolint:funlen
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
 	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
@@ -97,7 +115,20 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	executeAndStoreDKG := func() error {
 		output, err := d.startDKGExecution(ctx, beaconID, current, &config)
 		if err != nil {
-			return err
+			// if the DKG doesn't reach threshold, we must transition to `Failed` instead of
+			// returning an error and rolling back
+			if !util.ErrorContains(err, "dkg: too many uncompliant new participants") && !util.ErrorContains(err, "dkg abort") {
+				return err
+			}
+
+			d.log.Errorw("DKG failed as too many nodes were evicted. Storing failed state")
+
+			next, err := current.Failed()
+			if err != nil {
+				return err
+			}
+
+			return d.store.SaveCurrent(beaconID, next)
 		}
 
 		finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
@@ -121,7 +152,10 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	}
 
 	leaveNetwork := func(err error) {
-		d.log.Errorw("There was an error during the DKG - we were likely evicted. Will attempt to store failed state", "error", err)
+		d.log.Errorw(
+			"There was an error during the DKG - we were likely evicted. Will attempt to store failed state",
+			"error", err,
+		)
 		// could this also be a timeout? is that semantically the same as eviction after DKG execution was triggered?
 		evictedState, err := current.Evicted()
 		if err != nil {
@@ -135,10 +169,20 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		}
 	}
 
-	return rollbackOnError(executeAndStoreDKG, leaveNetwork)
+	err = executeAndStoreDKG()
+	if err != nil {
+		leaveNetwork(err)
+	}
+
+	return err
 }
 
-func (d *Process) startDKGExecution(ctx context.Context, beaconID string, current *DBState, config *dkg.Config) (*ExecutionOutput, error) {
+func (d *Process) startDKGExecution(
+	ctx context.Context,
+	beaconID string,
+	current *DBState,
+	config *dkg.Config,
+) (*ExecutionOutput, error) {
 	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
 	defer span.End()
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
