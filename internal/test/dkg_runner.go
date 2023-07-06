@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	clock "github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -19,6 +20,7 @@ import (
 type DKGRunner struct {
 	Client   drand.DKGControlClient
 	BeaconID string
+	Clock    clock.Clock
 }
 
 func (r *DKGRunner) StartNetwork(
@@ -29,16 +31,19 @@ func (r *DKGRunner) StartNetwork(
 	catchupPeriod int,
 	joiners []*drand.Participant,
 ) error {
-	_, err := r.Client.StartNetwork(context.Background(), &drand.FirstProposalOptions{
-		BeaconID:             r.BeaconID,
-		Timeout:              timestamppb.New(time.Now().Add(timeout)),
-		Threshold:            uint32(threshold),
-		PeriodSeconds:        uint32(period),
-		Scheme:               schemeID,
-		CatchupPeriodSeconds: uint32(catchupPeriod),
-		// put the genesis a little in the future to give demo nodes some time to do the DKG
-		GenesisTime: timestamppb.New(time.Now().Add(10 * time.Second)),
-		Joining:     joiners,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
+		Initial: &drand.FirstProposalOptions{
+			Timeout:              timestamppb.New(r.Clock.Now().Add(timeout)),
+			Threshold:            uint32(threshold),
+			PeriodSeconds:        uint32(period),
+			Scheme:               schemeID,
+			CatchupPeriodSeconds: uint32(catchupPeriod),
+			// put the genesis a little in the future to give demo nodes some time to do the DKG
+			GenesisTime: timestamppb.New(r.Clock.Now().Add(20 * time.Second)),
+			Joining:     joiners,
+		},
+	},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
 }
@@ -51,28 +56,35 @@ func (r *DKGRunner) StartProposal(
 	remainers []*drand.Participant,
 	leavers []*drand.Participant,
 ) error {
-	_, err := r.Client.StartProposal(context.Background(), &drand.ProposalOptions{
-		BeaconID:             r.BeaconID,
-		Threshold:            uint32(threshold),
-		CatchupPeriodSeconds: uint32(catchupPeriod),
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
-		TransitionTime:       timestamppb.New(transitionTime),
-		Joining:              joiners,
-		Remaining:            remainers,
-		Leaving:              leavers,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
+		Resharing: &drand.ProposalOptions{
+			Threshold:            uint32(threshold),
+			CatchupPeriodSeconds: uint32(catchupPeriod),
+			Timeout:              timestamppb.New(r.Clock.Now().Add(1 * time.Minute)),
+			TransitionTime:       timestamppb.New(transitionTime),
+			Joining:              joiners,
+			Remaining:            remainers,
+			Leaving:              leavers,
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 	return err
 }
 
 func (r *DKGRunner) StartExecution() error {
-	_, err := r.Client.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: r.BeaconID})
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
+		Execute: &drand.ExecutionOptions{}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
+	})
 	return err
 }
 
 func (r *DKGRunner) JoinDKG() error {
-	_, err := r.Client.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  r.BeaconID,
-		GroupFile: nil,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+		Join: &drand.JoinOptions{
+			GroupFile: nil,
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err
@@ -84,26 +96,38 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.Client.StartJoin(context.Background(), &drand.JoinOptions{
-		BeaconID:  r.BeaconID,
-		GroupFile: groupFileBytes.Bytes(),
+	_, err = r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+		Join: &drand.JoinOptions{
+			GroupFile: groupFileBytes.Bytes(),
+		}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err
 }
 
 func (r *DKGRunner) Accept() error {
-	_, err := r.Client.StartAccept(context.Background(), &drand.AcceptOptions{
-		BeaconID: r.BeaconID,
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
+		Accept: &drand.AcceptOptions{}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
+	})
+	return err
+}
+
+func (r *DKGRunner) Abort() error {
+	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
+		Abort: &drand.AbortOptions{}},
+		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
 
 	return err
 }
 
 var ErrTimeout = errors.New("DKG timed out")
+var ErrDKGFailed = errors.New("DKG failed")
 
 func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
-	waitForGroupFile := func() error {
+	for i := 0; i < numberOfSeconds; i++ {
 		res, err := r.Client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
 		if err != nil {
 			return err
@@ -111,36 +135,29 @@ func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, num
 
 		switch res.Current.State {
 		case uint32(dkg.Evicted):
-			panic("leader got evicted")
+			return errors.New("leader got evicted")
 		case uint32(dkg.TimedOut):
-			panic("DKG timed out")
-		case uint32(dkg.Aborted):
-			panic("DKG was aborted")
-		}
-
-		if res.Complete == nil || res.Complete.Epoch != epoch {
-			return errors.New("DKG not finished yet")
-		}
-
-		if res.Complete.State == uint32(dkg.TimedOut) {
 			return ErrTimeout
+		case uint32(dkg.Aborted):
+			return errors.New("DKG aborted")
+		case uint32(dkg.Failed):
+			return ErrDKGFailed
+		}
+		if res.Complete == nil || res.Complete.Epoch != epoch {
+			time.Sleep(1 * time.Second)
+			continue
 		}
 
 		if res.Complete.State != uint32(dkg.Complete) {
 			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", dkg.Status(res.Complete.State).String()))
 		}
-		return nil
-	}
 
-	var err error
-	for i := 0; i < numberOfSeconds; i++ {
-		err = waitForGroupFile()
 		if err == nil {
-			break
+			return nil
 		}
 		lg.Infow("DKG not finished... retrying")
 		time.Sleep(1 * time.Second)
 	}
 
-	return err
+	return errors.New("DKG never finished")
 }

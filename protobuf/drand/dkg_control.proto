@@ -6,79 +6,84 @@ import "google/protobuf/timestamp.proto";
 import "crypto/dkg/dkg.proto";
 option go_package = "github.com/drand/drand/protobuf/drand";
 
-// used between CLI and drand binary
 service DKGControl {
-  rpc StartNetwork(FirstProposalOptions) returns (EmptyResponse) {}
-  rpc StartProposal(ProposalOptions) returns (EmptyResponse) {}
-  rpc StartAbort(AbortOptions) returns (EmptyResponse) {}
-  rpc StartExecute(ExecutionOptions) returns (EmptyResponse) {}
-
-  rpc StartJoin(JoinOptions) returns (EmptyResponse) {}
-  rpc StartAccept(AcceptOptions) returns (EmptyResponse) {}
-  rpc StartReject(RejectOptions) returns (EmptyResponse) {}
+  rpc Command(DKGCommand) returns (EmptyDKGResponse){}
+  rpc Packet(GossipPacket) returns (EmptyDKGResponse) {}
   rpc DKGStatus(DKGStatusRequest) returns (DKGStatusResponse) {}
+  rpc BroadcastDKG(DKGPacket) returns (EmptyDKGResponse) {}
 }
 
-message FirstProposalOptions {
-  string beaconID = 1;
-  google.protobuf.Timestamp timeout = 2;
-  uint32 threshold = 3;
-  uint32 period_seconds = 4;
-  string scheme = 5;
-  uint32 catchup_period_seconds = 6;
-  google.protobuf.Timestamp genesis_time = 7;
-  repeated Participant joining = 8;
+message EmptyDKGResponse {
 }
 
-message ProposalOptions {
-  string beaconID = 1;
-  google.protobuf.Timestamp timeout = 2;
-  uint32 threshold = 3;
-  uint32 catchup_period_seconds = 4;
-  google.protobuf.Timestamp transition_time = 5;
-  repeated Participant joining = 6;
-  repeated Participant leaving = 7;
-  repeated Participant remaining = 8;
+message DKGCommand {
+  CommandMetadata metadata = 1;
+  oneof Command {
+    FirstProposalOptions initial = 2;
+    ProposalOptions resharing = 3 ;
+    JoinOptions join = 4;
+    AcceptOptions accept = 5;
+    RejectOptions reject = 6;
+    ExecutionOptions execute = 7;
+    AbortOptions abort = 9;
+  }
 }
 
-message AbortOptions {
+message CommandMetadata {
   string beaconID = 1;
 }
 
-message ExecutionOptions {
-  string beaconID = 1;
+message GossipPacket {
+  GossipMetadata metadata = 1;
+  oneof Packet {
+    ProposalTerms proposal = 2;
+    AcceptProposal accept = 3;
+    RejectProposal reject = 4;
+    StartExecution execute = 5;
+    AbortDKG abort = 6;
+    DKGPacket dkg = 7;
+  }
 }
 
-message JoinOptions {
-  string beaconID = 1;
-  bytes groupFile = 2;
-}
-message AcceptOptions {
-  string beaconID = 1;
-}
-
-message RejectOptions {
-  string beaconID = 1;
-}
-
-// used between nodes within the network
-service DKG {
-  rpc Propose(ProposalTerms) returns (EmptyResponse) {}
-  rpc Abort(AbortDKG) returns (EmptyResponse) {}
-  rpc Execute(StartExecution) returns (EmptyResponse) {}
-  rpc Accept(AcceptProposal) returns (EmptyResponse) {}
-  rpc Reject(RejectProposal) returns (EmptyResponse) {}
-  // BroadcastPacket is used during DKG phases
-  rpc BroadcastDKG(DKGPacket) returns (EmptyResponse) {}
-}
-
-message DKGMetadata {
+message GossipMetadata {
   string beaconID = 1;
   string address = 2;
   bytes signature = 3;
 }
 
-message EmptyResponse {
+message FirstProposalOptions {
+  google.protobuf.Timestamp timeout = 1;
+  uint32 threshold = 2;
+  uint32 period_seconds = 3;
+  string scheme = 4;
+  uint32 catchup_period_seconds = 5;
+  google.protobuf.Timestamp genesis_time = 6;
+  repeated Participant joining = 7;
+}
+
+message ProposalOptions {
+  google.protobuf.Timestamp timeout = 1;
+  uint32 threshold = 2;
+  uint32 catchup_period_seconds = 3;
+  google.protobuf.Timestamp transition_time = 4;
+  repeated Participant joining = 5;
+  repeated Participant leaving = 6;
+  repeated Participant remaining = 7;
+}
+
+message AbortOptions {
+}
+
+message ExecutionOptions {
+}
+
+message JoinOptions {
+  bytes groupFile = 1;
+}
+message AcceptOptions {
+}
+
+message RejectOptions {
 }
 
 message ProposalTerms {
@@ -97,7 +102,6 @@ message ProposalTerms {
   repeated Participant joining = 12;
   repeated Participant remaining = 13;
   repeated Participant leaving = 14;
-  DKGMetadata metadata = 15;
 }
 
 message Participant {
@@ -109,8 +113,6 @@ message Participant {
 
 message AcceptProposal {
   Participant acceptor = 1;
-
-  DKGMetadata metadata = 2;
 }
 
 message RejectProposal {
@@ -129,18 +131,13 @@ message RejectProposal {
 
   // a sha256 hash of the original proposal message
   bytes proposal_hash = 5;
-
-  DKGMetadata metadata = 6;
 }
 
 message AbortDKG {
   string reason = 1;
-
-  DKGMetadata metadata = 2;
 }
 
 message StartExecution {
-  DKGMetadata metadata = 1;
 }
 
 message DKGStatusRequest {
@@ -174,5 +171,4 @@ message DKGEntry {
 // broadcasting protocol.
 message DKGPacket {
   dkg.Packet dkg = 1;
-  DKGMetadata metadata = 2;
 }

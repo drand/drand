@@ -40,6 +40,7 @@ func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProc
 		dkgRunner: &test.DKGRunner{
 			BeaconID: dr.beaconID,
 			Client:   dkgClient,
+			Clock:    c,
 		},
 	}, nil
 }
