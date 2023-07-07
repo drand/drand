@@ -100,6 +100,15 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 	}, nil
 }
 
+func ToParticipant(node *drand.Node) *drand.Participant {
+	return &drand.Participant{
+		Address:   node.Public.Address,
+		Tls:       node.Public.Tls,
+		PubKey:    node.Public.Key,
+		Signature: node.Public.Signature,
+	}
+}
+
 func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (key.Node, error) {
 	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
 	public, err := pkToPoint(participant.PubKey, sch)
