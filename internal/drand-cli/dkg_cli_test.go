@@ -1,6 +1,7 @@
 package drand
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 
 func TestDKGPrintModelConversion(t *testing.T) {
 	now := time.Date(2023, 1, 1, 1, 1, 2, 0, time.UTC)
+	genesisSeed, err := hex.DecodeString("deadbeef")
+	require.NoError(t, err)
 	entry := drand.DKGEntry{
 		BeaconID:       "banana",
 		State:          uint32(dkg.Complete),
@@ -23,7 +26,7 @@ func TestDKGPrintModelConversion(t *testing.T) {
 		Timeout:        timestamppb.New(now),
 		GenesisTime:    timestamppb.New(now.Add(1 * time.Minute)),
 		TransitionTime: timestamppb.New(now.Add(2 * time.Minute)),
-		GenesisSeed:    []byte("deadbeef"),
+		GenesisSeed:    genesisSeed,
 		Leader:         NewParticipant("alice"),
 		Remaining:      []*drand.Participant{NewParticipant("alice"), NewParticipant("bob"), NewParticipant("carol")},
 		Joining:        []*drand.Participant{NewParticipant("david")},
