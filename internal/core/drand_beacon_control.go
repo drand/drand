@@ -51,6 +51,8 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 	}, nil
 }
 
+var ErrNoGroupSetup = errors.New("drand: no dkg group setup yet")
+
 // GroupFile replies with the distributed key in the response
 func (bp *BeaconProcess) GroupFile(ctx context.Context, _ *drand.GroupRequest) (*drand.GroupPacket, error) {
 	_, span := metrics.NewSpan(ctx, "bp.GroupFile")
@@ -60,7 +62,7 @@ func (bp *BeaconProcess) GroupFile(ctx context.Context, _ *drand.GroupRequest) (
 	defer bp.state.RUnlock()
 
 	if bp.group == nil {
-		return nil, errors.New("drand: no dkg group setup yet")
+		return nil, ErrNoGroupSetup
 	}
 
 	protoGroup := bp.group.ToProto(bp.version)

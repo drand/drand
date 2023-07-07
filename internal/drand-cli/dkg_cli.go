@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/internal/util"
 	"os"
 	"strconv"
 	"strings"
@@ -107,6 +108,7 @@ var dkgCommand = &cli.Command{
 				remainerFlag,
 				proposalOutputFlag,
 				beaconIDFlag,
+				controlFlag,
 				leaverFlag,
 			),
 			Action: func(c *cli.Context) error {
@@ -577,7 +579,7 @@ func convert(entry *drand.DKGEntry) printModel {
 		Timeout:        entry.Timeout.AsTime().Format(time.RFC3339),
 		GenesisTime:    entry.GenesisTime.AsTime().Format(time.RFC3339),
 		TransitionTime: entry.TransitionTime.AsTime().Format(time.RFC3339),
-		GenesisSeed:    string(entry.GenesisSeed),
+		GenesisSeed:    hex.EncodeToString(entry.GenesisSeed),
 		Leader:         entry.Leader.Address,
 		Joining:        formatAddresses(entry.Joining),
 		Remaining:      formatAddresses(entry.Remaining),
@@ -621,6 +623,7 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 }
 
 func generateProposalCmd(c *cli.Context, l log.Logger) error {
+	// first we validate the flags
 	if !c.IsSet(joinerFlag.Name) && !c.IsSet(remainerFlag.Name) {
 		return errors.New("you must add joiners and/or remainers to the proposal")
 	}
@@ -636,65 +639,110 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		beaconID = common.DefaultBeaconID
 	}
 
-	p := ProposalFile{}
+	// then we fetch the current group file
+	proposalFile := ProposalFile{}
+	client, err := controlClient(c, l)
+	if err != nil {
+		return err
+	}
 
-	fetchParticipantData := func(path string) (*drand.Participant, error) {
-		parts := strings.Split(path, "https://")
-		tls := len(parts) > 1
-		var peer net.Peer
-		if tls {
-			peer = net.CreatePeer(parts[1], tls)
+	freshStart := false
+	r, err := client.GroupFile(beaconID)
+
+	if err != nil {
+		// if it's a fresh start, we'll take a different path
+		if errors.Is(err, core.ErrNoGroupSetup) {
+			freshStart = true
 		} else {
-			peer = net.CreatePeer(path, tls)
+			return err
 		}
-		client := net.NewGrpcClient(l)
-		identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
-		if err != nil {
-			return nil, err
-		}
-		return &drand.Participant{
-			Address:   identity.Address,
-			Tls:       identity.Tls,
-			PubKey:    identity.Key,
-			Signature: identity.Signature,
-		}, nil
 	}
 
-	for _, joiner := range c.StringSlice(joinerFlag.Name) {
-		j, err := fetchParticipantData(joiner)
+	joiners := c.StringSlice(joinerFlag.Name)
+	remainers := c.StringSlice(remainerFlag.Name)
+	leavers := c.StringSlice(leaverFlag.Name)
+
+	if freshStart {
+		if len(remainers) > 0 {
+			return errors.New("the network isn't running yet - cannot have remainers")
+		}
+		if len(leavers) > 0 {
+			return errors.New("the network isn't running yet - cannot have leavers")
+		}
+	} else {
+		current := make([]*drand.Participant, len(r.Nodes))
+		for i, node := range r.Nodes {
+			address := node.Public.Address
+			if !util.Cont(util.Concat(remainers, leavers), address) {
+				return fmt.Errorf("%s is missing in the attempted proposal but exists in the current network. It should be leaving or remaining", address)
+			}
+			current[i] = util.ToParticipant(node)
+		}
+
+		for _, remainer := range remainers {
+			matching, err := util.First(current, func(participant *drand.Participant) bool {
+				return participant.Address == remainer
+			})
+			if err != nil {
+				return fmt.Errorf("remainer %s is missing in the current network", remainer)
+			}
+			proposalFile.Remaining = append(proposalFile.Remaining, *matching)
+		}
+
+		for _, leaver := range leavers {
+			matching, err := util.First(current, func(participant *drand.Participant) bool {
+				return participant.Address == leaver
+			})
+			if err != nil {
+				return fmt.Errorf("leaver %s is missing in the current network", leaver)
+			}
+			proposalFile.Leaving = append(proposalFile.Leaving, *matching)
+		}
+	}
+
+	// we fetch the keys for all the new joiners by calling their node's API
+	for _, joiner := range joiners {
+		p, err := fetchPublicKey(beaconID, l, joiner)
 		if err != nil {
 			return err
 		}
-		p.Joining = append(p.Joining, j)
+		proposalFile.Joining = append(proposalFile.Joining, p)
 	}
 
-	for _, remainer := range c.StringSlice(remainerFlag.Name) {
-		r, err := fetchParticipantData(remainer)
-		if err != nil {
-			return err
-		}
-		p.Remaining = append(p.Remaining, r)
-	}
-
-	for _, leaver := range c.StringSlice(leaverFlag.Name) {
-		l, err := fetchParticipantData(leaver)
-		if err != nil {
-			return err
-		}
-		p.Leaving = append(p.Leaving, l)
-	}
-
+	// finally we write the proposal toml file to the output location
 	filepath := c.String(proposalOutputFlag.Name)
 	file, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
 
-	err = toml.NewEncoder(file).Encode(p.TOML())
+	err = toml.NewEncoder(file).Encode(proposalFile.TOML())
 	if err != nil {
 		return err
 	}
 
 	fmt.Printf("Proposal created successfully at path %s", filepath)
 	return nil
+}
+
+func fetchPublicKey(beaconID string, l log.Logger, address string) (*drand.Participant, error) {
+	parts := strings.Split(address, "https://")
+	tls := len(parts) > 1
+	var peer net.Peer
+	if tls {
+		peer = net.CreatePeer(parts[1], tls)
+	} else {
+		peer = net.CreatePeer(address, tls)
+	}
+	client := net.NewGrpcClient(l)
+	identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch public key for %s: %v", address, err)
+	}
+	return &drand.Participant{
+		Address:   identity.Address,
+		Tls:       identity.Tls,
+		PubKey:    identity.Key,
+		Signature: identity.Signature,
+	}, nil
 }
