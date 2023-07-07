@@ -651,7 +651,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 
 	if err != nil {
 		// if it's a fresh start, we'll take a different path
-		if strings.Contains(err.Error(), core.ErrNoGroupSetup.Error()) {
+		if errors.Is(err, core.ErrNoGroupSetup) {
 			freshStart = true
 		} else {
 			return err
