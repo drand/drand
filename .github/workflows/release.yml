@@ -20,9 +20,10 @@ jobs:
           go-version: '1.20.5'
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@ab6203da1c3118e4406048171b09238ad31ad73e # pin@latest-16.02.2023
+        uses: arduino/setup-protoc@149f6c87b92550901b26acd1632e11c3662e381f # pin@v1.3.0
         with:
           version: '3.19.6'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Protoc-gen-go
         run: |
