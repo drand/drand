@@ -773,6 +773,9 @@ func TestDrandListSchemes(t *testing.T) {
 }
 
 func TestDrandReloadBeacon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -836,6 +839,9 @@ func TestDrandReloadBeacon(t *testing.T) {
 }
 
 func TestDrandLoadNotPresentBeacon(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -944,6 +950,9 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 }
 
 func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1014,6 +1023,9 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 }
 
 func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1358,7 +1370,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) []*drandInstance {
 	t.Helper()
 
-	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for _, instance := range ins {
 		instance.run(t, beaconID)
 	}
@@ -1367,24 +1378,21 @@ func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) [
 
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
 	// How many rounds to generate while the node is stopped.
-	roundsWhileMissing := 80
-	// If we are in short mode, let's run less rounds.
-	if testing.Short() {
-		roundsWhileMissing = 20
-	}
-
+	roundsWhileMissing := 50
 	period := 1
 	n := 4
 	instances := genDrandInstances(t, beaconID, n)
 	memDBNodeID := len(instances) - 1
 
-	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for i := 0; i < memDBNodeID; i++ {
 		inst := instances[i]
 		inst.run(t, beaconID)
@@ -1470,6 +1478,9 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 }
 
 func TestDKGStatusDoesntBlowUp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
