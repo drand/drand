@@ -247,7 +247,7 @@ func (h *Handler) Start(ctx context.Context) error {
 // Catchup waits the next round's time to participate. This method is called
 // when a node stops its daemon (maintenance or else) and get backs in the
 // already running network . If the node does not have the previous randomness,
-// it sync its local chain with other nodes to be able to participate in the
+// it syncs its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup(ctx context.Context) {
 	ctx, span := metrics.NewSpan(ctx, "h.Catchup")
@@ -260,6 +260,7 @@ func (h *Handler) Catchup(ctx context.Context) {
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
+	h.l.Infow("Launching Catchup", "upto", nRound)
 	h.chain.RunSync(ctx, nRound, nil)
 }
 
@@ -370,6 +371,7 @@ func (h *Handler) Reset(ctx context.Context) {
 //nolint:funlen // This is a long function
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
+	h.l.Infow("starting handler run", "startTime", startTime, "current time", h.conf.Clock.Now().Unix())
 
 	var current roundInfo
 	setRunning := sync.Once{}
@@ -539,8 +541,8 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 
 			err := h.client.PartialBeacon(ctx, &i, packet)
 			if err != nil {
-				span.RecordError(err)
 				h.thresholdMonitor.ReportFailure(beaconID, i.Address())
+				span.RecordError(err)
 				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
 				return
 			}

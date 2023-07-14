@@ -75,7 +75,7 @@ func (t *TomlParticipant) Into() *drand.Participant {
 	return &drand.Participant{
 		Address:   t.Address,
 		Tls:       t.TLS,
-		PubKey:    decodeHexOrPanic(t.Key),
+		Key:       decodeHexOrPanic(t.Key),
 		Signature: decodeHexOrPanic(t.Signature),
 	}
 }
@@ -105,7 +105,7 @@ func encode(p *drand.Participant) TomlParticipant {
 	return TomlParticipant{
 		Address:   p.Address,
 		TLS:       p.Tls,
-		Key:       hex.EncodeToString(p.PubKey),
+		Key:       hex.EncodeToString(p.Key),
 		Signature: hex.EncodeToString(p.Signature),
 	}
 }

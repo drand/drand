@@ -60,7 +60,7 @@ type BeaconProcess struct {
 	state  sync.RWMutex
 	exitCh chan bool
 
-	// that cancel function is set when the drand process is ynollowing a chain
+	// that cancel function is set when the drand process is following a chain
 	// but not participating. Drand calls the cancel func when the node
 	// participates to a resharing.
 	syncerCancel context.CancelFunc

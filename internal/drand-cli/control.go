@@ -103,6 +103,7 @@ func pingpongCmd(c *cli.Context, l log.Logger) error {
 	if err != nil {
 		return err
 	}
+
 	if err := client.Ping(); err != nil {
 		return fmt.Errorf("drand: can't ping the daemon ... %w", err)
 	}
@@ -478,6 +479,7 @@ func followSync(c *cli.Context, l log.Logger) error {
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
 	}
+	defer ctrlClient.Close()
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 	channel, errCh, err := ctrlClient.StartFollowChain(

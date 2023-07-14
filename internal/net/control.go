@@ -1,7 +1,7 @@
 package net
 
 import (
-	ctx "context"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -104,7 +104,15 @@ func NewControlClient(l log.Logger, addr string) (*ControlClient, error) {
 	}, nil
 }
 
-func (c *ControlClient) RemoteStatus(ct ctx.Context,
+func (c *ControlClient) Close() error {
+	if c == nil || c.log == nil || c.conn == nil {
+		return nil
+	}
+	c.log.Debugw("Closing connection for ControlClient")
+	return c.conn.Close()
+}
+
+func (c *ControlClient) RemoteStatus(ct context.Context,
 	addresses []*control.Address,
 	beaconID string) (map[string]*control.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
@@ -127,7 +135,7 @@ func (c *ControlClient) RemoteStatus(ct ctx.Context,
 func (c *ControlClient) Ping() error {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
-	_, err := c.client.PingPong(ctx.Background(), &control.Ping{Metadata: metadata})
+	_, err := c.client.PingPong(context.Background(), &control.Ping{Metadata: metadata})
 	return err
 }
 
@@ -137,7 +145,7 @@ func (c *ControlClient) LoadBeacon(beaconID string) (*control.LoadBeaconResponse
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	return c.client.LoadBeacon(ctx.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
+	return c.client.LoadBeacon(context.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
 }
 
 // ListBeaconIDs returns a list of all beacon ids
@@ -146,7 +154,7 @@ func (c *ControlClient) ListBeaconIDs() (*control.ListBeaconIDsResponse, error) 
 		NodeVersion: c.version.ToProto(),
 	}
 
-	return c.client.ListBeaconIDs(ctx.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
+	return c.client.ListBeaconIDs(context.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
 }
 
 // Status gets the current daemon status
@@ -155,35 +163,35 @@ func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error)
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	return c.client.Status(ctx.Background(), &control.StatusRequest{Metadata: &metadata})
+	return c.client.Status(context.Background(), &control.StatusRequest{Metadata: &metadata})
 }
 
 // ListSchemes responds with the list of ids for the available schemes
 func (c *ControlClient) ListSchemes() (*control.ListSchemesResponse, error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
-	return c.client.ListSchemes(ctx.Background(), &control.ListSchemesRequest{Metadata: metadata})
+	return c.client.ListSchemes(context.Background(), &control.ListSchemesRequest{Metadata: metadata})
 }
 
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: &metadata})
+	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{Metadata: &metadata})
 }
 
 // PrivateKey returns the private key of the remote node
 func (c *ControlClient) PrivateKey(beaconID string) (*control.PrivateKeyResponse, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
+	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: &metadata})
+	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{Metadata: &metadata})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
@@ -191,19 +199,21 @@ func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, er
 func (c *ControlClient) GroupFile(beaconID string) (*control.GroupPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: &metadata})
+	return c.client.GroupFile(context.Background(), &control.GroupRequest{Metadata: &metadata})
 }
 
 // Shutdown stops the daemon
 func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: &metadata})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return c.client.Shutdown(ctx, &control.ShutdownRequest{Metadata: &metadata})
 }
 
 const progressSyncQueue = 100
 
 // StartCheckChain initiates the check chain process
-func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []string, tls bool,
+func (c *ControlClient) StartCheckChain(cc context.Context, hashStr string, nodes []string, tls bool,
 	upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set in the metadata
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
@@ -269,7 +279,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 }
 
 // StartFollowChain initiates the client catching up on an existing chain it is not part of
-func (c *ControlClient) StartFollowChain(cc ctx.Context,
+func (c *ControlClient) StartFollowChain(cc context.Context,
 	hashStr string,
 	nodes []string,
 	tls bool,
@@ -331,7 +341,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 // BackupDB backs up the database to a file
 func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
+	_, err := c.client.BackupDatabase(context.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
 }
 
@@ -341,19 +351,19 @@ type DefaultControlServer struct {
 }
 
 // PingPong sends a ping to the server
-func (s *DefaultControlServer) PingPong(_ ctx.Context, _ *control.Ping) (*control.Pong, error) {
+func (s *DefaultControlServer) PingPong(_ context.Context, _ *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
 }
 
 // Status initiates a status request
-func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
+func (s *DefaultControlServer) Status(c context.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
 	if s.C == nil {
 		return &control.StatusResponse{}, nil
 	}
 	return s.C.Status(c, in)
 }
 
-func (s *DefaultControlServer) RemoteStatus(c ctx.Context, in *control.RemoteStatusRequest) (*control.RemoteStatusResponse, error) {
+func (s *DefaultControlServer) RemoteStatus(c context.Context, in *control.RemoteStatusRequest) (*control.RemoteStatusResponse, error) {
 	if s.C == nil {
 		return &control.RemoteStatusResponse{}, nil
 	}
@@ -361,7 +371,7 @@ func (s *DefaultControlServer) RemoteStatus(c ctx.Context, in *control.RemoteSta
 }
 
 // PublicKey gets the node's public key
-func (s *DefaultControlServer) PublicKey(c ctx.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
 	if s.C == nil {
 		return &control.PublicKeyResponse{}, nil
 	}
@@ -369,7 +379,7 @@ func (s *DefaultControlServer) PublicKey(c ctx.Context, in *control.PublicKeyReq
 }
 
 // PrivateKey gets the node's private key
-func (s *DefaultControlServer) PrivateKey(c ctx.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
 	if s.C == nil {
 		return &control.PrivateKeyResponse{}, nil
 	}
@@ -377,7 +387,7 @@ func (s *DefaultControlServer) PrivateKey(c ctx.Context, in *control.PrivateKeyR
 }
 
 // ChainInfo gets the current chain information from the ndoe
-func (s *DefaultControlServer) ChainInfo(c ctx.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
+func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
 	if s.C == nil {
 		return &control.ChainInfoPacket{}, nil
 	}

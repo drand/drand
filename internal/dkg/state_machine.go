@@ -728,9 +728,19 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return ErrInvalidBeaconID
 	}
 
-	_, found := crypto.GetSchemeByID(terms.SchemeID)
-	if !found {
+	targetSch, err := crypto.SchemeFromName(terms.SchemeID)
+	if err != nil {
 		return ErrInvalidScheme
+	}
+
+	for _, participant := range terms.Joining {
+		id, err := key.IdentityFromProto(participant, targetSch)
+		if err != nil {
+			return fmt.Errorf("%w, participant error: %s, expected: %s", key.ErrInvalidKeyScheme, err.Error(), targetSch.Name)
+		}
+		if err := id.ValidSignature(); err != nil {
+			return key.ErrInvalidKeyScheme
+		}
 	}
 
 	if terms.Timeout.AsTime().Before(time.Now()) {

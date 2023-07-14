@@ -18,7 +18,7 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 	l := testlogger.New(t)
 	ctx := context.Background()
 	gateway := net.PrivateGateway{}
-	sch, _ := crypto.GetSchemeByIDWithDefault("")
+	sch, _ := crypto.GetSchemeFromEnv()
 	_, err := newEchoBroadcast(
 		ctx,
 		gateway.DKGClient,
@@ -37,7 +37,7 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 	l := testlogger.New(t)
 	ctx := context.Background()
 	gateway := net.PrivateGateway{}
-	sch, _ := crypto.GetSchemeByIDWithDefault("")
+	sch, _ := crypto.GetSchemeFromEnv()
 
 	_, err := newEchoBroadcast(
 		ctx,
@@ -50,7 +50,7 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 			{
 				Address:   "127.0.0.1:1234",
 				Tls:       false,
-				PubKey:    []byte("0000000"),
+				Key:       []byte("0000000"),
 				Signature: []byte("1111111"),
 			},
 		},

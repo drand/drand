@@ -377,14 +377,20 @@ func checkWait(t *testing.T, counter *sync.WaitGroup) {
 		case <-doneCh:
 			return true
 		case <-time.After(30 * time.Second):
-			t.Error("outdated beacon time")
 			return false
 		}
-	}, "outdated beacon time")
+	}, "outdated beacon time, timeout reached")
+	t.Log("[checkWait] Done waiting")
 }
 
 func TestBeaconSync(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode.")
+	}
+
 	n := 4
+	stayOnline := 3
+
 	thr := n/2 + 1
 	period := 2 * time.Second
 	ctx := context.Background()
@@ -442,28 +448,28 @@ func TestBeaconSync(t *testing.T) {
 	}
 
 	t.Log("disable reception")
-	// disable reception of all nodes but one
-	online := 3
-	bt.DisableReception(n - online)
+	// disable reception of all nodes but stayOnline
+	bt.DisableReception(n - stayOnline)
+
+	// we need to sleep for the sync manager to finish
+	time.Sleep(3 * time.Second)
 
 	t.Log("doRounds AFTER disabling")
 	// check that at least one node got the beacon
-	doRound(online, period)
-	t.Log("before enabling reception again")
+	doRound(stayOnline, period)
 
+	t.Log("before enabling reception again")
 	// enable reception again of all nodes
-	bt.EnableReception(n - online)
+	bt.EnableReception(n - stayOnline)
 
 	// we advance the clock, all "resuscitated nodes" will transmit a wrong
 	// beacon, but they will see the beacon they send is late w.r.t. the round
-	// they should be, so they will sync with the "safe online" nodes. They
+	// they should be, so they will sync with the "safe stayOnline" nodes. They
 	// will get the latest beacon and then directly run the right round
-	// bt.MoveTime(period
 	// n for the new round
-	// n - online for the previous round that the others catch up
+	// n - stayOnline for the previous round that the others catch up
 	t.Log("before doing round after enabling reception again")
-
-	doRound(n+n-online, period)
+	doRound(n+(n-stayOnline), period)
 }
 
 func TestBeaconSimple(t *testing.T) {
