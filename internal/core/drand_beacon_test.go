@@ -115,6 +115,10 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode.")
+	}
+
 	const existingNodesCount = 3
 	const thr = 4
 	const period = 1 * time.Second
@@ -140,6 +144,10 @@ func TestMemDBBeaconJoinsNetworkAtStart(t *testing.T) {
 }
 
 func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	if os.Getenv("CI") == "true" {
 		t.Skip("test is flacky in CI")
 	}

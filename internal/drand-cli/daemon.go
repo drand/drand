@@ -56,6 +56,7 @@ func stopDaemon(c *cli.Context, lg log.Logger) error {
 	if err != nil {
 		return err
 	}
+	defer ctrlClient.Close()
 
 	isBeaconIDSet := c.IsSet(beaconIDFlag.Name)
 	if isBeaconIDSet {

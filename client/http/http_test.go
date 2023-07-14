@@ -123,6 +123,10 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)

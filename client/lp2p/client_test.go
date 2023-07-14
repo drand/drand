@@ -120,6 +120,10 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClientTestFunc(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow test in short mode.")
+	}
+
 	ctx := context.Background()
 	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()

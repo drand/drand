@@ -108,6 +108,7 @@ message PublicKeyResponse {
   bool tls = 3;
   bytes signature = 4;
   common.Metadata metadata = 5;
+  string schemeName = 6;
 }
 
 // PrivateKeyRequest requests the private key of a drand node

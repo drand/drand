@@ -469,11 +469,13 @@ func (n *NodeProc) Stop() {
 		killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
 		killPid.Run()
 	}
+	fmt.Printf(" -- trying to ping %s, expecting it to fail.", n.ctrl)
 	for i := 0; i < 3; i++ {
 		if n.Ping() {
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
+		fmt.Printf("\t + node successfully shutdown\n")
 		return
 	}
 	panic("node should have stopped but is still running")

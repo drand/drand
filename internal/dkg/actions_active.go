@@ -131,7 +131,7 @@ func (d *Process) StartNetwork(
 		TransitionTime:       genesisTime,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
-		Joining:              options.Joining,
+		Joining:              util.Filter(options.Joining, util.NonEmpty),
 	}
 
 	// apply our enriched DKG payload onto the current DKG state to create a new state

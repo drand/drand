@@ -43,11 +43,12 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 	}
 
 	return &drand.PublicKeyResponse{
-		PubKey:    protoKey,
-		Addr:      keyPair.Public.Addr,
-		Tls:       keyPair.Public.TLS,
-		Signature: keyPair.Public.Signature,
-		Metadata:  bp.newMetadata(),
+		PubKey:     protoKey,
+		Addr:       keyPair.Public.Addr,
+		Tls:        keyPair.Public.TLS,
+		Signature:  keyPair.Public.Signature,
+		Metadata:   bp.newMetadata(),
+		SchemeName: keyPair.Public.Scheme.Name,
 	}, nil
 }
 

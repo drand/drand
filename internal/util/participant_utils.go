@@ -70,7 +70,7 @@ func EqualParticipant(p1, p2 *drand.Participant) bool {
 	}
 	return p1.Tls == p2.Tls &&
 		p1.Address == p2.Address &&
-		reflect.DeepEqual(p1.PubKey, p2.PubKey) &&
+		reflect.DeepEqual(p1.Key, p2.Key) &&
 		reflect.DeepEqual(p1.Signature, p2.Signature)
 }
 
@@ -83,14 +83,14 @@ func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) 
 	return &drand.Participant{
 		Address:   identity.Address(),
 		Tls:       identity.TLS,
-		PubKey:    pubKey,
+		Key:       pubKey,
 		Signature: identity.Signature,
 	}, nil
 }
 
 func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.Node, error) {
 	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
-	public, err := pkToPoint(participant.PubKey, sch)
+	public, err := pkToPoint(participant.Key, sch)
 	if err != nil {
 		return dkg.Node{}, key.ErrInvalidKeyScheme
 	}
@@ -104,14 +104,14 @@ func ToParticipant(node *drand.Node) *drand.Participant {
 	return &drand.Participant{
 		Address:   node.Public.Address,
 		Tls:       node.Public.Tls,
-		PubKey:    node.Public.Key,
+		Key:       node.Public.Key,
 		Signature: node.Public.Signature,
 	}
 }
 
 func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (key.Node, error) {
 	// if this conversion fails, it's almost certain the nodes are using mismatched schemes
-	public, err := pkToPoint(participant.PubKey, sch)
+	public, err := pkToPoint(participant.Key, sch)
 	if err != nil {
 		return key.Node{}, key.ErrInvalidKeyScheme
 	}
@@ -143,7 +143,7 @@ func pkToPoint(pk []byte, sch *crypto.Scheme) (kyber.Point, error) {
 func SortedByPublicKey(arr []*drand.Participant) []*drand.Participant {
 	out := arr
 	sort.Slice(out, func(i, j int) bool {
-		return string(out[i].PubKey) < string(out[j].PubKey)
+		return string(out[i].Key) < string(out[j].Key)
 	})
 	return out
 }
