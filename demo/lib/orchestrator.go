@@ -159,14 +159,14 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	for i, n := range e.nodes {
 		identity, err := n.Identity()
 		if err != nil {
-			return err
+			return fmt.Errorf("n.Identity: %w for %s", err, n.PublicAddr())
 		}
 		joiners[i] = identity
 	}
 
 	err := leader.StartLeaderDKG(e.thr, beaconOffset, joiners)
 	if err != nil {
-		return err
+		return fmt.Errorf("leader.StartLeaderDKG: %w", err)
 	}
 
 	for _, n := range e.nodes[1:] {
@@ -174,19 +174,19 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
 		err = n.JoinDKG()
 		if err != nil {
-			return err
+			return fmt.Errorf("n.JoinDKG: %w for %s", err, n.PublicAddr())
 		}
 	}
 
 	err = leader.ExecuteLeaderDKG()
 	if err != nil {
-		return err
+		return fmt.Errorf("leader.ExecuteLeaderDKG: %w", err)
 	}
 
 	fmt.Println("[+] Waiting for DKG completion")
 	_, err = leader.WaitDKGComplete(1, timeout)
 	if err != nil {
-		return err
+		return fmt.Errorf("leader.WaitDKGComplete: %w", err)
 	}
 
 	fmt.Println("[+] Nodes finished running DKG. Checking keys...")

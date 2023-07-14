@@ -31,7 +31,9 @@ func (r *DKGRunner) StartNetwork(
 	catchupPeriod int,
 	joiners []*drand.Participant,
 ) error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
 		Initial: &drand.FirstProposalOptions{
 			Timeout:              timestamppb.New(r.Clock.Now().Add(timeout)),
 			Threshold:            uint32(threshold),
@@ -56,7 +58,9 @@ func (r *DKGRunner) StartProposal(
 	remainers []*drand.Participant,
 	leavers []*drand.Participant,
 ) error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
 		Resharing: &drand.ProposalOptions{
 			Threshold:            uint32(threshold),
 			CatchupPeriodSeconds: uint32(catchupPeriod),
@@ -72,7 +76,9 @@ func (r *DKGRunner) StartProposal(
 }
 
 func (r *DKGRunner) StartExecution() error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
 		Execute: &drand.ExecutionOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
@@ -80,7 +86,9 @@ func (r *DKGRunner) StartExecution() error {
 }
 
 func (r *DKGRunner) JoinDKG() error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Join{
 		Join: &drand.JoinOptions{
 			GroupFile: nil,
 		}},
@@ -96,7 +104,9 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Join{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err = r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Join{
 		Join: &drand.JoinOptions{
 			GroupFile: groupFileBytes.Bytes(),
 		}},
@@ -107,7 +117,9 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 }
 
 func (r *DKGRunner) Accept() error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
 		Accept: &drand.AcceptOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
@@ -115,7 +127,9 @@ func (r *DKGRunner) Accept() error {
 }
 
 func (r *DKGRunner) Abort() error {
-	_, err := r.Client.Command(context.Background(), &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
 		Abort: &drand.AbortOptions{}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})
@@ -128,9 +142,12 @@ var ErrDKGFailed = errors.New("DKG failed")
 
 func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
 	for i := 0; i < numberOfSeconds; i++ {
-		res, err := r.Client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
+		time.Sleep(1 * time.Second)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		res, err := r.Client.DKGStatus(ctx, &drand.DKGStatusRequest{BeaconID: beaconID})
 		if err != nil {
-			return err
+			continue
 		}
 
 		switch res.Current.State {
@@ -144,7 +161,6 @@ func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, num
 			return ErrDKGFailed
 		}
 		if res.Complete == nil || res.Complete.Epoch != epoch {
-			time.Sleep(1 * time.Second)
 			continue
 		}
 
@@ -156,7 +172,6 @@ func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, num
 			return nil
 		}
 		lg.Infow("DKG not finished... retrying")
-		time.Sleep(1 * time.Second)
 	}
 
 	return errors.New("DKG never finished")

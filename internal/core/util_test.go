@@ -163,7 +163,7 @@ func BatchNewDrand(
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
-		t.Logf("Creating node %d\n", i)
+		t.Logf("Creating node %d (storage %s, scheme %s)\n", i, sch.Name, sch.Name)
 
 		daemon, err := NewDrandDaemon(ctx, NewConfig(l, confOptions...))
 		require.NoError(t, err)
@@ -327,15 +327,15 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 	if now := d.Now().Unix(); now < targetUnixTime {
 		d.AdvanceMockClock(t, time.Duration(targetUnixTime-now)*time.Second)
 	} else {
-		d.t.Log("ALREADY PASSED")
+		t.Log("ALREADY PASSED")
 	}
 
-	t.Logf("Set time to genesis time: %d\n", d.Now().Unix())
+	t.Logf("Set MockClock time to: %d\n", d.Now().Unix())
 }
 
 // AdvanceMockClock advances the clock of all drand by the given duration
 func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
-	t.Log("Advancing time by", p, "from", d.clock.Now().Unix())
+	t.Log("Advance MockClock time by", p, "from", d.clock.Now().Unix(), "actual time is", time.Now().Unix())
 	for _, node := range d.nodes {
 		node.clock.Advance(p)
 	}
@@ -344,7 +344,19 @@ func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
 	}
 	d.clock.Advance(p)
 	// we sleep to make sure everyone has the time to get the new time before continuing
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
+
+	expected := d.clock.Now().Unix()
+	for _, node := range d.nodes {
+		if got := node.clock.Now().Unix(); expected != got {
+			t.Error("wrong time", "expected", expected, "got", got, "for node", node.addr)
+		}
+	}
+	for _, node := range d.newNodes {
+		if got := node.clock.Now().Unix(); expected != got {
+			t.Error("wrong time", "expected", expected, "got", got, "node", node.addr)
+		}
+	}
 }
 
 // CheckBeaconLength looks if the beacon chain on the given addresses is of the
@@ -431,7 +443,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 		joiners[i] = &drand.Participant{
 			Address:   identity.Addr,
 			Tls:       identity.TLS,
-			PubKey:    pk,
+			Key:       pk,
 			Signature: identity.Signature,
 		}
 	}
@@ -446,6 +458,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 		return nil, err
 	}
 
+	t.Log("[RunDKG] JoinDKG on followers")
 	for _, follower := range followers {
 		err = follower.dkgRunner.JoinDKG()
 		if err != nil {
@@ -453,6 +466,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 		}
 	}
 
+	t.Log("[RunDKG] StartExecution on leader")
 	err = leader.dkgRunner.StartExecution()
 	if err != nil {
 		return nil, err
@@ -461,6 +475,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 	// advance by the grace period so all nodes kick off the DKG
 	d.AdvanceMockClock(d.t, d.nodes[0].daemon.opts.dkgKickoffGracePeriod)
 
+	t.Log("[RunDKG] WaitForDKG on leader")
 	groupFile, err := d.WaitForDKG(t, leader, 1, 100)
 	if err != nil {
 		return nil, err
@@ -484,7 +499,7 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 		remainers[i] = &drand.Participant{
 			Address:   identity.Addr,
 			Tls:       identity.TLS,
-			PubKey:    pk,
+			Key:       pk,
 			Signature: identity.Signature,
 		}
 	}
@@ -528,11 +543,17 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
 	err := node.dkgRunner.WaitForDKG(node.drand.log, d.beaconID, epoch, numberOfSeconds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("DrandTestScenario.WaitForDKG failed: %w", err)
 	}
 
-	group := d.nodes[0].daemon.beaconProcesses[d.beaconID].group
+	group := node.daemon.beaconProcesses[d.beaconID].group
 	require.NotNil(t, group, "group file was nil despite completion!")
+
+	t.Log("[WaitForDKG] Group file received by node", node.addr,
+		"GenesisTime is", group.GenesisTime,
+		"Transition time is", group.TransitionTime,
+		"Current time is", d.Now().Unix(),
+	)
 	return group, nil
 }
 
@@ -576,7 +597,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		remainers[i] = &drand.Participant{
 			Address:   identity.Addr,
 			Tls:       identity.TLS,
-			PubKey:    pk,
+			Key:       pk,
 			Signature: identity.Signature,
 		}
 	}
@@ -593,7 +614,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		joiners[i] = &drand.Participant{
 			Address:   identity.Addr,
 			Tls:       identity.TLS,
-			PubKey:    pk,
+			Key:       pk,
 			Signature: identity.Signature,
 		}
 	}

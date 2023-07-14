@@ -1,4 +1,4 @@
-FROM golang:1.19.5-buster AS builder
+FROM --platform=linux/amd64 golang:1.20.1-buster AS builder
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
@@ -16,7 +16,7 @@ RUN make client
 RUN make relay-http
 RUN make relay-gossip
 
-FROM busybox:1-glibc
+FROM --platform=linux/amd64 busybox:1-glibc
 
 ENV GOPATH                 /go
 ENV SRC_PATH               /go/src/github.com/drand/drand
