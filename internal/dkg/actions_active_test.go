@@ -26,7 +26,7 @@ import (
 func TestInitialDKG(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	myKeypair, err := key.NewKeyPair("somebody.com", sch)
+	myKeypair, err := key.NewKeyPair("somebody.com:443", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
@@ -47,7 +47,7 @@ func TestInitialDKG(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
+				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				Joining:              []*drand.Participant{alice, bob, carol},
@@ -66,7 +66,7 @@ func TestInitialDKG(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
+				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				Joining:              []*drand.Participant{alice, bob},
@@ -83,7 +83,7 @@ func TestInitialDKG(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "pedersen-bls-chained",
+				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				Joining:              []*drand.Participant{alice, bob},
@@ -134,7 +134,7 @@ func TestInitialDKG(t *testing.T) {
 func TestReshare(t *testing.T) {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	myKeypair, err := key.NewKeyPair("somebody.com", sch)
+	myKeypair, err := key.NewKeyPair("somebody.com:443", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
@@ -272,7 +272,7 @@ func TestReshare(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
-	myKeypair, err := key.NewKeyPair("somebody.com", sch)
+	myKeypair, err := key.NewKeyPair("somebody.com:443", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)

@@ -59,7 +59,9 @@ func (i *Identity) Hash() []byte {
 // ValidSignature returns true if the signature included in this identity is
 // correct or not
 func (i *Identity) ValidSignature() error {
-	msg := i.Hash()
+	msg := []byte(i.Scheme.Name)
+	// we prepend the scheme name to avoid scheme confusion
+	msg = append(msg, i.Hash()...)
 	return i.Scheme.AuthScheme.Verify(i.Key, msg, i.Signature)
 }
 
@@ -79,7 +81,9 @@ func (i *Identity) Equal(i2 *Identity) bool {
 
 // SelfSign signs the public key with the key pair
 func (p *Pair) SelfSign() error {
-	msg := p.Public.Hash()
+	msg := []byte(p.Public.Scheme.Name)
+	// we prepend the scheme name to avoid scheme confusion
+	msg = append(msg, p.Public.Hash()...)
 	signature, err := p.Public.Scheme.AuthScheme.Sign(p.Key, msg)
 	if err != nil {
 		return err
@@ -248,9 +252,16 @@ func (b ByKey) Less(i, j int) bool {
 
 var ErrInvalidKeyScheme = errors.New("the key's scheme may not match the beacon's scheme")
 
+type protoIdentity interface {
+	GetAddress() string
+	GetKey() []byte
+	GetTls() bool
+	GetSignature() []byte
+}
+
 // IdentityFromProto creates an identity from its wire representation and
 // verifies it validity.
-func IdentityFromProto(n *proto.Identity, targetScheme *crypto.Scheme) (*Identity, error) {
+func IdentityFromProto(n protoIdentity, targetScheme *crypto.Scheme) (*Identity, error) {
 	_, _, err := net.SplitHostPort(n.GetAddress())
 	if err != nil {
 		return nil, err
@@ -266,7 +277,7 @@ func IdentityFromProto(n *proto.Identity, targetScheme *crypto.Scheme) (*Identit
 
 	id := &Identity{
 		Addr:      n.GetAddress(),
-		TLS:       n.Tls,
+		TLS:       n.GetTls(),
 		Key:       public,
 		Signature: n.GetSignature(),
 		Scheme:    targetScheme,

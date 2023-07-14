@@ -133,7 +133,7 @@ func NewRequestInfo(ctx context.Context, upTo uint64, nodes []net.Peer) RequestI
 func (s *SyncManager) Run() {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
-		time.Sleep(time.Second)
+		s.clock.Sleep(time.Second)
 	}
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
@@ -537,7 +537,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	id := addr + "SyncChain"
 
 	logger := l.Named("SyncChain")
-	logger.Infow("Starting SyncChain", "for", addr)
+	logger.Infow("Starting SyncChain", "for", addr, "from", fromRound)
 	defer l.Info("Stopping SyncChain", "for", id)
 
 	beaconID := beaconIDToSync(l, req, addr)

@@ -56,7 +56,7 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 
 	// use that scheme to verify the message came from the alleged author
 	pubPoint := kp.Scheme().KeyGroup.Point()
-	err = pubPoint.UnmarshalBinary(p.PubKey)
+	err = pubPoint.UnmarshalBinary(p.Key)
 	if err != nil {
 		return key.ErrInvalidKeyScheme
 	}

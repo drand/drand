@@ -153,6 +153,11 @@ var outFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_OUT"},
 }
 
+var backupOutFlag = &cli.StringFlag{
+	Name:  "out",
+	Usage: "the filepath to save the backup to",
+}
+
 var periodFlag = &cli.StringFlag{
 	Name:    "period",
 	Usage:   "period to set when doing a setup",
@@ -642,7 +647,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:  "backup",
 				Usage: "backs up the primary drand database to a secondary location.",
-				Flags: toArray(outFlag, controlFlag, beaconIDFlag),
+				Flags: toArray(backupOutFlag, controlFlag, beaconIDFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("backupDBCmd")

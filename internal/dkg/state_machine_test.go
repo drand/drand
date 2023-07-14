@@ -75,9 +75,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				proposal := NewInitialProposal(beaconID, alice)
 				proposal.Remaining = []*drand.Participant{
-					{
-						Address: "somebody.com",
-					},
+					NewParticipant("somebody.com"),
 				}
 				return proposal
 			}(),
@@ -89,9 +87,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				proposal := NewInitialProposal(beaconID, alice)
 				proposal.Leaving = []*drand.Participant{
-					{
-						Address: "somebody.com",
-					},
+					NewParticipant("somebody.com"),
 				}
 				return proposal
 			}(),
@@ -103,9 +99,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				proposal := NewInitialProposal(beaconID, alice)
 				proposal.Joining = []*drand.Participant{
-					{
-						Address: "somebody.com",
-					},
+					NewParticipant("somebody.com"),
 				}
 				return proposal
 			}(),
@@ -118,7 +112,7 @@ func TestProposalValidation(t *testing.T) {
 				proposal := NewValidProposal(beaconID, 2, alice)
 				proposal.Epoch = 2
 				proposal.Joining = []*drand.Participant{
-					{Address: "some-joining-node"},
+					NewParticipant("some-joining-node"),
 				}
 				proposal.Remaining = nil
 				return proposal
@@ -156,9 +150,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				proposal := NewValidProposal(beaconID, 2, alice)
 				proposal.Remaining = []*drand.Participant{
-					{
-						Address: "somebody.com",
-					},
+					NewParticipant("somebody.com"),
 				}
 				return proposal
 			}(),
@@ -182,7 +174,7 @@ func TestProposalValidation(t *testing.T) {
 				invalidProposal := NewValidProposal(beaconID, 2, alice)
 				invalidProposal.Remaining = []*drand.Participant{
 					invalidProposal.Leader,
-					{Address: "a node who didn't exist last time"},
+					NewParticipant("node-who-didnt-exist-last-time"),
 				}
 				return invalidProposal
 			}(),
@@ -194,7 +186,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				invalidProposal := NewValidProposal(beaconID, 2, alice)
 				invalidProposal.Leaving = []*drand.Participant{
-					{Address: "a node who didn't exist last time"},
+					NewParticipant("node-who-didnt-exist-last-time"),
 				}
 				return invalidProposal
 			}(),
@@ -586,7 +578,10 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 		{
 			name: "fresh state can join with a valid proposal",
 			startingState: func() *DBState {
-				s, _ := NewFreshState(beaconID).Proposed(bob, NewInitialProposal(beaconID, alice, bob), &drand.GossipMetadata{Address: alice.Address})
+				s, err := NewFreshState(beaconID).Proposed(bob, NewInitialProposal(beaconID, alice, bob), &drand.GossipMetadata{Address: alice.Address})
+				if err != nil {
+					panic(err)
+				}
 				return s
 			}(),
 			transitionFn: func(in *DBState) (*DBState, error) {
@@ -688,9 +683,7 @@ func TestProposingDKGFromFresh(t *testing.T) {
 			name:          "Proposing a DKG as non-alice returns an error",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
-				someRandomPerson := &drand.Participant{
-					Address: "somebody-that-isnt-me.com",
-				}
+				someRandomPerson := NewParticipant("somebody-that-isnt-me.com")
 
 				return in.Proposing(alice, NewInitialProposal(beaconID, someRandomPerson))
 			},
@@ -1401,8 +1394,8 @@ func TestReceivedAcceptance(t *testing.T) {
 			name:          "receiving an acceptance from somebody who isn't a remainer returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
-				who := drand.Participant{Address: "who is this?!?"}
-				return in.ReceivedAcceptance(&who, &drand.GossipMetadata{Address: who.Address})
+				who := NewParticipant("who-is-this.com")
+				return in.ReceivedAcceptance(who, &drand.GossipMetadata{Address: who.Address})
 			},
 			expectedError: ErrUnknownAcceptor,
 		},
@@ -1493,8 +1486,8 @@ func TestReceivedRejection(t *testing.T) {
 			name:          "receiving a rejection from somebody who isn't a remainer returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
-				who := drand.Participant{Address: "who is this?!?"}
-				return in.ReceivedRejection(&who, &drand.GossipMetadata{Address: who.Address})
+				who := NewParticipant("who-is-this.com")
+				return in.ReceivedRejection(who, &drand.GossipMetadata{Address: who.Address})
 			},
 			expectedError: ErrUnknownRejector,
 		},
@@ -1669,9 +1662,10 @@ func NewParticipant(name string) *drand.Participant {
 	k, _ := key.NewKeyPair(name, sch)
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
-		Address: name,
-		Tls:     false,
-		PubKey:  pk,
+		Address:   name + ":443",
+		Tls:       false,
+		Key:       pk,
+		Signature: k.Public.Signature,
 	}
 }
 

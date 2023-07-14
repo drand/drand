@@ -277,6 +277,9 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheckReturnsErrorForPortNotMatchingKeypair(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := t.TempDir()
@@ -774,8 +777,9 @@ func TestDrandListSchemes(t *testing.T) {
 
 func TestDrandReloadBeacon(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -840,8 +844,9 @@ func TestDrandReloadBeacon(t *testing.T) {
 
 func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -951,8 +956,9 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 
 func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping slow test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1024,8 +1030,9 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 
 func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping slow test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1379,8 +1386,9 @@ func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) [
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -1479,8 +1487,9 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 
 func TestDKGStatusDoesntBlowUp(t *testing.T) {
 	if testing.Short() {
-		t.Skip("Skipping slow test in short mode.")
+		t.Skip("skipping test in short mode.")
 	}
+
 	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)

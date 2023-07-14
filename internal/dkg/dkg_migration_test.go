@@ -43,6 +43,8 @@ func TestEmptyBeaconIDFails(t *testing.T) {
 }
 
 func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
+	sch, _ := crypto.GetSchemeFromEnv()
+
 	// create a new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
@@ -56,7 +58,7 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 		State:          Complete,
 		Threshold:      1,
 		Timeout:        now,
-		SchemeID:       crypto.DefaultSchemeID,
+		SchemeID:       sch.Name,
 		GenesisTime:    now,
 		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: now,
@@ -78,6 +80,7 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 }
 
 func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
+	sch, _ := crypto.GetSchemeFromEnv()
 	// create a new store
 	beaconID := "banana"
 	aDifferentBeaconID := "different-beacon-id"
@@ -92,7 +95,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 		State:          Complete,
 		Threshold:      1,
 		Timeout:        now,
-		SchemeID:       crypto.DefaultSchemeID,
+		SchemeID:       sch.Name,
 		GenesisTime:    now,
 		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: now,
@@ -147,14 +150,14 @@ func TestInvalidMigrationIsNotRetrievable(t *testing.T) {
 }
 
 func fakeShare() *key.Share {
-	sch := crypto.NewPedersenBLSChained()
+	sch, _ := crypto.GetSchemeFromEnv()
 	scalarOne := sch.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
 	return &key.Share{DistKeyShare: dkg.DistKeyShare{Share: s}, Scheme: sch}
 }
 
 func fakeGroup() *key.Group {
-	sch := crypto.NewPedersenBLSChained()
+	sch, _ := crypto.GetSchemeFromEnv()
 	return &key.Group{
 		Threshold:     1,
 		Period:        3,
@@ -179,6 +182,6 @@ func fakeGroup() *key.Group {
 }
 
 func fakePublic() *key.DistPublic {
-	sch := crypto.NewPedersenBLSChained()
+	sch, _ := crypto.GetSchemeFromEnv()
 	return &key.DistPublic{Coefficients: []kyber.Point{sch.KeyGroup.Point()}}
 }
