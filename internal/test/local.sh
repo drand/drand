@@ -32,11 +32,6 @@ if [ "$1" == "-w" ]; then
     wait=1
 fi
 
-if [ -z "${DRAND_SHARE_SECRET}" ]; then
-    err "Please set DRAND_SHARE_SECRET"
-    exit 1
-fi
-
 err "[+] building drand ..."
 go build
 
@@ -122,4 +117,3 @@ for pid in "${bgPIDs[@]}"; do
         wait "${pid}"
     fi
 done
-

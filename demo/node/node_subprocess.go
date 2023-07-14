@@ -297,7 +297,6 @@ func (n *NodeProc) JoinDKG() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, n.binary, args...)
-	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
 	_ = runCommand(cmd)
 	return nil
 }
@@ -372,7 +371,6 @@ func (n *NodeProc) AcceptReshare() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, n.binary, args...)
-	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
 	out := runCommand(cmd)
 
 	fmt.Println(n.priv.Public.Address(), string(out))
