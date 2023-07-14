@@ -51,8 +51,6 @@ type Handler struct {
 	ticker           *ticker
 	thresholdMonitor *metrics.ThresholdMonitor
 
-	killRunInFlight chan bool
-
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
@@ -113,7 +111,6 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 		ctxCancel:        ctxCancel,
 		l:                l,
 		version:          version,
-		killRunInFlight:  make(chan bool),
 		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
 	}
 	return handler, nil
@@ -290,6 +287,7 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
+	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0))
 	h.chain.RunSync(ctx, tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
@@ -306,16 +304,12 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-
-	go h.run(targetTime)
-
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
-	//
-	h.l.Infow("", "transition", "new_group", "at_round", tRound)
+	h.l.Infow("Preparing transition to new group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
@@ -377,14 +371,6 @@ func (h *Handler) Reset(ctx context.Context) {
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 
-	// we cancel the context for any existing handler runs and replace it with a new one
-	select {
-	case <-h.conf.Clock.After(time.Unix(startTime, 0).Sub(h.conf.Clock.Now())):
-		h.killRunInFlight <- true
-	default:
-		h.l.Debugw("", "run_round", "wait", "until", startTime, "now", h.conf.Clock.Now().Unix())
-	}
-
 	var current roundInfo
 	setRunning := sync.Once{}
 
@@ -395,7 +381,6 @@ func (h *Handler) run(startTime int64) {
 
 	for {
 		select {
-		case <-h.killRunInFlight:
 		case <-h.ctx.Done():
 			h.l.Debugw("", "beacon_loop", "finished", "err", h.ctx.Err())
 			return

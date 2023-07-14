@@ -246,6 +246,7 @@ func (bp *BeaconProcess) onDKGCompleted(ctx context.Context, dkgOutput *dkg.Shar
 	return errors.New("failed to join the network during the DKG but somehow got to transition")
 }
 
+// transitionToNext is called by nodes that were in the network and remain in the network after resharing
 func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
 	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
@@ -261,20 +262,9 @@ func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.Sh
 
 	// somehow the beacon process isn't set here sometimes o.O
 	if bp.beacon == nil {
-		b, err := bp.newBeacon(ctx)
-		if err != nil {
-			return err
-		}
-		bp.beacon = b
+		return fmt.Errorf("cannot transitionToNext on a nil beacon handler")
 	}
 	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
-
-	// keep the old beacon running until the `TransitionTime`
-	if err := bp.beacon.Transition(ctx, dkgOutput.Old.FinalGroup); err != nil {
-		bp.log.Errorw("", "sync_before", err)
-	} else {
-		bp.log.Infow("", "transition_new", "done")
-	}
 
 	return err
 }
@@ -313,6 +303,7 @@ func (bp *BeaconProcess) leaveNetwork(ctx context.Context) error {
 	return err
 }
 
+// joinNetwork is called only by new nodes joining a network, not the ones remaining in the network
 func (bp *BeaconProcess) joinNetwork(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
 	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
@@ -330,20 +321,9 @@ func (bp *BeaconProcess) joinNetwork(ctx context.Context, dkgOutput *dkg.Sharing
 		return err
 	}
 
-	b, err := bp.newBeacon(context.Background())
-	if err != nil {
-		bp.log.Fatalw("", "transition", "new_node", "err", err)
-		return err
-	}
-
-	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
-
-	syncError := b.Start(ctx)
-	if syncError != nil {
-		b.Catchup(ctx)
-	}
-
-	return nil
+	// if no previous DKG then it's an initial DKG
+	// else we need to sync and transition at the right time
+	return bp.StartBeacon(ctx, dkgOutput.New.Epoch != 1)
 }
 
 // Stop simply stops all drand operations.

@@ -179,6 +179,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	newGroup, err := ts.RunReshare(t, ts.clock.Now().Add(3*period), ts.nodes, newNodes)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
+	t.Logf("expect transition at time %d", newGroup.TransitionTime)
 
 	for {
 		ts.AdvanceMockClock(t, period)
