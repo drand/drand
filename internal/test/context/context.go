@@ -17,11 +17,7 @@ func PrevSignatureMattersOnContext(t *testing.T, ctx context.Context) (context.C
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
-	prevMatters := true
-	if sch.Name == crypto.UnchainedSchemeID ||
-		sch.Name == crypto.ShortSigSchemeID {
-		prevMatters = false
-	}
+	prevMatters := sch.Name == crypto.DefaultSchemeID
 
 	if prevMatters {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)

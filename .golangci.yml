@@ -15,6 +15,9 @@ issues:
         - gosec
         - nilnil
         - noctx
+        - revive
+    - path: _test\.go
+      text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go
       linters:
         - lll
@@ -31,6 +34,9 @@ issues:
     - path: internal/metrics/threshold_monitor_test.go
       linters:
         - revive # we use named parameters as an example for implementer
+    - path: crypto/schemes.go
+      linters:
+        - dupl # we have explicit scheme instantiations
 #    - path: core/broadcast.go
 #      linters:
 #        - interfacer # Deprecated

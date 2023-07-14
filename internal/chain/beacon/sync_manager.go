@@ -133,7 +133,7 @@ func NewRequestInfo(ctx context.Context, upTo uint64, nodes []net.Peer) RequestI
 func (s *SyncManager) Run() {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
-		time.Sleep(time.Second)
+		s.clock.Sleep(time.Second)
 	}
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
@@ -189,7 +189,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 	defer span.End()
 
 	logger := s.log.Named("pastBeaconCheck")
-	logger.Debugw("Starting to check past beacons", "upTo", upTo)
+	logger.Infow("Starting to check past beacons", "upTo", upTo)
 
 	last, err := s.store.Last(ctx)
 	if err != nil {
@@ -224,7 +224,8 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 
 		b, err := s.store.Get(ctx, i)
 		if err != nil {
-			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
+			// this is not to be logged as an error since the goal here is to detect errors in the store.
+			logger.Infow("unable to fetch from local store", "round", i, "err", err)
 			faultyBeacons = append(faultyBeacons, i)
 			if i >= upTo {
 				break
@@ -233,7 +234,8 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 		}
 		// verify the signature validity
 		if err = s.scheme.VerifyBeacon(b, s.info.PublicKey); err != nil {
-			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
+			// this is not to be logged as an error since the goal here is to detect invalid beacons.
+			logger.Infow("invalid_beacon", "round", b.Round, "err", err)
 			faultyBeacons = append(faultyBeacons, b.Round)
 		} else if i%commonutils.LogsToSkip == 0 { // we do some rate limiting on the logging
 			logger.Debugw("valid_beacon", "round", b.Round)
@@ -244,7 +246,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 		}
 	}
 
-	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
+	logger.Infow("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
 
 	if len(faultyBeacons) > 0 {
 		logger.Warnw("Found invalid beacons in store", "amount", len(faultyBeacons))
@@ -535,7 +537,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	id := addr + "SyncChain"
 
 	logger := l.Named("SyncChain")
-	logger.Infow("Starting SyncChain", "for", addr)
+	logger.Infow("Starting SyncChain", "for", addr, "from", fromRound)
 	defer l.Info("Stopping SyncChain", "for", id)
 
 	beaconID := beaconIDToSync(l, req, addr)

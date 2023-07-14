@@ -22,7 +22,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.19.5'
+          go-version: '1.20.5'
       - uses: actions/cache@v3.2.3
         id: cache
         with:
@@ -49,13 +49,13 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
       - uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.19.5'
+          go-version: '1.20.5'
       - uses: actions/cache@v3.2.3
         id: cache
         with:
@@ -79,13 +79,13 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
       - uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.19.5'
+          go-version: '1.20.5'
       - uses: actions/cache@v3.2.3
         id: cache
         with:
@@ -109,13 +109,13 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3.3.0
       - uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.19.5'
+          go-version: '1.20.5'
       - uses: actions/cache@v3.2.3
         id: cache
         with:
@@ -139,7 +139,7 @@ jobs:
       fail-fast: false
       matrix:
         db_type: [ "boltdb", "memdb", "postgres" ]
-        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1" ]
+        scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     env:
       CI: "true"
     steps:
@@ -147,7 +147,7 @@ jobs:
         uses: actions/checkout@v3.3.0
       - uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.19.5'
+          go-version: '1.20.5'
       - uses: actions/cache@v3.2.3
         id: cache
         with:

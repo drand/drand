@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc"
 
@@ -12,7 +13,7 @@ func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand) 
 	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpcClient.Command: %w", err)
 	}
 	client := drand.NewDKGControlClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
@@ -25,7 +26,7 @@ func (g *grpcClient) Packet(ctx context.Context, p Peer, in *drand.GossipPacket,
 	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpcClient.Packet: %w", err)
 	}
 	client := drand.NewDKGControlClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
@@ -42,7 +43,7 @@ func (g *grpcClient) DKGStatus(
 	var resp *drand.DKGStatusResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpcClient.DKGStatus: %w", err)
 	}
 	client := drand.NewDKGControlClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
@@ -55,7 +56,7 @@ func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPack
 	var resp *drand.EmptyDKGResponse
 	c, err := g.conn(ctx, p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("grpcClient.BroadcastDKG: %w", err)
 	}
 	client := drand.NewDKGControlClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)

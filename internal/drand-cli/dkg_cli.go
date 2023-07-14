@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/internal/util"
 	"os"
 	"strconv"
 	"strings"
@@ -17,11 +16,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/internal/util"
 	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -700,9 +702,32 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		}
 	}
 
+	identityResp, err := client.PublicKey(beaconID)
+	if err != nil {
+		return err
+	}
+	sch, err := crypto.SchemeFromName(identityResp.GetSchemeName())
+	if err != nil {
+		return key.ErrInvalidKeyScheme
+	}
+
+	id, err := key.IdentityFromProto(&drand.Identity{
+		Signature: identityResp.Signature,
+		Tls:       identityResp.Tls,
+		Address:   identityResp.Addr,
+		Key:       identityResp.PubKey,
+	}, sch)
+	if err != nil {
+		return key.ErrInvalidKeyScheme
+	}
+
+	if err = id.ValidSignature(); err != nil {
+		return key.ErrInvalidKeyScheme
+	}
+
 	// we fetch the keys for all the new joiners by calling their node's API
 	for _, joiner := range joiners {
-		p, err := fetchPublicKey(beaconID, l, joiner)
+		p, err := fetchPublicKey(beaconID, l, joiner, sch)
 		if err != nil {
 			return err
 		}
@@ -725,7 +750,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func fetchPublicKey(beaconID string, l log.Logger, address string) (*drand.Participant, error) {
+func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *crypto.Scheme) (*drand.Participant, error) {
 	parts := strings.Split(address, "https://")
 	tls := len(parts) > 1
 	var peer net.Peer
@@ -739,10 +764,26 @@ func fetchPublicKey(beaconID string, l log.Logger, address string) (*drand.Parti
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch public key for %s: %v", address, err)
 	}
-	return &drand.Participant{
+
+	if identity.SchemeName != targetSch.Name {
+		return nil, key.ErrInvalidKeyScheme
+	}
+
+	part := &drand.Participant{
 		Address:   identity.Address,
 		Tls:       identity.Tls,
-		PubKey:    identity.Key,
+		Key:       identity.Key,
 		Signature: identity.Signature,
-	}, nil
+	}
+
+	id, err := key.IdentityFromProto(part, targetSch)
+	if err != nil {
+		return nil, err
+	}
+	l.Debugw("Validating signature for", id.Addr, "scheme", targetSch.Name)
+	if err := id.ValidSignature(); err != nil {
+		return nil, key.ErrInvalidKeyScheme
+	}
+
+	return part, nil
 }
