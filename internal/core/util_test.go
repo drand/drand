@@ -711,7 +711,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 		}
 
 		t.Logf("node %s has not got its beacon chain running yet, waiting some time to ask again...", node.addr)
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
