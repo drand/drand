@@ -222,6 +222,9 @@ func TestDrandDKGFresh(t *testing.T) {
 // 2. Run DKG
 // 3. Run reshare
 func TestRunDKGBroadcastDeny(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	n := 4
 	thr := 3
 	beaconPeriod := 1 * time.Second
@@ -257,6 +260,9 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 // and received the execution kickoff but does not participate in the DKG execution
 // the node should be left out of the group file
 func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	oldNodeCount := 3
 	newNodeCount := 4
 	oldThreshold := 2
@@ -311,6 +317,9 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 // and does not receive the execution message. The DKG should continue regardless and
 // the node should be left out of the final group file
 func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	oldNodeCount := 3
 	newNodeCount := 4
 	oldThreshold := 2
@@ -370,6 +379,9 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 //
 //nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -456,6 +468,9 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 // this aborts a DKG and then runs another straight after successfully
 func TestAbortDKGAndStartANewOne(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	l := testlogger.New(t)
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
@@ -568,8 +583,8 @@ func TestDrandPublicChainInfo(t *testing.T) {
 //
 //nolint:funlen // This is a longer test function
 func TestDrandPublicRand(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("test is flacky in CI")
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
 	}
 	n := 4
 	thr := key.DefaultThreshold(n)
@@ -658,8 +673,8 @@ func TestDrandPublicRand(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandPublicStream(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("test is flacky in CI")
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
 	}
 	n := 4
 	thr := key.DefaultThreshold(n)
@@ -812,6 +827,9 @@ func expectChanFail(t *testing.T, errCh chan error) {
 //
 //nolint:funlen // This is a test function
 func TestDrandFollowChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -937,6 +955,9 @@ func TestDrandFollowChain(t *testing.T) {
 //
 //nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	cfg := Config{}
 	WithTestDB(t, "")[0](&cfg)
 	if cfg.dbStorageEngine == chain.MemDB {
@@ -1086,6 +1107,9 @@ func TestDrandCheckChain(t *testing.T) {
 
 // Test if we can correctly fetch the rounds through the local proxy
 func TestDrandPublicStreamProxy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -1154,6 +1178,9 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 }
 
 func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	ctx := context.Background()
 
 	// set up 3 nodes for a test
@@ -1210,6 +1237,9 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 }
 
 func TestDKGWithMismatchedSchemes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
@@ -1302,6 +1332,9 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 }
 
 func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	period := 1 * time.Second
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, period, beaconID, clockwork.NewFakeClockAt(time.Now()))

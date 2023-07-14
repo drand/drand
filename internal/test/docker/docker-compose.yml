@@ -16,7 +16,6 @@ services:
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:8081 --metrics 0.0.0.0:8083 --tls-disable true
     environment:
       DRAND_PUBLIC_ADDRESS: "drand_0:8080"
-      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkg.Processonthenodes"
 
   drand_1:
     container_name: drand_1
@@ -33,7 +32,6 @@ services:
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8180 --public-listen 0.0.0.0:8181 --metrics 0.0.0.0:8183 --tls-disable true
     environment:
       DRAND_PUBLIC_ADDRESS: "drand_1:8180"
-      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkg.Processonthenodes"
 
   drand_2:
     container_name: drand_2
@@ -50,7 +48,6 @@ services:
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8280 --public-listen 0.0.0.0:8281 --metrics 0.0.0.0:8283 --tls-disable true
     environment:
       DRAND_PUBLIC_ADDRESS: "drand_2:8280"
-      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkg.Processonthenodes"
 
   drand_3:
     container_name: drand_3
@@ -67,7 +64,6 @@ services:
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8380 --public-listen 0.0.0.0:8381 --metrics 0.0.0.0:8383 --tls-disable true
     environment:
       DRAND_PUBLIC_ADDRESS: "drand_3:8380"
-      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkg.Processonthenodes"
 
   drand_4:
     container_name: drand_4
@@ -84,7 +80,6 @@ services:
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8480 --public-listen 0.0.0.0:8481 --metrics 0.0.0.0:8483 --tls-disable true
     environment:
       DRAND_PUBLIC_ADDRESS: "drand_4:8480"
-      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkg.Processonthenodes"
 
   drand_client:
     container_name: drand_client
