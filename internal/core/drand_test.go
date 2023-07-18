@@ -1180,12 +1180,12 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	beacon, ok := <-rc
 	require.True(t, ok, "expected beacon")
 
-	t.Logf("Round received %d\n", beacon.Round())
-	require.Equal(t, beacon.Round(), resp.Round()+1)
+	t.Logf("Round received %d\n", beacon.GetRound())
+	require.Equal(t, beacon.GetRound(), resp.GetRound()+1)
 
 	nTry := 4
 	// we expect the next one now
-	initRound := resp.Round() + 2
+	initRound := resp.GetRound() + 2
 	maxRound := initRound + uint64(nTry)
 	for round := initRound; round < maxRound; round++ {
 		// move time to next period
@@ -1197,8 +1197,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 
 		require.True(t, ok)
 
-		t.Logf("Round received %d\n", beacon.Round())
-		require.Equal(t, round, beacon.Round())
+		t.Logf("Round received %d\n", beacon.GetRound())
+		require.Equal(t, round, beacon.GetRound())
 	}
 }
 

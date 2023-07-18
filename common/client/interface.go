@@ -36,9 +36,9 @@ type Client interface {
 
 // Result represents the randomness for a single drand round.
 type Result interface {
-	Round() uint64
-	Randomness() []byte
-	Signature() []byte
+	GetRound() uint64
+	GetRandomness() []byte
+	GetSignature() []byte
 }
 
 // LoggingClient sets the logger for use by clients that suppport it

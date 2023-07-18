@@ -40,32 +40,6 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
-func TestMigrate(t *testing.T) {
-	tmp := getSBFolderStructure(t)
-
-	args := []string{"drand", "util", "migrate", "--folder", tmp}
-	app := CLI()
-	require.NoError(t, app.Run(args))
-
-	l := testlogger.New(t)
-	config := core.NewConfig(l, core.WithConfigFolder(tmp))
-	defaultBeaconPath := path.Join(config.ConfigFolderMB(), common.DefaultBeaconID)
-
-	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
-	newKeyFilePath := path.Join(defaultBeaconPath, key.FolderName)
-	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
-
-	if !fs.FolderExists(defaultBeaconPath, newGroupFilePath) {
-		t.Errorf("group folder should have been migrated")
-	}
-	if !fs.FolderExists(defaultBeaconPath, newKeyFilePath) {
-		t.Errorf("key folder should have been migrated")
-	}
-	if !fs.FolderExists(defaultBeaconPath, newDBFilePath) {
-		t.Errorf("db folder should have been migrated")
-	}
-}
-
 func TestResetError(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -157,33 +131,6 @@ func TestKeySelfSignError(t *testing.T) {
 	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
 	app := CLI()
 	require.Error(t, app.Run(args))
-}
-
-func TestKeySelfSign(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-	l := testlogger.New(t)
-
-	tmp := path.Join(t.TempDir(), "drand")
-
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
-	require.NoError(t, CLI().Run(args))
-
-	selfSign := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
-	// try self sign, it should only print that it's already the case
-	expectedOutput := "already self signed"
-	testCommand(t, selfSign, expectedOutput)
-
-	// load, remove signature and save
-	config := core.NewConfig(l, core.WithConfigFolder(tmp))
-	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
-
-	pair, err := fileStore.LoadKeyPair(nil)
-	require.NoError(t, err)
-	pair.Public.Signature = nil
-	require.NoError(t, fileStore.SaveKeyPair(pair))
-
-	expectedOutput = "identity self signed"
-	testCommand(t, selfSign, expectedOutput)
 }
 
 func TestKeyGenError(t *testing.T) {
@@ -515,11 +462,11 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	chainInfo, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", address}
+	chainInfoCmd := []string{"drand", "show", "chain-info", "--tls-disable", address}
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	t.Log("Running CHAIN-INFO --HASH command")
-	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", address}
+	chainInfoCmdHash := []string{"drand", "show", "chain-info", "--hash", "--tls-disable", address}
 	expectedOutput = fmt.Sprintf("%x", chain2.NewChainInfo(lg, group).Hash())
 	testCommand(t, chainInfoCmdHash, expectedOutput)
 

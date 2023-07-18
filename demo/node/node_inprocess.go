@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	clock "github.com/jonboulle/clockwork"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/kabukky/httpscerts"
 
-	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -328,34 +328,20 @@ func (l *LocalNode) Ping() bool {
 }
 
 func (l *LocalNode) GetBeacon(_ string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
-	cert := ""
-	if l.tls {
-		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
-	}
-	c, _ := grpc.New(l.log, l.privAddr, cert, cert == "", []byte(""))
-
-	group := l.GetGroup()
-	if group == nil {
-		l.log.Errorw("", "drand", "can't get group")
-		return
-	}
-
-	var err error
-	cmd = "unused"
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	r, err := c.Get(ctx, round)
+	r, err := http.Get(l.pubAddr + fmt.Sprintf("/public/%d", round))
 	if err != nil || r == nil {
 		l.log.Errorw("", "drand", "can't get beacon", "err", err)
 	}
-	if r == nil {
-		return
-	}
-	resp = &drand.PublicRandResponse{
-		Round:      r.Round(),
-		Signature:  r.Signature(),
-		Randomness: r.Randomness(),
-	}
+	panic(r)
+
+	//if r == nil {
+	//	return
+	//}
+	//resp = &drand.PublicRandResponse{
+	//	Round:      r.Round(),
+	//	Signature:  r.Signature(),
+	//	Randomness: r.Randomness(),
+	//}
 	return
 }
 

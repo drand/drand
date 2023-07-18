@@ -378,14 +378,6 @@ func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKe
 	return s.C.PublicKey(c, in)
 }
 
-// PrivateKey gets the node's private key
-func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
-	if s.C == nil {
-		return &control.PrivateKeyResponse{}, nil
-	}
-	return s.C.PrivateKey(c, in)
-}
-
 // ChainInfo gets the current chain information from the ndoe
 func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
 	if s.C == nil {

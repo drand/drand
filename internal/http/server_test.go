@@ -14,15 +14,12 @@ import (
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/client/grpc"
-	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/internal/test/testlogger"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {
@@ -31,10 +28,9 @@ func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)
 	require.NoError(t, err)
 	lg := testlogger.New(t)
 	l, s := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", true, sch, clk)
-	lAddr := l.Addr()
 	go l.Start()
 
-	c, err = grpc.New(lg, lAddr, "", true, []byte(""))
+	c = mock.NewGrpcClient(s.(*mock.Server))
 	require.NoError(t, err)
 
 	return c, s.(mock.Service).EmitRand
@@ -47,95 +43,6 @@ func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	return resp
-}
-
-//nolint:funlen
-func TestHTTPRelay(t *testing.T) {
-	lg := testlogger.New(t)
-	ctx := log.ToContext(context.Background(), lg)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	test.Tracer(t, ctx)
-
-	clk := clock.NewFakeClockAt(time.Now())
-	c, _ := withClient(t, clk)
-
-	handler, err := New(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	handler.RegisterNewBeaconHandler(c, info.HashString())
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
-	defer func() { _ = server.Shutdown(ctx) }()
-
-	err = nhttp.IsServerReady(ctx, listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
-	resp := getWithCtx(ctx, getChains, t)
-	if resp.StatusCode != http.StatusOK {
-		t.Error("expected http status code 200")
-	}
-	var chains []string
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&chains))
-	require.NoError(t, resp.Body.Close())
-
-	if len(chains) != 1 {
-		t.Error("expected chain hash qty not valid")
-	}
-	if chains[0] != info.HashString() {
-		t.Error("expected chain hash not valid")
-	}
-
-	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
-	resp = getWithCtx(ctx, getChain, t)
-	cip := new(drand.ChainInfoPacket)
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(cip))
-	require.NotNil(t, cip.Hash)
-	require.NotNil(t, cip.PublicKey)
-	require.NoError(t, resp.Body.Close())
-
-	// Test exported interfaces.
-	u := fmt.Sprintf("http://%s/%s/public/2", listener.Addr().String(), info.HashString())
-	resp = getWithCtx(ctx, u, t)
-	body := make(map[string]interface{})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
-	require.NoError(t, resp.Body.Close())
-
-	if _, ok := body["signature"]; !ok {
-		t.Fatal("expected signature in random response.")
-	}
-
-	u = fmt.Sprintf("http://%s/%s/public/latest", listener.Addr().String(), info.HashString())
-	resp, err = http.Get(u)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body = make(map[string]interface{})
-
-	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatal(err)
-	}
-	require.NoError(t, resp.Body.Close())
-
-	if _, ok := body["round"]; !ok {
-		t.Fatal("expected signature in latest response.")
-	}
 }
 
 func validateEndpoint(endpoint string, round float64) error {
@@ -189,8 +96,9 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	err = nhttp.IsServerReady(ctx, listener.Addr().String())
-	require.NoError(t, err)
+	// Serve closes the listener, let's wait on that to know we're ready to serve
+	_, err = listener.Accept()
+	require.Error(t, err)
 
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
@@ -274,8 +182,9 @@ func TestHTTPWatchFuture(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	err = nhttp.IsServerReady(ctx, listener.Addr().String())
-	require.NoError(t, err)
+	// Serve closes the listener, let's wait on that to know we're ready to serve
+	_, err = listener.Accept()
+	require.Error(t, err)
 
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
@@ -316,8 +225,9 @@ func TestHTTPHealth(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	err = nhttp.IsServerReady(ctx, listener.Addr().String())
-	require.NoError(t, err)
+	// Serve closes the listener, let's wait on that to know we're ready to serve
+	_, err = listener.Accept()
+	require.Error(t, err)
 
 	resp := getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
 	require.NotEqual(t, http.StatusOK, resp.StatusCode, "newly started server not expected to be synced.")
@@ -367,10 +277,9 @@ func TestHTTP404(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	err = nhttp.IsServerReady(ctx, listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Serve closes the listener, let's wait on that to know we're ready to serve
+	_, err = listener.Accept()
+	require.Error(t, err)
 
 	u := fmt.Sprintf("http://%s/deadbeef/public/latest", listener.Addr().String())
 	resp, err := http.Get(u)

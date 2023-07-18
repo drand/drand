@@ -2,6 +2,7 @@ package drand
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -262,7 +263,11 @@ func showChainInfo(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("could not get correct chain info: %w", err)
 	}
 
-	return printChainInfo(c, ci)
+	if c.Bool(hashOnly.Name) {
+		fmt.Fprintf(c.App.Writer, "%s\n", hex.EncodeToString(ci.Hash()))
+		return nil
+	}
+	return printJSON(c.App.Writer, ci.ToProto(nil))
 }
 
 func showPublicCmd(c *cli.Context, l log.Logger) error {

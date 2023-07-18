@@ -492,41 +492,6 @@ var appCommands = []*cli.Command{
 			return checkMigration(c, l)
 		},
 	},
-
-	{
-		Name: "get",
-		Usage: "get allows for public information retrieval from a remote " +
-			"drand node.\n",
-		Subcommands: []*cli.Command{
-			{
-				Name: "public",
-				Usage: "Get the latest public randomness from the drand " +
-					"beacon and verify it against the collective public key " +
-					"as specified in group.toml. Only one node is contacted by " +
-					"default. This command attempts to connect to the drand " +
-					"beacon via TLS and falls back to plaintext communication " +
-					"if the contacted node has not activated TLS in which case " +
-					"it prints a warning.\n",
-				Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("getPublicRandomness")
-					return getPublicRandomness(c, l)
-				},
-			},
-			{
-				Name:      "chain-info",
-				Usage:     "Get the binding chain information that this node participates to",
-				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("getChainInfo")
-					return getChainInfo(c, l)
-				},
-			},
-		},
-	},
 	{
 		Name:  "util",
 		Usage: "Multiple commands of utility functions, such as reseting a state, checking the connection of a peer...",
@@ -588,17 +553,6 @@ var appCommands = []*cli.Command{
 				},
 			},
 			{
-				Name:  "migrate",
-				Usage: "Migrate folder structure to support multi-beacon drand. You DO NOT have to run it while drand is running.\n",
-				Flags: toArray(folderFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("migrateCmd")
-					return migrateCmd(c, l)
-				},
-				Before: checkArgs,
-			},
-			{
 				Name:  "reset",
 				Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
 				Flags: toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
@@ -630,21 +584,6 @@ var appCommands = []*cli.Command{
 				},
 			},
 			{
-				Name:  "self-sign",
-				Usage: "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
-				Flags: toArray(folderFlag, beaconIDFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("selfSignCmd")
-					return selfSign(c, l)
-				},
-				Before: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("selfSignCmd")
-					return checkMigration(c, l)
-				},
-			},
-			{
 				Name:  "backup",
 				Usage: "backs up the primary drand database to a secondary location.",
 				Flags: toArray(backupOutFlag, controlFlag, beaconIDFlag),
@@ -669,8 +608,7 @@ var appCommands = []*cli.Command{
 			{
 				Name: "group",
 				Usage: "shows the current group.toml used. The group.toml " +
-					"may contain the distributed public key if the DKG has been " +
-					"ran already.\n",
+					"is only available if the DKG was run already.\n",
 				Flags: toArray(outFlag, controlFlag, hashOnly, beaconIDFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).

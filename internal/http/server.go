@@ -258,12 +258,12 @@ func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler, ready chan bool) {
 		b, _ := json.Marshal(next)
 
 		bh.pendingLk.Lock()
-		if bh.latestRound+1 != next.Round() && bh.latestRound != 0 {
+		if bh.latestRound+1 != next.GetRound() && bh.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", bh.latestRound+1, next.Round()))
+			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", bh.latestRound+1, next.GetRound()))
 			b = []byte{}
 		}
-		bh.latestRound = next.Round()
+		bh.latestRound = next.GetRound()
 		pending := bh.pending
 		bh.pending = make([]chan []byte, 0)
 
@@ -486,7 +486,7 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := dateOfRound(resp.Round(), info)
+	roundTime := dateOfRound(resp.GetRound(), info)
 	nextTime := time.Now()
 	next := roundTime.Add(info.Period)
 	if next.After(nextTime) {
