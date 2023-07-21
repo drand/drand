@@ -18,7 +18,6 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/core/migration"
 	"github.com/drand/drand/internal/net"
 	control "github.com/drand/drand/protobuf/drand"
 )
@@ -194,17 +193,6 @@ func statusCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func migrateCmd(c *cli.Context, l log.Logger) error {
-	conf := contextToConfig(c, l)
-
-	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
-		return fmt.Errorf("cannot migrate folder structure, please try again. err: %w", err)
-	}
-
-	fmt.Fprintf(c.App.Writer, "folder structure is now ready to support multi-beacon drand\n")
-	return nil
-}
-
 func schemesCmd(c *cli.Context, l log.Logger) error {
 	client, err := controlClient(c, l)
 	if err != nil {
@@ -333,7 +321,7 @@ func selfSign(c *cli.Context, l log.Logger) error {
 	beaconID := getBeaconID(c)
 
 	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
-	pair, err := fs.LoadKeyPair(nil)
+	pair, err := fs.LoadKeyPair()
 
 	if err != nil {
 		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)

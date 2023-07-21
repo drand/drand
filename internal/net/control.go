@@ -180,13 +180,6 @@ func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, 
 	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{Metadata: &metadata})
 }
 
-// PrivateKey returns the private key of the remote node
-func (c *ControlClient) PrivateKey(beaconID string) (*control.PrivateKeyResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
-}
-
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}

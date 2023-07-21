@@ -58,13 +58,6 @@ func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest
 	return bp.PublicKey(ctx, in)
 }
 
-// PrivateKey is a functionality of Control Service defined in protobuf/control
-// that requests the long term private key of the drand node running locally
-// Deprecated: no need to export secret key to a remote client.
-func (dd *DrandDaemon) PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
-	return nil, fmt.Errorf("deprecated function: exporting the PrivateKey to a remote client is not supported")
-}
-
 // GroupFile replies with the distributed key in the response
 func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	ctx, span := metrics.NewSpan(ctx, "dd.GroupFile")

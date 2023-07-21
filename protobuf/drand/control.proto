@@ -23,8 +23,6 @@ service Control {
   rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
   // PublicKey returns the longterm public key of the drand node
   rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) {}
-  // PrivateKey returns the longterm private key of the drand node
-  rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) {}
   // CollectiveKey returns the distributed public key used by the node
   rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) {}
   // GroupFile returns the TOML-encoded group file
@@ -111,17 +109,6 @@ message PublicKeyResponse {
   string schemeName = 6;
 }
 
-// PrivateKeyRequest requests the private key of a drand node
-message PrivateKeyRequest {
-  common.Metadata metadata = 1;
-}
-
-// PrivateKeyResponse holds the private key of a drand node
-message PrivateKeyResponse {
-  bytes priKey = 2;
-  common.Metadata metadata = 3;
-}
-
 // CokeyRequest requests the collective key of a drand node
 message CokeyRequest {
   common.Metadata metadata = 1;
@@ -156,9 +143,8 @@ message LoadBeaconResponse {
 }
 
 message StartSyncRequest {
-  // hex format
-  // Note: use instead the chain-hash from the metadata field.
-  string info_hash = 1 [deprecated = true];
+  // info_hash was deprecated and later removed in favor of the metadata field
+  reserved 1;
   // nodes to contact to
   repeated string nodes = 2;
   // is TLS enabled on these nodes or not

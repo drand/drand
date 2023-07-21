@@ -28,7 +28,6 @@ const (
 	Control_ListSchemes_FullMethodName      = "/drand.Control/ListSchemes"
 	Control_ListBeaconIDs_FullMethodName    = "/drand.Control/ListBeaconIDs"
 	Control_PublicKey_FullMethodName        = "/drand.Control/PublicKey"
-	Control_PrivateKey_FullMethodName       = "/drand.Control/PrivateKey"
 	Control_ChainInfo_FullMethodName        = "/drand.Control/ChainInfo"
 	Control_GroupFile_FullMethodName        = "/drand.Control/GroupFile"
 	Control_Shutdown_FullMethodName         = "/drand.Control/Shutdown"
@@ -53,8 +52,6 @@ type ControlClient interface {
 	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
-	// PrivateKey returns the longterm private key of the drand node
-	PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error)
 	// CollectiveKey returns the distributed public key used by the node
 	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
 	// GroupFile returns the TOML-encoded group file
@@ -117,15 +114,6 @@ func (c *controlClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequ
 func (c *controlClient) PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error) {
 	out := new(PublicKeyResponse)
 	err := c.cc.Invoke(ctx, Control_PublicKey_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlClient) PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error) {
-	out := new(PrivateKeyResponse)
-	err := c.cc.Invoke(ctx, Control_PrivateKey_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +252,6 @@ type ControlServer interface {
 	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)
-	// PrivateKey returns the longterm private key of the drand node
-	PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error)
 	// CollectiveKey returns the distributed public key used by the node
 	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
 	// GroupFile returns the TOML-encoded group file
@@ -299,9 +285,6 @@ func (UnimplementedControlServer) ListBeaconIDs(context.Context, *ListBeaconIDsR
 }
 func (UnimplementedControlServer) PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublicKey not implemented")
-}
-func (UnimplementedControlServer) PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PrivateKey not implemented")
 }
 func (UnimplementedControlServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
@@ -425,24 +408,6 @@ func _Control_PublicKey_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).PublicKey(ctx, req.(*PublicKeyRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_PrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PrivateKeyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).PrivateKey(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Control_PrivateKey_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).PrivateKey(ctx, req.(*PrivateKeyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -623,10 +588,6 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PublicKey",
 			Handler:    _Control_PublicKey_Handler,
-		},
-		{
-			MethodName: "PrivateKey",
-			Handler:    _Control_PrivateKey_Handler,
 		},
 		{
 			MethodName: "ChainInfo",

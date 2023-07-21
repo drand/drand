@@ -162,17 +162,13 @@ func (p *Pair) FromTOML(i interface{}) error {
 	if !ok {
 		return errors.New("private can't decode toml from non PairTOML struct")
 	}
-	// this is a special "migration path", we use the default scheme if none is provided
-	if p.Public == nil || p.Scheme() == nil {
-		p.Public = new(Identity)
-		sch, err := crypto.GetSchemeByIDWithDefault(ptoml.SchemeName)
-		if err != nil {
-			return err
-		}
-		p.Public.Scheme = sch
+	p.Public = new(Identity)
+	sch, err := crypto.SchemeFromName(ptoml.SchemeName)
+	if err != nil {
+		return err
 	}
-	var err error
-	p.Key, err = StringToScalar(p.Scheme().KeyGroup, ptoml.Key)
+	p.Public.Scheme = sch
+	p.Key, err = StringToScalar(sch.KeyGroup, ptoml.Key)
 
 	return err
 }
@@ -188,16 +184,12 @@ func (i *Identity) FromTOML(t interface{}) error {
 	if !ok {
 		return errors.New("public can't decode from non PublicTOML struct")
 	}
-	// special migration path
-	if i.Scheme == nil {
-		sch, err := crypto.GetSchemeByIDWithDefault(ptoml.SchemeName)
-		if err != nil {
-			return err
-		}
-		i.Scheme = sch
+	sch, err := crypto.GetSchemeByIDWithDefault(ptoml.SchemeName)
+	if err != nil {
+		return err
 	}
-	var err error
-	i.Key, err = StringToPoint(i.Scheme.KeyGroup, ptoml.Key)
+	i.Scheme = sch
+	i.Key, err = StringToPoint(sch.KeyGroup, ptoml.Key)
 	if err != nil {
 		return fmt.Errorf("decoding public key: %w", err)
 	}
@@ -215,7 +207,7 @@ func (i *Identity) TOML() interface{} {
 	var schemeName string
 
 	if i.Scheme == nil {
-		schemeName = crypto.DefaultSchemeID
+		schemeName = "nil scheme"
 	} else {
 		schemeName = i.Scheme.Name
 	}
@@ -341,31 +333,19 @@ func (s *Share) FromTOML(i interface{}) error {
 	}
 	sch, err := crypto.SchemeFromName(t.SchemeName)
 	if err != nil {
-		// we don't handle this error as it is a migration path for unspecified share's scheme
-		sch = nil
+		return err
 	}
-
-	if sch != nil && s.Scheme != nil && sch.Name != s.Scheme.Name {
-		return fmt.Errorf("mismatch in scheme name in Share FromTOML: '%s'!='%s'", t.SchemeName, s.Scheme.Name)
-	}
-
-	if s.Scheme == nil {
-		if sch == nil {
-			return fmt.Errorf("invalid scheme name in Share FromTOML: '%s'", t.SchemeName)
-		}
-		s.Scheme = sch
-	}
-
+	s.Scheme = sch
 	s.Commits = make([]kyber.Point, len(t.Commits))
 	for i, c := range t.Commits {
-		p, err := StringToPoint(s.Scheme.KeyGroup, c)
+		p, err := StringToPoint(sch.KeyGroup, c)
 		if err != nil {
 			return fmt.Errorf("share.Commit[%d] corruputed: %w", i, err)
 		}
 		s.Commits[i] = p
 	}
 
-	sshare, err := StringToScalar(s.Scheme.KeyGroup, t.Share)
+	sshare, err := StringToScalar(sch.KeyGroup, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %w", err)
 	}

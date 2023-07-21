@@ -14,11 +14,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/kabukky/httpscerts"
-	json "github.com/nikkolasg/hexjson"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -29,6 +24,8 @@ import (
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
 )
 
 var secretDKG = "dkgsecret_____________________32"
@@ -104,20 +101,6 @@ func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 	n.isCandidate = isCandidate
 }
 
-func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, error) {
-	l := log.DefaultLogger()
-	defaultManager := drandnet.NewCertManager(l)
-	if err := defaultManager.Add(certPath); err != nil {
-		return nil, err
-	}
-	tlsCredentials := credentials.NewClientTLSFromCert(defaultManager.Pool(), "")
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(tlsCredentials))
-	if err != nil {
-		return nil, err
-	}
-	return drand.NewDKGControlClient(conn), nil
-}
-
 func (n *NodeProc) setup() {
 	var err error
 	// find a free port
@@ -169,7 +152,7 @@ func (n *NodeProc) setup() {
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
-	n.priv, err = n.store.LoadKeyPair(nil)
+	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
 	}
@@ -493,7 +476,7 @@ func (n *NodeProc) PrintLog() {
 }
 
 func (n *NodeProc) Identity() (*drand.Participant, error) {
-	keypair, err := n.store.LoadKeyPair(nil)
+	keypair, err := n.store.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}

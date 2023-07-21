@@ -395,7 +395,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 			return bp, nil
 		}
 
-		share, err := store.LoadShare(g.Scheme)
+		share, err := store.LoadShare()
 		if err != nil {
 			return nil, err
 		}

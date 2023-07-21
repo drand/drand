@@ -216,6 +216,9 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 }
 
 func TestMigrateMissingDKGDatabase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	const nodeCount = 3
 	const thr = 2
 	const period = 1 * time.Second

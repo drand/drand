@@ -478,7 +478,7 @@ type MockDKGClient struct {
 	mock.Mock
 }
 
-func (m *MockDKGClient) Command(context.Context, net.Peer, *drand.DKGCommand, ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+func (m *MockDKGClient) Command(_ context.Context, _ net.Peer, _ *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
 	panic("implement me")
 }
 
@@ -487,11 +487,11 @@ func (m *MockDKGClient) Packet(_ context.Context, _ net.Peer, in *drand.GossipPa
 	return nil, args.Error(0)
 }
 
-func (m *MockDKGClient) DKGStatus(context.Context, net.Peer, *drand.DKGStatusRequest, ...grpc.CallOption) (*drand.DKGStatusResponse, error) {
+func (m *MockDKGClient) DKGStatus(_ context.Context, _ net.Peer, _ *drand.DKGStatusRequest, _ ...grpc.CallOption) (*drand.DKGStatusResponse, error) {
 	panic("implement me")
 }
 
-func (m *MockDKGClient) BroadcastDKG(ctx context.Context, p net.Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+func (m *MockDKGClient) BroadcastDKG(_ context.Context, _ net.Peer, in *drand.DKGPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
 	args := m.Called(in)
 	return nil, args.Error(0)
 }

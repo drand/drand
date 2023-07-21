@@ -97,8 +97,6 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 	return nil
 }
 
-// TODO after merge unchained beacon feature, we should add a new test to
-// TODO run regression with decouplePrevSig on true
 func main() {
 	flag.Parse()
 	n := 5

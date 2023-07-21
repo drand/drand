@@ -79,7 +79,7 @@ func NewBeaconProcess(
 	_, span := metrics.NewSpan(ctx, "dd.NewBeaconProcess")
 	defer span.End()
 
-	priv, err := store.LoadKeyPair(nil)
+	priv, err := store.LoadKeyPair()
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
@@ -125,14 +125,10 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 
 	// this is a migration path to mitigate for the shares being loaded before the group file
-	if bp.priv.Public.Scheme.Name == crypto.DefaultSchemeID && crypto.DefaultSchemeID != bp.group.Scheme.Name {
-		bp.log.Warnw("Invalid public scheme loaded, reloading key with group's scheme",
+	if bp.priv.Public.Scheme.Name != bp.group.Scheme.Name {
+		bp.log.Errorw("Scheme from share and group did not match. Aborting",
 			"priv", bp.priv.Public.Scheme.Name, "group", bp.group.Scheme.Name)
-		// we need to reload the keypair with the correct scheme
-		if bp.priv, err = bp.store.LoadKeyPair(bp.group.Scheme); err != nil {
-			span.RecordError(err)
-			return err
-		}
+		return fmt.Errorf("scheme mismatch for group or share")
 	}
 
 	bp.state.Lock()
@@ -141,7 +137,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
 
-	bp.share, err = bp.store.LoadShare(bp.group.Scheme)
+	bp.share, err = bp.store.LoadShare()
 	if err != nil {
 		span.RecordError(err)
 		return err

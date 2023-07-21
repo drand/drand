@@ -96,8 +96,6 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 }
 
 // this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
-//
-//nolint:funlen
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
 	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()

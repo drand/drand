@@ -154,7 +154,7 @@ func TestKeyGen(t *testing.T) {
 
 	config := core.NewConfig(l, core.WithConfigFolder(tmp))
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
-	priv, err := fileStore.LoadKeyPair(nil)
+	priv, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
 
@@ -165,7 +165,7 @@ func TestKeyGen(t *testing.T) {
 
 	config = core.NewConfig(l, core.WithConfigFolder(tmp2))
 	fileStore = key.NewFileStore(config.ConfigFolderMB(), beaconID)
-	priv, err = fileStore.LoadKeyPair(nil)
+	priv, err = fileStore.LoadKeyPair()
 	require.Error(t, err)
 	require.Nil(t, priv)
 }
@@ -445,10 +445,10 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore, beaconID)
+	testStartedDrandFunctional(t, ctrlPort2, tmpPath, group, fileStore, beaconID)
 }
 
-func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
+func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
 	lg := testlogger.New(t)
 
@@ -462,19 +462,15 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	chainInfo, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
-	chainInfoCmd := []string{"drand", "show", "chain-info", "--tls-disable", address}
+	chainInfoCmd := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	testCommand(t, chainInfoCmd, expectedOutput)
-
-	t.Log("Running CHAIN-INFO --HASH command")
-	chainInfoCmdHash := []string{"drand", "show", "chain-info", "--hash", "--tls-disable", address}
-	expectedOutput = fmt.Sprintf("%x", chain2.NewChainInfo(lg, group).Hash())
-	testCommand(t, chainInfoCmdHash, expectedOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	buffCi, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
+	t.Log("Running CHAIN-INFO --HASH command")
 	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort}
 	expectedOutput = fmt.Sprintf("%x", chain2.NewChainInfo(lg, group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
@@ -487,7 +483,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
-	_, err = fileStore.LoadShare(nil)
+	_, err = fileStore.LoadShare()
 	require.Error(t, err)
 	_, err = fileStore.LoadGroup()
 	require.Error(t, err)

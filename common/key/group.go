@@ -62,7 +62,6 @@ type Group struct {
 func (g *Group) Find(pub *Identity) *Node {
 	for _, pu := range g.Nodes {
 		if pu.Identity.Equal(pub) {
-			// migration path
 			// we have to create a new object to avoid triggering the race detector with the DKG
 			// store which also uses the `Node`s from the group file
 			return &Node{

@@ -32,7 +32,7 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 	bp.state.RLock()
 	defer bp.state.RUnlock()
 
-	keyPair, err := bp.store.LoadKeyPair(nil)
+	keyPair, err := bp.store.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,6 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 	if bp.beacon != nil {
 		beaconStatus.Status = uint32(BeaconInited)
 
-		beaconStatus.IsStarted = bp.beacon.IsStarted()
 		beaconStatus.IsStopped = bp.beacon.IsStopped()
 		beaconStatus.IsRunning = bp.beacon.IsRunning()
 		beaconStatus.IsServing = bp.beacon.IsServing()

@@ -82,7 +82,7 @@ func (d *drandProxy) Close() error {
 	return nil
 }
 
-// streamProxy directly relays mesages of the PublicRandResponse stream.
+// streamProxy directly relays messages of the PublicRandResponse stream.
 type streamProxy struct {
 	ctx      context.Context
 	cancel   context.CancelFunc

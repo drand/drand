@@ -54,12 +54,14 @@ type Handler struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
-	started   bool
-	running   bool
-	serving   bool
-	stopped   bool
-	version   common2.Version
-	l         log.Logger
+	// a handle is running when its main run method is launched
+	running bool
+	// a handler becomes serving once its ticker starts ticking, but not necessarily if catching up
+	serving bool
+	// a handler is really stopped only once
+	stopped bool
+	version common2.Version
+	l       log.Logger
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -225,16 +227,17 @@ func (h *Handler) Store() CallbackStore {
 func (h *Handler) Start(ctx context.Context) error {
 	_, span := metrics.NewSpan(ctx, "h.Handler")
 	defer span.End()
+	h.Lock()
+	if h.stopped {
+		h.Unlock()
+		return fmt.Errorf("a stopped handler cannot be re-started")
+	}
+	h.Unlock()
 
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Errorw("", "genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
-
-	h.Lock()
-	// TODO: do we really need both started and running?
-	h.started = true
-	h.Unlock()
 
 	h.thresholdMonitor.Start()
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -252,10 +255,6 @@ func (h *Handler) Start(ctx context.Context) error {
 func (h *Handler) Catchup(ctx context.Context) {
 	ctx, span := metrics.NewSpan(ctx, "h.Catchup")
 	defer span.End()
-
-	h.Lock()
-	h.started = true
-	h.Unlock()
 
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
@@ -279,10 +278,6 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
-
-	h.Lock()
-	h.started = true
-	h.Unlock()
 
 	go h.run(targetTime)
 
@@ -325,13 +320,6 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 	})
 }
 
-func (h *Handler) IsStarted() bool {
-	h.Lock()
-	defer h.Unlock()
-
-	return h.started
-}
-
 func (h *Handler) IsServing() bool {
 	h.Lock()
 	defer h.Unlock()
@@ -353,33 +341,21 @@ func (h *Handler) IsStopped() bool {
 	return h.stopped
 }
 
-func (h *Handler) Reset(ctx context.Context) {
-	_, span := metrics.NewSpan(ctx, "h.Reset")
-	defer span.End()
-
-	h.Lock()
-	defer h.Unlock()
-
-	h.stopped = false
-	h.started = false
-	h.running = false
-	h.serving = false
-}
-
 // run will wait until it is supposed to start
-//
-//nolint:funlen // This is a long function
 func (h *Handler) run(startTime int64) {
+	h.Lock()
+	// we cannot re-start a stopped handler
+	if h.stopped {
+		return
+	}
+	h.running = true
+	h.Unlock()
+
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Infow("starting handler run", "startTime", startTime, "current time", h.conf.Clock.Now().Unix())
 
 	var current roundInfo
-	setRunning := sync.Once{}
-
-	h.Lock()
-	// TODO: do we really need both started and running?
-	h.running = true
-	h.Unlock()
+	setServing := sync.Once{}
 
 	for {
 		select {
@@ -394,7 +370,7 @@ func (h *Handler) run(startTime int64) {
 					attribute.Int64("round", int64(current.round)),
 				)
 
-				setRunning.Do(func() {
+				setServing.Do(func() {
 					h.Lock()
 					h.serving = true
 					h.Unlock()

@@ -133,7 +133,10 @@ type BeaconTest struct {
 	scheme   *crypto.Scheme
 }
 
-func NewBeaconTest(ctx context.Context, t *testing.T, clock clock.FakeClock, n, thr int, period time.Duration, genesisTime int64, beaconID string) *BeaconTest {
+func NewBeaconTest(
+	ctx context.Context, t *testing.T, c clock.FakeClock,
+	n, thr int, period time.Duration,
+	genesisTime int64, beaconID string) *BeaconTest {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	prefix := t.TempDir()
@@ -158,7 +161,7 @@ func NewBeaconTest(ctx context.Context, t *testing.T, clock clock.FakeClock, n, 
 		group:    group,
 		dpublic:  group.PublicKey.PubPoly(sch).Commit(),
 		nodes:    make(map[int]*node),
-		time:     clock,
+		time:     c,
 	}
 
 	for i := 0; i < n; i++ {
@@ -510,14 +513,12 @@ func TestBeaconSimple(t *testing.T) {
 	for i := 0; i < n; i++ {
 		bt.nodes[i].handler.Lock()
 
-		started := bt.nodes[i].handler.started
 		running := bt.nodes[i].handler.running
 		serving := bt.nodes[i].handler.serving
 		stopped := bt.nodes[i].handler.stopped
 
 		bt.nodes[i].handler.Unlock()
 
-		require.True(t, started, "handler %d has started?", i)
 		require.True(t, running, "handler %d has run?", i)
 		require.False(t, serving, "handler %d has served?", i)
 		require.False(t, stopped, "handler %d has stopped?", i)

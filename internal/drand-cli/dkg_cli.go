@@ -762,7 +762,7 @@ func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *cr
 	client := net.NewGrpcClient(l)
 	identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch public key for %s: %v", address, err)
+		return nil, fmt.Errorf("could not fetch public key for %s: %w", address, err)
 	}
 
 	if identity.SchemeName != targetSch.Name {

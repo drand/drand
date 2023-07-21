@@ -27,7 +27,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	// test loading saving private public key
 	ps[0].Public.TLS = true
 	require.NoError(t, store.SaveKeyPair(ps[0]))
-	loadedKey, err := store.LoadKeyPair(nil)
+	loadedKey, err := store.LoadKeyPair()
 	require.NoError(t, err)
 
 	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
@@ -70,7 +70,7 @@ func TestKeysSaveLoad(t *testing.T) {
 		Scheme: group.Scheme,
 	}
 	require.Nil(t, store.SaveShare(testShare))
-	loadedShare, err := store.LoadShare(group.Scheme)
+	loadedShare, err := store.LoadShare()
 
 	require.NoError(t, err)
 	require.Equal(t, testShare.Share.V, loadedShare.Share.V)

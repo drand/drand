@@ -60,8 +60,8 @@ func validateEndpoint(endpoint string, round float64) error {
 	if err := resp.Body.Close(); err != nil {
 		return err
 	}
-	if body["round"].(float64) != round {
-		return fmt.Errorf("wrong response round number: %v", body)
+	if rep, ok := body["Round"].(float64); !ok || rep != round {
+		return fmt.Errorf("wrong response round number (!%f): %v", round, body)
 	}
 	return nil
 }
@@ -96,9 +96,7 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	// Serve closes the listener, let's wait on that to know we're ready to serve
-	_, err = listener.Accept()
-	require.Error(t, err)
+	time.Sleep(50 * time.Millisecond)
 
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
@@ -182,9 +180,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	// Serve closes the listener, let's wait on that to know we're ready to serve
-	_, err = listener.Accept()
-	require.Error(t, err)
+	time.Sleep(50 * time.Millisecond)
 
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
@@ -225,9 +221,7 @@ func TestHTTPHealth(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	// Serve closes the listener, let's wait on that to know we're ready to serve
-	_, err = listener.Accept()
-	require.Error(t, err)
+	time.Sleep(50 * time.Millisecond)
 
 	resp := getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
 	require.NotEqual(t, http.StatusOK, resp.StatusCode, "newly started server not expected to be synced.")
@@ -277,9 +271,8 @@ func TestHTTP404(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	// Serve closes the listener, let's wait on that to know we're ready to serve
-	_, err = listener.Accept()
-	require.Error(t, err)
+	// wait to know we're ready to serve
+	time.Sleep(50 * time.Millisecond)
 
 	u := fmt.Sprintf("http://%s/deadbeef/public/latest", listener.Addr().String())
 	resp, err := http.Get(u)
