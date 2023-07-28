@@ -15,18 +15,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common"
-	dkg3 "github.com/drand/drand/protobuf/crypto/dkg"
+	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	chain2 "github.com/drand/drand/common/chain"
+	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	derrors "github.com/drand/drand/internal/chain/errors"
-	dkg2 "github.com/drand/drand/internal/dkg"
+	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
 	context2 "github.com/drand/drand/internal/test/context"
@@ -505,7 +505,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 				BeaconID: beaconID,
 			})
 			require.NoError(t, err)
-			require.Equal(t, uint32(dkg2.Aborted), leaderStatus.Current.State)
+			require.Equal(t, uint32(dkg.Aborted), leaderStatus.Current.State)
 			require.Equal(t, uint32(1), leaderStatus.Complete.Epoch)
 
 			time.Sleep(1 * time.Second)
@@ -517,7 +517,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 				BeaconID: beaconID,
 			})
 			require.NoError(t, err)
-			require.Equal(t, uint32(dkg2.Aborted), followerStatus.Current.State)
+			require.Equal(t, uint32(dkg.Aborted), followerStatus.Current.State)
 			require.Equal(t, uint32(1), followerStatus.Complete.Epoch)
 		},
 	}
@@ -552,7 +552,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	lg := testlogger.New(t)
-	chainInfo := chain2.NewChainInfo(lg, group)
+	chainInfo := public.NewChainInfo(lg, group)
 	certManager := dt.nodes[0].drand.opts.certmanager
 	client := NewGrpcClientFromCert(lg, chainInfo.Hash(), certManager)
 
@@ -570,13 +570,13 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	for i, node := range dt.nodes {
 		var found bool
 		addr := node.addr
-		public := node.drand.priv.Public
+		pubAddr := node.drand.priv.Public
 
 		// Looking for node i inside the group file
 		for _, n := range group.Nodes {
 			sameAddr := n.Address() == addr
-			sameKey := n.Key.Equal(public.Key)
-			sameTLS := n.IsTLS() == public.TLS
+			sameKey := n.Key.Equal(pubAddr.Key)
+			sameTLS := n.IsTLS() == pubAddr.TLS
 
 			if sameAddr && sameKey && sameTLS {
 				found = true
@@ -892,7 +892,7 @@ func TestDrandFollowChain(t *testing.T) {
 	require.NoError(t, err)
 
 	addrToFollow := []string{rootID.Address()}
-	hash := fmt.Sprintf("%x", chain2.NewChainInfo(testlogger.New(t), group).Hash())
+	hash := fmt.Sprintf("%x", public.NewChainInfo(testlogger.New(t), group).Hash())
 	tls := true
 
 	// First try with an invalid hash info
@@ -1037,7 +1037,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Next trying with a fully valid chain
 	cancel()
 	ctx, cancel = context.WithCancel(context.Background())
-	hash := fmt.Sprintf("%x", chain2.NewChainInfo(testlogger.New(t), group).Hash())
+	hash := fmt.Sprintf("%x", public.NewChainInfo(testlogger.New(t), group).Hash())
 	addrToFollow := []string{rootID.Address()}
 	upTo := uint64(5)
 
@@ -1271,10 +1271,10 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 	sch := *scenario.scheme
 
 	// to dedupe it when we're running the tests with different default schemes
-	if sch.Name == crypto.ShortSigSchemeID {
+	if sch.Name == crypto.SigsOnG1ID {
 		scenario.scheme = crypto.NewPedersenBLSChained()
 	} else {
-		scenario.scheme = crypto.NewPedersenBLSUnchainedSwapped()
+		scenario.scheme = crypto.NewPedersenBLSUnchainedG1()
 	}
 
 	// we need to use the SCHEME_ID variable to generate keys properly in tests.
@@ -1319,9 +1319,9 @@ func TestDKGPacketWithoutMetadata(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = scenario.nodes[0].daemon.BroadcastDKG(context.Background(), &drand.DKGPacket{
-		Dkg: &dkg3.Packet{
-			Bundle: &dkg3.Packet_Deal{
-				Deal: &dkg3.DealBundle{
+		Dkg: &pdkg.Packet{
+			Bundle: &pdkg.Packet_Deal{
+				Deal: &pdkg.DealBundle{
 					DealerIndex: 1,
 					Commits:     nil,
 					Deals:       nil,

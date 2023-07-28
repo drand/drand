@@ -69,7 +69,7 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	return response, nil
 }
 
-// a proxy type so public streaming request can use the same logic as in priate
+// a proxy type so public streaming request can use the same logic as in private
 // / protocol syncing request, even though the types differ, so it prevents
 // changing the protobuf structs.
 type proxyRequest struct {

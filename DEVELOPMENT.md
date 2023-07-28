@@ -4,7 +4,7 @@ If you are reading this, it means you are about to work on the codebase.
 
 ## Table of Contents
 - [Getting started](#getting-started)
-  - [Installing dependencies](#installing-dependencies) 
+  - [Installing dependencies](#installing-dependencies)
   - [Development flow](#development-flow)
 
 ## Getting started
@@ -13,7 +13,7 @@ If you are reading this, it means you are about to work on the codebase.
 
 To start, you'll need to run a few commands to make sure you have the
 correct development environment tools installed:
- 
+
 - `make install_deps_<os>` where `<os>` can be `linux` or `macos`. This will install the proto compiler under `/usr/local/bin/protoc`.
 - `make install_lint`. This will install `golangci-lint` at the version used during Drand's development.
 - `make build_proto`. This will compile the project's proto files.
@@ -60,7 +60,7 @@ Drand can produce traces compatible with OpenTelemetry specification. To turn on
 environment varible to the desired destination, e.g.
 ```shell
 export DRAND_TRACES=127.0.0.1:4317
-export DRAND_TRACES_PROBABILITY=1 # This will sample all traces to the destination server 
+export DRAND_TRACES_PROBABILITY=1 # This will sample all traces to the destination server
 ```
 
 After that, in the same terminal, use any of the drand features, such as `make test-unit-memdb`, to start producing traces.
@@ -83,7 +83,7 @@ You can also run regression testing, see [the section below](#regression-testing
 
 ### Testing with Docker Compose
 
-To test changes using Docker Compose, navigate to [Docker Readme](test/docker/README.md) and follow the steps described there.
+To test changes using Docker Compose, navigate to [Docker Readme](internal/test/docker/README.md) and follow the steps described there.
 
 #### Testing with in-memory storage as database backend
 

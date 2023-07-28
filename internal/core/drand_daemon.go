@@ -323,12 +323,12 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(ctx context.Context, metricsFlag stri
 	metricsHandlers := make([]metrics.Handler, 0, len(stores))
 
 	startedAtLeastOne := false
-	for beaconID, fs := range stores {
+	for beaconID, fileStore := range stores {
 		if singleBeacon && singleBeaconName != beaconID {
 			continue
 		}
 
-		bp, err := dd.LoadBeaconFromStore(ctx, beaconID, fs)
+		bp, err := dd.LoadBeaconFromStore(ctx, beaconID, fileStore)
 		if err != nil {
 			span.RecordError(err)
 			return err

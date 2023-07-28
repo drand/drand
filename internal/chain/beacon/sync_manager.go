@@ -13,7 +13,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	commonutils "github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
+	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
@@ -36,7 +36,7 @@ type SyncManager struct {
 	store     chain.Store
 	// insecureStore will store beacons without doing any checks
 	insecureStore chain.Store
-	info          *chain2.Info
+	info          *public.Info
 	client        net.ProtocolClient
 	// to verify the incoming beacon according to chain scheme
 	scheme *crypto.Scheme
@@ -67,7 +67,7 @@ type SyncConfig struct {
 	Clock       cl.Clock
 	Store       chain.Store
 	BoltdbStore chain.Store
-	Info        *chain2.Info
+	Info        *public.Info
 	NodeAddr    string
 }
 

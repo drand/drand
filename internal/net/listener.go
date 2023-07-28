@@ -159,10 +159,6 @@ func buildTLSServer(httpHandler http.Handler, x509KeyPair *tls.Certificate) *htt
 		TLSConfig: &tls.Config{
 			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
 
-			// Causes servers to use Go's default ciphersuite preferences,
-			// which are tuned to avoid attacks. Does nothing on clients.
-			PreferServerCipherSuites: true,
-
 			// Only use curves which have assembly implementations
 			CurvePreferences: []tls.CurveID{
 				tls.CurveP256,

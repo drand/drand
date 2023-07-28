@@ -5,10 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"os"
 	"time"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
@@ -88,27 +85,4 @@ func (c *Info) Equal(c2 *Info) bool {
 // GetSchemeName returns the scheme name used
 func (c *Info) GetSchemeName() string {
 	return c.Scheme
-}
-
-// InfoFromGroupTOML reads a drand group TOML file and returns the chain info.
-func InfoFromGroupTOML(l log.Logger, filePath string) (*Info, error) {
-	gt := &key.GroupTOML{}
-	_, err := toml.DecodeFile(filePath, gt)
-	if err != nil {
-		return nil, err
-	}
-	g := &key.Group{}
-	err = g.FromTOML(gt)
-	if err != nil {
-		return nil, err
-	}
-	return NewChainInfo(l, g), nil
-}
-
-func InfoFromChainInfoJSON(filePath string) (*Info, error) {
-	b, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	return InfoFromJSON(bytes.NewBuffer(b))
 }

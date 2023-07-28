@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	common2 "github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common"
+	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	dlog "github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -23,7 +23,7 @@ import (
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/common"
+	pbCommon "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -51,7 +51,7 @@ type BeaconProcess struct {
 	share *key.Share
 
 	// version indicates the base code variant
-	version common2.Version
+	version common.Version
 
 	// general logger
 	log dlog.Logger
@@ -91,11 +91,11 @@ func NewBeaconProcess(
 	}
 
 	bp := &BeaconProcess{
-		beaconID:      common2.GetCanonicalBeaconID(beaconID),
+		beaconID:      common.GetCanonicalBeaconID(beaconID),
 		store:         store,
 		log:           log,
 		priv:          priv,
-		version:       common2.GetAppVersion(),
+		version:       common.GetAppVersion(),
 		opts:          opts,
 		privGateway:   privGateway,
 		pubGateway:    pubGateway,
@@ -132,7 +132,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 
 	bp.state.Lock()
-	info := chain2.NewChainInfo(bp.log, bp.group)
+	info := public.NewChainInfo(bp.log, bp.group)
 	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
@@ -270,7 +270,7 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 	defer bp.state.Unlock()
 	bp.group = group
 	bp.share = share
-	bp.chainHash = chain2.NewChainInfo(bp.log, bp.group).Hash()
+	bp.chainHash = public.NewChainInfo(bp.log, bp.group).Hash()
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {
@@ -358,7 +358,7 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 	ctx, span := metrics.NewSpan(ctx, "bp.createDBStore")
 	defer span.End()
 
-	beaconName := common2.GetCanonicalBeaconID(bp.beaconID)
+	beaconName := common.GetCanonicalBeaconID(bp.beaconID)
 	var dbStore chain.Store
 	var err error
 
@@ -483,8 +483,8 @@ func (bp *BeaconProcess) getChainHash() []byte {
 	return bp.chainHash
 }
 
-func (bp *BeaconProcess) newMetadata() *common.Metadata {
-	metadata := common.NewMetadata(bp.version.ToProto())
+func (bp *BeaconProcess) newMetadata() *pbCommon.Metadata {
+	metadata := pbCommon.NewMetadata(bp.version.ToProto())
 	metadata.BeaconID = bp.getBeaconID()
 
 	if hash := bp.getChainHash(); len(hash) > 0 {
@@ -555,19 +555,19 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	return err
 }
 
-func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (common2.Beacon, error) {
+func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (common.Beacon, error) {
 	ctx, span := metrics.NewSpan(ctx, "bp.loadBeaconFromPeers")
 	defer span.End()
 
 	select {
 	case <-ctx.Done():
-		return common2.Beacon{}, ctx.Err()
+		return common.Beacon{}, ctx.Err()
 	default:
 	}
 
 	type answer struct {
 		peer net.Peer
-		b    common2.Beacon
+		b    common.Beacon
 		err  error
 	}
 
@@ -584,10 +584,10 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 	for _, peer := range peers {
 		go func(peer net.Peer) {
-			b := common2.Beacon{}
+			b := common.Beacon{}
 			r, err := bp.privGateway.PublicRand(ctxFind, peer, &prr)
 			if err == nil && r != nil {
-				b = common2.Beacon{
+				b = common.Beacon{
 					PreviousSig: r.PreviousSignature,
 					Round:       r.Round,
 					Signature:   r.Signature,
@@ -609,13 +609,13 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 			return ans.b, nil
 		case <-ctxFind.Done():
-			return common2.Beacon{}, ctxFind.Err()
+			return common.Beacon{}, ctxFind.Err()
 		case <-ctx.Done():
-			return common2.Beacon{}, ctx.Err()
+			return common.Beacon{}, ctx.Err()
 		}
 	}
 
-	return common2.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
+	return common.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 }
 
 func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {

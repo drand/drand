@@ -5,7 +5,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
@@ -38,7 +38,7 @@ func NewGrpcClientFromCert(lg log.Logger, chainHash []byte, c *net.CertManager, 
 }
 
 // ChainInfo returns the chain info as reported by the given peer.
-func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain2.Info, error) {
+func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain.Info, error) {
 	ctx, span := metrics.NewSpan(ctx, "c.ChainInfo")
 	defer span.End()
 
@@ -48,5 +48,5 @@ func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain2.Info, error
 		return nil, err
 	}
 
-	return chain2.InfoFromProto(resp)
+	return chain.InfoFromProto(resp)
 }

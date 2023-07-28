@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	common2 "github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
+	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
@@ -507,7 +507,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Peer) (*chain2.Info, error) {
+func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Peer) (*public.Info, error) {
 	ctx, span := metrics.NewSpan(ctx, "bp.chainInfoFromPeers")
 	defer span.End()
 
@@ -522,7 +522,7 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 	request := new(drand.ChainInfoRequest)
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 
-	var info *chain2.Info
+	var info *public.Info
 	var err error
 	for _, peer := range peers {
 		var ci *drand.ChainInfoPacket
@@ -531,7 +531,7 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 			logger.Errorw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
 		}
-		info, err = chain2.InfoFromProto(ci)
+		info, err = public.InfoFromProto(ci)
 		if err != nil {
 			logger.Errorw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
 			continue
@@ -549,7 +549,7 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 func (bp *BeaconProcess) sendProgressCallback(
 	ctx context.Context,
 	stream drand.Control_StartFollowChainServer,
-	upTo uint64, info *chain2.Info,
+	upTo uint64, info *public.Info,
 	clk clock.Clock,
 ) (cb beacon.CallbackFunc, done chan struct{}) {
 	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
