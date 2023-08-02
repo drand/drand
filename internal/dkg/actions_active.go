@@ -252,14 +252,17 @@ func (d *Process) StartExecute(
 		return nil, nil, err
 	}
 
-	err = d.executeDKG(ctx, beaconID)
+	kickoffTime := time.Now().Add(d.config.KickoffGracePeriod)
+	err = d.executeDKG(ctx, beaconID, kickoffTime)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return nextState, &drand.GossipPacket{
 		Packet: &drand.GossipPacket_Execute{
-			Execute: &drand.StartExecution{},
+			Execute: &drand.StartExecution{
+				Time: timestamppb.New(kickoffTime),
+			},
 		},
 	}, nil
 }

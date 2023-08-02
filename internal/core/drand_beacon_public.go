@@ -137,7 +137,7 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoReques
 	chainHash := bp.chainHash
 	bp.state.RUnlock()
 	if group == nil || len(chainHash) == 0 {
-		return nil, errors.New("no dkg group setup yet")
+		return nil, ErrNoGroupSetup
 	}
 
 	response := chain2.NewChainInfo(bp.log, group).ToProto(bp.newMetadata())
