@@ -19,7 +19,7 @@ import (
 	"github.com/drand/kyber/sign/schnorr"
 )
 
-func (d *Process) executeDKG(ctx context.Context, beaconID string) error {
+func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStartTime time.Time) error {
 	// set up the DKG broadcaster for first so we're ready to broadcast DKG messages
 	dkgConfig, err := d.setupDKG(ctx, beaconID)
 	if err != nil {
@@ -29,8 +29,9 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string) error {
 	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
 
 	go func(config dkg.Config) {
-		// wait for `KickOffGracePeriod` to allow other nodes to set up their broadcasters
-		time.Sleep(d.config.KickoffGracePeriod)
+		// wait until the time set by the leader for kicking off the DKG to allow other nodes to get
+		// the requisite packets
+		time.Sleep(time.Until(executionStartTime))
 		err := d.executeAndFinishDKG(ctx, beaconID, config)
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
@@ -134,15 +135,15 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 			return err
 		}
 
+		err = d.store.SaveFinished(beaconID, finalState)
+		if err != nil {
+			return err
+		}
+
 		d.completedDKGs <- SharingOutput{
 			BeaconID: beaconID,
 			Old:      lastCompleted,
 			New:      *finalState,
-		}
-
-		err = d.store.SaveFinished(beaconID, finalState)
-		if err != nil {
-			return err
 		}
 
 		d.log.Infow("DKG completed successfully!", "beaconID", beaconID, "epoch", finalState.Epoch)
