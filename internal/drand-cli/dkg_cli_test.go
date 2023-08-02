@@ -54,6 +54,10 @@ func TestDKGPrintModelConversion(t *testing.T) {
 	require.Equal(t, "[\n\talice,\n\tbob,\n\tcarol,\n]", printModel.FinalGroup)
 }
 
+func TestNilDoesntPanic(t *testing.T) {
+	require.Equal(t, convert(nil), printModel{})
+}
+
 func NewParticipant(name string) *drand.Participant {
 	sch, _ := crypto.GetSchemeFromEnv()
 	k, _ := key.NewKeyPair(name, sch)
