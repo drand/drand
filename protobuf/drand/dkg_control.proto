@@ -138,6 +138,7 @@ message AbortDKG {
 }
 
 message StartExecution {
+  google.protobuf.Timestamp time = 1;
 }
 
 message DKGStatusRequest {
