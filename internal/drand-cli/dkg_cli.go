@@ -33,7 +33,7 @@ var dkgCommand = &cli.Command{
 	Usage: "Commands for interacting with the DKG",
 	Subcommands: []*cli.Command{
 		{
-			Name: "propose",
+			Name: "init",
 			Flags: toArray(
 				beaconIDFlag,
 				controlFlag,
@@ -42,14 +42,30 @@ var dkgCommand = &cli.Command{
 				thresholdFlag,
 				catchupPeriodFlag,
 				proposalFlag,
-				secretFlag,
+				dkgTimeoutFlag,
+				genesisTimeFlag,
+			),
+			Action: func(c *cli.Context) error {
+				l := log.New(nil, logLevel(c), logJSON(c)).
+					Named("dkgInit")
+				return dkgInit(c, l)
+			},
+		},
+		{
+			Name: "reshare",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+				thresholdFlag,
+				catchupPeriodFlag,
+				proposalFlag,
 				dkgTimeoutFlag,
 				transitionTimeFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
-					Named("dkgPropose")
-				return makeProposal(c, l)
+					Named("dkgReshare")
+				return dkgReshare(c, l)
 			},
 		},
 		{
@@ -152,6 +168,11 @@ var formatFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_STATUS_FORMAT"},
 }
 
+var genesisTimeFlag = &cli.StringFlag{
+	Name:  "genesis-time",
+	Usage: "The duration from now until the network should start creating randomness",
+}
+
 var transitionTimeFlag = &cli.StringFlag{
 	Name:  "transition-time",
 	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
@@ -163,7 +184,7 @@ var dkgTimeoutFlag = &cli.StringFlag{
 	Value: "24h",
 }
 
-func makeProposal(c *cli.Context, l log.Logger) error {
+func dkgInit(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 	client, err := net.NewDKGControlClient(l, controlPort)
 	if err != nil {
@@ -172,44 +193,52 @@ func makeProposal(c *cli.Context, l log.Logger) error {
 
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 
-	if isInitialProposal(c) {
-		proposal, err := parseInitialProposal(c)
-		if err != nil {
-			return err
-		}
-
-		_, err = client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Initial{Initial: proposal},
-			Metadata: &drand.CommandMetadata{
-				BeaconID: beaconID,
-			},
-		})
-		if err != nil {
-			return err
-		}
-	} else {
-		proposal, err := parseProposal(c, l)
-		if err != nil {
-			return err
-		}
-
-		_, err = client.Command(c.Context, &drand.DKGCommand{
-			Command: &drand.DKGCommand_Resharing{Resharing: proposal},
-			Metadata: &drand.CommandMetadata{
-				BeaconID: beaconID,
-			},
-		})
-		if err != nil {
-			return fmt.Errorf("proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
-		}
+	proposal, err := parseInitialProposal(c)
+	if err != nil {
+		return err
 	}
 
-	fmt.Println("Proposal made successfully!")
+	_, err = client.Command(c.Context, &drand.DKGCommand{
+		Command: &drand.DKGCommand_Initial{Initial: proposal},
+		Metadata: &drand.CommandMetadata{
+			BeaconID: beaconID,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("DKG proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
+	}
+
+	fmt.Println("DKG initialised successfully!")
+
 	return nil
 }
 
-func isInitialProposal(c *cli.Context) bool {
-	return c.IsSet(schemeFlag.Name)
+func dkgReshare(c *cli.Context, l log.Logger) error {
+	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
+	client, err := net.NewDKGControlClient(l, controlPort)
+	if err != nil {
+		return err
+	}
+
+	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
+
+	proposal, err := parseProposal(c, l)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Command(c.Context, &drand.DKGCommand{
+		Command: &drand.DKGCommand_Resharing{Resharing: proposal},
+		Metadata: &drand.CommandMetadata{
+			BeaconID: beaconID,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("reshare proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
+	}
+
+	fmt.Println("Reshare proposed successfully!")
+	return nil
 }
 
 func withDefault(first, second string) string {
@@ -221,7 +250,7 @@ func withDefault(first, second string) string {
 }
 
 func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
-	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, transitionTimeFlag}
+	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, genesisTimeFlag}
 
 	for _, flag := range requiredFlags {
 		if !c.IsSet(flag.Name) {
@@ -247,7 +276,7 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	period := c.Duration(periodFlag.Name)
 	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
 
-	genesisTime := time.Now().Add(c.Duration(transitionTimeFlag.Name))
+	genesisTime := time.Now().Add(c.Duration(genesisTimeFlag.Name))
 
 	return &drand.FirstProposalOptions{
 		Timeout:              timestamppb.New(timeout),
