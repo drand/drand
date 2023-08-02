@@ -542,6 +542,9 @@ type printModel struct {
 }
 
 func convert(entry *drand.DKGEntry) printModel {
+	if entry == nil {
+		return printModel{}
+	}
 	formatAddresses := func(arr []*drand.Participant) string {
 		if len(arr) == 0 {
 			return "[]"
@@ -653,7 +656,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 
 	if err != nil {
 		// if it's a fresh start, we'll take a different path
-		if errors.Is(err, core.ErrNoGroupSetup) {
+		if strings.Contains(err.Error(), core.ErrNoGroupSetup.Error()) {
 			freshStart = true
 		} else {
 			return err
