@@ -44,7 +44,6 @@ type Orchestrator struct {
 	basePath          string
 	groupPath         string
 	newGroupPath      string
-	certFolder        string
 	nodes             []node.Node
 	paths             []string
 	newNodes          []node.Node
@@ -54,7 +53,6 @@ type Orchestrator struct {
 	group             *key.Group
 	newGroup          *key.Group
 	reshareNodes      []node.Node
-	tls               bool
 	withCurl          bool
 	isBinaryCandidate bool
 	binary            string
@@ -70,10 +68,7 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 
 	fmt.Printf("[+] Simulation global folder: %s\n", c.BasePath)
 	checkErr(os.MkdirAll(c.BasePath, 0o740))
-	c.CertFolder = path.Join(c.BasePath, "certs")
 	c.BeaconID = common.GetCanonicalBeaconID(c.BeaconID)
-
-	checkErr(os.MkdirAll(c.CertFolder, 0o740))
 	nodes, paths := createNodes(c)
 
 	periodD, err := time.ParseDuration(c.Period)
@@ -89,8 +84,6 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 		periodD:           periodD,
 		nodes:             nodes,
 		paths:             paths,
-		certFolder:        c.CertFolder,
-		tls:               c.WithTLS,
 		withCurl:          c.WithCurl,
 		binary:            c.Binary,
 		isBinaryCandidate: c.IsCandidate,
@@ -115,7 +108,7 @@ func (e *Orchestrator) startNodes(nodes []node.Node) error {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, n := range nodes {
 		fmt.Printf("\t- Starting node %s\n", n.PrivateAddr())
-		err := n.Start(e.certFolder, e.dbEngineType, e.pgDSN, e.memDBSize)
+		err := n.Start(e.dbEngineType, e.pgDSN, e.memDBSize)
 		if err != nil {
 			return err
 		}
@@ -159,7 +152,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	for i, n := range e.nodes {
 		identity, err := n.Identity()
 		if err != nil {
-			return fmt.Errorf("n.Identity: %w for %s", err, n.PublicAddr())
+			return fmt.Errorf("n.Identity: %w for %s", err, n.PrivateAddr())
 		}
 		joiners[i] = identity
 	}
@@ -174,7 +167,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
 		err = n.JoinDKG()
 		if err != nil {
-			return fmt.Errorf("n.JoinDKG: %w for %s", err, n.PublicAddr())
+			return fmt.Errorf("n.JoinDKG: %w for %s", err, n.PrivateAddr())
 		}
 	}
 
@@ -334,18 +327,8 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 	var printed bool
 	for _, n := range nodes {
 		args := []string{"-k", "-s"}
-		http := "http"
-		if e.tls {
-			tmp, _ := os.CreateTemp("", "cert")
-			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			defer os.Remove(tmpName)
-			_ = tmp.Close()
-			n.WriteCertificate(tmpName)
-			args = append(args, pair("--cacert", tmpName)...)
-			http = http + "s"
-		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		url := http + "://" + n.PublicAddr() + "/public/"
+		url := "http://" + n.PublicAddr() + "/public/"
 		// add the round to make sure we don't ask for a later block if we're
 		// behind
 		url += strconv.Itoa(int(currRound))
@@ -397,8 +380,6 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		Offset:       len(e.nodes) + 1,
 		Period:       e.period,
 		BasePath:     e.basePath,
-		CertFolder:   e.certFolder,
-		WithTLS:      e.tls,
 		Binary:       e.binary,
 		Scheme:       e.scheme,
 		BeaconID:     e.beaconID,
@@ -561,7 +542,6 @@ func createNodes(cfg cfg.Config) ([]node.Node, []string) {
 		} else {
 			n = node.NewLocalNode(idx, "127.0.0.1", cfg)
 		}
-		n.WriteCertificate(path.Join(cfg.CertFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s --> ctrl port: %s\n", n.PrivateAddr(), cfg.BasePath, n.CtrlAddr())
 	}
@@ -608,7 +588,7 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		// Here we send the nil values to the start method to allow the node to reconnect to the same database
-		err := foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		err := foundNode.Start("", nil, e.memDBSize)
 		if err != nil {
 			panic(fmt.Errorf("[-] Could not start node %s error: %v", foundNode.PrivateAddr(), err))
 		}

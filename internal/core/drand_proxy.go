@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
-	"github.com/drand/drand/common"
 	"net"
 	"time"
 
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
+	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/internal/chain"

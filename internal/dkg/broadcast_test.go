@@ -49,7 +49,6 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 		[]*drand.Participant{
 			{
 				Address:   "127.0.0.1:1234",
-				Tls:       false,
 				Key:       []byte("0000000"),
 				Signature: []byte("1111111"),
 			},

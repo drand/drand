@@ -227,12 +227,9 @@ func (h *Handler) Store() CallbackStore {
 func (h *Handler) Start(ctx context.Context) error {
 	_, span := metrics.NewSpan(ctx, "h.Handler")
 	defer span.End()
-	h.Lock()
-	if h.stopped {
-		h.Unlock()
+	if h.IsStopped() {
 		return fmt.Errorf("a stopped handler cannot be re-started")
 	}
-	h.Unlock()
 
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Errorw("", "genesis_time", "past", "call", "catchup")
@@ -283,7 +280,8 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0))
+	//nolint:govet // We don't want to call the cancel explicitly, it's not lost we're relying on the deadline
+	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0).Add(-h.conf.Group.Period))
 	h.chain.RunSync(ctx, tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
@@ -342,12 +340,14 @@ func (h *Handler) IsStopped() bool {
 }
 
 // run will wait until it is supposed to start
+//
+//nolint:funlen // this is a big function
 func (h *Handler) run(startTime int64) {
-	h.Lock()
 	// we cannot re-start a stopped handler
-	if h.stopped {
+	if h.IsStopped() {
 		return
 	}
+	h.Lock()
 	h.running = true
 	h.Unlock()
 

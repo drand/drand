@@ -31,7 +31,6 @@ func TestBeaconProcess_Stop(t *testing.T) {
 		WithConfigFolder(t.TempDir()),
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
-		WithInsecure(),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
@@ -72,7 +71,6 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 		WithConfigFolder(t.TempDir()),
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
-		WithInsecure(),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)

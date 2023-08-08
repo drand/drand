@@ -81,7 +81,7 @@ func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.Gossip
 	retries := 8
 	backoff := 250 * time.Millisecond
 
-	peer := net.CreatePeer(p.Address, p.Tls)
+	peer := net.CreatePeer(p.Address)
 	var err error
 	for i := 0; i < retries; i++ {
 		// we use a separate context here, so it can continue outside the lifecycle of the gRPC request

@@ -3,12 +3,9 @@ package drand
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	gnet "net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -17,7 +14,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
@@ -185,12 +181,12 @@ func TestStartAndStop(t *testing.T) {
 
 	privateAddr := test.Addresses(1)[0]
 
-	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, privateAddr}
+	args := []string{"drand", "generate-keypair", "--folder", tmpPath, "--id", beaconID, privateAddr}
 	require.NoError(t, CLI().Run(args))
 
 	startCh := make(chan bool)
 	go func() {
-		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath, "--private-listen", privateAddr}
+		startArgs := []string{"drand", "start", "--folder", tmpPath, "--private-listen", privateAddr}
 		// Allow the rest of the test to start
 		// Any error will be caught in the error check below
 		startCh <- true
@@ -234,12 +230,12 @@ func TestUtilCheckReturnsErrorForPortNotMatchingKeypair(t *testing.T) {
 	// try to generate a keypair and make it listen on another address
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, "--id", beaconID, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
 	listenPort := test.FreePort()
 	listenAddr := "127.0.0.1:" + listenPort
-	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", listenAddr, "--folder", tmp}
+	listen := []string{"drand", "start", "--control", test.FreePort(), "--private-listen", listenAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -259,7 +255,7 @@ func TestUtilCheckReturnsErrorForPortNotMatchingKeypair(t *testing.T) {
 
 	// run the check tool it should fail because key and address are not
 	// consistent
-	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, listenAddr}
+	check := []string{"drand", "util", "check", "--id", beaconID, listenAddr}
 	require.Error(t, CLI().Run(check))
 }
 
@@ -270,10 +266,10 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, "--id", beaconID, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
-	listen := []string{"drand", "start", "--tls-disable", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
+	listen := []string{"drand", "start", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -291,7 +287,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 	// TODO can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
 
-	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, keyAddr}
+	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
@@ -323,7 +319,6 @@ func TestStartWithoutGroup(t *testing.T) {
 		"drand",
 		"start",
 		"--private-listen", priv.Public.Address(),
-		"--tls-disable",
 		"--verbose",
 		"--folder", tmpPath,
 		"--control", ctrlPort1,
@@ -364,7 +359,6 @@ func TestStartWithoutGroup(t *testing.T) {
 			sch.KeyGroup.Point().Pick(random.New()),
 		},
 	}
-	priv.Public.TLS = false
 
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
@@ -423,7 +417,7 @@ func TestStartWithoutGroup(t *testing.T) {
 		"start",
 		"--control", ctrlPort2,
 		"--private-listen", priv.Public.Address(),
-		"--tls-disable",
+
 		"--folder", tmpPath,
 		"--verbose",
 	}
@@ -554,8 +548,7 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 	require.NoError(t, err)
 }
 
-//nolint:funlen //This is a test
-func TestClientTLS(t *testing.T) {
+func TestClient(t *testing.T) {
 	t.Skip("The test fails because the logic for generating the group has changed")
 	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
@@ -566,8 +559,6 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, os.Mkdir(tmpPath, 0o740))
 
 	groupPath := path.Join(tmpPath, "group.toml")
-	certPath := path.Join(tmpPath, "server.pem")
-	keyPath := path.Join(tmpPath, "key.pem")
 	pubPath := path.Join(tmpPath, "pub.key")
 
 	freePort := test.FreePort()
@@ -575,7 +566,7 @@ func TestClientTLS(t *testing.T) {
 	ctrlPort := test.FreePort()
 	metricsPort := test.FreePort()
 
-	priv, err := key.NewTLSKeyPair(addr, nil)
+	priv, err := key.NewKeyPair(addr, nil)
 	require.NoError(t, err)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
@@ -584,16 +575,8 @@ func TestClientTLS(t *testing.T) {
 	err = fileStore.SaveKeyPair(priv)
 	require.NoError(t, err)
 
-	if httpscerts.Check(certPath, keyPath) != nil {
-		t.Log("generating on the fly")
-		h, _, err := gnet.SplitHostPort(priv.Public.Address())
-		require.NoError(t, err)
-		err = httpscerts.Generate(certPath, keyPath, h)
-		require.NoError(t, err)
-	}
-
 	// fake group
-	_, group := test.BatchTLSIdentities(5, sch, beaconID)
+	_, group := test.BatchIdentities(5, sch, beaconID)
 	// fake dkg outuput
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
@@ -623,8 +606,6 @@ func TestClientTLS(t *testing.T) {
 		"drand",
 		"start",
 		"--private-listen", priv.Public.Address(),
-		"--tls-cert", certPath,
-		"--tls-key", keyPath,
 		"--control", ctrlPort,
 		"--folder", tmpPath,
 		"--metrics", metricsPort,
@@ -646,36 +627,7 @@ func TestClientTLS(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
-}
-
-func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
-	t.Helper()
-	lg := testlogger.New(t)
-
-	var err error
-
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
-	chainInfoBuff, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
-	require.NoError(t, err)
-	expectedOutput := string(chainInfoBuff)
-	testCommand(t, chainInfoCmd, expectedOutput)
-
-	showPublic := []string{"drand", "show", "public", "--control", ctrlPort}
-	b, _ := priv.Public.Key.MarshalBinary()
-	exp := hex.EncodeToString(b)
-	testCommand(t, showPublic, exp)
-
-	showCokey := []string{"drand", "show", "chain-info", "--control", ctrlPort}
-	expectedOutput = string(chainInfoBuff)
-	testCommand(t, showCokey, expectedOutput)
-
-	showGroup := []string{"drand", "show", "group", "--control", ctrlPort}
-	testCommand(t, showGroup, "")
-
-	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash"}
-	groupHash := hex.EncodeToString(group.Hash())
-	testCommand(t, showHash, groupHash)
+	testStartedDrandFunctional(t, ctrlPort, tmpPath, group, fileStore, beaconID)
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
@@ -1078,8 +1030,6 @@ type drandInstance struct {
 	ctrlPort string
 	addr     string
 	metrics  string
-	certPath string
-	keyPath  string
 	certsDir string
 }
 
@@ -1212,9 +1162,6 @@ func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArg
 		"drand",
 		"start",
 		"--verbose",
-		"--tls-cert", d.certPath,
-		"--tls-key", d.keyPath,
-		"--certs-dir", d.certsDir,
 		"--control", d.ctrlPort,
 		"--folder", d.path,
 		"--metrics", d.metrics,
@@ -1274,8 +1221,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 		nodePath, err := os.MkdirTemp(tmpPath, "node")
 		require.NoError(t, err)
 
-		certPath := path.Join(nodePath, "cert")
-		keyPath := path.Join(nodePath, "tls.key")
 		pubPath := path.Join(tmpPath, "pub.key")
 
 		freePort := test.FreePort()
@@ -1285,7 +1230,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 		// generate key so it loads
 		// TODO let's remove this requirement - no need for longterm keys
-		priv, err := key.NewTLSKeyPair(addr, nil)
+		priv, err := key.NewKeyPair(addr, nil)
 		require.NoError(t, err)
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(l, core.WithConfigFolder(nodePath))
@@ -1293,23 +1238,11 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 		err = fileStore.SaveKeyPair(priv)
 		require.NoError(t, err)
 
-		h, _, err := gnet.SplitHostPort(addr)
-		require.NoError(t, err)
-
-		err = httpscerts.Generate(certPath, keyPath, h)
-		require.NoError(t, err)
-
-		// copy into one folder for giving a common CERT folder
-		_, err = exec.Command("cp", certPath, path.Join(certsDir, fmt.Sprintf("cert-%d", i))).Output()
-		require.NoError(t, err)
-
 		ins = append(ins, &drandInstance{
 			addr:     addr,
 			ctrlPort: ctrlPort,
 			path:     nodePath,
-			keyPath:  keyPath,
 			metrics:  metricsPort,
-			certPath: certPath,
 			certsDir: certsDir,
 		})
 	}

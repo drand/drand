@@ -42,7 +42,6 @@ type BeaconProcess struct {
 	store       key.Store
 	dbStore     chain.Store
 	privGateway *net.PrivateGateway
-	pubGateway  *net.PublicGateway
 
 	beacon        *beacon.Handler
 	completedDKGs <-chan dkg.SharingOutput
@@ -66,16 +65,13 @@ type BeaconProcess struct {
 	syncerCancel context.CancelFunc
 }
 
-func NewBeaconProcess(
-	ctx context.Context,
+func NewBeaconProcess(ctx context.Context,
 	log dlog.Logger,
 	store key.Store,
 	completedDKGs chan dkg.SharingOutput,
 	beaconID string,
 	opts *Config,
-	privGateway *net.PrivateGateway,
-	pubGateway *net.PublicGateway,
-) (*BeaconProcess, error) {
+	privGateway *net.PrivateGateway) (*BeaconProcess, error) {
 	_, span := metrics.NewSpan(ctx, "dd.NewBeaconProcess")
 	defer span.End()
 
@@ -98,7 +94,6 @@ func NewBeaconProcess(
 		version:       common.GetAppVersion(),
 		opts:          opts,
 		privGateway:   privGateway,
-		pubGateway:    pubGateway,
 		completedDKGs: completedDKGs,
 		exitCh:        make(chan bool, 1),
 	}

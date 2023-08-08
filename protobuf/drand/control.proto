@@ -103,7 +103,7 @@ message PublicKeyRequest {
 message PublicKeyResponse {
   bytes pubKey = 1;
   string addr = 2;
-  bool tls = 3;
+  bool tls = 3 [deprecated = true];
   bytes signature = 4;
   common.Metadata metadata = 5;
   string schemeName = 6;
@@ -150,7 +150,7 @@ message StartSyncRequest {
   // is TLS enabled on these nodes or not
   // NOTE currently drand either supports syncing from all TLS or all
   // non-tls nodes
-  bool is_tls = 3;
+  bool is_tls = 3 [deprecated = true];
   // up_to tells the drand daemon to not sync up after the given round.
   // if up_to is 0, the sync operation continues until it is cancelled.
   uint64 up_to = 4;

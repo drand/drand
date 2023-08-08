@@ -292,7 +292,6 @@ func TestJoin(t *testing.T) {
 				PublicTOML: &key.PublicTOML{
 					Address:    alice.Address,
 					SchemeName: sch.Name,
-					TLS:        true,
 					Signature:  "deadbeef",
 					Key:        hex.EncodeToString(pub),
 				},
@@ -302,7 +301,6 @@ func TestJoin(t *testing.T) {
 				PublicTOML: &key.PublicTOML{
 					Address:    bob.Address,
 					SchemeName: sch.Name,
-					TLS:        true,
 					Signature:  "deadbeef",
 					Key:        hex.EncodeToString(pub),
 				},
@@ -312,7 +310,6 @@ func TestJoin(t *testing.T) {
 				PublicTOML: &key.PublicTOML{
 					Address:    carol.Address,
 					SchemeName: sch.Name,
-					TLS:        true,
 					Signature:  "deadbeef",
 					Key:        hex.EncodeToString(pub),
 				},

@@ -19,11 +19,10 @@ import (
 const testAddr = "127.0.0.1:80"
 
 func TestKeyPublic(t *testing.T) {
-	kp, err := NewTLSKeyPair(testAddr, nil)
+	kp, err := NewKeyPair(testAddr, nil)
 	require.NoError(t, err)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
-	require.Equal(t, kp.Public.TLS, ptoml.TLS)
 
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
@@ -36,12 +35,11 @@ func TestKeyPublic(t *testing.T) {
 	require.NoError(t, p2.FromTOML(p2toml))
 
 	require.Equal(t, kp.Public.Addr, p2.Addr)
-	require.Equal(t, kp.Public.TLS, p2.TLS)
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
 func TestKeySignature(t *testing.T) {
-	kp, err := NewTLSKeyPair(testAddr, nil)
+	kp, err := NewKeyPair(testAddr, nil)
 	require.NoError(t, err)
 	validSig := kp.Public.Signature
 	require.NoError(t, kp.Public.ValidSignature())
@@ -107,12 +105,15 @@ func TestKeyGroup(t *testing.T) {
 	n := 5
 	_, group := BatchIdentities(t, n)
 	ids := group.Nodes
-	for _, p := range ids {
-		require.True(t, p.TLS)
-	}
 	gtoml := group.TOML().(*GroupTOML)
-	for _, p := range gtoml.Nodes {
-		require.True(t, p.TLS)
+
+	if len(ids) != len(gtoml.Nodes) {
+		t.Fatal("Invalid group")
+	}
+	for i, node := range ids {
+		if node.Addr != gtoml.Nodes[i].Address {
+			t.Fatal("Non-matching nodes in group")
+		}
 	}
 }
 
@@ -149,7 +150,7 @@ func BatchIdentities(t *testing.T, n int) ([]*Pair, *Group) {
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
-		privs[i], _ = NewTLSKeyPair(addr, sch)
+		privs[i], _ = NewKeyPair(addr, sch)
 		pubs[i] = &Node{
 			Index:    uint32(i),
 			Identity: privs[i].Public,

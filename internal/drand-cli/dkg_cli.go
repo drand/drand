@@ -627,6 +627,7 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 	fmt.Println(tw.Render())
 }
 
+//nolint:funlen,gocyclo // this is a big function
 func generateProposalCmd(c *cli.Context, l log.Logger) error {
 	// first we validate the flags
 	if !c.IsSet(joinerFlag.Name) && !c.IsSet(remainerFlag.Name) {
@@ -679,7 +680,8 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		for i, node := range r.Nodes {
 			address := node.Public.Address
 			if !util.Cont(util.Concat(remainers, leavers), address) {
-				return fmt.Errorf("%s is missing in the attempted proposal but exists in the current network. It should be leaving or remaining", address)
+				return fmt.Errorf("%s is missing in the attempted proposal but exists in the current network. "+
+					"It should be leaving or remaining", address)
 			}
 			current[i] = util.ToParticipant(node)
 		}
@@ -716,7 +718,6 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 
 	id, err := key.IdentityFromProto(&drand.Identity{
 		Signature: identityResp.Signature,
-		Tls:       identityResp.Tls,
 		Address:   identityResp.Addr,
 		Key:       identityResp.PubKey,
 	}, sch)
@@ -758,9 +759,9 @@ func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *cr
 	tls := len(parts) > 1
 	var peer net.Peer
 	if tls {
-		peer = net.CreatePeer(parts[1], tls)
+		peer = net.CreatePeer(parts[1])
 	} else {
-		peer = net.CreatePeer(address, tls)
+		peer = net.CreatePeer(address)
 	}
 	client := net.NewGrpcClient(l)
 	identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
@@ -774,7 +775,6 @@ func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *cr
 
 	part := &drand.Participant{
 		Address:   identity.Address,
-		Tls:       identity.Tls,
 		Key:       identity.Key,
 		Signature: identity.Signature,
 	}

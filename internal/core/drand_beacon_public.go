@@ -174,7 +174,6 @@ func (bp *BeaconProcess) GetIdentity(ctx context.Context, _ *drand.IdentityReque
 	response := &drand.IdentityResponse{
 		Address:    i.Address,
 		Key:        i.Key,
-		Tls:        i.Tls,
 		Signature:  i.Signature,
 		Metadata:   bp.newMetadata(),
 		SchemeName: bp.priv.Scheme().String(),

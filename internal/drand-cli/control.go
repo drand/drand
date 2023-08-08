@@ -49,14 +49,12 @@ func remoteStatusCmd(c *cli.Context, l log.Logger) error {
 	}
 
 	ips := c.Args().Slice()
-	isTLS := !c.IsSet(insecureFlag.Name)
 	beaconID := getBeaconID(c)
 
 	addresses := make([]*control.Address, len(ips))
 	for i := 0; i < len(ips); i++ {
 		addresses[i] = &control.Address{
 			Address: ips[i],
-			Tls:     isTLS,
 		}
 	}
 
@@ -111,8 +109,8 @@ func pingpongCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func remotePingToNode(l log.Logger, addr string, tls bool) error {
-	peer := net.CreatePeer(addr, tls)
+func remotePingToNode(l log.Logger, addr string) error {
+	peer := net.CreatePeer(addr)
 	client := net.NewGrpcClient(l)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -315,6 +313,7 @@ func printJSON(w io.Writer, j interface{}) error {
 	return nil
 }
 
+//nolint:unused
 func selfSign(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
 
@@ -356,13 +355,8 @@ func checkCmd(c *cli.Context, l log.Logger) error {
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 
-	channel, errCh, err := ctrlClient.StartCheckChain(
-		c.Context,
-		c.String(hashInfoReq.Name),
-		addrs,
-		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)),
-		c.String(beaconIDFlag.Name))
+	channel, errCh, err := ctrlClient.StartCheckChain(c.Context, c.String(hashInfoReq.Name),
+		addrs, uint64(c.Int(upToFlag.Name)), c.String(beaconIDFlag.Name))
 
 	if err != nil {
 		l.Errorw("Error checking chain", "err", err)
@@ -475,13 +469,8 @@ func followSync(c *cli.Context, l log.Logger) error {
 	defer ctrlClient.Close()
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, errCh, err := ctrlClient.StartFollowChain(
-		c.Context,
-		c.String(hashInfoReq.Name),
-		addrs,
-		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)),
-		getBeaconID(c))
+	channel, errCh, err := ctrlClient.StartFollowChain(c.Context, c.String(hashInfoReq.Name),
+		addrs, uint64(c.Int(upToFlag.Name)), getBeaconID(c))
 
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %w", err)

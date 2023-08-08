@@ -26,7 +26,6 @@ func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {
 	// configure the daemon to try and bind the same port
 	config := NewConfig(
 		l,
-		WithInsecure(),
 		WithControlPort(strconv.Itoa(inUsePort)),
 		WithPrivateListenAddress("127.0.0.1:0"),
 	)
@@ -50,7 +49,6 @@ func TestDrandDaemon_Stop(t *testing.T) {
 	confOptions := []ConfigOption{
 		WithConfigFolder(t.TempDir()),
 		WithPrivateListenAddress("127.0.0.1:0"),
-		WithInsecure(),
 		WithControlPort(port),
 	}
 

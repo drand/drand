@@ -290,7 +290,7 @@ func NewMockGRPCPublicServer(t *testing.T, l log.Logger, bind string, badSecondR
 
 	server := newMockServer(t, d, clk)
 	ctx := log.ToContext(context.Background(), l)
-	listener, err := net.NewGRPCListenerForPrivate(ctx, bind, "", "", server, true)
+	listener, err := net.NewGRPCListenerForPrivate(ctx, bind, server)
 	if err != nil {
 		panic(err)
 	}

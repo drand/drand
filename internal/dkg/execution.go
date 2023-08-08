@@ -28,7 +28,7 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 
 	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
 
-	go func(config dkg.Config) {
+	go func(config *dkg.Config) {
 		// wait until the time set by the leader for kicking off the DKG to allow other nodes to get
 		// the requisite packets
 		time.Sleep(time.Until(executionStartTime))
@@ -36,7 +36,7 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
 		}
-	}(*dkgConfig)
+	}(dkgConfig)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 }
 
 // this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
-func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
+func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
 	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
 
@@ -112,7 +112,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	}
 
 	executeAndStoreDKG := func() error {
-		output, err := d.startDKGExecution(ctx, beaconID, current, &config)
+		output, err := d.startDKGExecution(ctx, beaconID, current, config)
 		if err != nil {
 			// if the DKG doesn't reach threshold, we must transition to `Failed` instead of
 			// returning an error and rolling back

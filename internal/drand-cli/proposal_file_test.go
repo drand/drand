@@ -33,7 +33,6 @@ func generateProposal(l log.Logger, beaconID string, joining, remaining, leaving
 			}
 			participants = append(participants, &TomlParticipant{
 				Address:   res.Addr,
-				TLS:       res.Tls,
 				Key:       hex.EncodeToString(res.PubKey),
 				Signature: hex.EncodeToString(res.Signature),
 			})

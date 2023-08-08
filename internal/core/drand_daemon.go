@@ -29,7 +29,6 @@ type DrandDaemon struct {
 	chainHashes map[string]string
 
 	privGateway *net.PrivateGateway
-	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
 	dkg *dkg.Process
@@ -54,11 +53,6 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 	defer span.End()
 
 	logger := c.Logger()
-	if !c.insecure && (c.certPath == "" || c.keyPath == "") {
-		err := errors.New("config: need to set WithInsecure if no certificate and private key path given")
-		span.RecordError(err)
-		return nil, err
-	}
 
 	drandDaemon := &DrandDaemon{
 		opts:            c,
@@ -123,8 +117,6 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	// Set the private API address to the command-line flag, if given.
 	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress("")
-	pubAddr := c.PublicListenAddress("")
-
 	if privAddr == "" {
 		return fmt.Errorf("private listen address cannot be empty")
 	}
@@ -139,20 +131,12 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	ctx = log.ToContext(ctx, lg)
 
 	var err error
-	dd.log.Infow("", "network", "init", "insecure", c.insecure)
+	dd.log.Infow("", "network", "init")
 
 	handler, err := dhttp.New(ctx, c.Version())
 	if err != nil {
 		span.RecordError(err)
 		return err
-	}
-
-	if pubAddr != "" {
-		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager,
-			handler.GetHTTPHandler(), c.insecure); err != nil {
-			span.RecordError(err)
-			return err
-		}
 	}
 
 	// set up the gRPC clients
@@ -164,7 +148,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	dd.control = controlListener
 
 	dd.handler = handler
-	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
+	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, dd, c.grpcOpts...)
 	if err != nil {
 		span.RecordError(err)
 		return err
@@ -187,12 +171,8 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	dd.log.Infow("DrandDaemon initialized",
 		"private_listen", privAddr,
 		"control_port", c.ControlPort(),
-		"public_listen", pubAddr,
 		"folder", c.ConfigFolderMB())
 	dd.privGateway.StartAll()
-	if dd.pubGateway != nil {
-		dd.pubGateway.StartAll()
-	}
 
 	return nil
 }
@@ -205,7 +185,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 	beaconID = common2.GetCanonicalBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
-	bp, err := NewBeaconProcess(ctx, logger, store, dd.completedDKGs, beaconID, dd.opts, dd.privGateway, dd.pubGateway)
+	bp, err := NewBeaconProcess(ctx, logger, store, dd.completedDKGs, beaconID, dd.opts, dd.privGateway)
 	if err != nil {
 		span.RecordError(err)
 		return nil, err

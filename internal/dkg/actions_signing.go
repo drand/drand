@@ -2,8 +2,8 @@ package dkg
 
 import (
 	"errors"
-	"google.golang.org/protobuf/proto"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"

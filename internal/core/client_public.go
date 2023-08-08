@@ -29,14 +29,6 @@ func NewGrpcClient(lg log.Logger, chainHash []byte, opts ...grpc.DialOption) *Cl
 	}
 }
 
-// NewGrpcClientFromCert returns a client that contact its peer over TLS
-func NewGrpcClientFromCert(lg log.Logger, chainHash []byte, c *net.CertManager, opts ...grpc.DialOption) *Client {
-	return &Client{
-		client:    net.NewGrpcClientFromCertManager(lg, c, opts...),
-		chainHash: chainHash,
-	}
-}
-
 // ChainInfo returns the chain info as reported by the given peer.
 func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain.Info, error) {
 	ctx, span := metrics.NewSpan(ctx, "c.ChainInfo")

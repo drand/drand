@@ -42,8 +42,6 @@ const shareFileName = "dist_key.private"
 const distKeyFileName = "dist_key.public"
 
 // Tomler represents any struct that can be (un)marshaled into/from toml format
-// TODO surely golang reflect package can automatically return the TOMLValue()
-// for us
 type Tomler interface {
 	TOML() interface{}
 	FromTOML(i interface{}) error

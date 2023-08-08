@@ -25,7 +25,6 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Equal(t, tmp, store.baseFolder)
 
 	// test loading saving private public key
-	ps[0].Public.TLS = true
 	require.NoError(t, store.SaveKeyPair(ps[0]))
 	loadedKey, err := store.LoadKeyPair()
 	require.NoError(t, err)
@@ -34,7 +33,6 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())
 	require.Equal(t, loadedKey.Public.Scheme.Name, ps[0].Public.Scheme.Name)
 	require.Equal(t, loadedKey.Public.Address(), ps[0].Public.Address())
-	require.True(t, loadedKey.Public.IsTLS())
 
 	_, err = os.Stat(store.privateKeyFile)
 	require.Nil(t, err)
@@ -56,7 +54,6 @@ func TestKeysSaveLoad(t *testing.T) {
 			}
 			found = true
 			require.Equal(t, k.Public.Key.String(), lid.Key.String(), "public key should hold")
-			require.Equal(t, k.Public.IsTLS(), lid.IsTLS(), "tls property should hold")
 		}
 		require.True(t, found, "not found key ", lid.Addr)
 	}

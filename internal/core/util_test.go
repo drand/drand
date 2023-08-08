@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	gnet "net"
 	"os"
 	"path"
 	"sync"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
-	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
@@ -33,7 +31,7 @@ type DrandTestScenario struct {
 	// note: do we need this here?
 	t *testing.T
 
-	// tmp dir for certificates, keys etc
+	// tmp dir for keys etc
 	dir    string
 	newDir string
 
@@ -63,29 +61,16 @@ type DrandTestScenario struct {
 
 // BatchNewDrand returns n drands, using TLS or not, with the given
 // options. It returns the list of Drand structures, the group created,
-// the folder where db, certificates, etc are stored. It is the folder
+// the folder where db, etc are stored. It is the folder
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
-//
-//nolint:funlen // This is a test function
-func BatchNewDrand(
-	t *testing.T,
-	currentNodeCount,
-	n int,
-	insecure bool,
-	sch *crypto.Scheme,
-	beaconID string,
-	opts ...ConfigOption,
-) (
-	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
-) {
+func BatchNewDrand(t *testing.T, currentNodeCount, n int,
+	sch *crypto.Scheme, beaconID string,
+	opts ...ConfigOption) (daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string) {
 	t.Logf("Creating %d nodes for beaconID %s\n", n, beaconID)
 	var privs []*key.Pair
-	if insecure {
-		privs, group = test.BatchIdentities(n, sch, beaconID)
-	} else {
-		privs, group = test.BatchTLSIdentities(n, sch, beaconID)
-	}
+
+	privs, group = test.BatchIdentities(n, sch, beaconID)
 
 	ports := test.Ports(n)
 	daemons = make([]*DrandDaemon, n)
@@ -94,8 +79,6 @@ func BatchNewDrand(
 	// notice t.TempDir means the temp directory is deleted thanks to t.Cleanup at the end
 	dir = t.TempDir()
 
-	certPaths = make([]string, n)
-	keyPaths := make([]string, n)
 	dirs := make([]string, n)
 
 	for i := 0; i < n; i++ {
@@ -103,25 +86,6 @@ func BatchNewDrand(
 		dirs[i] = path.Join(dir, fmt.Sprintf("drand-%d", testNodeIndex))
 		err := os.MkdirAll(dirs[i], 0o777)
 		require.NoError(t, err)
-	}
-
-	if !insecure {
-		for i := 0; i < n; i++ {
-			testNodeIndex := currentNodeCount + i
-			certPath := path.Join(dirs[i], fmt.Sprintf("server-%d.crt", testNodeIndex))
-			keyPath := path.Join(dirs[i], fmt.Sprintf("server-%d.key", testNodeIndex))
-
-			if httpscerts.Check(certPath, keyPath) != nil {
-				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
-				require.NoError(t, err)
-
-				t.Logf("generate keys for drand %d\n", testNodeIndex)
-				err = httpscerts.Generate(certPath, keyPath, h)
-				require.NoError(t, err)
-			}
-			certPaths[i] = certPath
-			keyPaths[i] = keyPath
-		}
 	}
 
 	l := testlogger.New(t)
@@ -146,16 +110,6 @@ func BatchNewDrand(
 			WithDkgKickoffGracePeriod(1*time.Second),
 			WithDkgPhaseTimeout(5*time.Second),
 			WithPrivateListenAddress(privs[i].Public.Address()),
-		)
-		if !insecure {
-			confOptions = append(confOptions,
-				WithTLS(certPaths[i], keyPaths[i]),
-				WithTrustedCerts(certPaths...))
-		} else {
-			confOptions = append(confOptions, WithInsecure())
-		}
-
-		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
 			WithNamedLogger(fmt.Sprintf("[node %d]", currentNodeCount+i)),
 			WithMemDBSize(100),
@@ -184,7 +138,7 @@ func BatchNewDrand(
 		})
 	}
 
-	return daemons, drands, group, dir, certPaths
+	return daemons, drands, group, dir
 }
 
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
@@ -200,9 +154,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 
 	// hmm it seems like this _has_ to be insecure as the `ControlClient` uses insecure credentials?
 	// dunno how any tests were passing if this was the case though
-	daemons, drands, _, dir, certPaths := BatchNewDrand(
-		t, 0, n, false, sch, beaconID, append(opts, WithCallOption(grpc.WaitForReady(true)))...,
-	)
+	daemons, drands, _, dir := BatchNewDrand(t, 0, n, sch, beaconID, append(opts, WithCallOption(grpc.WaitForReady(true)))...)
 
 	dt.t = t
 	dt.dir = dir
@@ -216,7 +168,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
-		node, err := newNode(dt.clock.Now(), certPaths[i], daemons[i], drandInstance)
+		node, err := newNode(dt.clock.Now(), daemons[i], drandInstance)
 		require.NoError(t, err, "couldn't construct mock node")
 		dt.nodes = append(dt.nodes, node)
 	}
@@ -373,8 +325,8 @@ func (d *DrandTestScenario) CheckPublicBeacon(ctx context.Context, nodeAddress s
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
-	client := net.NewGrpcClientFromCertManager(dr.log, dr.opts.certmanager, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(ctx, test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	client := net.NewGrpcClient(dr.log, dr.opts.grpcOpts...)
+	resp, err := client.PublicRand(ctx, test.NewPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
@@ -386,43 +338,18 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes i
 	t.Log("Setup of", countOfAdditionalNodes, "new nodes for tests")
 	currentNodeCount := len(d.nodes)
 
-	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(
-		d.t,
-		currentNodeCount,
-		countOfAdditionalNodes,
-		false,
-		d.scheme,
-		d.beaconID,
-		append(options, WithCallOption(grpc.WaitForReady(false)))...,
-	)
+	newDaemons, newDrands, _, newDir := BatchNewDrand(d.t, currentNodeCount, countOfAdditionalNodes, d.scheme,
+		d.beaconID, append(options, WithCallOption(grpc.WaitForReady(false)))...)
 	d.newDir = newDir
 
-	oldCertPaths := make([]string, len(d.nodes))
-
-	// add certificates of new nodes to the old nodes and populate old cert list
-	for i, node := range d.nodes {
-		oldCertPaths[i] = node.certPath
-		inst := node.drand
-		for _, cp := range newCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
-		}
-	}
-
-	// store new part. and add certificate path of old nodes to the new ones
 	d.newNodes = make([]*MockNode, countOfAdditionalNodes)
 	for i, inst := range newDrands {
-		node, err := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
+		node, err := newNode(d.clock.Now(), newDaemons[i], inst)
 		if err != nil {
-			fmt.Println("could not construct mock node")
 			t.Fatal("could not construct mock node")
 		}
 		d.newNodes[i] = node
 		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))
-		for _, cp := range oldCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
-		}
 	}
 
 	return d.newNodes
@@ -442,7 +369,6 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 		}
 		joiners[i] = &drand.Participant{
 			Address:   identity.Addr,
-			Tls:       identity.TLS,
 			Key:       pk,
 			Signature: identity.Signature,
 		}
@@ -498,7 +424,6 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 		}
 		remainers[i] = &drand.Participant{
 			Address:   identity.Addr,
-			Tls:       identity.TLS,
 			Key:       pk,
 			Signature: identity.Signature,
 		}
@@ -596,7 +521,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 		remainers[i] = &drand.Participant{
 			Address:   identity.Addr,
-			Tls:       identity.TLS,
 			Key:       pk,
 			Signature: identity.Signature,
 		}
@@ -613,7 +537,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 
 		joiners[i] = &drand.Participant{
 			Address:   identity.Addr,
-			Tls:       identity.TLS,
 			Key:       pk,
 			Signature: identity.Signature,
 		}

@@ -164,9 +164,8 @@ For more information, look at the demo [README](https://github.com/drand/drand/t
 A drand beacon provides several public services to clients. A drand node
 exposes its public services on a gRPC endpoint as well as a REST JSON endpoint,
 on the same port. The latter is especially useful if one wishes to retrieve
-randomness from a JavaScript application.  Communication is protected through
-TLS by default. If the contacted node is using a self-signed certificate, the
-client can use the `--tls-cert` flag to specify the server's certificate.
+randomness from a JavaScript application.  Communication is meant to be protected
+through TLS by using a reverse-proxy to perform TLS termination.
 
 ### Create a Drand deployment
 
@@ -291,7 +290,7 @@ Feel free to submit feature requests or, even better, pull requests ;)
 
 ## Development
 
-If you want to contribute to Drand, head over to our [Development documentation](DEVELOPMENT.md). 
+If you want to contribute to Drand, head over to our [Development documentation](DEVELOPMENT.md).
 
 ## Acknowledgments
 

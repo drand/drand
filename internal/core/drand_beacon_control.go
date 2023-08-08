@@ -45,7 +45,6 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 	return &drand.PublicKeyResponse{
 		PubKey:     protoKey,
 		Addr:       keyPair.Public.Addr,
-		Tls:        keyPair.Public.TLS,
 		Signature:  keyPair.Public.Signature,
 		Metadata:   bp.newMetadata(),
 		SchemeName: keyPair.Public.Scheme.Name,
@@ -115,7 +114,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 					continue
 				}
 
-				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.TLS})
+				nodes = append(nodes, &drand.Address{Address: node.Address()})
 			}
 		}
 	}
@@ -137,8 +136,8 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 			// it's ourself
 			resp, err = bp.Status(ctx, statusReq)
 		} else {
-			bp.log.Debugw("Sending status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
-			p := net.CreatePeer(remoteAddress, addr.Tls)
+			bp.log.Debugw("Sending status request", "for_node", remoteAddress)
+			p := net.CreatePeer(remoteAddress)
 			resp, err = bp.privGateway.Status(ctx, p, statusReq)
 		}
 		if err != nil {
@@ -208,7 +207,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 				continue
 			}
 
-			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
+			nodeList = append(nodeList, &drand.Address{Address: node.Address()})
 		}
 	}
 
@@ -225,7 +224,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 			continue
 		}
 
-		p := net.CreatePeer(remoteAddress, addr.GetTls())
+		p := net.CreatePeer(remoteAddress)
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
 			ctx, span := metrics.NewSpan(ctx, "bp.Status.sendingHome")
@@ -235,7 +234,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 			// Simply try to ping him see if he replies
 			tc, cancel := context.WithTimeout(ctx, callMaxTimeout)
 			defer cancel()
-			bp.log.Debugw("Sending Home request", "for_node", remoteAddress, "has_TLS", addr.Tls)
+			bp.log.Debugw("Sending Home request", "for_node", remoteAddress)
 			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{Metadata: bp.newMetadata()})
 			if err != nil {
 				bp.log.Debugw("Status request failed", "remote", addr, "error", err)
@@ -317,7 +316,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 			continue
 		}
 		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+		peers = append(peers, net.CreatePeer(addr))
 	}
 
 	info, err := bp.chainInfoFromPeers(ctx, peers)
@@ -455,7 +454,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 			continue
 		}
 		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+		peers = append(peers, net.CreatePeer(addr))
 	}
 
 	logger.Debugw("validate_and_sync", "up_to", req.UpTo)

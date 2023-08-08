@@ -9,7 +9,7 @@ import (
 )
 
 type Node interface {
-	Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error
+	Start(dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error
 	PrivateAddr() string
 	CtrlAddr() string
 	PublicAddr() string
@@ -26,7 +26,6 @@ type Node interface {
 	ChainInfo(group string) bool
 	Ping() bool
 	GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string)
-	WriteCertificate(path string)
 	WritePublic(path string)
 	Identity() (*drand.Participant, error)
 	Stop()

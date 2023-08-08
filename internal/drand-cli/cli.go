@@ -14,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,29 +64,6 @@ var verboseFlag = &cli.BoolFlag{
 	EnvVars: []string{"DRAND_VERBOSE"},
 }
 
-var tlsCertFlag = &cli.StringFlag{
-	Name: "tls-cert",
-	Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
-		"The certificates have to be specified as a list of whitespace-separated file paths. " +
-		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
-	EnvVars: []string{"DRAND_TLS_CERT"},
-}
-
-var tlsKeyFlag = &cli.StringFlag{
-	Name: "tls-key",
-	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
-		"The key has to be specified as a file path. " +
-		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
-	EnvVars: []string{"DRAND_TLS_KEY"},
-}
-
-var insecureFlag = &cli.BoolFlag{
-	Name:    "tls-disable",
-	Aliases: []string{"insecure"},
-	Usage:   "Disable TLS for all communications (not recommended).",
-	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
-}
-
 var controlFlag = &cli.StringFlag{
 	Name:    "control",
 	Usage:   "Set the port you want to listen to for control port commands. If not specified, we will use the default value.",
@@ -126,12 +102,6 @@ var pubListenFlag = &cli.StringFlag{
 	Name:    "public-listen",
 	Usage:   "Set the listening (binding) address of the public API. Useful if you have some kind of proxy.",
 	EnvVars: []string{"DRAND_PUBLIC_LISTEN"},
-}
-
-var certsDirFlag = &cli.StringFlag{
-	Name:    "certs-dir",
-	Usage:   "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
-	EnvVars: []string{"DRAND_CERTS_DIR"},
 }
 
 var outFlag = &cli.StringFlag{
@@ -321,10 +291,9 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
-		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-			insecureFlag, controlFlag, privListenFlag, pubListenFlag,
+		Flags: toArray(folderFlag, controlFlag, privListenFlag, pubListenFlag,
 			metricsFlag, tracesFlag, tracesProbabilityFlag,
-			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
+			pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
 		Action: func(c *cli.Context) error {
@@ -361,7 +330,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "load",
 		Usage: "Launch a sharing protocol from filesystem",
-		Flags: toArray(controlFlag, beaconIDFlag, insecureFlag),
+		Flags: toArray(controlFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
 				Named("loadCmd")
@@ -373,7 +342,7 @@ var appCommands = []*cli.Command{
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain. To follow a " +
 			"remote node, it requires the use of the '" + followFlag.Name + "' flag.",
 		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
-			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
+			upToFlag, beaconIDFlag, followFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
 				Named("syncCmd")
@@ -385,7 +354,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
+		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c)).
@@ -423,13 +392,12 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags: toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
+				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("checkConnection")
 					return checkConnection(c, l)
 				},
-				Before: checkArgs,
 			},
 			{
 				Name: "remote-status",
@@ -598,7 +566,6 @@ func CLI() *cli.App {
 	verbFlag := *verboseFlag
 	foldFlag := *folderFlag
 	app.Flags = toArray(&verbFlag, &foldFlag)
-	app.Before = testWindows
 	return app
 }
 
@@ -669,10 +636,6 @@ func askPort(c *cli.Context) string {
 }
 
 func checkMigration(c *cli.Context, l log.Logger) error {
-	if err := checkArgs(c); err != nil {
-		return err
-	}
-
 	config := contextToConfig(c, l)
 
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
@@ -685,14 +648,6 @@ func checkMigration(c *cli.Context, l log.Logger) error {
 			"Make sure that you have the appropriate rights")
 	}
 
-	return nil
-}
-
-func testWindows(c *cli.Context) error {
-	// x509 not available on windows: must run without TLS
-	if runtime.GOOS == "windows" && !c.Bool(insecureFlag.Name) {
-		return errors.New("TLS is not available on Windows, please disable TLS")
-	}
 	return nil
 }
 
@@ -719,14 +674,8 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	var priv *key.Pair
-	if c.Bool(insecureFlag.Name) {
-		fmt.Println("Generating private / public key pair without TLS.")
-		priv, err = key.NewKeyPair(addr, sch)
-	} else {
-		fmt.Println("Generating private / public key pair with TLS indication")
-		priv, err = key.NewTLSKeyPair(addr, sch)
-	}
+	fmt.Println("Generating private / public key pair.")
+	priv, err := key.NewKeyPair(addr, sch)
 	if err != nil {
 		return err
 	}
@@ -816,7 +765,6 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
 
-	conf := contextToConfig(c, lg)
 	isVerbose := c.IsSet(verboseFlag.Name)
 	allGood := true
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
@@ -825,9 +773,9 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	for _, address := range names {
 		var err error
 		if isIdentityCheck {
-			err = checkIdentityAddress(lg, conf, address, !c.Bool(insecureFlag.Name), beaconID)
+			err = checkIdentityAddress(lg, address, beaconID)
 		} else {
-			err = remotePingToNode(lg, address, !c.Bool(insecureFlag.Name))
+			err = remotePingToNode(lg, address)
 		}
 
 		if err != nil {
@@ -848,9 +796,9 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	return nil
 }
 
-func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls bool, beaconID string) error {
-	peer := net.CreatePeer(addr, tls)
-	client := net.NewGrpcClientFromCertManager(lg, conf.Certs())
+func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
+	peer := net.CreatePeer(addr)
+	client := net.NewGrpcClient(lg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -863,7 +811,6 @@ func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls boo
 
 	identity := &drand.Identity{
 		Signature: identityResp.Signature,
-		Tls:       identityResp.Tls,
 		Address:   identityResp.Address,
 		Key:       identityResp.Key,
 	}
@@ -960,7 +907,7 @@ func logLevel(c *cli.Context) int {
 		return log.DebugLevel
 	}
 
-	return log.ErrorLevel
+	return log.InfoLevel
 }
 
 func logJSON(c *cli.Context) bool {
@@ -971,29 +918,10 @@ func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
 
-func checkArgs(c *cli.Context) error {
-	if c.Bool(insecureFlag.Name) {
-		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			return fmt.Errorf("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
-		}
-	}
-	if c.IsSet("certs-dir") {
-		_, err := fs.Files(c.String("certs-dir"))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	var opts []core.ConfigOption
 	version := common.GetAppVersion()
 
-	if c.IsSet(pubListenFlag.Name) {
-		opts = append(opts, core.WithPublicListenAddress(c.String(pubListenFlag.Name)))
-	}
 	if c.IsSet(privListenFlag.Name) {
 		opts = append(opts, core.WithPrivateListenAddress(c.String(privListenFlag.Name)))
 	}
@@ -1006,21 +934,6 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 		opts = append(opts, core.WithConfigFolder(c.String(folderFlag.Name)))
 	}
 	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
-
-	if c.Bool(insecureFlag.Name) {
-		opts = append(opts, core.WithInsecure())
-	} else {
-		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
-		opts = append(opts, core.WithTLS(certPath, keyPath))
-	}
-	if c.IsSet("certs-dir") {
-		paths, err := fs.Files(c.String("certs-dir"))
-		if err != nil {
-			// it wouldn't reach here, as it was verified on checkArgs func before
-			panic(err)
-		}
-		opts = append(opts, core.WithTrustedCerts(paths...))
-	}
 
 	if c.IsSet(tracesFlag.Name) {
 		opts = append(opts, core.WithTracesEndpoint(c.String(tracesFlag.Name)))

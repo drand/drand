@@ -231,12 +231,8 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		}
 	}
 
-	dd.log.Debugw("all beacons exited successfully")
+	dd.log.Debugw("all beacon processes exited successfully")
 
-	if dd.pubGateway != nil {
-		dd.pubGateway.StopAll(ctx)
-		dd.log.Debugw("pubGateway stopped successfully")
-	}
 	dd.privGateway.StopAll(ctx)
 	dd.log.Debugw("privGateway stopped successfully")
 

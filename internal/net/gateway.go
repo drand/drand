@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"google.golang.org/grpc"
@@ -54,59 +53,18 @@ type Service interface {
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGRPCPrivateGateway(ctx context.Context,
-	listen, certPath, keyPath string,
-	certs *CertManager,
-	s Service,
-	insecure bool, opts ...grpc.DialOption) (*PrivateGateway, error) {
+func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
 	lg := log.FromContextOrDefault(ctx)
 
-	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
+	l, err := NewGRPCListenerForPrivate(ctx, listen, s, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}
 	pg := &PrivateGateway{Listener: l}
-	if !insecure {
-		pg.ProtocolClient = NewGrpcClientFromCertManager(lg, certs, opts...)
-		pg.DKGClient = NewGrpcClientFromCertManager(lg, certs, opts...)
-	} else {
-		pg.ProtocolClient = NewGrpcClient(lg, opts...)
-		pg.DKGClient = NewGrpcClient(lg, opts...)
-	}
+	pg.ProtocolClient = NewGrpcClient(lg, opts...)
+	pg.DKGClient = NewGrpcClient(lg, opts...)
 	// duplication since client implements both...
 	// TODO Find a better fix
 	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
 	return pg, nil
-}
-
-// PublicGateway is the main interface to communicate to users.
-// The gateway fixes all drand functionalities offered by drand.
-type PublicGateway struct {
-	Listener
-}
-
-// StartAll starts the control and public functionalities of the node
-func (g *PublicGateway) StartAll() {
-	go g.Listener.Start()
-}
-
-// StopAll stops the control and public functionalities of the node
-func (g *PublicGateway) StopAll(ctx context.Context) {
-	g.Listener.Stop(ctx)
-}
-
-// NewRESTPublicGateway returns a grpc gateway listening on "listen" for the
-// public methods, listening on "port" for the control methods, using the given
-// Service s with the given options.
-func NewRESTPublicGateway(
-	ctx context.Context,
-	listen, certPath, keyPath string,
-	_ *CertManager,
-	handler http.Handler,
-	insecure bool) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublic(ctx, listen, certPath, keyPath, handler, insecure)
-	if err != nil {
-		return nil, err
-	}
-	return &PublicGateway{Listener: l}, nil
 }

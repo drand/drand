@@ -441,8 +441,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	// test that all nodes in the new group have generated a new beacon
 	root := dt.resharedNodes[0].drand
 	rootID := root.priv.Public
-	cm := root.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(testlogger.New(t), cm)
+	client := net.NewGrpcClient(testlogger.New(t))
 
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
@@ -553,8 +552,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 	lg := testlogger.New(t)
 	chainInfo := public.NewChainInfo(lg, group)
-	certManager := dt.nodes[0].drand.opts.certmanager
-	client := NewGrpcClientFromCert(lg, chainInfo.Hash(), certManager)
+	client := NewGrpcClient(lg, chainInfo.Hash())
 
 	for i, node := range dt.nodes {
 		d := node.drand
@@ -576,9 +574,8 @@ func TestDrandPublicChainInfo(t *testing.T) {
 		for _, n := range group.Nodes {
 			sameAddr := n.Address() == addr
 			sameKey := n.Key.Equal(pubAddr.Key)
-			sameTLS := n.IsTLS() == pubAddr.TLS
 
-			if sameAddr && sameKey && sameTLS {
+			if sameAddr && sameKey {
 				found = true
 				break
 			}
@@ -629,8 +626,7 @@ func TestDrandPublicRand(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	cm := root.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(testlogger.New(t), cm)
+	client := net.NewGrpcClient(testlogger.New(t))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -729,8 +725,7 @@ func TestDrandPublicStream(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	cm := root.drand.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(testlogger.New(t), cm)
+	client := net.NewGrpcClient(testlogger.New(t))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -878,7 +873,7 @@ func TestDrandFollowChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.certmanager)
+	client := net.NewGrpcClient(dt.nodes[0].drand.log)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -893,26 +888,25 @@ func TestDrandFollowChain(t *testing.T) {
 
 	addrToFollow := []string{rootID.Address()}
 	hash := fmt.Sprintf("%x", public.NewChainInfo(testlogger.New(t), group).Hash())
-	tls := true
 
 	// First try with an invalid hash info
 	t.Logf(" \t [-] Trying to follow with an invalid hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, 10000, beaconID)
 	expectChanFail(t, errCh)
 	cancel()
 
 	// testing with a non hex hash
 	t.Logf(" \t [-] Trying to follow with a non-hex hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, _, err = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
+	_, _, err = newClient.StartFollowChain(ctx, "tutu", addrToFollow, 10000, beaconID)
 	require.Error(t, err)
 	cancel()
 
 	// testing with an invalid beaconID
 	t.Logf(" \t [-] Trying to follow with an invalid beaconID\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
+	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, 10000, "tutu")
 	expectChanFail(t, errCh)
 	cancel()
 
@@ -921,7 +915,7 @@ func TestDrandFollowChain(t *testing.T) {
 
 		t.Logf(" \t [+] Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
 		t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
-		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, upTo, beaconID)
 		require.NoError(t, err)
 
 		for goon := true; goon; {
@@ -1014,7 +1008,7 @@ func TestDrandCheckChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.certmanager)
+	client := net.NewGrpcClient(dt.nodes[0].drand.log)
 	ctx, cancel := context.WithCancel(ctx)
 
 	// get last round first
@@ -1026,12 +1020,11 @@ func TestDrandCheckChain(t *testing.T) {
 
 	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.controlPort)
 	require.NoError(t, err)
-	tls := true
 
 	// First try with an invalid hash info
 	t.Log("Trying to resync with an invalid address")
 
-	_, errCh, _ := ctrlClient.StartCheckChain(context.Background(), "deadbeef", nil, tls, 10000, beaconID)
+	_, errCh, _ := ctrlClient.StartCheckChain(context.Background(), "deadbeef", nil, 10000, beaconID)
 	expectChanFail(t, errCh)
 
 	// Next trying with a fully valid chain
@@ -1043,7 +1036,7 @@ func TestDrandCheckChain(t *testing.T) {
 
 	t.Logf(" \t [-] Starting resync chain with a valid hash.\n")
 	t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s\n", beaconID, hash)
-	progress, errCh, err := ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+	progress, errCh, err := ctrlClient.StartCheckChain(ctx, hash, addrToFollow, upTo, beaconID)
 	require.NoError(t, err)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 0)
@@ -1087,7 +1080,7 @@ func TestDrandCheckChain(t *testing.T) {
 	require.Error(t, err)
 
 	t.Logf(" \t\t --> Re-Running resync in dry run.\n")
-	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, addrToFollow, upTo, beaconID)
 	require.NoError(t, err)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
@@ -1110,7 +1103,7 @@ func TestDrandCheckChain(t *testing.T) {
 	require.Error(t, err)
 
 	t.Logf(" \t\t --> Re-Running resync and correct the error.\n")
-	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, nil, tls, upTo, beaconID)
+	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, nil, upTo, beaconID)
 	require.NoError(t, err)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
@@ -1240,7 +1233,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	// before the port has been given up and cause an error binding the new port :(
 	time.Sleep(5 * time.Second)
 
-	// modify your entry (well, all of them!) in the group file to change the TLS status
+	// modify your entry (well, all of them!) in the group file to change the node address
 	groupPath := path.Join(dir, beaconID, key.GroupFolderName, "drand_group.toml")
 
 	// read
@@ -1249,15 +1242,14 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	groupFile, err := io.ReadAll(groupFileReader)
 	require.NoError(t, err)
 	// write
-	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0o740)
+	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), node.addr, node.addr+"1")), 0o740)
 	require.NoError(t, err)
 
 	err = node.daemon.init(ctx)
 	require.NoError(t, err)
 	// try and reload the beacon from the store
-	// the updated TLS status will fail verification
+	// the updated node address will fail verification
 	_, err = node.daemon.LoadBeaconFromStore(ctx, beaconID, store)
-
 	require.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 }
 
@@ -1351,7 +1343,6 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 		// + 1 here, so the first entry is nil
 		joiners[i+1] = &drand.Participant{
 			Address:   identity.Addr,
-			Tls:       identity.TLS,
 			Key:       pk,
 			Signature: identity.Signature,
 		}
@@ -1391,38 +1382,17 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 	d.n += n
 
 	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
-	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, 0, n, false, d.scheme, beaconID, opts...)
+	daemons, drands, _, _ := BatchNewDrand(t, 0, n, d.scheme, beaconID, opts...)
 	//nolint:prealloc // We don't preallocate this as it's not going to be big enough to warrant such an operation
 	var result []*MockNode
+	d.newNodes = make([]*MockNode, n)
+
 	for i, drandInstance := range drands {
-		node, err := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
+		node, err := newNode(d.clock.Now(), daemons[i], drandInstance)
 		require.NoError(t, err)
 		d.nodes = append(d.nodes, node)
 		result = append(result, node)
-	}
-
-	oldCertPaths := make([]string, len(d.nodes))
-
-	// add certificates of new nodes to the old nodes and populate old cert list
-	for i, node := range d.nodes {
-		oldCertPaths[i] = node.certPath
-		inst := node.drand
-		for _, cp := range newCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
-		}
-	}
-
-	// store new part. and add certificate path of old nodes to the new ones
-	d.newNodes = make([]*MockNode, n)
-	for i, inst := range drands {
-		node, err := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
-		require.NoError(t, err)
 		d.newNodes[i] = node
-		for _, cp := range oldCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
-		}
 	}
 
 	return result

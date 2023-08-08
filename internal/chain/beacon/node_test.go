@@ -250,12 +250,7 @@ func (b *BeaconTest) ServeBeacon(t *testing.T, i int) {
 	}
 	b.nodes[j].server = beaconServer
 	var err error
-	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(
-		ctx,
-		b.nodes[j].private.Public.Address(),
-		"", "",
-		beaconServer,
-		true)
+	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(ctx, b.nodes[j].private.Public.Address(), beaconServer)
 	require.NoError(t, err)
 
 	t.Logf("Serve Beacon for node %d - %p --> %s\n", j, b.nodes[j].handler, b.nodes[j].private.Public.Address())
