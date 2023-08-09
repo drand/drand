@@ -169,12 +169,12 @@ var formatFlag = &cli.StringFlag{
 }
 
 var genesisTimeFlag = &cli.StringFlag{
-	Name:  "genesis-time",
+	Name:  "genesis-delay",
 	Usage: "The duration from now until the network should start creating randomness",
 }
 
 var transitionTimeFlag = &cli.StringFlag{
-	Name:  "transition-time",
+	Name:  "transition-delay",
 	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
 }
 

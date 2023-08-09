@@ -263,7 +263,7 @@ func (n *NodeProc) StartLeaderDKG(thr int, _ int, joiners []*drand.Participant) 
 	}
 	proposeArgs := []string{
 		"dkg", "init",
-		"--genesis-time", "20s",
+		"--genesis-delay", "20s",
 		"--control", n.ctrl,
 		"--id", n.beaconID,
 		"--scheme", n.scheme.Name,
@@ -346,7 +346,7 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, 
 		"--id", n.beaconID,
 		"--proposal", proposalFileName,
 		"--threshold", strconv.Itoa(thr),
-		"--transition-time", durationUntilTransitionTime.String(),
+		"--transition-delay", durationUntilTransitionTime.String(),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
