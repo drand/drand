@@ -288,13 +288,15 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 // AdvanceMockClock advances the clock of all drand by the given duration
 func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
 	t.Log("Advance MockClock time by", p, "from", d.clock.Now().Unix(), "actual time is", time.Now().Unix())
+	d.clock.Advance(p)
 	for _, node := range d.nodes {
 		node.clock.Advance(p)
 	}
 	for _, node := range d.newNodes {
-		node.clock.Advance(p)
+		if node.clock.Now() != d.clock.Now() {
+			node.clock.Advance(p)
+		}
 	}
-	d.clock.Advance(p)
 	// we sleep to make sure everyone has the time to get the new time before continuing
 	time.Sleep(1000 * time.Millisecond)
 
