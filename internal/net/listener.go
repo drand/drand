@@ -71,7 +71,8 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 		lis:        lis,
 	}
 
-	// TODO: see if we needed the httpgrpc server to forward the metrics through grpc or not
+	//// TODO: see if we needed the httpgrpc server to forward the metrics through grpc or not
+	// httpgrpc.RegisterHTTPServer(grpcServer, httpgrpcserver.NewServer(metrics.GroupHandler(l)))
 	grpcprometheus.Register(grpcServer)
 
 	state.Lock()
@@ -85,7 +86,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 	return g, nil
 }
 
-// NewRESTListenerForPublic creates a new listener for the Public API over REST with TLS.
+// NewRESTListenerForPublic creates a new listener for the Public API over REST.
 func NewRESTListenerForPublic(ctx context.Context, bindingAddr string, handler http.Handler) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {

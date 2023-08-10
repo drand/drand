@@ -26,6 +26,7 @@ type Config struct {
 	configFolder          string
 	version               string
 	privateListenAddr     string
+	publicListenAddr      string
 	controlPort           string
 	dbStorageEngine       chain.StorageType
 	dkgTimeout            time.Duration
@@ -85,6 +86,15 @@ func (d *Config) DBFolder(beaconID string) string {
 func (d *Config) PrivateListenAddress(defaultAddr string) string {
 	if d.privateListenAddr != "" {
 		return d.privateListenAddr
+	}
+	return defaultAddr
+}
+
+// PublicListenAddress returns the given default address or the listen address stored
+// in the config thanks to WithPublicListenAddress
+func (d *Config) PublicListenAddress(defaultAddr string) string {
+	if d.publicListenAddr != "" {
+		return d.publicListenAddr
 	}
 	return defaultAddr
 }
@@ -201,25 +211,21 @@ func WithConfigFolder(folder string) ConfigOption {
 	}
 }
 
+// WithPublicListenAddress specifies the address the drand instance should bind to. It
+// is useful if you want to advertise a public proxy address and the drand
+// instance runs behind your network.
+func WithPublicListenAddress(addr string) ConfigOption {
+	return func(d *Config) {
+		d.publicListenAddr = addr
+	}
+}
+
 // WithPrivateListenAddress specifies the address the drand instance should bind to. It
 // is useful if you want to advertise a public proxy address and the drand
 // instance runs behind your network.
 func WithPrivateListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
 		d.privateListenAddr = addr
-	}
-}
-
-// WithLogLevel sets the logging verbosity to the given level.
-//
-// Deprecated: Use NewConfigWithLogger.
-func WithLogLevel(level int, jsonFormat bool) ConfigOption {
-	return func(d *Config) {
-		if jsonFormat {
-			d.logger = log.New(nil, level, false)
-		} else {
-			d.logger = log.New(nil, level, true)
-		}
 	}
 }
 

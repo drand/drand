@@ -27,10 +27,9 @@ type Client interface {
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
 
-	// Close will halt the client, any background processes it runs and any
+	// Closer means Close() will halt the client, any background processes it runs and any
 	// in-flight Get, Watch or Info requests. Behavior for usage of the client
 	// after Close is called is undefined.
-
 	io.Closer
 }
 

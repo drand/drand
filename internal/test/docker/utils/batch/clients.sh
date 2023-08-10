@@ -8,12 +8,12 @@ for (( node = 0; node < 5; node++ )); do
 
   echo "-------------- NODE ${node} --------------"
   echo "------------HTTP Randomness on default------------"
-  RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81 --insecure"`
+  RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81"`
   echo "Value: ${HASH}"
   echo ""
 
   echo "------------GRPC Randomness on default----------"
-  RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80 --insecure"`
+  RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80"`
   echo "Value: ${RAND}"
   echo ""
 

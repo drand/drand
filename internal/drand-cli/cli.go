@@ -922,6 +922,9 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	var opts []core.ConfigOption
 	version := common.GetAppVersion()
 
+	if c.IsSet(pubListenFlag.Name) {
+		opts = append(opts, core.WithPublicListenAddress(c.String(pubListenFlag.Name)))
+	}
 	if c.IsSet(privListenFlag.Name) {
 		opts = append(opts, core.WithPrivateListenAddress(c.String(privListenFlag.Name)))
 	}

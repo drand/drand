@@ -54,7 +54,7 @@ type Handler struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
-	// a handle is running when its main run method is launched
+	// a handler is running when its main run method is launched
 	running bool
 	// a handler becomes serving once its ticker starts ticking, but not necessarily if catching up
 	serving bool

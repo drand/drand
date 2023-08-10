@@ -29,6 +29,7 @@ type DrandDaemon struct {
 	chainHashes map[string]string
 
 	privGateway *net.PrivateGateway
+	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
 	dkg *dkg.Process
@@ -117,6 +118,8 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	// Set the private API address to the command-line flag, if given.
 	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress("")
+	pubAddr := c.PublicListenAddress("")
+
 	if privAddr == "" {
 		return fmt.Errorf("private listen address cannot be empty")
 	}
@@ -137,6 +140,13 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	if err != nil {
 		span.RecordError(err)
 		return err
+	}
+
+	if pubAddr != "" {
+		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, handler.GetHTTPHandler()); err != nil {
+			span.RecordError(err)
+			return err
+		}
 	}
 
 	// set up the gRPC clients
@@ -173,6 +183,9 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		"control_port", c.ControlPort(),
 		"folder", c.ConfigFolderMB())
 	dd.privGateway.StartAll()
+	if dd.pubGateway != nil {
+		dd.pubGateway.StartAll()
+	}
 
 	return nil
 }

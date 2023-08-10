@@ -3,13 +3,17 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	clock "github.com/jonboulle/clockwork"
+	"io"
 	"net/http"
 	"os"
 	"path"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
+	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
@@ -66,6 +70,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		period:       cfg.Period,
 		logPath:      logPath,
 		log:          lg,
+		pubAddr:      test.FreeBind(bindAddr),
 		privAddr:     test.FreeBind(bindAddr),
 		ctrlAddr:     controlAddr,
 		scheme:       cfg.Scheme,
@@ -100,6 +105,7 @@ func (l *LocalNode) Start(dbEngineType chain.StorageType, pgDSN func() string, m
 
 	opts := []core.ConfigOption{
 		core.WithConfigFolder(l.base),
+		core.WithPublicListenAddress(l.pubAddr),
 		core.WithPrivateListenAddress(l.privAddr),
 		core.WithControlPort(l.ctrlAddr),
 		core.WithDBStorageEngine(l.dbEngineType),
@@ -291,22 +297,30 @@ func (l *LocalNode) Ping() bool {
 	return true
 }
 
-func (l *LocalNode) GetBeacon(_ string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
-	r, err := http.Get(l.privAddr + fmt.Sprintf("/public/%d", round))
-	if err != nil || r == nil {
+func (l *LocalNode) GetBeacon(_ string, round uint64) (ret *drand.PublicRandResponse, cmd string) {
+	cmd = "unused with LocalNode"
+	resp, err := http.Get("http://" + l.PublicAddr() + fmt.Sprintf("/public/%d", round))
+	if err != nil || resp == nil || resp.ContentLength < 0 {
 		l.log.Errorw("", "drand", "can't get beacon", "err", err)
-	}
-
-	panic(r.Body)
-
-	if r == nil {
 		return
 	}
-	//resp = &drand.PublicRandResponse{
-	//	Round:      r.Round(),
-	//	Signature:  r.Signature(),
-	//	Randomness: r.Randomness(),
-	//}
+	defer resp.Body.Close()
+
+	roundData := make([]byte, resp.ContentLength)
+	n, err := resp.Body.Read(roundData)
+	if err != nil && !errors.Is(err, io.EOF) || int64(n) != resp.ContentLength {
+		l.log.Errorw("Malformed read of http beacon", "err", err, "read", n, "expectedread", resp.ContentLength)
+		return
+	}
+
+	r := common2.Beacon{}
+	new(net.HexJSON).Unmarshal(roundData, r)
+
+	ret = &drand.PublicRandResponse{
+		Round:      r.GetRound(),
+		Signature:  r.GetSignature(),
+		Randomness: r.GetRandomness(),
+	}
 	return
 }
 

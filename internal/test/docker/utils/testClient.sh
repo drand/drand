@@ -4,16 +4,16 @@
 # Insecure is used because we are not using TLS to initiate the communication and we are not providing chain hash nor group file
 
 # Get last random value over http
-docker exec drand_client /bin/sh -c 'drand-client --url http://drand_0:8081 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --url http://drand_1:8181 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --url http://drand_2:8281 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --url http://drand_3:8381 --insecure'
+docker exec drand_client /bin/sh -c 'drand-client --url http://drand_0:8081'
+docker exec drand_client /bin/sh -c 'drand-client --url http://drand_1:8181'
+docker exec drand_client /bin/sh -c 'drand-client --url http://drand_2:8281'
+docker exec drand_client /bin/sh -c 'drand-client --url http://drand_3:8381'
 
 # Get last random value over grpc
-docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_0:8080 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_1:8180 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_2:8280 --insecure'
-docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_3:8380 --insecure'
+docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_0:8080'
+docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_1:8180'
+docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_2:8280'
+docker exec drand_client /bin/sh -c 'drand-client --grpc-connect drand_3:8380'
 
 
 # Get random values as they become available over grpc

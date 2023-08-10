@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"google.golang.org/grpc"
@@ -67,4 +68,31 @@ func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts .
 	// TODO Find a better fix
 	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
 	return pg, nil
+}
+
+// PublicGateway is the main interface to communicate to users.
+// The gateway fixes all drand functionalities offered by drand.
+type PublicGateway struct {
+	Listener
+}
+
+// StartAll starts the control and public functionalities of the node
+func (g *PublicGateway) StartAll() {
+	go g.Listener.Start()
+}
+
+// StopAll stops the control and public functionalities of the node
+func (g *PublicGateway) StopAll(ctx context.Context) {
+	g.Listener.Stop(ctx)
+}
+
+// NewRESTPublicGateway returns a grpc gateway listening on "listen" for the
+// public methods, listening on "port" for the control methods, using the given
+// Service s with the given options.
+func NewRESTPublicGateway(ctx context.Context, listen string, handler http.Handler) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublic(ctx, listen, handler)
+	if err != nil {
+		return nil, err
+	}
+	return &PublicGateway{Listener: l}, nil
 }
