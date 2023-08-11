@@ -280,6 +280,7 @@ func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
 
 	return SchemeFromName(id)
 }
+
 func GetSchemeByID(id string) (*Scheme, bool) {
 	if id == "" {
 		id = DefaultSchemeID

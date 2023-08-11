@@ -10,7 +10,6 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/kyber"
 )
 
@@ -28,15 +27,10 @@ type Info struct {
 
 // NewChainInfo makes a chain Info from a group.
 func NewChainInfo(l log.Logger, g *key.Group) *Info {
-	schemeName := g.Scheme.Name
-	if sch, err := crypto.GetSchemeByIDWithDefault(schemeName); err == nil {
-		// if there is an error we keep the provided name, otherwise we set it
-		schemeName = sch.Name
-	}
 	return &Info{
 		ID:          g.ID,
 		Period:      g.Period,
-		Scheme:      schemeName,
+		Scheme:      g.Scheme.Name,
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
 		GenesisSeed: g.GetGenesisSeed(),
@@ -79,7 +73,8 @@ func (c *Info) Equal(c2 *Info) bool {
 		c.Period == c2.Period &&
 		c.PublicKey.Equal(c2.PublicKey) &&
 		bytes.Equal(c.GenesisSeed, c2.GenesisSeed) &&
-		common.CompareBeaconIDs(c.ID, c2.ID)
+		common.CompareBeaconIDs(c.ID, c2.ID) &&
+		c.Scheme == c2.Scheme
 }
 
 // GetSchemeName returns the scheme name used

@@ -73,3 +73,20 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Equal(t, testShare.Share.V, loadedShare.Share.V)
 	require.Equal(t, testShare.Share.I, loadedShare.Share.I)
 }
+
+func TestTwoStores(t *testing.T) {
+	// we don't use the function from the test package here to avoid a circular dependency
+	beaconID := commonutils.GetCanonicalBeaconID(os.Getenv("BEACON_ID"))
+
+	tmp := path.Join(t.TempDir(), "drand-key-2")
+
+	store1 := NewFileStore(tmp, beaconID).(*fileStore)
+	require.Equal(t, tmp, store1.baseFolder)
+	store2 := NewFileStore(tmp, beaconID+"2").(*fileStore)
+	require.Equal(t, tmp, store2.baseFolder)
+
+	stores, err := NewFileStores(tmp)
+	require.NoError(t, err)
+	require.Contains(t, stores, store1.beaconID)
+	require.Contains(t, stores, store2.beaconID)
+}

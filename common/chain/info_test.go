@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,6 +11,7 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/testlogger"
+	"github.com/drand/drand/protobuf/common"
 )
 
 func TestChainInfo(t *testing.T) {
@@ -39,6 +41,8 @@ func TestChainInfo(t *testing.T) {
 	h12 := c12.Hash()
 	require.Equal(t, h1, h12)
 	require.Equal(t, c1, c12)
+	require.Equal(t, c1.HashString(), hex.EncodeToString(h12))
+	require.Equal(t, c1.GetSchemeName(), g1.Scheme.Name)
 
 	_, g2 := test.BatchIdentities(5, sch, beaconID)
 	c2 := NewChainInfo(lg, g2)
@@ -70,4 +74,34 @@ func TestChainInfo(t *testing.T) {
 	require.NotNil(t, c13)
 	c1.log = nil
 	require.Equal(t, c1, c13)
+
+	require.True(t, c1.Equal(c13))
+
+	var c3Buff bytes.Buffer
+
+	// trying with a wrong scheme name
+	c2.Scheme = "nonexistentscheme"
+	err = c2.ToJSON(&c3Buff, nil)
+	require.NoError(t, err)
+	_, err = InfoFromJSON(&c3Buff)
+	require.ErrorContains(t, err, "invalid scheme")
+
+	// test with invalid public key
+	data := c2Buff.Bytes()
+	// changing 7 bytes to have negligible chances of falling on a valid point
+	data[17] = 0x41
+	data[18] = 0x41
+	data[19] = 0x41
+	data[20] = 0x41
+	data[21] = 0x41
+	data[22] = 0x41
+	data[23] = 0x41
+	_, err = InfoFromJSON(bytes.NewReader(data))
+	require.ErrorContains(t, err, "point is not on")
+
+	// testing ToProto
+	packet := c1.ToProto(&common.Metadata{
+		BeaconID: "differentfrom" + beaconID,
+	})
+	require.Equal(t, beaconID, packet.Metadata.BeaconID)
 }

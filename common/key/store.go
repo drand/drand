@@ -59,14 +59,6 @@ type fileStore struct {
 	groupFile      string
 }
 
-// GetFirstStore will return the first store from the stores map
-func GetFirstStore(stores map[string]Store) (string, Store) {
-	for k, v := range stores {
-		return k, v
-	}
-	return "", nil
-}
-
 // NewFileStores will list all folder on base path and load every file store it can find. It will
 // return a map with a beacon id as key and a file store as value.
 func NewFileStores(baseFolder string) (map[string]Store, error) {
