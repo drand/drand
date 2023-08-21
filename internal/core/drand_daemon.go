@@ -23,7 +23,6 @@ import (
 )
 
 type DrandDaemon struct {
-	initialStores   map[string]*key.Store
 	beaconProcesses map[string]*BeaconProcess
 	// hex encoded chainHash mapping to beaconID
 	chainHashes map[string]string
@@ -66,7 +65,6 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 		exitCh:          make(chan bool, 1),
 		completedDKGs:   make(chan dkg.SharingOutput),
 		version:         common2.GetAppVersion(),
-		initialStores:   make(map[string]*key.Store),
 		beaconProcesses: make(map[string]*BeaconProcess),
 		chainHashes:     make(map[string]string),
 	}
