@@ -500,7 +500,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		return nil
 	}
 
-	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	targetRound := common.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
 	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:gomnd // We cannot sync the initial round.

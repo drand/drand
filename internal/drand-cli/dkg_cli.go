@@ -19,7 +19,6 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/net"
@@ -333,8 +332,8 @@ func parseProposal(c *cli.Context, l log.Logger) (*drand.ProposalOptions, error)
 	}
 
 	// then we use it to work out the real transition time
-	transitionRound := chain.CurrentRound(transitionTime.Unix(), time.Duration(info.Period)*time.Second, info.GenesisTime)
-	actualTransitionTime := chain.TimeOfRound(time.Duration(info.Period)*time.Second, info.GenesisTime, transitionRound)
+	transitionRound := common.CurrentRound(transitionTime.Unix(), time.Duration(info.Period)*time.Second, info.GenesisTime)
+	actualTransitionTime := common.TimeOfRound(time.Duration(info.Period)*time.Second, info.GenesisTime, transitionRound)
 
 	return &drand.ProposalOptions{
 		Timeout:              timestamppb.New(timeout),

@@ -21,7 +21,6 @@ import (
 	chain2 "github.com/drand/drand/common/chain"
 	client2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
 )
 
@@ -571,7 +570,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
-		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+		expected := common.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
 		resp["expected"] = expected
 		if lastSeen == expected || lastSeen+1 == expected {
 			timeToExpected := time.Until(dateOfRound(expected+1, info))
@@ -625,7 +624,7 @@ func readRound(r *http.Request) (uint64, error) {
 }
 
 func dateOfRound(round uint64, info *chain2.Info) time.Time {
-	return time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
+	return time.Unix(common.TimeOfRound(info.Period, info.GenesisTime, round), 0)
 }
 
 func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error) {

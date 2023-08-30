@@ -170,7 +170,7 @@ func (d *discrepancyStore) Put(ctx context.Context, b *common.Beacon) error {
 
 	storageTime := d.clock.Now()
 
-	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
+	expected := common.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual.UnixNano()-expected) / float64(time.Millisecond)
 
 	beaconID := common.GetCanonicalBeaconID(d.group.ID)

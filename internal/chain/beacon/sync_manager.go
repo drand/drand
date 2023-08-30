@@ -412,7 +412,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	}
 
 	// for effective rate limiting but not when we are caught up and following a chain live
-	target := chain.CurrentRound(s.clock.Now().Unix(), s.info.Period, s.info.GenesisTime)
+	target := commonutils.CurrentRound(s.clock.Now().Unix(), s.info.Period, s.info.GenesisTime)
 	if upTo > 0 {
 		target = upTo
 	}

@@ -554,7 +554,7 @@ func (bp *BeaconProcess) sendProgressCallback(
 	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
 	defer span.End()
 
-	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+	targ := common2.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
 		targ = upTo
 	}

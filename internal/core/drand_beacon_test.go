@@ -10,6 +10,7 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/dkg"
@@ -208,7 +209,7 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	ts.AdvanceMockClock(t, period)
 	time.Sleep(sleepDuration)
 
-	expectedRound := chain.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
+	expectedRound := common.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
 	err = ts.WaitUntilRound(t, memDBNode, expectedRound-1)
 	require.NoError(t, err)
 }

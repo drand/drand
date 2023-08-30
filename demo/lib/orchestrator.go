@@ -240,7 +240,7 @@ func (e *Orchestrator) WaitGenesis() {
 
 func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
-	currentRound := chain.CurrentRound(e.transition, e.periodD, e.genesis)
+	currentRound := common.CurrentRound(e.transition, e.periodD, e.genesis)
 
 	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d\n", to, e.transition, currentRound)
 	time.Sleep(to)
@@ -254,7 +254,7 @@ func (e *Orchestrator) Wait(t time.Duration) {
 }
 
 func (e *Orchestrator) WaitPeriod() {
-	nRound, nTime := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, nTime := common.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
 	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
@@ -292,7 +292,7 @@ func filterNodes(list []node.Node, exclude ...int) []node.Node {
 }
 
 func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl bool) {
-	nRound, _ := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, _ := common.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
 	fmt.Printf("[+] Checking randomness beacon for round %d via CLI\n", currRound)
 	var pubRand *drand.PublicRandResponse
@@ -474,8 +474,8 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	leader := e.reshareNodes[0]
 
 	// if the transition time is in the past, the DKG will fail, so it needs to be long enough to complete the DKG
-	roundInOneMinute := chain.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
-	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
+	roundInOneMinute := common.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
+	transitionTime := common.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
 	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)

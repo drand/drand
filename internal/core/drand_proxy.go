@@ -11,7 +11,6 @@ import (
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -75,7 +74,7 @@ func (d *drandProxy) RoundAt(t time.Time) uint64 {
 	if err != nil {
 		return 0
 	}
-	return chain.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
+	return common.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
 }
 
 func (d *drandProxy) Close() error {

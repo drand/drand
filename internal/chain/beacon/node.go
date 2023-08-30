@@ -128,7 +128,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	pRound := p.GetRound()
 	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
 
-	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nextRound, _ := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
 	// we allow one round off in the future because of small clock drifts
@@ -237,7 +237,7 @@ func (h *Handler) Start(ctx context.Context) error {
 	}
 
 	h.thresholdMonitor.Start()
-	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	_, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
 
@@ -253,7 +253,7 @@ func (h *Handler) Catchup(ctx context.Context) {
 	ctx, span := metrics.NewSpan(ctx, "h.Catchup")
 	defer span.End()
 
-	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nRound, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.l.Infow("Launching Catchup", "upto", nRound)
@@ -269,8 +269,8 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 	defer span.End()
 
 	targetTime := h.conf.Group.TransitionTime
-	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
@@ -297,8 +297,8 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 	defer span.End()
 
 	targetTime := newGroup.TransitionTime
-	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return

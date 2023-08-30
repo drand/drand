@@ -674,7 +674,7 @@ func TestDrandPublicRand(t *testing.T) {
 	newNodeID := newNodes[0].drand.priv.Public
 	if newNodes[0].drand.opts.dbStorageEngine == chain.MemDB {
 		// this is the round the memdb backend should have gotten upon init
-		initRound = chain.CurrentRound(newGroup.TransitionTime, newGroup.Period, newGroup.GenesisTime) - 1
+		initRound = common.CurrentRound(newGroup.TransitionTime, newGroup.Period, newGroup.GenesisTime) - 1
 	}
 	t.Log("Querying PublicRand from node", newNodeID.Addr, "at round", initRound)
 	resp, err = client.PublicRand(ctx, newNodeID, &drand.PublicRandRequest{Round: initRound})
