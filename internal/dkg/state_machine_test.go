@@ -22,6 +22,7 @@ var bob = NewParticipant("bob")
 var carol = NewParticipant("carol")
 
 func TestProposalValidation(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	current := NewCompleteDKGEntry(t, beaconID, Complete, alice)
 	tests := []struct {
@@ -361,6 +362,7 @@ func TestProposalValidation(t *testing.T) {
 
 //nolint:funlen
 func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 
 	tests := []stateChangeTableTest{
@@ -459,6 +461,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 
 //nolint:funlen
 func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -573,6 +576,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 }
 
 func TestJoiningADKGFromProposal(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -638,6 +642,7 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 }
 
 func TestProposingDKGFromFresh(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -705,6 +710,7 @@ func TestProposingDKGFromFresh(t *testing.T) {
 }
 
 func TestProposingDKGFromNonFresh(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -858,6 +864,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 
 //nolint:funlen
 func TestProposedDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -1006,6 +1013,7 @@ func TestProposedDKG(t *testing.T) {
 }
 
 func TestAcceptingDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -1079,6 +1087,7 @@ func TestAcceptingDKG(t *testing.T) {
 }
 
 func TestRejectingDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 
 	tests := []stateChangeTableTest{
@@ -1153,6 +1162,7 @@ func TestRejectingDKG(t *testing.T) {
 }
 
 func TestLeftDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 
 	tests := []stateChangeTableTest{
@@ -1228,6 +1238,7 @@ func TestLeftDKG(t *testing.T) {
 }
 
 func TestExecutingDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -1293,6 +1304,7 @@ func TestExecutingDKG(t *testing.T) {
 }
 
 func TestEviction(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -1324,6 +1336,7 @@ func TestEviction(t *testing.T) {
 }
 
 func TestCompleteDKG(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	finalGroup := key.Group{}
 	keyShare := key.Share{}
@@ -1366,6 +1379,7 @@ func TestCompleteDKG(t *testing.T) {
 }
 
 func TestReceivedAcceptance(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 
 	tests := []stateChangeTableTest{
@@ -1459,6 +1473,7 @@ func TestReceivedAcceptance(t *testing.T) {
 }
 
 func TestReceivedRejection(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
@@ -1551,6 +1566,7 @@ func TestReceivedRejection(t *testing.T) {
 }
 
 func TestCompletion(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	group := key.Group{
 		GenesisSeed: []byte("deadbeef"),
@@ -1602,6 +1618,7 @@ func TestCompletion(t *testing.T) {
 }
 
 func TestFailed(t *testing.T) {
+	t.Parallel()
 	beaconID := "some-beacon-id"
 	tests := []stateChangeTableTest{
 		{
