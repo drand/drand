@@ -39,11 +39,6 @@ func NewPeer(addr string) net.Peer {
 	return &testPeer{a: addr, b: false}
 }
 
-// NewTLSPeer returns a new net.Peer with TLS enabled
-func NewTLSPeer(addr string) net.Peer {
-	return &testPeer{a: addr, b: true}
-}
-
 // Addresses returns a list of TCP 127.0.0.1 addresses starting from the given
 // port= start.
 func Addresses(n int) []string {

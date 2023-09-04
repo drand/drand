@@ -59,7 +59,7 @@ type DrandTestScenario struct {
 	resharedNodes []*MockNode
 }
 
-// BatchNewDrand returns n drands, using TLS or not, with the given
+// BatchNewDrand returns n drand daemons, with the given
 // options. It returns the list of Drand structures, the group created,
 // the folder where db, etc are stored. It is the folder
 // to delete at the end of the test. As well, it returns a public grpc
