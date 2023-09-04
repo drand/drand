@@ -16,10 +16,10 @@ import (
 
 	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/test/mock"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {

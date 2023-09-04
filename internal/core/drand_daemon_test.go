@@ -9,9 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestNoPanicWhenDrandDaemonPortInUse(t *testing.T) {

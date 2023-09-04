@@ -346,7 +346,7 @@ func (n *NodeProc) GetGroup() *key.Group {
 }
 
 func (n *NodeProc) ChainInfo(_ string) bool {
-	args := []string{"show", "chain-info"}
+	args := []string{"show", "chain-info", "--control", n.ctrl}
 
 	args = append(args, n.privAddr)
 
@@ -379,12 +379,14 @@ func (n *NodeProc) Ping() bool {
 }
 
 func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
-	args := []string{"get", "public"}
-	args = append(args, pair("--nodes", n.privAddr)...)
-	args = append(args, pair("--round", strconv.Itoa(int(round)))...)
-	args = append(args, groupPath)
-	cmd := exec.Command(n.binary, args...)
+	args := []string{"--no-progress-meter", n.pubAddr + "/public/" + strconv.Itoa(int(round))}
+
+	cmd := exec.Command("curl", args...)
 	out := runCommand(cmd)
+	if len(out) == 0 {
+		time.Sleep(50 * time.Millisecond)
+		out = runCommand(cmd)
+	}
 	s := new(drand.PublicRandResponse)
 	err := json.Unmarshal(out, s)
 	if err != nil {

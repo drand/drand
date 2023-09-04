@@ -11,9 +11,9 @@ import (
 // Before releasing: Verify the version number and set Prerelease to ""
 // After releasing: Increase the Patch number and set Prerelease to "-pre"
 var version = Version{
-	Major:      1,
-	Minor:      5,
-	Patch:      7,
+	Major:      2,
+	Minor:      0,
+	Patch:      0,
 	Prerelease: "testnet",
 }
 
@@ -51,7 +51,9 @@ func (v Version) IsCompatible(verRcv Version) bool {
 		return true
 	case v.Major == 1 && verRcv.Major == 1 && verRcv.Minor >= 4:
 		return true
-	case v.Major == 2 && verRcv.Major == 1 && verRcv.Minor >= 5:
+	case v.Major == 1 && v.Minor >= 5 && verRcv.Major == 2 && verRcv.Minor == 0:
+		return true
+	case v.Major == 2 && v.Minor == 0 && verRcv.Major == 1 && verRcv.Minor >= 5 && verRcv.Patch >= 7:
 		return true
 	case v.Major > 1 && v.Major == verRcv.Major:
 		return true

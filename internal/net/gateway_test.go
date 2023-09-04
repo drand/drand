@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/testlogger"
 	testnet "github.com/drand/drand/internal/test/net"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 )
 

@@ -136,17 +136,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("[DEBUG] Starting resharing")
 	orch.RunResharing(resharingGroup, 1*time.Minute)
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {
 		limit = 4
 	}
+	fmt.Println("[DEBUG] Starting to wait")
 	// look if beacon is still up even with the nodeToExclude being offline
 	for i := 0; i < limit; i++ {
 		orch.WaitPeriod()
-		orch.CheckNewBeacon()
+		orch.CheckNewBeacon(nodeToStop)
+		fmt.Println("[DEBUG] Done", i)
+
 	}
+	fmt.Println("[DEBUG] All Done")
 }
 
 func setSignal(orch *lib.Orchestrator) {

@@ -79,9 +79,23 @@ func TestVersionCompatible(t *testing.T) {
 		Prerelease: "pre",
 	}
 
+	version157 := Version{
+		Major:      1,
+		Minor:      5,
+		Patch:      7,
+		Prerelease: "",
+	}
+
 	version200 := Version{
 		Major:      2,
 		Minor:      0,
+		Patch:      0,
+		Prerelease: "",
+	}
+
+	version210 := Version{
+		Major:      2,
+		Minor:      1,
 		Patch:      0,
 		Prerelease: "",
 	}
@@ -101,11 +115,26 @@ func TestVersionCompatible(t *testing.T) {
 	testCompatible(version123, version123)
 	testCompatible(version123, version123pre)
 	testCompatible(version123, version124)
+	testCompatible(version157, version200)
+	testCompatible(version200, version210)
+	testCompatible(version200, version200)
+	testCompatible(version210, version210)
 
 	testIncompatible(version123, version130)
 	testIncompatible(version123, version130pre)
 	testIncompatible(version123, version200)
 	testIncompatible(version123pre, version130pre)
+
+	testIncompatible(version000, version200)
+	testIncompatible(version123, version200)
+	testIncompatible(version123pre, version200)
+	testIncompatible(version124, version200)
+
+	testIncompatible(version000, version210)
+	testIncompatible(version123, version210)
+	testIncompatible(version123pre, version210)
+	testIncompatible(version124, version210)
+	testIncompatible(version157, version210)
 
 	t.Setenv("DISABLE_VERSION_CHECK", "1")
 	testCompatible(version123, version000)

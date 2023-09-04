@@ -23,6 +23,7 @@ import (
 
 	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	derrors "github.com/drand/drand/internal/chain/errors"
@@ -30,7 +31,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
 	context2 "github.com/drand/drand/internal/test/context"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 )
 

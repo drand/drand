@@ -242,7 +242,7 @@ func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
 	currentRound := common.CurrentRound(e.transition, e.periodD, e.genesis)
 
-	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d\n", to, e.transition, currentRound)
+	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d current time: %d\n", to, e.transition, currentRound, time.Now().Unix())
 	time.Sleep(to)
 	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", afterPeriodWait)
 	time.Sleep(afterPeriodWait)
@@ -257,7 +257,7 @@ func (e *Orchestrator) WaitPeriod() {
 	nRound, nTime := common.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
-	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
+	fmt.Printf("[+] Sleeping %ds to reach round %d [period %d, current %d]\n", int(until.Seconds()), nRound, e.periodD, nRound)
 	time.Sleep(until)
 }
 
