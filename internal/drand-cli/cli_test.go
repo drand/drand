@@ -1175,9 +1175,9 @@ func (d *drandInstance) startInitialDKG(
 	dkgArgs := []string{
 		"drand",
 		"dkg",
-		"propose",
+		"init",
+		"--genesis-delay", "20s",
 		"--proposal", proposalPath,
-		"--transition-time", fmt.Sprintf("%ds", 30*periodSeconds),
 		"--catchup-period", fmt.Sprintf("%ds", periodSeconds/2),
 		"--threshold", fmt.Sprintf("%d", threshold),
 		"--period", fmt.Sprintf("%ds", periodSeconds),
