@@ -10,8 +10,8 @@ import (
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -41,7 +41,7 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 }
 
 func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.setupDKG")
+	ctx, span := tracer.NewSpan(ctx, "dkg.setupDKG")
 	defer span.End()
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
@@ -98,7 +98,7 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 
 // this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
-	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
+	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
 
 	current, err := d.store.GetCurrent(beaconID)
@@ -182,7 +182,7 @@ func (d *Process) startDKGExecution(
 	current *DBState,
 	config *dkg.Config,
 ) (*ExecutionOutput, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
+	ctx, span := tracer.NewSpan(ctx, "dkg.startDKGExecution")
 	defer span.End()
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
 	go phaser.Start()
@@ -233,7 +233,7 @@ func (d *Process) startDKGExecution(
 }
 
 func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.asGroup")
+	_, span := tracer.NewSpan(ctx, "dkg.asGroup")
 	defer span.End()
 
 	sch, found := crypto.GetSchemeByID(details.SchemeID)

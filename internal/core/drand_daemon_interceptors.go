@@ -3,13 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/drand/drand/common/tracer"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/common"
 )
 
@@ -19,7 +19,7 @@ type MetadataGetter interface {
 
 func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{},
 	_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.NodeVersionValidator")
+	ctx, span := tracer.NewSpan(ctx, "dd.NodeVersionValidator")
 	defer span.End()
 	reqWithContext, ok := req.(MetadataGetter)
 

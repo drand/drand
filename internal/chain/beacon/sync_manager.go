@@ -15,11 +15,11 @@ import (
 	commonutils "github.com/drand/drand/common"
 	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	dcontext "github.com/drand/drand/internal/context"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -146,7 +146,7 @@ func (s *SyncManager) Run() {
 			cancel()
 			return
 		case request := <-s.newReq:
-			_, span := metrics.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
+			_, span := tracer.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
 
 			// check if the request is still valid
 			last, err := s.store.Last(ctx)
@@ -185,7 +185,7 @@ func (s *SyncManager) Run() {
 }
 
 func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	_, span := metrics.NewSpan(ctx, "syncManager.CheckPastBeacons")
+	_, span := tracer.NewSpan(ctx, "syncManager.CheckPastBeacons")
 	defer span.End()
 
 	logger := s.log.Named("pastBeaconCheck")
@@ -257,7 +257,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 }
 
 func (s *SyncManager) CorrectPastBeacons(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
-	_, span := metrics.NewSpan(ctx, "syncManager.CorrectPastBeacons")
+	_, span := tracer.NewSpan(ctx, "syncManager.CorrectPastBeacons")
 	defer span.End()
 
 	target := uint64(len(faultyBeacons))
@@ -294,7 +294,7 @@ func (s *SyncManager) CorrectPastBeacons(ctx context.Context, faultyBeacons []ui
 
 // ReSync handles resyncs that where necessarily launched by a CLI.
 func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.Peer) error {
-	ctx, span := metrics.NewSpan(ctx, "syncManager.ReSync")
+	ctx, span := tracer.NewSpan(ctx, "syncManager.ReSync")
 	defer span.End()
 
 	s.log.Debugw("Launching re-sync request", "from", from, "upTo", to)
@@ -331,7 +331,7 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 //
 //nolint:gocritic // Request size is correct, no need for a pointer.
 func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
-	ctx, span := metrics.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.Sync")
+	ctx, span := tracer.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.Sync")
 	defer span.End()
 
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
@@ -365,7 +365,7 @@ func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
 //
 //nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
-	global, span := metrics.NewSpan(global, "dd.LoadBeaconFromStore")
+	global, span := tracer.NewSpan(global, "dd.LoadBeaconFromStore")
 	defer span.End()
 
 	span.SetAttributes(
@@ -425,7 +425,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	for {
 		select {
 		case beaconPacket, ok := <-beaconCh:
-			cnode, span := metrics.NewSpan(cnode, "dd.LoadBeaconFromStore")
+			cnode, span := tracer.NewSpan(cnode, "dd.LoadBeaconFromStore")
 
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -529,7 +529,7 @@ var ErrCallbackReplaced = errors.New("callback replaced")
 //
 //nolint:funlen,gocyclo // This has the right length
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
-	ctx, span := metrics.NewSpan(stream.Context(), "SyncChain")
+	ctx, span := tracer.NewSpan(stream.Context(), "SyncChain")
 	defer span.End()
 
 	fromRound := req.GetFromRound()

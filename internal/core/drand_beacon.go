@@ -12,6 +12,7 @@ import (
 	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	dlog "github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/beacon"
@@ -72,7 +73,7 @@ func NewBeaconProcess(ctx context.Context,
 	beaconID string,
 	opts *Config,
 	privGateway *net.PrivateGateway) (*BeaconProcess, error) {
-	_, span := metrics.NewSpan(ctx, "dd.NewBeaconProcess")
+	_, span := tracer.NewSpan(ctx, "dd.NewBeaconProcess")
 	defer span.End()
 
 	priv, err := store.LoadKeyPair()
@@ -106,7 +107,7 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load(ctx context.Context) error {
-	_, span := metrics.NewSpan(ctx, "bp.Load")
+	_, span := tracer.NewSpan(ctx, "bp.Load")
 	defer span.End()
 
 	var err error
@@ -158,7 +159,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.StartBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.StartBeacon")
 	defer span.End()
 
 	b, err := bp.newBeacon(ctx)
@@ -185,7 +186,7 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 }
 
 func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
-	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
+	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
 	for dkgOutput := range bp.completedDKGs {
 		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
@@ -197,7 +198,7 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
 // onDKGCompleted transitions between an "old" group and a new group. This method is called
 // *after* a DKG has completed.
 func (bp *BeaconProcess) onDKGCompleted(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.onDKGCompleted")
+	ctx, span := tracer.NewSpan(ctx, "bp.onDKGCompleted")
 	defer span.End()
 	if dkgOutput.BeaconID != bp.beaconID {
 		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
@@ -319,7 +320,7 @@ func (bp *BeaconProcess) joinNetwork(ctx context.Context, dkgOutput *dkg.Sharing
 
 // Stop simply stops all drand operations.
 func (bp *BeaconProcess) Stop(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "bp.Stop")
+	ctx, span := tracer.NewSpan(ctx, "bp.Stop")
 	defer span.End()
 
 	bp.state.RLock()
@@ -350,7 +351,7 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.createDBStore")
+	ctx, span := tracer.NewSpan(ctx, "bp.createDBStore")
 	defer span.End()
 
 	beaconName := common.GetCanonicalBeaconID(bp.beaconID)
@@ -388,7 +389,7 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 }
 
 func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.newBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.newBeacon")
 	defer span.End()
 
 	bp.state.Lock()
@@ -455,7 +456,7 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 
 // StopBeacon stops the beacon generation process and resets it.
 func (bp *BeaconProcess) StopBeacon(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "bp.StopBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.StopBeacon")
 	defer span.End()
 
 	bp.state.Lock()
@@ -492,7 +493,7 @@ func (bp *BeaconProcess) newMetadata() *pbCommon.Metadata {
 var errNoRoundInPeers = errors.New("could not find round")
 
 func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
+	ctx, span := tracer.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
 	defer span.End()
 
 	clkNow := bp.opts.clock.Now().Unix()
@@ -551,7 +552,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 }
 
 func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.loadBeaconFromPeers")
+	ctx, span := tracer.NewSpan(ctx, "bp.loadBeaconFromPeers")
 	defer span.End()
 
 	select {

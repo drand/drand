@@ -383,14 +383,15 @@ func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandR
 
 	cmd := exec.Command("curl", args...)
 	out := runCommand(cmd)
-	if len(out) == 0 {
-		time.Sleep(50 * time.Millisecond)
-		out = runCommand(cmd)
+	if len(out) < 48 {
+		fmt.Println("Unable to GetBeacon, got an empty response")
+		return nil, "error"
 	}
+
 	s := new(drand.PublicRandResponse)
 	err := json.Unmarshal(out, s)
 	if err != nil {
-		fmt.Printf("failed to unmarshal beacon response: %s\n", out)
+		fmt.Printf("error %v, failed to unmarshal beacon response: %s\n", err, out)
 	}
 	checkErr(err)
 	return s, strings.Join(cmd.Args, " ")
@@ -448,6 +449,7 @@ func pair(k, v string) []string {
 func runCommand(c *exec.Cmd, add ...string) []byte {
 	out, err := c.CombinedOutput()
 	if err != nil {
+		fmt.Printf("[-] Error: %v", err)
 		if len(add) > 0 {
 			fmt.Printf("[-] Msg failed command: %s\n", add[0])
 		}

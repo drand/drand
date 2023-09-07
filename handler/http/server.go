@@ -341,6 +341,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 		if block {
 			select {
 			case r := <-ch:
+				h.log.Debugw("Blocked request fulfilled", "round", round)
 				return r, nil
 			case <-ctx.Done():
 				bh.pendingLk.Lock()
@@ -355,6 +356,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 				case <-ch:
 				default:
 				}
+				h.log.Debugw("Blocked request canceled", "round", round, "err", ctx.Err())
 				return nil, ctx.Err()
 			}
 		}
@@ -371,10 +373,10 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 	resp, err := bh.client.Get(ctx, round)
-
 	if err != nil {
 		return nil, err
 	}
+	h.log.Debugw("Happy path request fulfilled", "round", round, "resp", resp.GetRound())
 
 	return json.Marshal(resp)
 }

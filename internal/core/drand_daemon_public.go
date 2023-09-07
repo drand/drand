@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/common/tracer"
 
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -11,7 +11,7 @@ import (
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (dd *DrandDaemon) PartialBeacon(ctx context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.PartialBeacon")
+	ctx, span := tracer.NewSpan(ctx, "dd.PartialBeacon")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -28,7 +28,7 @@ func (dd *DrandDaemon) PartialBeacon(ctx context.Context, in *drand.PartialBeaco
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (dd *DrandDaemon) PublicRand(ctx context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.DrandDaemon")
+	ctx, span := tracer.NewSpan(ctx, "dd.DrandDaemon")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -52,7 +52,7 @@ func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream dran
 
 // Home provides the address the local node is listening
 func (dd *DrandDaemon) Home(c context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	_, span := metrics.NewSpan(c, "dd.Home")
+	_, span := tracer.NewSpan(c, "dd.Home")
 	defer span.End()
 
 	ctx := common.NewMetadata(dd.version.ToProto())
@@ -62,7 +62,7 @@ func (dd *DrandDaemon) Home(c context.Context, _ *drand.HomeRequest) (*drand.Hom
 
 // ChainInfo replies with the chain information this node participates to
 func (dd *DrandDaemon) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.ChainInfo")
+	ctx, span := tracer.NewSpan(ctx, "dd.ChainInfo")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -87,7 +87,7 @@ func (dd *DrandDaemon) SyncChain(in *drand.SyncRequest, stream drand.Protocol_Sy
 
 // GetIdentity returns the identity of this drand node
 func (dd *DrandDaemon) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.IdentityResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.GetIdentity")
+	ctx, span := tracer.NewSpan(ctx, "dd.GetIdentity")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())

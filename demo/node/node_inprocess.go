@@ -301,7 +301,7 @@ func (l *LocalNode) GetBeacon(_ string, round uint64) (ret *drand.PublicRandResp
 	cmd = "unused with LocalNode"
 	resp, err := http.Get("http://" + l.PublicAddr() + fmt.Sprintf("/public/%d", round))
 	if err != nil || resp == nil || resp.ContentLength < 0 {
-		l.log.Errorw("", "drand", "can't get beacon", "err", err)
+		l.log.Errorw("localnode", "can't get beacon", round, "err", err)
 		return
 	}
 	defer resp.Body.Close()

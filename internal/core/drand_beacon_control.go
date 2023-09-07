@@ -13,11 +13,11 @@ import (
 	common2 "github.com/drand/drand/common"
 	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/beacon"
 	"github.com/drand/drand/internal/fs"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
@@ -26,7 +26,7 @@ import (
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
 func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
-	_, span := metrics.NewSpan(ctx, "bp.PublicKey")
+	_, span := tracer.NewSpan(ctx, "bp.PublicKey")
 	defer span.End()
 
 	bp.state.RLock()
@@ -55,7 +55,7 @@ var ErrNoGroupSetup = errors.New("drand: no dkg group setup yet")
 
 // GroupFile replies with the distributed key in the response
 func (bp *BeaconProcess) GroupFile(ctx context.Context, _ *drand.GroupRequest) (*drand.GroupPacket, error) {
-	_, span := metrics.NewSpan(ctx, "bp.GroupFile")
+	_, span := tracer.NewSpan(ctx, "bp.GroupFile")
 	defer span.End()
 
 	bp.state.RLock()
@@ -72,7 +72,7 @@ func (bp *BeaconProcess) GroupFile(ctx context.Context, _ *drand.GroupRequest) (
 
 // BackupDatabase triggers a backup of the primary database.
 func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.BackupDatabase")
+	ctx, span := tracer.NewSpan(ctx, "bp.BackupDatabase")
 	defer span.End()
 
 	bp.state.RLock()
@@ -95,14 +95,14 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (bp *BeaconProcess) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong, error) {
-	_, span := metrics.NewSpan(ctx, "bp.Ping")
+	_, span := tracer.NewSpan(ctx, "bp.Ping")
 	defer span.End()
 
 	return &drand.Pong{Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.RemoteStatus")
+	ctx, span := tracer.NewSpan(ctx, "bp.RemoteStatus")
 	defer span.End()
 
 	replies := make(map[string]*drand.StatusResponse)
@@ -157,7 +157,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 //
 
 func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.Status")
+	ctx, span := tracer.NewSpan(ctx, "bp.Status")
 	defer span.End()
 
 	bp.state.RLock()
@@ -227,7 +227,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 		p := net.CreatePeer(remoteAddress)
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
-			ctx, span := metrics.NewSpan(ctx, "bp.Status.sendingHome")
+			ctx, span := tracer.NewSpan(ctx, "bp.Status.sendingHome")
 			span.SetAttributes(attribute.String("nodeAddr", remoteAddress))
 			defer span.End()
 
@@ -258,14 +258,14 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 }
 
 func (bp *BeaconProcess) ListSchemes(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
-	_, span := metrics.NewSpan(ctx, "bp.ListSchemes")
+	_, span := tracer.NewSpan(ctx, "bp.ListSchemes")
 	defer span.End()
 
 	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) ListBeaconIDs(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
-	_, span := metrics.NewSpan(ctx, "bp.ListBeaconIDs")
+	_, span := tracer.NewSpan(ctx, "bp.ListBeaconIDs")
 	defer span.End()
 
 	return nil, fmt.Errorf("method not implemented")
@@ -275,7 +275,7 @@ func (bp *BeaconProcess) ListBeaconIDs(ctx context.Context, _ *drand.ListSchemes
 //
 //nolint:funlen,gocyclo,lll
 func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.StartFollowChain")
+	ctx, span := tracer.NewSpan(ctx, "bp.StartFollowChain")
 	defer span.End()
 
 	// TODO replace via a more independent chain manager that manages the
@@ -413,7 +413,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 // StartCheckChain checks a chain for validity and pulls invalid beacons from other nodes
 func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
 	ctx := stream.Context()
-	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
+	ctx, span := tracer.NewSpan(ctx, "bp.StartCheckChain")
 	defer span.End()
 
 	logger := bp.log.Named("CheckChain")
@@ -507,7 +507,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Peer) (*public.Info, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.chainInfoFromPeers")
+	ctx, span := tracer.NewSpan(ctx, "bp.chainInfoFromPeers")
 	defer span.End()
 
 	bp.state.RLock()
@@ -551,7 +551,7 @@ func (bp *BeaconProcess) sendProgressCallback(
 	upTo uint64, info *public.Info,
 	clk clock.Clock,
 ) (cb beacon.CallbackFunc, done chan struct{}) {
-	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
+	ctx, span := tracer.NewSpan(ctx, "bp.StartCheckChain")
 	defer span.End()
 
 	targ := common2.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
@@ -579,7 +579,7 @@ func (bp *BeaconProcess) sendPlainProgressCallback(ctx context.Context,
 	stream drand.Control_StartFollowChainServer,
 	keepFollowing bool,
 ) (cb func(curr uint64, targ uint64), done chan struct{}) {
-	_, span := metrics.NewSpan(ctx, "bp.sendPlainProgressCallback")
+	_, span := tracer.NewSpan(ctx, "bp.sendPlainProgressCallback")
 	defer span.End()
 
 	done = make(chan struct{})

@@ -9,7 +9,7 @@ import (
 // MetricsHandlerForPeer returns a handler for retrieving metric information from a peer in this group
 func (bp *BeaconProcess) MetricsHandlerForPeer(_ context.Context, _ string) (http.Handler, error) {
 	//nolint:gocritic
-	//ctx, span := metrics.NewSpan(ctx, "bp.MetricsHandlerForPeer")
+	//ctx, span := tracer.NewSpan(ctx, "bp.MetricsHandlerForPeer")
 	//defer span.End()
 	//
 	//if bp.group == nil {

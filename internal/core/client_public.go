@@ -2,12 +2,12 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/common/tracer"
 
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
@@ -31,7 +31,7 @@ func NewGrpcClient(lg log.Logger, chainHash []byte, opts ...grpc.DialOption) *Cl
 
 // ChainInfo returns the chain info as reported by the given peer.
 func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain.Info, error) {
-	ctx, span := metrics.NewSpan(ctx, "c.ChainInfo")
+	ctx, span := tracer.NewSpan(ctx, "c.ChainInfo")
 	defer span.End()
 
 	metadata := common.Metadata{ChainHash: c.chainHash}

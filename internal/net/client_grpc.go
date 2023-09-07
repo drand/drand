@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/tracer"
+
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -145,7 +147,7 @@ func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoR
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	ctx, span := metrics.NewSpan(ctx, "client.PartialBeacon")
+	ctx, span := tracer.NewSpan(ctx, "client.PartialBeacon")
 	defer span.End()
 
 	c, err := g.conn(ctx, p)

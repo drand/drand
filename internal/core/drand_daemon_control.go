@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -16,7 +16,7 @@ import (
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (dd *DrandDaemon) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong, error) {
-	_, span := metrics.NewSpan(ctx, "dd.PingPong")
+	_, span := tracer.NewSpan(ctx, "dd.PingPong")
 	defer span.End()
 	metadata := common.NewMetadata(dd.version.ToProto())
 	return &drand.Pong{Metadata: metadata}, nil
@@ -24,7 +24,7 @@ func (dd *DrandDaemon) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong
 
 // Status responds with the actual status of drand process
 func (dd *DrandDaemon) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.Status")
+	ctx, span := tracer.NewSpan(ctx, "dd.Status")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -36,7 +36,7 @@ func (dd *DrandDaemon) Status(ctx context.Context, in *drand.StatusRequest) (*dr
 }
 
 func (dd *DrandDaemon) ListSchemes(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dd.ListSchemes")
+	_, span := tracer.NewSpan(ctx, "dd.ListSchemes")
 	defer span.End()
 
 	metadata := common.NewMetadata(dd.version.ToProto())
@@ -47,7 +47,7 @@ func (dd *DrandDaemon) ListSchemes(ctx context.Context, _ *drand.ListSchemesRequ
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
 func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.PublicKey")
+	ctx, span := tracer.NewSpan(ctx, "dd.PublicKey")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -60,7 +60,7 @@ func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest
 
 // GroupFile replies with the distributed key in the response
 func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.GroupFile")
+	ctx, span := tracer.NewSpan(ctx, "dd.GroupFile")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -73,7 +73,7 @@ func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*
 
 // Shutdown stops the node
 func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.Shutdown")
+	ctx, span := tracer.NewSpan(ctx, "dd.Shutdown")
 	defer span.End()
 
 	// If beacon id is empty, we will stop the entire node. Otherwise, we will stop the specific beacon process
@@ -105,7 +105,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 
 // LoadBeacon tells the DrandDaemon to load a new beacon into the memory
 func (dd *DrandDaemon) LoadBeacon(ctx context.Context, in *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.LoadBeacon")
+	ctx, span := tracer.NewSpan(ctx, "dd.LoadBeacon")
 	defer span.End()
 
 	beaconID, err := dd.readBeaconID(in.GetMetadata())
@@ -129,7 +129,7 @@ func (dd *DrandDaemon) LoadBeacon(ctx context.Context, in *drand.LoadBeaconReque
 
 // BackupDatabase triggers a backup of the primary database.
 func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "dd.BackupDatabase")
+	ctx, span := tracer.NewSpan(ctx, "dd.BackupDatabase")
 	defer span.End()
 
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
@@ -141,7 +141,7 @@ func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBReq
 }
 
 func (dd *DrandDaemon) StartFollowChain(in *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
-	ctx, span := metrics.NewSpan(stream.Context(), "dd.StartFollowChain")
+	ctx, span := tracer.NewSpan(stream.Context(), "dd.StartFollowChain")
 	defer span.End()
 
 	dd.log.Debugw("StartFollowChain", "requested_chainhash", in.Metadata.ChainHash)
@@ -164,7 +164,7 @@ func (dd *DrandDaemon) StartCheckChain(in *drand.StartSyncRequest, stream drand.
 }
 
 func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dd.ListBeaconIDs")
+	_, span := tracer.NewSpan(ctx, "dd.ListBeaconIDs")
 	defer span.End()
 
 	metadata := common.NewMetadata(dd.version.ToProto())
@@ -193,7 +193,7 @@ func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "dd.Stop")
+	ctx, span := tracer.NewSpan(ctx, "dd.Stop")
 	defer span.End()
 
 	dd.log.Debugw("dd.Stop called")

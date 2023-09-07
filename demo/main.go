@@ -147,7 +147,7 @@ func main() {
 	// look if beacon is still up even with the nodeToExclude being offline
 	for i := 0; i < limit; i++ {
 		orch.WaitPeriod()
-		orch.CheckNewBeacon(nodeToStop)
+		orch.CheckNewBeacon()
 		fmt.Println("[DEBUG] Done", i)
 
 	}
