@@ -315,30 +315,32 @@ func printJSON(w io.Writer, j interface{}) error {
 
 //nolint:unused
 func selfSign(c *cli.Context, l log.Logger) error {
-	conf := contextToConfig(c, l)
-
-	beaconID := getBeaconID(c)
-
-	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
-	pair, err := fs.LoadKeyPair()
-
+	stores, err := getKeyStores(c, l)
 	if err != nil {
-		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
-	}
-	if pair.Public.ValidSignature() == nil {
-		fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
-		return nil
+		return fmt.Errorf("drand: err reading beacons database: %w", err)
 	}
 
-	if err := pair.SelfSign(); err != nil {
-		return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
-	}
-	if err := fs.SaveKeyPair(pair); err != nil {
-		return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
-	}
+	for beaconID, fs := range stores {
+		pair, err := fs.LoadKeyPair()
 
-	fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
-	fmt.Fprintln(c.App.Writer, printJSON(c.App.Writer, pair.Public.TOML()))
+		if err != nil {
+			return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
+		}
+		if pair.Public.ValidSignature() == nil {
+			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
+			return nil
+		}
+
+		if err := pair.SelfSign(); err != nil {
+			return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
+		}
+		if err := fs.SaveKeyPair(pair); err != nil {
+			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
+		}
+
+		fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
+		fmt.Fprintln(c.App.Writer, printJSON(c.App.Writer, pair.Public.TOML()))
+	}
 	return nil
 }
 

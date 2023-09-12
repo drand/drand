@@ -305,6 +305,12 @@ var appCommands = []*cli.Command{
 		Before: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
 				Named("startCmd")
+
+			// v1.5.7 -> v2.0.0 migration path
+			if selfSign(c, l) != nil {
+				return fmt.Errorf("unable to self-sign using new format for keys, check your installation")
+			}
+
 			return checkMigration(c, l)
 		},
 	},
@@ -442,8 +448,9 @@ var appCommands = []*cli.Command{
 				},
 			},
 			{
-				Name:  "reset",
-				Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
+				Name: "reset",
+				Usage: "Resets the local distributed information (share, group file and random beacons). " +
+					"It KEEPS the private/public key pair.",
 				Flags: toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
@@ -459,7 +466,7 @@ var appCommands = []*cli.Command{
 			{
 				Name: "del-beacon",
 				Usage: "Delete all beacons from the given `ROUND` number until the head of the chain. " +
-					" You MUST restart the daemon after that command.",
+					"You MUST restart the daemon after that command.",
 				Flags: toArray(folderFlag, beaconIDFlag, allBeaconsFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
@@ -638,6 +645,7 @@ func askPort(c *cli.Context) string {
 func checkMigration(c *cli.Context, l log.Logger) error {
 	config := contextToConfig(c, l)
 
+	// v1.4 -> v1.5 migration
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
 		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
 			"please first do it with 'drand util migrate' command using drand v1, not v2")

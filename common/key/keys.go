@@ -54,7 +54,7 @@ func (i *Identity) Hash() []byte {
 // correct or not
 func (i *Identity) ValidSignature() error {
 	msg := []byte(i.Scheme.Name)
-	// we prepend the scheme name to avoid scheme confusion
+	// we prepend the scheme name to avoid scheme confusion during DKG
 	msg = append(msg, i.Hash()...)
 	return i.Scheme.AuthScheme.Verify(i.Key, msg, i.Signature)
 }
@@ -73,7 +73,7 @@ func (i *Identity) Equal(i2 *Identity) bool {
 // SelfSign signs the public key with the key pair
 func (p *Pair) SelfSign() error {
 	msg := []byte(p.Public.Scheme.Name)
-	// we prepend the scheme name to avoid scheme confusion
+	// we prepend the scheme name to avoid scheme confusion during DKG
 	msg = append(msg, p.Public.Hash()...)
 	signature, err := p.Public.Scheme.AuthScheme.Sign(p.Key, msg)
 	if err != nil {
