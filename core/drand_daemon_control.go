@@ -12,7 +12,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// InitDKG take a InitDKGPacket, extracts the informations needed and wait for
+// InitDKG take a InitDKGPacket, extracts the information needed and wait for
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {

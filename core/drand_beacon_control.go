@@ -654,7 +654,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 		bp.state.Lock()
 		r.stop()
 		// only set to nil if the given receiver here is the same as the current
-		// one, i.e. there has not been a more recent resharing comand issued in
+		// one, i.e. there has not been a more recent resharing command issued in
 		// between
 		if bp.receiver == r {
 			bp.receiver = nil

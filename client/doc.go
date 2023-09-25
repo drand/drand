@@ -55,7 +55,7 @@ to be needed/customized:
 
 	WithAutoWatch()
 		will pre-load new results as they become available adding them
-		to the cache for speedy retreival when you need them.
+		to the cache for speedy retrieval when you need them.
 
 	WithPrometheus()
 		enables metrics reporting on speed and performance to a
