@@ -21,7 +21,7 @@ func DefaultConfigFolder() string {
 // It is relative to the DefaultConfigFolder path.
 const DefaultDBFolder = "db"
 
-// DefaultControlPort is the default port the functionnality control port communicate on.
+// DefaultControlPort is the default port the functionality control port communicate on.
 const DefaultControlPort = "8888"
 
 // DefaultDKGPhaseTimeout is the default time of each DKG period by default. Note
