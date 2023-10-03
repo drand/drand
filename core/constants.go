@@ -25,7 +25,7 @@ const DefaultDBFolder = "db"
 // random beacon.
 const DefaultBeaconPeriod = 1 * time.Minute
 
-// DefaultControlPort is the default port the functionnality control port communicate on.
+// DefaultControlPort is the default port the functionality control port communicate on.
 const DefaultControlPort = "8888"
 
 // DefaultDKGTimeout is the default time of each DKG period by default. Note

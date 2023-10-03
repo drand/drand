@@ -21,7 +21,7 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// Config holds the different cryptographc informations necessary to run the
+// Config holds the different cryptographc information necessary to run the
 // randomness beacon.
 type Config struct {
 	// Public key of this node
