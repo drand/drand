@@ -44,18 +44,14 @@ func (v Version) IsCompatible(verRcv Version) bool {
 		return true
 	}
 
-	// Hardcoded the latest potential breakage of network packets.
-	// Since v1.4.0 we are now using GRPC deprecation warnings to handle network packet changes.
+	// We are using GRPC deprecation warnings to handle network packet changes to avoid bumping minor too often.
 	switch {
-	case v.Major == verRcv.Major && v.Minor == verRcv.Minor:
+	// we always keep retro-compatibility with the immediate minors predecessor
+	case v.Major == verRcv.Major && verRcv.Minor+1 >= v.Minor:
 		return true
-	case v.Major == 1 && verRcv.Major == 1 && verRcv.Minor >= 4:
-		return true
-	case v.Major == 1 && v.Minor >= 5 && verRcv.Major == 2 && verRcv.Minor == 0:
+	case v.Major == 1 && v.Minor >= 5 && v.Patch >= 7 && verRcv.Major == 2 && verRcv.Minor == 0:
 		return true
 	case v.Major == 2 && v.Minor == 0 && verRcv.Major == 1 && verRcv.Minor >= 5 && verRcv.Patch >= 7:
-		return true
-	case v.Major > 1 && v.Major == verRcv.Major:
 		return true
 	}
 

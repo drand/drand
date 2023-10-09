@@ -120,10 +120,7 @@ func TestVersionCompatible(t *testing.T) {
 	testCompatible(version200, version200)
 	testCompatible(version210, version210)
 
-	testIncompatible(version123, version130)
-	testIncompatible(version123, version130pre)
 	testIncompatible(version123, version200)
-	testIncompatible(version123pre, version130pre)
 
 	testIncompatible(version000, version200)
 	testIncompatible(version123, version200)
