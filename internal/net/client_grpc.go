@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/tracer"
-
+	"github.com/weaveworks/common/httpgrpc"
+	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -279,4 +281,41 @@ func (g *grpcClient) Stop() {
 		_ = c.Close()
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
+}
+
+type httpHandler struct {
+	httpgrpc.HTTPClient
+}
+
+func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req, err := httpgrpcserver.HTTPRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := h.Handle(r.Context(), req)
+	if err != nil {
+		var ok bool
+		resp, ok = httpgrpc.HTTPResponseFromError(err)
+
+		if !ok {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := httpgrpcserver.WriteResponse(w, resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (g *grpcClient) HandleHTTP(ctx context.Context, p Peer) (http.Handler, error) {
+	conn, err := g.conn(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	client := httpgrpc.NewHTTPClient(conn)
+
+	return &httpHandler{client}, nil
 }

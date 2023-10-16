@@ -105,7 +105,6 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
-// Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load(ctx context.Context) error {
 	_, span := tracer.NewSpan(ctx, "bp.Load")
 	defer span.End()
@@ -451,7 +450,7 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
-	l.Infow("", "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+	l.Warnw("Group contains invalid signatures", "identities", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
 
 // StopBeacon stops the beacon generation process and resets it.

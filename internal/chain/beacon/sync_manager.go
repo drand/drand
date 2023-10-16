@@ -146,10 +146,10 @@ func (s *SyncManager) Run() {
 			cancel()
 			return
 		case request := <-s.newReq:
-			_, span := tracer.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
+			cctx, span := tracer.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
 
 			// check if the request is still valid
-			last, err := s.store.Last(ctx)
+			last, err := s.store.Last(cctx)
 			if err != nil {
 				span.End()
 				s.log.Debugw("unable to fetch from store", "sync_manager", "store.Last", "err", err)

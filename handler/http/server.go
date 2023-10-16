@@ -21,6 +21,7 @@ import (
 	chain2 "github.com/drand/drand/common/chain"
 	client2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/metrics"
 )
 
@@ -312,6 +313,9 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) (*cha
 }
 
 func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chain2.Info, round uint64) ([]byte, error) {
+	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
+	defer span.End()
+
 	bh, err := h.getBeaconHandler(chainHash)
 	if err != nil {
 		return nil, err
@@ -341,7 +345,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 		if block {
 			select {
 			case r := <-ch:
-				h.log.Debugw("Blocked request fulfilled", "round", round)
+				span.RecordError(fmt.Errorf("blocked request fulfilled for round %d", round))
 				return r, nil
 			case <-ctx.Done():
 				bh.pendingLk.Lock()
@@ -356,7 +360,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 				case <-ch:
 				default:
 				}
-				h.log.Debugw("Blocked request canceled", "round", round, "err", ctx.Err())
+				span.RecordError(fmt.Errorf("blocked request canceled for round %d. Err? %w", round, ctx.Err()))
 				return nil, ctx.Err()
 			}
 		}
@@ -376,7 +380,6 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	if err != nil {
 		return nil, err
 	}
-	h.log.Debugw("Happy path request fulfilled", "round", round, "resp", resp.GetRound())
 
 	return json.Marshal(resp)
 }

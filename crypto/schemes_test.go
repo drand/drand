@@ -157,22 +157,27 @@ func TestVerifyBeacon(t *testing.T) {
 
 func TestGetSchemeByID(t *testing.T) {
 	tests := []struct {
-		name string
-		want bool
+		name      string
+		isDefault bool
+		want      bool
 	}{
-		{"", true},
-		{crypto.DefaultSchemeID, true},
-		{crypto.ShortSigSchemeID, true},
-		{crypto.SigsOnG1ID, true},
-		{crypto.UnchainedSchemeID, true},
-		{"nonexistentschemename", false},
+		{"", true, true},
+		{crypto.DefaultSchemeID, true, true},
+		{crypto.ShortSigSchemeID, false, true},
+		{crypto.SigsOnG1ID, false, true},
+		{crypto.UnchainedSchemeID, false, true},
+		{"nonexistentschemename", false, false},
+		{crypto.DefaultSchemeID + "wrong", false, false},
+		{"wrong" + crypto.ShortSigSchemeID, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+"byID", func(t *testing.T) {
 			got, gotBool := crypto.GetSchemeByID(tt.name)
+			// special case "" is considered to be the default beacon
 			if gotBool && got.Name != tt.name && tt.name != "" {
 				t.Errorf("GetSchemeByID() got = %v, want %v", got, tt.name)
-			} else if tt.name == "" && got.Name != crypto.DefaultSchemeID {
+			}
+			if tt.isDefault && got.Name != crypto.DefaultSchemeID {
 				t.Errorf("UnexpectedDefaultName got = %v", got.Name)
 			}
 			if gotBool != tt.want {

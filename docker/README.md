@@ -67,4 +67,4 @@ This manifest will spin up a network of three nodes and run an initial distribut
 ## Running with nginx
 Many LoE partners like to run a reverse proxy in front of their node to easily manage TLS termination, domain names and firewalling.
 In [docker-compose-nginx.yml](./docker-compose-nginx.yml) you can find a manifest for running a single drand docker container and an
-ginx container to route traffic to it. Similar to the keypair, we will have to create a volume containing the nginx config (and any TLS config you wish to add).
+nginx container to route traffic to it. Similar to the keypair, we will have to create a volume containing the nginx config (and any TLS config you wish to add).

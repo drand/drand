@@ -44,12 +44,6 @@ func (c *GrpcClient) Info(ctx context.Context) (*chain.Info, error) {
 		return nil, err
 	}
 
-	//return &chain.Info{
-	//	PublicKey:   resp.PublicKey,
-	//	Period:      time.Duration(resp.Period),
-	//	Scheme:      resp.SchemeID,
-	//	GenesisTime: resp.GenesisTime,
-	//}, err
 	return chain.InfoFromProto(resp)
 }
 

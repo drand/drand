@@ -338,8 +338,11 @@ func selfSign(c *cli.Context, l log.Logger) error {
 			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
 		}
 
-		fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
-		fmt.Fprintln(c.App.Writer, printJSON(c.App.Writer, pair.Public.TOML()))
+		fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s:\n", beaconID, pair.Scheme().Name)
+		err = printJSON(c.App.Writer, pair.Public.TOML())
+		if err != nil {
+			fmt.Printf("beacon id [%s] - non-fatal error while printing: %v\n", beaconID, err)
+		}
 	}
 	return nil
 }

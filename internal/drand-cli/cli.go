@@ -307,8 +307,8 @@ var appCommands = []*cli.Command{
 				Named("startCmd")
 
 			// v1.5.7 -> v2.0.0 migration path
-			if selfSign(c, l) != nil {
-				return fmt.Errorf("unable to self-sign using new format for keys, check your installation")
+			if err := selfSign(c, l); err != nil {
+				return fmt.Errorf("unable to self-sign using new format for keys, check your installation. Err: %w", err)
 			}
 
 			return checkMigration(c, l)
