@@ -180,7 +180,9 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	dd.log.Infow("DrandDaemon initialized",
 		"private_listen", privAddr,
 		"control_port", c.ControlPort(),
-		"folder", c.ConfigFolderMB())
+		"folder", c.ConfigFolderMB(),
+		"storage_engine", c.dbStorageEngine)
+
 	dd.privGateway.StartAll()
 	if dd.pubGateway != nil {
 		dd.pubGateway.StartAll()

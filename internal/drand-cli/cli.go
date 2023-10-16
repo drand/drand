@@ -298,13 +298,11 @@ var appCommands = []*cli.Command{
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
-			l := log.New(nil, logLevel(c), logJSON(c)).
-				Named("startCmd")
+			l := log.New(nil, logLevel(c), logJSON(c))
 			return startCmd(c, l)
 		},
 		Before: func(c *cli.Context) error {
-			l := log.New(nil, logLevel(c), logJSON(c)).
-				Named("startCmd")
+			l := log.New(nil, logLevel(c), logJSON(c))
 
 			// v1.5.7 -> v2.0.0 migration path
 			if err := selfSign(c, l); err != nil {

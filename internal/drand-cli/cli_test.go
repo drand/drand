@@ -1297,8 +1297,8 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 
 	instances[0].executeDKG(t, beaconID)
 
-	t.Log("waiting for initial set up to settle on all nodes")
-	err = instances[0].awaitDKGComplete(t, beaconID, 1, 60)
+	t.Log("waiting for initial set up to settle")
+	err = memDBNode.awaitDKGComplete(t, beaconID, 1, 60)
 	require.NoError(t, err)
 
 	defer func() {
