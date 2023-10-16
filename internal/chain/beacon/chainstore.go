@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/common/tracer"
 
 	"go.opentelemetry.io/otel/attribute"

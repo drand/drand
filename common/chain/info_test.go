@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/protobuf/common"
 )
 
+//nolint:funlen
 func TestChainInfo(t *testing.T) {
 	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()

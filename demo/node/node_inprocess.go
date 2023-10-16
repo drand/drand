@@ -61,7 +61,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	controlAddr := test.FreeBind(bindAddr)
 	dkgClient, err := net.NewDKGControlClient(lg, controlAddr)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	l := &LocalNode{

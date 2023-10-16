@@ -21,14 +21,7 @@ func TestVersionStringNoPre(t *testing.T) {
 }
 
 func TestVersionStringPre(t *testing.T) {
-	version := Version{
-		Major:      1,
-		Minor:      2,
-		Patch:      3,
-		Prerelease: "pre",
-	}
-
-	actual := version.String()
+	actual := version123pre.String()
 	expected := "1.2.3-pre"
 
 	if actual != expected {
@@ -36,70 +29,72 @@ func TestVersionStringPre(t *testing.T) {
 	}
 }
 
-func TestVersionCompatible(t *testing.T) {
-	version000 := Version{
+var (
+	version000 = Version{
 		Major:      0,
 		Minor:      0,
 		Patch:      0,
 		Prerelease: "",
 	}
 
-	version123 := Version{
+	version123 = Version{
 		Major:      1,
 		Minor:      2,
 		Patch:      3,
 		Prerelease: "",
 	}
 
-	version124 := Version{
+	version124 = Version{
 		Major:      1,
 		Minor:      2,
 		Patch:      4,
 		Prerelease: "",
 	}
 
-	version123pre := Version{
+	version123pre = Version{
 		Major:      1,
 		Minor:      2,
 		Patch:      3,
 		Prerelease: "pre",
 	}
 
-	version130 := Version{
+	version130 = Version{
 		Major:      1,
 		Minor:      3,
 		Patch:      0,
 		Prerelease: "",
 	}
 
-	version130pre := Version{
+	version130pre = Version{
 		Major:      1,
 		Minor:      3,
 		Patch:      0,
 		Prerelease: "pre",
 	}
 
-	version157 := Version{
+	version157 = Version{
 		Major:      1,
 		Minor:      5,
 		Patch:      7,
 		Prerelease: "",
 	}
 
-	version200 := Version{
+	version200 = Version{
 		Major:      2,
 		Minor:      0,
 		Patch:      0,
 		Prerelease: "",
 	}
 
-	version210 := Version{
+	version210 = Version{
 		Major:      2,
 		Minor:      1,
 		Patch:      0,
 		Prerelease: "",
 	}
+)
 
+func TestVersionCompatible(t *testing.T) {
 	testCompatible := func(a Version, b Version) {
 		if !a.IsCompatible(b) || !b.IsCompatible(a) {
 			t.Fatalf("Version %s should be compatible with %s", a, b)

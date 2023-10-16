@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/common/tracer"
 
 	"github.com/drand/drand/internal/util"

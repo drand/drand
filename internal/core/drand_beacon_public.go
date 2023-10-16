@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/common/tracer"
 
 	"github.com/drand/drand/common"

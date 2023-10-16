@@ -47,7 +47,8 @@ func (c *GrpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	return chain.InfoFromProto(resp)
 }
 
-func (c *GrpcClient) RoundAt(time time.Time) uint64 {
+func (c *GrpcClient) RoundAt(_ time.Time) uint64 {
+	// not implemented in the mock client
 	return 0
 }
 

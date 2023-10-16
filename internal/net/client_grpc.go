@@ -256,12 +256,9 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 		c, err = grpc.DialContext(ctx, p.Address(), opts...)
 		if err != nil {
 			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-		}
-
-		if err == nil {
-			g.conns[p.Address()] = c
-		} else {
 			g.log.Errorw("error initiating a new grpc conn", "to", p.Address(), "err", err)
+		} else {
+			g.conns[p.Address()] = c
 		}
 	}
 

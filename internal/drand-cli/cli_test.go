@@ -417,7 +417,6 @@ func TestStartWithoutGroup(t *testing.T) {
 		"start",
 		"--control", ctrlPort2,
 		"--private-listen", priv.Public.Address(),
-
 		"--folder", tmpPath,
 		"--verbose",
 	}

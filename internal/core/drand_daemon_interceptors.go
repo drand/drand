@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+
 	"github.com/drand/drand/common/tracer"
 
 	"google.golang.org/grpc"

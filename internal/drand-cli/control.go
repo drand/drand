@@ -313,7 +313,6 @@ func printJSON(w io.Writer, j interface{}) error {
 	return nil
 }
 
-//nolint:unused
 func selfSign(c *cli.Context, l log.Logger) error {
 	stores, err := getKeyStores(c, l)
 	if err != nil {
