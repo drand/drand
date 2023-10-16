@@ -10,6 +10,8 @@ import (
 	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/weaveworks/common/httpgrpc"
+	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
@@ -71,8 +73,8 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 		lis:        lis,
 	}
 
-	//// TODO: see if we needed the httpgrpc server to forward the metrics through grpc or not
-	// httpgrpc.RegisterHTTPServer(grpcServer, httpgrpcserver.NewServer(metrics.GroupHandler(l)))
+	//// TODO: remove httpgrpcserver from our codebase
+	httpgrpc.RegisterHTTPServer(grpcServer, httpgrpcserver.NewServer(metrics.GroupHandler(l)))
 	grpcprometheus.Register(grpcServer)
 
 	state.Lock()
