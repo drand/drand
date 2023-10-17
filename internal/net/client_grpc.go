@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -17,10 +16,10 @@ import (
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -34,7 +33,6 @@ type grpcClient struct {
 	conns   map[string]*grpc.ClientConn
 	opts    []grpc.DialOption
 	timeout time.Duration
-	manager *CertManager
 	log     log.Logger
 }
 
@@ -51,14 +49,6 @@ func NewGrpcClient(l log.Logger, opts ...grpc.DialOption) Client {
 	}
 	client.loadEnvironment()
 	return &client
-}
-
-// NewGrpcClientFromCertManager returns a Client using gRPC with the given trust
-// store of certificates.
-func NewGrpcClientFromCertManager(l log.Logger, c *CertManager, opts ...grpc.DialOption) Client {
-	client := NewGrpcClient(l, opts...).(*grpcClient)
-	client.manager = c
-	return client
 }
 
 func (g *grpcClient) loadEnvironment() {
@@ -159,7 +149,7 @@ func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoR
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	ctx, span := metrics.NewSpan(ctx, "client.PartialBeacon")
+	ctx, span := tracer.NewSpan(ctx, "client.PartialBeacon")
 	defer span.End()
 
 	c, err := g.conn(ctx, p)
@@ -254,41 +244,20 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	}
 
 	if !ok {
-		g.log.Debugw("", "grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
-		if !p.IsTLS() {
-			var opts []grpc.DialOption
-			opts = append(opts, g.opts...)
-			opts = append(opts,
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-			)
+		g.log.Debugw("", "grpc client", "initiating", "to", p.Address())
+		var opts []grpc.DialOption
+		opts = append(opts, g.opts...)
+		opts = append(opts,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+			grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		)
 
-			c, err = grpc.DialContext(ctx, p.Address(), opts...)
-			if err != nil {
-				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-			}
+		c, err = grpc.DialContext(ctx, p.Address(), opts...)
+		if err != nil {
+			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
+			g.log.Errorw("error initiating a new grpc conn", "to", p.Address(), "err", err)
 		} else {
-			var opts []grpc.DialOption
-			opts = append(opts, g.opts...)
-			if g.manager != nil {
-				pool := g.manager.Pool()
-				creds := credentials.NewClientTLSFromCert(pool, "")
-				opts = append(opts, grpc.WithTransportCredentials(creds))
-			} else {
-				config := &tls.Config{MinVersion: tls.VersionTLS12}
-				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(config)))
-			}
-			opts = append(opts,
-				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-			)
-			c, err = grpc.DialContext(ctx, p.Address(), opts...)
-			if err != nil {
-				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-			}
-		}
-		if err == nil {
 			g.conns[p.Address()] = c
 		}
 	}
@@ -300,6 +269,15 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 
 	metrics.OutgoingConnections.Set(float64(len(g.conns)))
 	return c, err
+}
+
+func (g *grpcClient) Stop() {
+	g.Lock()
+	defer g.Unlock()
+	for _, c := range g.conns {
+		_ = c.Close()
+	}
+	g.conns = make(map[string]*grpc.ClientConn)
 }
 
 type httpHandler struct {
@@ -337,13 +315,4 @@ func (g *grpcClient) HandleHTTP(ctx context.Context, p Peer) (http.Handler, erro
 	client := httpgrpc.NewHTTPClient(conn)
 
 	return &httpHandler{client}, nil
-}
-
-func (g *grpcClient) Stop() {
-	g.Lock()
-	defer g.Unlock()
-	for _, c := range g.conns {
-		_ = c.Close()
-	}
-	g.conns = make(map[string]*grpc.ClientConn)
 }

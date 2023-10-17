@@ -180,13 +180,6 @@ func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, 
 	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{Metadata: &metadata})
 }
 
-// PrivateKey returns the private key of the remote node
-func (c *ControlClient) PrivateKey(beaconID string) (*control.PrivateKeyResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
-}
-
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
@@ -213,8 +206,11 @@ func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, er
 const progressSyncQueue = 100
 
 // StartCheckChain initiates the check chain process
-func (c *ControlClient) StartCheckChain(cc context.Context, hashStr string, nodes []string, tls bool,
-	upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
+func (c *ControlClient) StartCheckChain(cc context.Context,
+	hashStr string,
+	nodes []string,
+	upTo uint64,
+	beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set in the metadata
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	if beaconID == "" {
@@ -232,7 +228,7 @@ func (c *ControlClient) StartCheckChain(cc context.Context, hashStr string, node
 		metadata.ChainHash = hash
 	}
 
-	c.log.Infow("Launching a check request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
+	c.log.Infow("Launching a check request", "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
 	if upTo == 0 {
 		return nil, nil, fmt.Errorf("upTo must be greater than 0")
@@ -242,7 +238,6 @@ func (c *ControlClient) StartCheckChain(cc context.Context, hashStr string, node
 
 	stream, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
-		IsTls:    tls,
 		UpTo:     upTo,
 		Metadata: metadata,
 	})
@@ -282,10 +277,8 @@ func (c *ControlClient) StartCheckChain(cc context.Context, hashStr string, node
 func (c *ControlClient) StartFollowChain(cc context.Context,
 	hashStr string,
 	nodes []string,
-	tls bool,
 	upTo uint64,
-	beaconID string) (outCh chan *control.SyncProgress,
-	errCh chan error, e error) {
+	beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set and also the chain hash to check integrity of the chain info
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	if beaconID == "" {
@@ -302,10 +295,9 @@ func (c *ControlClient) StartFollowChain(cc context.Context,
 		return nil, nil, err
 	}
 	metadata.ChainHash = hash
-	c.log.Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
+	c.log.Infow("Launching a follow request", "nodes", nodes, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
 	stream, err := c.client.StartFollowChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
-		IsTls:    tls,
 		UpTo:     upTo,
 		Metadata: metadata,
 	})
@@ -376,14 +368,6 @@ func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKe
 		return &control.PublicKeyResponse{}, nil
 	}
 	return s.C.PublicKey(c, in)
-}
-
-// PrivateKey gets the node's private key
-func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
-	if s.C == nil {
-		return &control.PrivateKeyResponse{}, nil
-	}
-	return s.C.PrivateKey(c, in)
 }
 
 // ChainInfo gets the current chain information from the ndoe

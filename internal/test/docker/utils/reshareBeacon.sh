@@ -13,16 +13,16 @@ nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader
 sleep 3s
 
 # Start the rest of the nodes
-nohup docker exec -u drand drand_2 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable' &
-nohup docker exec -u drand drand_1 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable' &
-nohup docker exec -u drand drand_3 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable' &
-nohup docker exec -u drand drand_4 /bin/sh -c 'drand share --connect drand_0:8080 --from ./data/drand/.drand/multibeacon/default/groups/drand_group.toml --tls-disable' &
+nohup docker exec -u drand drand_2 /bin/sh -c 'drand share --transition  --connect drand_0:8080' &
+nohup docker exec -u drand drand_1 /bin/sh -c 'drand share --transition  --connect drand_0:8080' &
+nohup docker exec -u drand drand_3 /bin/sh -c 'drand share --transition  --connect drand_0:8080' &
+nohup docker exec -u drand drand_4 /bin/sh -c 'drand share --connect drand_0:8080 --from ./data/drand/.drand/multibeacon/default/groups/drand_group.toml' &
 
 sleep 10s
 
 ## Test beacon
 ## Generate keys
-nohup docker exec -u drand drand_4 /bin/sh -c 'drand generate-keypair --tls-disable --id test_beacon "drand_4:8480"' &
+nohup docker exec -u drand drand_4 /bin/sh -c 'drand generate-keypair --id test_beacon "drand_4:8480"' &
 
 # Start leader
 nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4 --id test_beacon' &
@@ -30,7 +30,7 @@ nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader
 sleep 3s
 
 # Start the rest of the nodes
-nohup docker exec -u drand drand_2 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable --id test_beacon' &
-nohup docker exec -u drand drand_1 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable --id test_beacon' &
-nohup docker exec -u drand drand_3 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --tls-disable --id test_beacon' &
-nohup docker exec -u drand drand_4 /bin/sh -c 'drand share --connect drand_0:8080 --from ./data/drand/.drand/multibeacon/test_beacon/groups/drand_group.toml --tls-disable' &
+nohup docker exec -u drand drand_2 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --id test_beacon' &
+nohup docker exec -u drand drand_1 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --id test_beacon' &
+nohup docker exec -u drand drand_3 /bin/sh -c 'drand share --transition  --connect drand_0:8080 --id test_beacon' &
+nohup docker exec -u drand drand_4 /bin/sh -c 'drand share --connect drand_0:8080 --from ./data/drand/.drand/multibeacon/test_beacon/groups/drand_group.toml' &

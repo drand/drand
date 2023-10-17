@@ -14,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,29 +64,6 @@ var verboseFlag = &cli.BoolFlag{
 	EnvVars: []string{"DRAND_VERBOSE"},
 }
 
-var tlsCertFlag = &cli.StringFlag{
-	Name: "tls-cert",
-	Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
-		"The certificates have to be specified as a list of whitespace-separated file paths. " +
-		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
-	EnvVars: []string{"DRAND_TLS_CERT"},
-}
-
-var tlsKeyFlag = &cli.StringFlag{
-	Name: "tls-key",
-	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
-		"The key has to be specified as a file path. " +
-		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
-	EnvVars: []string{"DRAND_TLS_KEY"},
-}
-
-var insecureFlag = &cli.BoolFlag{
-	Name:    "tls-disable",
-	Aliases: []string{"insecure"},
-	Usage:   "Disable TLS for all communications (not recommended).",
-	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
-}
-
 var controlFlag = &cli.StringFlag{
 	Name:    "control",
 	Usage:   "Set the port you want to listen to for control port commands. If not specified, we will use the default value.",
@@ -128,25 +104,6 @@ var pubListenFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_PUBLIC_LISTEN"},
 }
 
-var nodeFlag = &cli.StringFlag{
-	Name:    "nodes",
-	Usage:   "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
-	EnvVars: []string{"DRAND_NODES"},
-}
-
-var roundFlag = &cli.IntFlag{
-	Name: "round",
-	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value," +
-		" it returns an error. If not specified, the current randomness is returned.",
-	EnvVars: []string{"DRAND_ROUND"},
-}
-
-var certsDirFlag = &cli.StringFlag{
-	Name:    "certs-dir",
-	Usage:   "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
-	EnvVars: []string{"DRAND_CERTS_DIR"},
-}
-
 var outFlag = &cli.StringFlag{
 	Name:    "out",
 	Usage:   "save the group file into a separate file instead of stdout",
@@ -177,29 +134,6 @@ var thresholdFlag = &cli.IntFlag{
 	EnvVars: []string{"DRAND_THRESHOLD"},
 }
 
-// TODO (dlsniper): This flag is a duplicate name of the nodeFlag. Should change the name.
-var shareNodeFlag = &cli.IntFlag{
-	Name:    "nodes",
-	Usage:   "number of nodes expected",
-	EnvVars: []string{"DRAND_NODES"},
-}
-
-var transitionFlag = &cli.BoolFlag{
-	Name:    "reshare",
-	Aliases: []string{"transition"},
-	Usage: "When set, this flag indicates the share operation is a resharing. " +
-		"The node will use the currently stored group as the basis for the resharing",
-	EnvVars: []string{"DRAND_TRANSITION_FLAG"},
-}
-
-var forceFlag = &cli.BoolFlag{
-	Name:    "force",
-	Aliases: []string{"f"},
-	Usage: "When set, this flag forces the daemon to start a new reshare operation. " +
-		"By default, it does not allow to restart one",
-	EnvVars: []string{"DRAND_FORCE"},
-}
-
 // secretFlag is the "manual" security when the "leader"/coordinator creates the
 // group: every participant must know this secret. It is not a consensus, not
 // perfect, but since all members are known after the protocol, and members can
@@ -210,25 +144,6 @@ var secretFlag = &cli.StringFlag{
 	Usage: "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant." +
 		" must be at least 32 characters.",
 	EnvVars: []string{"DRAND_SECRET_FILE"},
-}
-
-var connectFlag = &cli.StringFlag{
-	Name:    "connect",
-	Usage:   "Address of the coordinator that will assemble the public keys and start the DKG",
-	EnvVars: []string{"DRAND_CONNECT"},
-}
-
-var leaderFlag = &cli.BoolFlag{
-	Name:    "leader",
-	Usage:   "Specify if this node should act as the leader for setting up the group",
-	EnvVars: []string{"DRAND_LEADER"},
-}
-
-var beaconOffset = &cli.IntFlag{
-	Name: "beacon-delay",
-	Usage: "Leader uses this flag to specify the genesis time or transition time as a delay from when " +
-		" group is ready to run the share protocol",
-	EnvVars: []string{"DRAND_BEACON_DELAY"},
 }
 
 var oldGroupFlag = &cli.StringFlag{
@@ -251,30 +166,11 @@ var skipValidationFlag = &cli.BoolFlag{
 	EnvVars: []string{"DRAND_SKIP_VALIDATION"},
 }
 
-var timeoutFlag = &cli.StringFlag{
-	Name:    "timeout",
-	Usage:   fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGPhaseTimeout),
-	EnvVars: []string{"DRAND_TIMEOUT"},
-}
-
 var pushFlag = &cli.BoolFlag{
 	Name: "push",
 	Usage: "Push mode forces the daemon to start making beacon requests to the other node, " +
 		"instead of waiting the other nodes contact it to catch-up on the round",
 	EnvVars: []string{"DRAND_PUSH"},
-}
-
-var sourceFlag = &cli.StringFlag{
-	Name:    "source",
-	Usage:   "Source flag allows to provide an executable which output will be used as additional entropy during resharing step.",
-	EnvVars: []string{"DRAND_SOURCE"},
-}
-
-var userEntropyOnlyFlag = &cli.BoolFlag{
-	Name: "user-source-only",
-	Usage: "user-source-only flag used with the source flag allows to only use the user's entropy to pick the dkg secret " +
-		"(won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
-	EnvVars: []string{"DRAND_USER_SOURCE_ONLY"},
 }
 
 var groupFlag = &cli.StringFlag{
@@ -395,22 +291,25 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
-		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-			insecureFlag, controlFlag, privListenFlag, pubListenFlag,
+		Flags: toArray(folderFlag, controlFlag, privListenFlag, pubListenFlag,
 			metricsFlag, tracesFlag, tracesProbabilityFlag,
-			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
+			pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
-			l := log.New(nil, logLevel(c), logJSON(c)).
-				Named("startCmd")
+			l := log.New(nil, logLevel(c), logJSON(c))
 			return startCmd(c, l)
 		},
 		Before: func(c *cli.Context) error {
-			l := log.New(nil, logLevel(c), logJSON(c)).
-				Named("runMigrationCmd")
-			return runMigration(c, l)
+			l := log.New(nil, logLevel(c), logJSON(c))
+
+			// v1.5.7 -> v2.0.0 migration path
+			if err := selfSign(c, l); err != nil {
+				return fmt.Errorf("unable to self-sign using new format for keys, check your installation. Err: %w", err)
+			}
+
+			return checkMigration(c, l)
 		},
 	},
 	{
@@ -427,11 +326,6 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "share",
 		Usage: "Launch a sharing protocol.",
-		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
-			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
-			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag,
-			schemeFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			return deprecatedShareCommand(c)
@@ -440,7 +334,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "load",
 		Usage: "Launch a sharing protocol from filesystem",
-		Flags: toArray(controlFlag, beaconIDFlag, insecureFlag),
+		Flags: toArray(controlFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
 				Named("loadCmd")
@@ -452,7 +346,7 @@ var appCommands = []*cli.Command{
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain. To follow a " +
 			"remote node, it requires the use of the '" + followFlag.Name + "' flag.",
 		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
-			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
+			upToFlag, beaconIDFlag, followFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
 				Named("syncCmd")
@@ -464,7 +358,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
+		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c)).
@@ -492,41 +386,6 @@ var appCommands = []*cli.Command{
 			return checkMigration(c, l)
 		},
 	},
-
-	{
-		Name: "get",
-		Usage: "get allows for public information retrieval from a remote " +
-			"drand node.\n",
-		Subcommands: []*cli.Command{
-			{
-				Name: "public",
-				Usage: "Get the latest public randomness from the drand " +
-					"beacon and verify it against the collective public key " +
-					"as specified in group.toml. Only one node is contacted by " +
-					"default. This command attempts to connect to the drand " +
-					"beacon via TLS and falls back to plaintext communication " +
-					"if the contacted node has not activated TLS in which case " +
-					"it prints a warning.\n",
-				Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("getPublicRandomness")
-					return getPublicRandomness(c, l)
-				},
-			},
-			{
-				Name:      "chain-info",
-				Usage:     "Get the binding chain information that this node participates to",
-				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("getChainInfo")
-					return getChainInfo(c, l)
-				},
-			},
-		},
-	},
 	{
 		Name:  "util",
 		Usage: "Multiple commands of utility functions, such as reseting a state, checking the connection of a peer...",
@@ -537,13 +396,12 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags: toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
+				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("checkConnection")
 					return checkConnection(c, l)
 				},
-				Before: checkArgs,
 			},
 			{
 				Name: "remote-status",
@@ -588,19 +446,9 @@ var appCommands = []*cli.Command{
 				},
 			},
 			{
-				Name:  "migrate",
-				Usage: "Migrate folder structure to support multi-beacon drand. You DO NOT have to run it while drand is running.\n",
-				Flags: toArray(folderFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("migrateCmd")
-					return migrateCmd(c, l)
-				},
-				Before: checkArgs,
-			},
-			{
-				Name:  "reset",
-				Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
+				Name: "reset",
+				Usage: "Resets the local distributed information (share, group file and random beacons). " +
+					"It KEEPS the private/public key pair.",
 				Flags: toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
@@ -616,7 +464,7 @@ var appCommands = []*cli.Command{
 			{
 				Name: "del-beacon",
 				Usage: "Delete all beacons from the given `ROUND` number until the head of the chain. " +
-					" You MUST restart the daemon after that command.",
+					"You MUST restart the daemon after that command.",
 				Flags: toArray(folderFlag, beaconIDFlag, allBeaconsFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
@@ -626,21 +474,6 @@ var appCommands = []*cli.Command{
 				Before: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("deleteBeaconCmd")
-					return checkMigration(c, l)
-				},
-			},
-			{
-				Name:  "self-sign",
-				Usage: "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
-				Flags: toArray(folderFlag, beaconIDFlag),
-				Action: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("selfSignCmd")
-					return selfSign(c, l)
-				},
-				Before: func(c *cli.Context) error {
-					l := log.New(nil, logLevel(c), logJSON(c)).
-						Named("selfSignCmd")
 					return checkMigration(c, l)
 				},
 			},
@@ -669,8 +502,7 @@ var appCommands = []*cli.Command{
 			{
 				Name: "group",
 				Usage: "shows the current group.toml used. The group.toml " +
-					"may contain the distributed public key if the DKG has been " +
-					"ran already.\n",
+					"is only available if the DKG was run already.\n",
 				Flags: toArray(outFlag, controlFlag, hashOnly, beaconIDFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
@@ -739,7 +571,6 @@ func CLI() *cli.App {
 	verbFlag := *verboseFlag
 	foldFlag := *folderFlag
 	app.Flags = toArray(&verbFlag, &foldFlag)
-	app.Before = testWindows
 	return app
 }
 
@@ -809,26 +640,13 @@ func askPort(c *cli.Context) string {
 	}
 }
 
-func runMigration(c *cli.Context, l log.Logger) error {
-	if err := checkArgs(c); err != nil {
-		return err
-	}
-
-	config := contextToConfig(c, l)
-
-	return migration.MigrateSBFolderStructure(config.ConfigFolder())
-}
-
 func checkMigration(c *cli.Context, l log.Logger) error {
-	if err := checkArgs(c); err != nil {
-		return err
-	}
-
 	config := contextToConfig(c, l)
 
+	// v1.4 -> v1.5 migration
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
 		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
-			"please first do it with 'drand util migrate' command")
+			"please first do it with 'drand util migrate' command using drand v1, not v2")
 	}
 
 	if fs.CreateSecureFolder(config.ConfigFolderMB()) == "" {
@@ -836,14 +654,6 @@ func checkMigration(c *cli.Context, l log.Logger) error {
 			"Make sure that you have the appropriate rights")
 	}
 
-	return nil
-}
-
-func testWindows(c *cli.Context) error {
-	// x509 not available on windows: must run without TLS
-	if runtime.GOOS == "windows" && !c.Bool(insecureFlag.Name) {
-		return errors.New("TLS is not available on Windows, please disable TLS")
-	}
 	return nil
 }
 
@@ -870,14 +680,8 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	var priv *key.Pair
-	if c.Bool(insecureFlag.Name) {
-		fmt.Println("Generating private / public key pair without TLS.")
-		priv, err = key.NewKeyPair(addr, sch)
-	} else {
-		fmt.Println("Generating private / public key pair with TLS indication")
-		priv, err = key.NewTLSKeyPair(addr, sch)
-	}
+	fmt.Println("Generating private / public key pair.")
+	priv, err := key.NewKeyPair(addr, sch)
 	if err != nil {
 		return err
 	}
@@ -886,7 +690,7 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 	beaconID := getBeaconID(c)
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
-	if _, err := fileStore.LoadKeyPair(sch); err == nil {
+	if _, err := fileStore.LoadKeyPair(); err == nil {
 		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
 		fmt.Fprintf(c.App.Writer, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
 		return nil
@@ -967,7 +771,6 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
 
-	conf := contextToConfig(c, lg)
 	isVerbose := c.IsSet(verboseFlag.Name)
 	allGood := true
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
@@ -976,9 +779,9 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	for _, address := range names {
 		var err error
 		if isIdentityCheck {
-			err = checkIdentityAddress(lg, conf, address, !c.Bool(insecureFlag.Name), beaconID)
+			err = checkIdentityAddress(lg, address, beaconID)
 		} else {
-			err = remotePingToNode(lg, address, !c.Bool(insecureFlag.Name))
+			err = remotePingToNode(lg, address)
 		}
 
 		if err != nil {
@@ -999,9 +802,9 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	return nil
 }
 
-func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls bool, beaconID string) error {
-	peer := net.CreatePeer(addr, tls)
-	client := net.NewGrpcClientFromCertManager(lg, conf.Certs())
+func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
+	peer := net.CreatePeer(addr)
+	client := net.NewGrpcClient(lg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1014,7 +817,6 @@ func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls boo
 
 	identity := &drand.Identity{
 		Signature: identityResp.Signature,
-		Tls:       identityResp.Tls,
 		Address:   identityResp.Address,
 		Key:       identityResp.Key,
 	}
@@ -1111,7 +913,7 @@ func logLevel(c *cli.Context) int {
 		return log.DebugLevel
 	}
 
-	return log.ErrorLevel
+	return log.InfoLevel
 }
 
 func logJSON(c *cli.Context) bool {
@@ -1120,34 +922,6 @@ func logJSON(c *cli.Context) bool {
 
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
-}
-
-func getGroup(c *cli.Context) (*key.Group, error) {
-	g := &key.Group{}
-	groupPath := c.Args().First()
-	if err := testEmptyGroup(groupPath); err != nil {
-		return nil, err
-	}
-	if err := key.Load(groupPath, g); err != nil {
-		return nil, fmt.Errorf("drand: error loading group file: %w", err)
-	}
-	return g, nil
-}
-
-func checkArgs(c *cli.Context) error {
-	if c.Bool(insecureFlag.Name) {
-		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			return fmt.Errorf("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
-		}
-	}
-	if c.IsSet("certs-dir") {
-		_, err := fs.Files(c.String("certs-dir"))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
@@ -1169,21 +943,6 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 		opts = append(opts, core.WithConfigFolder(c.String(folderFlag.Name)))
 	}
 	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
-
-	if c.Bool(insecureFlag.Name) {
-		opts = append(opts, core.WithInsecure())
-	} else {
-		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
-		opts = append(opts, core.WithTLS(certPath, keyPath))
-	}
-	if c.IsSet("certs-dir") {
-		paths, err := fs.Files(c.String("certs-dir"))
-		if err != nil {
-			// it wouldn't reach here, as it was verified on checkArgs func before
-			panic(err)
-		}
-		opts = append(opts, core.WithTrustedCerts(paths...))
-	}
 
 	if c.IsSet(tracesFlag.Name) {
 		opts = append(opts, core.WithTracesEndpoint(c.String(tracesFlag.Name)))
@@ -1217,35 +976,6 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 
 	conf := core.NewConfig(l, opts...)
 	return conf
-}
-
-func getNodes(c *cli.Context) ([]*key.Node, error) {
-	group, err := getGroup(c)
-	if err != nil {
-		return nil, err
-	}
-	var ids []*key.Node
-	gids := group.Nodes
-	if c.IsSet("nodes") {
-		// search nodes listed on the flag in the group
-		for _, addr := range strings.Split(c.String("nodes"), ",") {
-			for _, gid := range gids {
-				if gid.Addr == addr {
-					ids = append(ids, gid)
-				}
-			}
-		}
-		if len(ids) == 0 {
-			return nil, errors.New("addresses specified don't exist in group.toml")
-		}
-	} else {
-		// select them all in order
-		ids = gids
-	}
-	if len(ids) == 0 {
-		return nil, errors.New("no nodes specified with --nodes are in the group file")
-	}
-	return ids, nil
 }
 
 func testEmptyGroup(filePath string) error {

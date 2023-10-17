@@ -8,10 +8,9 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
-	"github.com/drand/drand/client"
+	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
-	client2 "github.com/drand/drand/common/client"
-	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/common/client"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -22,7 +21,7 @@ type drandProxy struct {
 }
 
 // Proxy wraps a server interface into a client interface so it can be queried
-func Proxy(s drand.PublicServer) client2.Client {
+func Proxy(s drand.PublicServer) client.Client {
 	return &drandProxy{s}
 }
 
@@ -32,21 +31,20 @@ func (d *drandProxy) String() string {
 }
 
 // Get returns randomness at a requested round
-func (d *drandProxy) Get(ctx context.Context, round uint64) (client2.Result, error) {
+func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, error) {
 	resp, err := d.r.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
 	if err != nil {
 		return nil, err
 	}
-	return &client.RandomData{
-		Rnd:               resp.Round,
-		Random:            resp.Randomness,
-		Sig:               resp.Signature,
-		PreviousSignature: resp.PreviousSignature,
+	return &common.Beacon{
+		Round:       resp.Round,
+		Signature:   resp.Signature,
+		PreviousSig: resp.PreviousSignature,
 	}, nil
 }
 
 // Watch returns new randomness as it becomes available.
-func (d *drandProxy) Watch(ctx context.Context) <-chan client2.Result {
+func (d *drandProxy) Watch(ctx context.Context) <-chan client.Result {
 	proxy := newStreamProxy(ctx)
 	go func() {
 		err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
@@ -76,7 +74,7 @@ func (d *drandProxy) RoundAt(t time.Time) uint64 {
 	if err != nil {
 		return 0
 	}
-	return chain.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
+	return common.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
 }
 
 func (d *drandProxy) Close() error {
@@ -87,7 +85,7 @@ func (d *drandProxy) Close() error {
 type streamProxy struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
-	outgoing chan client2.Result
+	outgoing chan client.Result
 }
 
 func newStreamProxy(ctx context.Context) *streamProxy {
@@ -95,17 +93,16 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 	s := streamProxy{
 		ctx:      ctx,
 		cancel:   cancel,
-		outgoing: make(chan client2.Result, 1),
+		outgoing: make(chan client.Result, 1),
 	}
 	return &s
 }
 
 func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
-	d := client.RandomData{
-		Rnd:               next.Round,
-		Random:            next.Randomness,
-		Sig:               next.Signature,
-		PreviousSignature: next.PreviousSignature,
+	d := common.Beacon{
+		Round:       next.Round,
+		Signature:   next.Signature,
+		PreviousSig: next.PreviousSignature,
 	}
 	select {
 	case s.outgoing <- &d:

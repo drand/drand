@@ -44,7 +44,6 @@ func testLocalOrchestration(t *testing.T) {
 		N:            3,
 		Thr:          2,
 		Period:       "4s",
-		WithTLS:      true,
 		Binary:       "",
 		WithCurl:     false,
 		Scheme:       sch,

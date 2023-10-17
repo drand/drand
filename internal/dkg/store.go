@@ -186,7 +186,6 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		}
 		participants[i] = &drand.Participant{
 			Address:   node.Address(),
-			Tls:       node.TLS,
 			Key:       pk,
 			Signature: node.Signature,
 		}

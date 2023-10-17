@@ -169,7 +169,6 @@ func fakeGroup() *key.Group {
 			Identity: &key.Identity{
 				Key:       sch.KeyGroup.Point(),
 				Addr:      "localhost:1234",
-				TLS:       false,
 				Signature: []byte("abcd1234"),
 				Scheme:    sch,
 			},

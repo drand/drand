@@ -8,10 +8,11 @@ import (
 	"sync"
 	"time"
 
-	common2 "github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common"
+	public "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
 	dlog "github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/beacon"
@@ -23,7 +24,7 @@ import (
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/common"
+	pbCommon "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -42,7 +43,6 @@ type BeaconProcess struct {
 	store       key.Store
 	dbStore     chain.Store
 	privGateway *net.PrivateGateway
-	pubGateway  *net.PublicGateway
 
 	beacon        *beacon.Handler
 	completedDKGs <-chan dkg.SharingOutput
@@ -51,7 +51,7 @@ type BeaconProcess struct {
 	share *key.Share
 
 	// version indicates the base code variant
-	version common2.Version
+	version common.Version
 
 	// general logger
 	log dlog.Logger
@@ -66,20 +66,17 @@ type BeaconProcess struct {
 	syncerCancel context.CancelFunc
 }
 
-func NewBeaconProcess(
-	ctx context.Context,
+func NewBeaconProcess(ctx context.Context,
 	log dlog.Logger,
 	store key.Store,
 	completedDKGs chan dkg.SharingOutput,
 	beaconID string,
 	opts *Config,
-	privGateway *net.PrivateGateway,
-	pubGateway *net.PublicGateway,
-) (*BeaconProcess, error) {
-	_, span := metrics.NewSpan(ctx, "dd.NewBeaconProcess")
+	privGateway *net.PrivateGateway) (*BeaconProcess, error) {
+	_, span := tracer.NewSpan(ctx, "dd.NewBeaconProcess")
 	defer span.End()
 
-	priv, err := store.LoadKeyPair(nil)
+	priv, err := store.LoadKeyPair()
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
@@ -91,14 +88,13 @@ func NewBeaconProcess(
 	}
 
 	bp := &BeaconProcess{
-		beaconID:      common2.GetCanonicalBeaconID(beaconID),
+		beaconID:      common.GetCanonicalBeaconID(beaconID),
 		store:         store,
 		log:           log,
 		priv:          priv,
-		version:       common2.GetAppVersion(),
+		version:       common.GetAppVersion(),
 		opts:          opts,
 		privGateway:   privGateway,
-		pubGateway:    pubGateway,
 		completedDKGs: completedDKGs,
 		exitCh:        make(chan bool, 1),
 	}
@@ -109,9 +105,8 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
-// Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load(ctx context.Context) error {
-	_, span := metrics.NewSpan(ctx, "bp.Load")
+	_, span := tracer.NewSpan(ctx, "bp.Load")
 	defer span.End()
 
 	var err error
@@ -125,23 +120,19 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 
 	// this is a migration path to mitigate for the shares being loaded before the group file
-	if bp.priv.Public.Scheme.Name == crypto.DefaultSchemeID && crypto.DefaultSchemeID != bp.group.Scheme.Name {
-		bp.log.Warnw("Invalid public scheme loaded, reloading key with group's scheme",
+	if bp.priv.Public.Scheme.Name != bp.group.Scheme.Name {
+		bp.log.Errorw("Scheme from share and group did not match. Aborting",
 			"priv", bp.priv.Public.Scheme.Name, "group", bp.group.Scheme.Name)
-		// we need to reload the keypair with the correct scheme
-		if bp.priv, err = bp.store.LoadKeyPair(bp.group.Scheme); err != nil {
-			span.RecordError(err)
-			return err
-		}
+		return fmt.Errorf("scheme mismatch for group or share")
 	}
 
 	bp.state.Lock()
-	info := chain2.NewChainInfo(bp.log, bp.group)
+	info := public.NewChainInfo(bp.log, bp.group)
 	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
 
-	bp.share, err = bp.store.LoadShare(bp.group.Scheme)
+	bp.share, err = bp.store.LoadShare()
 	if err != nil {
 		span.RecordError(err)
 		return err
@@ -167,7 +158,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.StartBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.StartBeacon")
 	defer span.End()
 
 	b, err := bp.newBeacon(ctx)
@@ -194,7 +185,7 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 }
 
 func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
-	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
+	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
 	for dkgOutput := range bp.completedDKGs {
 		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
@@ -206,7 +197,7 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
 // onDKGCompleted transitions between an "old" group and a new group. This method is called
 // *after* a DKG has completed.
 func (bp *BeaconProcess) onDKGCompleted(ctx context.Context, dkgOutput *dkg.SharingOutput) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.onDKGCompleted")
+	ctx, span := tracer.NewSpan(ctx, "bp.onDKGCompleted")
 	defer span.End()
 	if dkgOutput.BeaconID != bp.beaconID {
 		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
@@ -274,7 +265,7 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 	defer bp.state.Unlock()
 	bp.group = group
 	bp.share = share
-	bp.chainHash = chain2.NewChainInfo(bp.log, bp.group).Hash()
+	bp.chainHash = public.NewChainInfo(bp.log, bp.group).Hash()
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {
@@ -328,7 +319,7 @@ func (bp *BeaconProcess) joinNetwork(ctx context.Context, dkgOutput *dkg.Sharing
 
 // Stop simply stops all drand operations.
 func (bp *BeaconProcess) Stop(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "bp.Stop")
+	ctx, span := tracer.NewSpan(ctx, "bp.Stop")
 	defer span.End()
 
 	bp.state.RLock()
@@ -359,10 +350,10 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.createDBStore")
+	ctx, span := tracer.NewSpan(ctx, "bp.createDBStore")
 	defer span.End()
 
-	beaconName := common2.GetCanonicalBeaconID(bp.beaconID)
+	beaconName := common.GetCanonicalBeaconID(bp.beaconID)
 	var dbStore chain.Store
 	var err error
 
@@ -397,7 +388,7 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 }
 
 func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.newBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.newBeacon")
 	defer span.End()
 
 	bp.state.Lock()
@@ -459,12 +450,12 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
-	l.Infow("", "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+	l.Warnw("Group contains invalid signatures", "identities", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
 
 // StopBeacon stops the beacon generation process and resets it.
 func (bp *BeaconProcess) StopBeacon(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "bp.StopBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.StopBeacon")
 	defer span.End()
 
 	bp.state.Lock()
@@ -487,8 +478,8 @@ func (bp *BeaconProcess) getChainHash() []byte {
 	return bp.chainHash
 }
 
-func (bp *BeaconProcess) newMetadata() *common.Metadata {
-	metadata := common.NewMetadata(bp.version.ToProto())
+func (bp *BeaconProcess) newMetadata() *pbCommon.Metadata {
+	metadata := pbCommon.NewMetadata(bp.version.ToProto())
 	metadata.BeaconID = bp.getBeaconID()
 
 	if hash := bp.getChainHash(); len(hash) > 0 {
@@ -501,7 +492,7 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 var errNoRoundInPeers = errors.New("could not find round")
 
 func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
-	ctx, span := metrics.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
+	ctx, span := tracer.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
 	defer span.End()
 
 	clkNow := bp.opts.clock.Now().Unix()
@@ -509,7 +500,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		return nil
 	}
 
-	targetRound := chain.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	targetRound := common.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
 	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:gomnd // We cannot sync the initial round.
@@ -559,19 +550,19 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	return err
 }
 
-func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (common2.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.loadBeaconFromPeers")
+func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (common.Beacon, error) {
+	ctx, span := tracer.NewSpan(ctx, "bp.loadBeaconFromPeers")
 	defer span.End()
 
 	select {
 	case <-ctx.Done():
-		return common2.Beacon{}, ctx.Err()
+		return common.Beacon{}, ctx.Err()
 	default:
 	}
 
 	type answer struct {
 		peer net.Peer
-		b    common2.Beacon
+		b    common.Beacon
 		err  error
 	}
 
@@ -588,10 +579,10 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 	for _, peer := range peers {
 		go func(peer net.Peer) {
-			b := common2.Beacon{}
+			b := common.Beacon{}
 			r, err := bp.privGateway.PublicRand(ctxFind, peer, &prr)
 			if err == nil && r != nil {
-				b = common2.Beacon{
+				b = common.Beacon{
 					PreviousSig: r.PreviousSignature,
 					Round:       r.Round,
 					Signature:   r.Signature,
@@ -613,13 +604,13 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 			return ans.b, nil
 		case <-ctxFind.Done():
-			return common2.Beacon{}, ctxFind.Err()
+			return common.Beacon{}, ctxFind.Err()
 		case <-ctx.Done():
-			return common2.Beacon{}, ctx.Err()
+			return common.Beacon{}, ctx.Err()
 		}
 	}
 
-	return common2.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
+	return common.Beacon{}, fmt.Errorf("%w %d in any peer", errNoRoundInPeers, targetRound)
 }
 
 func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {

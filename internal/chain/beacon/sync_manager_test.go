@@ -13,9 +13,9 @@ import (
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/internal/chain/boltdb"
 	dcontext "github.com/drand/drand/internal/test/context"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 )
 

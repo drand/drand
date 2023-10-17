@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -49,7 +49,6 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 		[]*drand.Participant{
 			{
 				Address:   "127.0.0.1:1234",
-				Tls:       false,
 				Key:       []byte("0000000"),
 				Signature: []byte("1111111"),
 			},

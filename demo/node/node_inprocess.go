@@ -3,23 +3,23 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	clock "github.com/jonboulle/clockwork"
+	"io"
+	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"time"
 
-	"github.com/kabukky/httpscerts"
+	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/client/grpc"
+	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/fs"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/util"
@@ -40,7 +40,6 @@ type LocalNode struct {
 	ctrlAddr   string
 	ctrlClient *net.ControlClient
 	dkgRunner  *test.DKGRunner
-	tls        bool
 	priv       *key.Pair
 
 	dbEngineType chain.StorageType
@@ -59,26 +58,16 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 
 	lg := log.New(nil, log.DebugLevel, false)
 
-	// make certificates for the node.
-	err := httpscerts.Generate(
-		path.Join(nbase, fmt.Sprintf("server-%d.crt", i)),
-		path.Join(nbase, fmt.Sprintf("server-%d.key", i)),
-		bindAddr)
-	if err != nil {
-		return nil
-	}
-
 	controlAddr := test.FreeBind(bindAddr)
 	dkgClient, err := net.NewDKGControlClient(lg, controlAddr)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	l := &LocalNode{
 		base:         nbase,
 		i:            i,
 		period:       cfg.Period,
-		tls:          cfg.WithTLS,
 		logPath:      logPath,
 		log:          lg,
 		pubAddr:      test.FreeBind(bindAddr),
@@ -92,12 +81,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
 	}
 
-	var priv *key.Pair
-	if l.tls {
-		priv, err = key.NewTLSKeyPair(l.privAddr, l.scheme)
-	} else {
-		priv, err = key.NewKeyPair(l.privAddr, l.scheme)
-	}
+	priv, err := key.NewKeyPair(l.privAddr, l.scheme)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +90,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	return l
 }
 
-func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
+func (l *LocalNode) Start(dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	ctx := context.Background()
 
 	if dbEngineType != "" {
@@ -119,14 +103,8 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		l.memDBSize = memDBSize
 	}
 
-	certs, err := fs.Files(certFolder)
-	if err != nil {
-		return err
-	}
-
 	opts := []core.ConfigOption{
 		core.WithConfigFolder(l.base),
-		core.WithTrustedCerts(certs...),
 		core.WithPublicListenAddress(l.pubAddr),
 		core.WithPrivateListenAddress(l.privAddr),
 		core.WithControlPort(l.ctrlAddr),
@@ -135,17 +113,9 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		core.WithMemDBSize(l.memDBSize),
 	}
 
-	if l.tls {
-		opts = append(opts, core.WithTLS(
-			path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)),
-			path.Join(l.base, fmt.Sprintf("server-%d.key", l.i))))
-	} else {
-		opts = append(opts, core.WithInsecure())
-	}
-
 	conf := core.NewConfig(l.log, opts...)
 	ks := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
-	err = ks.SaveKeyPair(l.priv)
+	err := ks.SaveKeyPair(l.priv)
 	if err != nil {
 		return err
 	}
@@ -327,45 +297,31 @@ func (l *LocalNode) Ping() bool {
 	return true
 }
 
-func (l *LocalNode) GetBeacon(_ string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
-	cert := ""
-	if l.tls {
-		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
+func (l *LocalNode) GetBeacon(_ string, round uint64) (ret *drand.PublicRandResponse, cmd string) {
+	cmd = "unused with LocalNode"
+	resp, err := http.Get("http://" + l.PublicAddr() + fmt.Sprintf("/public/%d", round))
+	if err != nil || resp == nil || resp.ContentLength <= 0 {
+		l.log.Errorw("localnode", "can't get beacon", round, "err", err)
+		return
 	}
-	c, _ := grpc.New(l.log, l.privAddr, cert, cert == "", []byte(""))
+	defer resp.Body.Close()
 
-	group := l.GetGroup()
-	if group == nil {
-		l.log.Errorw("", "drand", "can't get group")
+	roundData := make([]byte, resp.ContentLength)
+	n, err := resp.Body.Read(roundData)
+	if err != nil && !errors.Is(err, io.EOF) || int64(n) != resp.ContentLength {
+		l.log.Errorw("Malformed read of http beacon", "err", err, "read", n, "expectedread", resp.ContentLength)
 		return
 	}
 
-	var err error
-	cmd = "unused"
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	r, err := c.Get(ctx, round)
-	if err != nil || r == nil {
-		l.log.Errorw("", "drand", "can't get beacon", "err", err)
-	}
-	if r == nil {
-		return
-	}
-	resp = &drand.PublicRandResponse{
-		Round:      r.Round(),
-		Signature:  r.Signature(),
-		Randomness: r.Randomness(),
+	r := common2.Beacon{}
+	new(net.HexJSON).Unmarshal(roundData, r)
+
+	ret = &drand.PublicRandResponse{
+		Round:      r.GetRound(),
+		Signature:  r.GetSignature(),
+		Randomness: r.GetRandomness(),
 	}
 	return
-}
-
-func (l *LocalNode) WriteCertificate(p string) {
-	if l.tls {
-		err := exec.Command("cp", path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)), p).Run()
-		if err != nil {
-			panic(err)
-		}
-	}
 }
 
 func (l *LocalNode) WritePublic(p string) {

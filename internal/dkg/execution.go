@@ -10,8 +10,8 @@ import (
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -28,7 +28,7 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 
 	d.log.Infow("DKG execution setup successful", "beaconID", beaconID)
 
-	go func(config dkg.Config) {
+	go func(config *dkg.Config) {
 		// wait until the time set by the leader for kicking off the DKG to allow other nodes to get
 		// the requisite packets
 		time.Sleep(time.Until(executionStartTime))
@@ -36,12 +36,12 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 		if err != nil {
 			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
 		}
-	}(*dkgConfig)
+	}(dkgConfig)
 	return nil
 }
 
 func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.setupDKG")
+	ctx, span := tracer.NewSpan(ctx, "dkg.setupDKG")
 	defer span.End()
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
@@ -97,10 +97,8 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 }
 
 // this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
-//
-//nolint:funlen
-func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config dkg.Config) error {
-	ctx, span := metrics.NewSpan(ctx, "dkg.executeAndFinishDKG")
+func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
+	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
 
 	current, err := d.store.GetCurrent(beaconID)
@@ -114,7 +112,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	}
 
 	executeAndStoreDKG := func() error {
-		output, err := d.startDKGExecution(ctx, beaconID, current, &config)
+		output, err := d.startDKGExecution(ctx, beaconID, current, config)
 		if err != nil {
 			// if the DKG doesn't reach threshold, we must transition to `Failed` instead of
 			// returning an error and rolling back
@@ -184,7 +182,7 @@ func (d *Process) startDKGExecution(
 	current *DBState,
 	config *dkg.Config,
 ) (*ExecutionOutput, error) {
-	ctx, span := metrics.NewSpan(ctx, "dkg.startDKGExecution")
+	ctx, span := tracer.NewSpan(ctx, "dkg.startDKGExecution")
 	defer span.End()
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
 	go phaser.Start()
@@ -235,7 +233,7 @@ func (d *Process) startDKGExecution(
 }
 
 func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.asGroup")
+	_, span := tracer.NewSpan(ctx, "dkg.asGroup")
 	defer span.End()
 
 	sch, found := crypto.GetSchemeByID(details.SchemeID)

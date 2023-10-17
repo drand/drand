@@ -4,7 +4,7 @@
 .PHONY: test-integration test-integration-boltdb test-integration-memdb test-integration-postgres
 .PHONY: test-integration-run-demo test-integration-run-demo-boltdb test-integration-run-demo-memdb test-integration-run-demo-postgres
 .PHONY: demo demo-boltdb demo-memdb demo-postgres
-.PHONY: deploy-local linter install build client drand relay-http relay-gossip relay-s3
+.PHONY: deploy-local linter install build drand
 .PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
@@ -144,27 +144,7 @@ install:
 build:
 	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
-# create the "drand-client" binary in the current folder
-client:
-	go build -o drand-client -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/client
-drand-client: client
-
-# create the "drand-relay-http" binary in the current folder
-relay-http:
-	go build -o drand-relay-http -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay
-drand-relay-http: relay-http
-
-# create the "drand-relay-gossip" binary in the current folder
-relay-gossip:
-	go build -o drand-relay-gossip -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-gossip
-drand-relay-gossip: relay-gossip
-
-# create the "drand-relay-s3" binary in the current folder
-relay-s3:
-	go build -o drand-relay-s3 -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-s3
-drand-relay-s3: relay-s3
-
-build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+build_all: drand
 
 build_docker_all: build_docker build_docker_dev
 build_docker:

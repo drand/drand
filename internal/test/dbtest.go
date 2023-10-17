@@ -14,9 +14,9 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/internal/chain/postgresdb/database"
 	"github.com/drand/drand/internal/chain/postgresdb/schema"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 // StartPGDB starts a database instance.
