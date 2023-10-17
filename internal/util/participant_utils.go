@@ -68,8 +68,7 @@ func EqualParticipant(p1, p2 *drand.Participant) bool {
 	if p1 == nil || p2 == nil {
 		return false
 	}
-	return p1.Tls == p2.Tls &&
-		p1.Address == p2.Address &&
+	return p1.Address == p2.Address &&
 		reflect.DeepEqual(p1.Key, p2.Key) &&
 		reflect.DeepEqual(p1.Signature, p2.Signature)
 }
@@ -82,7 +81,6 @@ func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) 
 
 	return &drand.Participant{
 		Address:   identity.Address(),
-		Tls:       identity.TLS,
 		Key:       pubKey,
 		Signature: identity.Signature,
 	}, nil
@@ -103,7 +101,6 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 func ToParticipant(node *drand.Node) *drand.Participant {
 	return &drand.Participant{
 		Address:   node.Public.Address,
-		Tls:       node.Public.Tls,
 		Key:       node.Public.Key,
 		Signature: node.Public.Signature,
 	}
@@ -120,7 +117,6 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 		Identity: &key.Identity{
 			Key:       public,
 			Addr:      participant.Address,
-			TLS:       participant.Tls,
 			Signature: participant.Signature,
 			Scheme:    sch,
 		},
@@ -129,7 +125,7 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 }
 
 func ToPeer(participant *drand.Participant) net.Peer {
-	return net.CreatePeer(participant.Address, participant.Tls)
+	return net.CreatePeer(participant.Address)
 }
 
 func pkToPoint(pk []byte, sch *crypto.Scheme) (kyber.Point, error) {

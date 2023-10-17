@@ -17,4 +17,4 @@ jobs:
           CLOSING_COMMENT: "<!-- END "
           TOC_TITLE: "## Table of Contents"
           CREATE_PR: false
-          TARGET_PATHS: "README.md,cmd/relay-gossip/README.md"
+          TARGET_PATHS: "README.md"

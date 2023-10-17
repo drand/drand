@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 )

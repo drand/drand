@@ -40,7 +40,7 @@ do
   # these will end up on drand1:8010, drand2:8020, drand3:8030, etc
   # note they map to the container's mapped ports, but the internal ports; internally the services still listen on 8080
   path=drand_docker_demo$i:80${i}0
-  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --tls-disable --id default $path 1>/dev/null
+  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --id default $path 1>/dev/null
 done
 
 ### now we start them all using docker-compose as it'll be easy to spin up and down
@@ -58,7 +58,7 @@ sleep 5
 echo [+] Starting distributed key generation for the leader
 
 # we start the DKG and send it to the background;
-docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
+docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s"
 
 # and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
 sleep 1
@@ -68,7 +68,7 @@ echo [+] Joining distributed key generation for the followers
 for i in $(seq 2 $num_of_nodes);
 do
   # we start the DKG and send it to the background
-  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010 --tls-disable"
+  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010"
 done
 
 

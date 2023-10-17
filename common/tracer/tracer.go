@@ -1,4 +1,4 @@
-package metrics
+package tracer
 
 import (
 	"context"
@@ -63,7 +63,7 @@ func InitTracer(appName, endpoint string, probability float64) (oteltrace.Tracer
 	return tracer, tracerShutdown
 }
 
-// NewSpan is a wrapper for metrics.NewSpan(ctx, spanName, opts).
+// NewSpan is a wrapper for tracer.NewSpan(ctx, spanName, opts).
 // If the context.Context provided in `ctx` contains a Span then the newly-created
 // Span will be a child of that span, otherwise it will be a root span.
 // Don't forget to defer span.End and use the newly provided context.

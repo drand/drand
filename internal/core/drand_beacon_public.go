@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/drand/common/tracer"
+
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain/beacon"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -17,7 +18,7 @@ import (
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (bp *BeaconProcess) PartialBeacon(ctx context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.PartialBeacon")
+	ctx, span := tracer.NewSpan(ctx, "bp.PartialBeacon")
 	defer span.End()
 
 	bp.state.RLock()
@@ -38,7 +39,7 @@ func (bp *BeaconProcess) PartialBeacon(ctx context.Context, in *drand.PartialBea
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.PublicRand")
+	ctx, span := tracer.NewSpan(ctx, "bp.PublicRand")
 	defer span.End()
 
 	var addr = net.RemoteAddress(ctx)
@@ -69,7 +70,7 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	return response, nil
 }
 
-// a proxy type so public streaming request can use the same logic as in priate
+// a proxy type so public streaming request can use the same logic as in private
 // / protocol syncing request, even though the types differ, so it prevents
 // changing the protobuf structs.
 type proxyRequest struct {
@@ -115,7 +116,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 
 // Home provides the address the local node is listening
 func (bp *BeaconProcess) Home(ctx context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.Home")
+	ctx, span := tracer.NewSpan(ctx, "bp.Home")
 	defer span.End()
 
 	bp.log.With("module", "public").Infow("", "home", net.RemoteAddress(ctx))
@@ -129,7 +130,7 @@ func (bp *BeaconProcess) Home(ctx context.Context, _ *drand.HomeRequest) (*drand
 
 // ChainInfo replies with the chain information this node participates to
 func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	_, span := metrics.NewSpan(ctx, "bp.ChainInfo")
+	_, span := tracer.NewSpan(ctx, "bp.ChainInfo")
 	defer span.End()
 
 	bp.state.RLock()
@@ -166,7 +167,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 
 // GetIdentity returns the identity of this drand node
 func (bp *BeaconProcess) GetIdentity(ctx context.Context, _ *drand.IdentityRequest) (*drand.IdentityResponse, error) {
-	_, span := metrics.NewSpan(ctx, "bp.GetIdentity")
+	_, span := tracer.NewSpan(ctx, "bp.GetIdentity")
 	defer span.End()
 
 	i := bp.priv.Public.ToProto()
@@ -174,7 +175,6 @@ func (bp *BeaconProcess) GetIdentity(ctx context.Context, _ *drand.IdentityReque
 	response := &drand.IdentityResponse{
 		Address:    i.Address,
 		Key:        i.Key,
-		Tls:        i.Tls,
 		Signature:  i.Signature,
 		Metadata:   bp.newMetadata(),
 		SchemeName: bp.priv.Scheme().String(),

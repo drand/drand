@@ -166,7 +166,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	require.Equal(t, group.Hash(), loaded.Hash())
 }
 
-// BatchIdentities generates n insecure identities
+// BatchIdentities generates n identities
 func makeGroup(t *testing.T) *Group {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()

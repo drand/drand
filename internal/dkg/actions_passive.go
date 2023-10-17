@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/common/tracer"
+
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -30,7 +31,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	packetSig := hex.EncodeToString(packet.Metadata.Signature)
 	shortSig := packetSig[1:8]
 	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig)
-	_, span := metrics.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
+	_, span := tracer.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
 	defer span.End()
 
 	// we ignore duplicate packets, so we don't try and store/gossip them ad infinitum
@@ -130,7 +131,7 @@ func packetName(packet *drand.GossipPacket) string {
 
 // BroadcastDKG gossips internal DKG protocol messages to other nodes (i.e. any messages encapsulated in the Kyber DKG)
 func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.BroadcastDKG")
+	_, span := tracer.NewSpan(ctx, "dkg.BroadcastDKG")
 	defer span.End()
 
 	beaconID := packet.Dkg.Metadata.BeaconID

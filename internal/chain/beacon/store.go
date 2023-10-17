@@ -13,6 +13,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	dcontext "github.com/drand/drand/internal/context"
@@ -54,7 +55,7 @@ func newAppendStore(ctx context.Context, s chain.Store) (chain.Store, error) {
 var ErrBeaconAlreadyStored = errors.New("beacon value already stored")
 
 func (a *appendStore) Put(ctx context.Context, b *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "appendStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "appendStore.Put")
 	defer span.End()
 
 	a.Lock()
@@ -108,7 +109,7 @@ func NewSchemeStore(ctx context.Context, s chain.Store, sch *crypto.Scheme) (cha
 }
 
 func (a *schemeStore) Put(ctx context.Context, b *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "schemeStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "schemeStore.Put")
 	defer span.End()
 	a.Lock()
 	defer a.Unlock()
@@ -155,7 +156,7 @@ func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group, cl clock
 }
 
 func (d *discrepancyStore) Put(ctx context.Context, b *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "discrepancyStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "discrepancyStore.Put")
 	defer span.End()
 
 	// When computing time_discrepancy, time.Now() should be obtained as close as
@@ -170,7 +171,7 @@ func (d *discrepancyStore) Put(ctx context.Context, b *common.Beacon) error {
 
 	storageTime := d.clock.Now()
 
-	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
+	expected := common.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual.UnixNano()-expected) / float64(time.Millisecond)
 
 	beaconID := common.GetCanonicalBeaconID(d.group.ID)
@@ -221,7 +222,7 @@ func NewCallbackStore(l log.Logger, s chain.Store) CallbackStore {
 
 // Put stores a new beacon
 func (c *callbackStore) Put(ctx context.Context, b *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "callbackStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "callbackStore.Put")
 	defer span.End()
 
 	if err := c.Store.Put(ctx, b); err != nil {

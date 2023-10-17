@@ -11,15 +11,14 @@ import (
 
 type MockNode struct {
 	addr      string
-	certPath  string
 	daemon    *DrandDaemon
 	drand     *BeaconProcess
 	clock     clock.FakeClock
 	dkgRunner *test.DKGRunner
 }
 
-// newNode creates a node struct from a drand and sets the clock according to the drand test clock.
-func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProcess) (*MockNode, error) {
+// newNode creates a node struct from a daemon and sets the clock according to the test clock.
+func newNode(now time.Time, daemon *DrandDaemon, dr *BeaconProcess) (*MockNode, error) {
 	id := dr.priv.Public.Address()
 	c := clock.NewFakeClockAt(now)
 
@@ -32,11 +31,10 @@ func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProc
 	}
 
 	return &MockNode{
-		certPath: certPath,
-		addr:     id,
-		daemon:   daemon,
-		drand:    dr,
-		clock:    c,
+		addr:   id,
+		daemon: daemon,
+		drand:  dr,
+		clock:  c,
 		dkgRunner: &test.DKGRunner{
 			BeaconID: dr.beaconID,
 			Client:   dkgClient,
