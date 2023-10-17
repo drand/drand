@@ -84,5 +84,5 @@ func (v *Vault) SetInfo(newGroup *key.Group, ks *key.Share) {
 	v.group = newGroup
 	v.pub = newGroup.PublicKey.PubPoly(v.Scheme)
 	// v.chain info is constant
-	// Scheme cannot change either
+	// v.Scheme cannot change either
 }

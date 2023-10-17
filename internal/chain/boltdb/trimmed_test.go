@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	context2 "github.com/drand/drand/internal/test/context"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestTrimmedStoreBoltOrder(t *testing.T) {
@@ -29,7 +29,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 		// yet could be fully retrieved.
 		// However, now that we rely on the previous value actually existing in the database,
 		// this test will fail.
-		t.Skip("This test does not make sense from a chained beacon perspective.")
+		t.Skip("This test does not make sense in chained mode.")
 	}
 
 	l := testlogger.New(t)

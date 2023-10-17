@@ -2,6 +2,7 @@ package drand
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +18,6 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/core/migration"
 	"github.com/drand/drand/internal/net"
 	control "github.com/drand/drand/protobuf/drand"
 )
@@ -49,14 +49,12 @@ func remoteStatusCmd(c *cli.Context, l log.Logger) error {
 	}
 
 	ips := c.Args().Slice()
-	isTLS := !c.IsSet(insecureFlag.Name)
 	beaconID := getBeaconID(c)
 
 	addresses := make([]*control.Address, len(ips))
 	for i := 0; i < len(ips); i++ {
 		addresses[i] = &control.Address{
 			Address: ips[i],
-			Tls:     isTLS,
 		}
 	}
 
@@ -111,8 +109,8 @@ func pingpongCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func remotePingToNode(l log.Logger, addr string, tls bool) error {
-	peer := net.CreatePeer(addr, tls)
+func remotePingToNode(l log.Logger, addr string) error {
+	peer := net.CreatePeer(addr)
 	client := net.NewGrpcClient(l)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -193,17 +191,6 @@ func statusCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func migrateCmd(c *cli.Context, l log.Logger) error {
-	conf := contextToConfig(c, l)
-
-	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
-		return fmt.Errorf("cannot migrate folder structure, please try again. err: %w", err)
-	}
-
-	fmt.Fprintf(c.App.Writer, "folder structure is now ready to support multi-beacon drand\n")
-	return nil
-}
-
 func schemesCmd(c *cli.Context, l log.Logger) error {
 	client, err := controlClient(c, l)
 	if err != nil {
@@ -262,7 +249,11 @@ func showChainInfo(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("could not get correct chain info: %w", err)
 	}
 
-	return printChainInfo(c, ci)
+	if c.Bool(hashOnly.Name) {
+		fmt.Fprintf(c.App.Writer, "%s\n", hex.EncodeToString(ci.Hash()))
+		return nil
+	}
+	return printJSON(c.App.Writer, ci.ToProto(nil))
 }
 
 func showPublicCmd(c *cli.Context, l log.Logger) error {
@@ -323,30 +314,35 @@ func printJSON(w io.Writer, j interface{}) error {
 }
 
 func selfSign(c *cli.Context, l log.Logger) error {
-	conf := contextToConfig(c, l)
-
-	beaconID := getBeaconID(c)
-
-	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
-	pair, err := fs.LoadKeyPair(nil)
-
+	stores, err := getKeyStores(c, l)
 	if err != nil {
-		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
-	}
-	if pair.Public.ValidSignature() == nil {
-		fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
-		return nil
+		return fmt.Errorf("drand: err reading beacons database: %w", err)
 	}
 
-	if err := pair.SelfSign(); err != nil {
-		return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
-	}
-	if err := fs.SaveKeyPair(pair); err != nil {
-		return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
-	}
+	for beaconID, fs := range stores {
+		pair, err := fs.LoadKeyPair()
 
-	fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s", beaconID, pair.Scheme().Name)
-	fmt.Fprintln(c.App.Writer, printJSON(c.App.Writer, pair.Public.TOML()))
+		if err != nil {
+			return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
+		}
+		if pair.Public.ValidSignature() == nil {
+			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
+			return nil
+		}
+
+		if err := pair.SelfSign(); err != nil {
+			return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
+		}
+		if err := fs.SaveKeyPair(pair); err != nil {
+			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
+		}
+
+		fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s:\n", beaconID, pair.Scheme().Name)
+		err = printJSON(c.App.Writer, pair.Public.TOML())
+		if err != nil {
+			fmt.Printf("beacon id [%s] - non-fatal error while printing: %v\n", beaconID, err)
+		}
+	}
 	return nil
 }
 
@@ -363,13 +359,8 @@ func checkCmd(c *cli.Context, l log.Logger) error {
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 
-	channel, errCh, err := ctrlClient.StartCheckChain(
-		c.Context,
-		c.String(hashInfoReq.Name),
-		addrs,
-		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)),
-		c.String(beaconIDFlag.Name))
+	channel, errCh, err := ctrlClient.StartCheckChain(c.Context, c.String(hashInfoReq.Name),
+		addrs, uint64(c.Int(upToFlag.Name)), c.String(beaconIDFlag.Name))
 
 	if err != nil {
 		l.Errorw("Error checking chain", "err", err)
@@ -482,13 +473,8 @@ func followSync(c *cli.Context, l log.Logger) error {
 	defer ctrlClient.Close()
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, errCh, err := ctrlClient.StartFollowChain(
-		c.Context,
-		c.String(hashInfoReq.Name),
-		addrs,
-		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)),
-		getBeaconID(c))
+	channel, errCh, err := ctrlClient.StartFollowChain(c.Context, c.String(hashInfoReq.Name),
+		addrs, uint64(c.Int(upToFlag.Name)), getBeaconID(c))
 
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %w", err)

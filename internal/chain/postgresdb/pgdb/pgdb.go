@@ -7,13 +7,14 @@ import (
 	"io"
 	"strings"
 
+	"github.com/drand/drand/common/tracer"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/metrics"
 )
 
 // Store represents access to the postgres database for beacon management.
@@ -27,7 +28,7 @@ type Store struct {
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
 func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.NewStore")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.NewStore")
 	defer span.End()
 
 	p := Store{
@@ -54,7 +55,7 @@ func (p *Store) Close() error {
 
 // AddBeaconID adds the beacon to the database if it does not exist.
 func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.AddBeaconID")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.AddBeaconID")
 	defer span.End()
 
 	select {
@@ -106,7 +107,7 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error)
 
 // Len returns the number of beacons in the configured beacon table.
 func (p *Store) Len(ctx context.Context) (int, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Len")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Len")
 	defer span.End()
 
 	select {
@@ -148,7 +149,7 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 
 // Put adds the specified beacon to the database.
 func (p *Store) Put(ctx context.Context, b *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Put")
 	defer span.End()
 
 	select {
@@ -181,7 +182,7 @@ func (p *Store) Put(ctx context.Context, b *common.Beacon) error {
 
 // BatchPut is useful if you want to write a lot of beacons to the database at once.
 func (p *Store) BatchPut(ctx context.Context, bs []common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.BatchLen")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.BatchLen")
 	defer span.End()
 
 	select {
@@ -229,7 +230,7 @@ func (p *Store) BatchPut(ctx context.Context, bs []common.Beacon) error {
 
 // Last returns the last beacon stored in the configured beacon table.
 func (p *Store) Last(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Last")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Last")
 	defer span.End()
 
 	select {
@@ -261,7 +262,7 @@ func (p *Store) Last(ctx context.Context) (*common.Beacon, error) {
 
 // Get returns the specified beacon from the configured beacon table.
 func (p *Store) Get(ctx context.Context, round uint64) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Get")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Get")
 	defer span.End()
 
 	return p.get(ctx, round, true)
@@ -277,7 +278,7 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 	const query = `
 	SELECT
 		round,
-		signature 
+		signature
 	FROM
 		beacon_details
 	WHERE
@@ -298,7 +299,7 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(ctx context.Context, round uint64) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Del")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Del")
 	defer span.End()
 
 	select {
@@ -328,7 +329,7 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 
 // Cursor returns a cursor for iterating over the beacon table.
 func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor")
 	defer span.End()
 
 	select {
@@ -347,7 +348,7 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 
 // SaveTo does something and I am not sure just yet.
 func (p *Store) SaveTo(ctx context.Context, _ io.Writer) error {
-	_, span := metrics.NewSpan(ctx, "pgStore.SaveTo")
+	_, span := tracer.NewSpan(ctx, "pgStore.SaveTo")
 	defer span.End()
 
 	return fmt.Errorf("saveTo not implemented for Postgres Store")
@@ -356,7 +357,7 @@ func (p *Store) SaveTo(ctx context.Context, _ io.Writer) error {
 // DropFK is used to optimize the calls to Store.BatchPut and should be called before it.
 // It drops the relation between beacons and beacon_details tables.
 func (p *Store) DropFK(ctx context.Context) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.DropFK")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.DropFK")
 	defer span.End()
 
 	select {
@@ -375,7 +376,7 @@ func (p *Store) DropFK(ctx context.Context) error {
 
 // AddFK reconstructs the relation between beacons and beacon_details tables after Store.DropFK was called.
 func (p *Store) AddFK(ctx context.Context) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.AddFK")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.AddFK")
 	defer span.End()
 
 	select {
@@ -402,7 +403,7 @@ type cursor struct {
 
 // First returns the first beacon from the configured beacon table.
 func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.First")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.First")
 	defer span.End()
 
 	select {
@@ -437,7 +438,7 @@ func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
 
 // Next returns the next beacon from the configured beacon table.
 func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Next")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.Next")
 	defer span.End()
 
 	select {
@@ -475,7 +476,7 @@ func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
 
 // Seek searches the beacon table for the specified round
 func (c *cursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Seek")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.Seek")
 	defer span.End()
 
 	select {
@@ -514,7 +515,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error)
 
 // Last returns the last beacon from the configured beacon table.
 func (c *cursor) Last(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.Last")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.Last")
 	defer span.End()
 
 	select {
@@ -552,7 +553,7 @@ func (c *cursor) Last(ctx context.Context) (*common.Beacon, error) {
 
 // seekPosition updates the cursor position in the database for the next operation to work
 func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
-	ctx, span := metrics.NewSpan(ctx, "pgStore.Cursor.seekPosition")
+	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.seekPosition")
 	defer span.End()
 
 	select {

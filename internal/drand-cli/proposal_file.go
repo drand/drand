@@ -66,7 +66,6 @@ func (p *ProposalFileFormat) Remainers() []*drand.Participant {
 
 type TomlParticipant struct {
 	Address   string
-	TLS       bool
 	Key       string
 	Signature string
 }
@@ -74,7 +73,6 @@ type TomlParticipant struct {
 func (t *TomlParticipant) Into() *drand.Participant {
 	return &drand.Participant{
 		Address:   t.Address,
-		Tls:       t.TLS,
 		Key:       decodeHexOrPanic(t.Key),
 		Signature: decodeHexOrPanic(t.Signature),
 	}
@@ -104,7 +102,6 @@ func (p *ProposalFile) TOML() ProposalFileFormat {
 func encode(p *drand.Participant) TomlParticipant {
 	return TomlParticipant{
 		Address:   p.Address,
-		TLS:       p.Tls,
 		Key:       hex.EncodeToString(p.Key),
 		Signature: hex.EncodeToString(p.Signature),
 	}

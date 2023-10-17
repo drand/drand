@@ -30,7 +30,6 @@ func installDrand() {
 var build = flag.Bool("build", false, "Build the drand binary first.")
 var binaryF = flag.String("binary", "drand", "Path to drand binary.")
 var testF = flag.Bool("test", false, "Run it as a test that finishes.")
-var tls = flag.Bool("tls", true, "Run the nodes with self signed certs.")
 var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
 var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
 var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. Supported values: bolt, postgres, or memdb.")
@@ -66,7 +65,6 @@ func main() {
 		N:            n,
 		Thr:          thr,
 		Period:       period,
-		WithTLS:      *tls,
 		Binary:       *binaryF,
 		WithCurl:     !*noCurl,
 		Scheme:       sch,
@@ -138,16 +136,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("[+] Starting resharing")
 	orch.RunResharing(resharingGroup, 1*time.Minute)
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {
 		limit = 4
 	}
+	fmt.Println("[+] Starting to wait")
 	// look if beacon is still up even with the nodeToExclude being offline
 	for i := 0; i < limit; i++ {
 		orch.WaitPeriod()
 		orch.CheckNewBeacon()
+		fmt.Println("[+] Done waiting", i)
+
 	}
 }
 

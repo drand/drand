@@ -10,11 +10,12 @@ import (
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/internal/test/testlogger"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -31,7 +32,6 @@ func TestBeaconProcess_Stop(t *testing.T) {
 		WithConfigFolder(t.TempDir()),
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
-		WithInsecure(),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
@@ -72,7 +72,6 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 		WithConfigFolder(t.TempDir()),
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
-		WithInsecure(),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
@@ -210,12 +209,15 @@ func TestMemDBBeaconJoinsNetworkAfterDKG(t *testing.T) {
 	ts.AdvanceMockClock(t, period)
 	time.Sleep(sleepDuration)
 
-	expectedRound := chain.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
+	expectedRound := common.CurrentRound(ts.clock.Now().Unix(), newGroup.Period, newGroup.GenesisTime)
 	err = ts.WaitUntilRound(t, memDBNode, expectedRound-1)
 	require.NoError(t, err)
 }
 
 func TestMigrateMissingDKGDatabase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
 	const nodeCount = 3
 	const thr = 2
 	const period = 1 * time.Second

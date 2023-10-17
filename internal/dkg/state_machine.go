@@ -719,6 +719,7 @@ func hasTimedOut(details *DBState) bool {
 	return details.Timeout.Before(now) || details.Timeout.Equal(now)
 }
 
+//nolint:gocyclo
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 	if terms == nil {
 		return ErrMissingTerms

@@ -54,25 +54,16 @@ type Service interface {
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGRPCPrivateGateway(ctx context.Context,
-	listen, certPath, keyPath string,
-	certs *CertManager,
-	s Service,
-	insecure bool, opts ...grpc.DialOption) (*PrivateGateway, error) {
+func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
 	lg := log.FromContextOrDefault(ctx)
 
-	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
+	l, err := NewGRPCListenerForPrivate(ctx, listen, s, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}
 	pg := &PrivateGateway{Listener: l}
-	if !insecure {
-		pg.ProtocolClient = NewGrpcClientFromCertManager(lg, certs, opts...)
-		pg.DKGClient = NewGrpcClientFromCertManager(lg, certs, opts...)
-	} else {
-		pg.ProtocolClient = NewGrpcClient(lg, opts...)
-		pg.DKGClient = NewGrpcClient(lg, opts...)
-	}
+	pg.ProtocolClient = NewGrpcClient(lg, opts...)
+	pg.DKGClient = NewGrpcClient(lg, opts...)
 	// duplication since client implements both...
 	// TODO Find a better fix
 	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
@@ -98,13 +89,8 @@ func (g *PublicGateway) StopAll(ctx context.Context) {
 // NewRESTPublicGateway returns a grpc gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewRESTPublicGateway(
-	ctx context.Context,
-	listen, certPath, keyPath string,
-	_ *CertManager,
-	handler http.Handler,
-	insecure bool) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublic(ctx, listen, certPath, keyPath, handler, insecure)
+func NewRESTPublicGateway(ctx context.Context, listen string, handler http.Handler) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublic(ctx, listen, handler)
 	if err != nil {
 		return nil, err
 	}

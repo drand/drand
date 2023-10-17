@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -16,7 +15,6 @@ import (
 type Client interface {
 	ProtocolClient
 	PublicClient
-	HTTPClient
 	DKGClient
 }
 
@@ -45,12 +43,6 @@ type PublicClient interface {
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
-}
-
-// HTTPClient is an optional extension to the protocol client relaying of HTTP over the GRPC connection.
-// it is currently used for relaying metrics between group members.
-type HTTPClient interface {
-	HandleHTTP(ctx context.Context, p Peer) (http.Handler, error)
 }
 
 // listenAddrFor parses the address specified into a dialable / listenable address

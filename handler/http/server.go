@@ -21,7 +21,7 @@ import (
 	chain2 "github.com/drand/drand/common/chain"
 	client2 "github.com/drand/drand/common/client"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/metrics"
 )
 
@@ -258,12 +258,13 @@ func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler, ready chan bool) {
 		b, _ := json.Marshal(next)
 
 		bh.pendingLk.Lock()
-		if bh.latestRound+1 != next.Round() && bh.latestRound != 0 {
+		if bh.latestRound+1 != next.GetRound() && bh.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", bh.latestRound+1, next.Round()))
+			h.log.Warnw("", "http_server", "unexpected round for watch",
+				"err", fmt.Sprintf("expected %d, saw %d", bh.latestRound+1, next.GetRound()))
 			b = []byte{}
 		}
-		bh.latestRound = next.Round()
+		bh.latestRound = next.GetRound()
 		pending := bh.pending
 		bh.pending = make([]chan []byte, 0)
 
@@ -312,6 +313,9 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) (*cha
 }
 
 func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chain2.Info, round uint64) ([]byte, error) {
+	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
+	defer span.End()
+
 	bh, err := h.getBeaconHandler(chainHash)
 	if err != nil {
 		return nil, err
@@ -341,6 +345,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 		if block {
 			select {
 			case r := <-ch:
+				span.RecordError(fmt.Errorf("blocked request fulfilled for round %d", round))
 				return r, nil
 			case <-ctx.Done():
 				bh.pendingLk.Lock()
@@ -355,6 +360,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 				case <-ch:
 				default:
 				}
+				span.RecordError(fmt.Errorf("blocked request canceled for round %d. Err? %w", round, ctx.Err()))
 				return nil, ctx.Err()
 			}
 		}
@@ -371,7 +377,6 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 	resp, err := bh.client.Get(ctx, round)
-
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +491,7 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := dateOfRound(resp.Round(), info)
+	roundTime := dateOfRound(resp.GetRound(), info)
 	nextTime := time.Now()
 	next := roundTime.Add(info.Period)
 	if next.After(nextTime) {
@@ -570,7 +575,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
-		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+		expected := common.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
 		resp["expected"] = expected
 		if lastSeen == expected || lastSeen+1 == expected {
 			timeToExpected := time.Until(dateOfRound(expected+1, info))
@@ -624,7 +629,7 @@ func readRound(r *http.Request) (uint64, error) {
 }
 
 func dateOfRound(round uint64, info *chain2.Info) time.Time {
-	return time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
+	return time.Unix(common.TimeOfRound(info.Period, info.GenesisTime, round), 0)
 }
 
 func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error) {

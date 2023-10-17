@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 func TestStoreBoltOrder(t *testing.T) {

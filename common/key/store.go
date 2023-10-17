@@ -9,7 +9,6 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/fs"
 )
 
@@ -22,9 +21,9 @@ type Store interface {
 	SaveKeyPair(p *Pair) error
 	// LoadKeyPair loads the private/public key pair associated with the drand
 	// operator
-	LoadKeyPair(targetScheme *crypto.Scheme) (*Pair, error)
+	LoadKeyPair() (*Pair, error)
 	SaveShare(share *Share) error
-	LoadShare(scheme *crypto.Scheme) (*Share, error)
+	LoadShare() (*Share, error)
 	SaveGroup(*Group) error
 	LoadGroup() (*Group, error)
 	Reset(...ResetOption) error
@@ -43,8 +42,6 @@ const shareFileName = "dist_key.private"
 const distKeyFileName = "dist_key.public"
 
 // Tomler represents any struct that can be (un)marshaled into/from toml format
-// TODO surely golang reflect package can automatically return the TOMLValue()
-// for us
 type Tomler interface {
 	TOML() interface{}
 	FromTOML(i interface{}) error
@@ -60,14 +57,6 @@ type fileStore struct {
 	shareFile      string
 	distKeyFile    string
 	groupFile      string
-}
-
-// GetFirstStore will return the first store from the stores map
-func GetFirstStore(stores map[string]Store) (string, Store) {
-	for k, v := range stores {
-		return k, v
-	}
-	return "", nil
 }
 
 // NewFileStores will list all folder on base path and load every file store it can find. It will
@@ -122,12 +111,8 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 }
 
 // LoadKeyPair decode private key first then public
-func (f *fileStore) LoadKeyPair(targetScheme *crypto.Scheme) (*Pair, error) {
+func (f *fileStore) LoadKeyPair() (*Pair, error) {
 	p := new(Pair)
-	if targetScheme != nil {
-		p.Public = new(Identity)
-		p.Public.Scheme = targetScheme
-	}
 	if err := Load(f.privateKeyFile, p); err != nil {
 		return nil, err
 	}
@@ -158,12 +143,8 @@ func (f *fileStore) SaveShare(share *Share) error {
 	return Save(f.shareFile, share, true)
 }
 
-func (f *fileStore) LoadShare(sch *crypto.Scheme) (*Share, error) {
+func (f *fileStore) LoadShare() (*Share, error) {
 	s := new(Share)
-	// migration path for when a specific scheme is already known for the share
-	if sch != nil {
-		s.Scheme = sch
-	}
 	return s, Load(f.shareFile, s)
 }
 

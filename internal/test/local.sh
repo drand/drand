@@ -48,12 +48,12 @@ done
 
 err "[+] generating keys"
 for i in "${!f[@]}"; do
-    ./drand generate-keypair --tls-disable --folder "${f[${i}]}" 127.0.0.1:$((p["${i}"]+1))
+    ./drand generate-keypair --folder "${f[${i}]}" 127.0.0.1:$((p["${i}"]+1))
 done
 
 err "[+ ] running drand daemons..."
 for i in "${!f[@]}"; do
-    ./drand --verbose start --tls-disable --control "${p[${i}]}" --private-listen 127.0.0.1:$((p["${i}"]+1)) --metrics $((p["${i}"]+2)) --folder "${f[${i}]}" & # > $tmp/log1 2>&1 &
+    ./drand --verbose start --control "${p[${i}]}" --private-listen 127.0.0.1:$((p["${i}"]+1)) --metrics $((p["${i}"]+2)) --folder "${f[${i}]}" & # > $tmp/log1 2>&1 &
     bgPIDs+=("$!")
 done
 
@@ -66,7 +66,7 @@ if [ -n "$wait" ]; then
     read -r
 fi
 
-./drand share --control "${p[0]}" --tls-disable --leader --id default --period 5s --nodes ${#f[@]} --threshold ${#f[@]} &
+./drand share --control "${p[0]}" --leader --id default --period 5s --nodes ${#f[@]} --threshold ${#f[@]} &
 bgPIDs+=("$!")
 
 for i in $(seq 1 $((${#f[@]}-1))); do
@@ -75,7 +75,7 @@ for i in $(seq 1 $((${#f[@]}-1))); do
         read -r
     fi
 
-    ./drand share --control "${p[${i}]}" --tls-disable --connect 127.0.0.1:$((p[0]+1))&
+    ./drand share --control "${p[${i}]}" --connect 127.0.0.1:$((p[0]+1))&
     bgPIDs+=("$!")
 done
 
@@ -91,7 +91,7 @@ fi
 
 err -------------------------------------------------------------------------
 
-./drand share --control "${p[0]}" --tls-disable --id default --transition --leader --nodes ${#f[@]} --threshold ${#f[@]} &
+./drand share --control "${p[0]}" --id default --transition --leader --nodes ${#f[@]} --threshold ${#f[@]} &
 bgPIDs+=("$!")
 
 for i in $(seq 1 $((${#f[@]}-1))); do
@@ -101,7 +101,7 @@ for i in $(seq 1 $((${#f[@]}-1))); do
     fi
 
 err -------------------------------------------------------------------------
-    ./drand share --control "${p[${i}]}" --tls-disable --id default --transition --connect 127.0.0.1:$((p[0]+1))&
+    ./drand share --control "${p[${i}]}" --id default --transition --connect 127.0.0.1:$((p[0]+1))&
     bgPIDs+=("$!")
 done
 

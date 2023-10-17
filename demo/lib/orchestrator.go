@@ -30,7 +30,7 @@ var beaconOffset = 1
 // mostly due to the fact we run on localhost on cheap machine with CI so we
 // need some delays to make sure *all* nodes that we check have gathered the
 // randomness.
-var afterPeriodWait = 5 * time.Second
+var afterPeriodWait = 1 * time.Second
 
 // Orchestrator controls a set of nodes
 type Orchestrator struct {
@@ -44,7 +44,6 @@ type Orchestrator struct {
 	basePath          string
 	groupPath         string
 	newGroupPath      string
-	certFolder        string
 	nodes             []node.Node
 	paths             []string
 	newNodes          []node.Node
@@ -54,7 +53,6 @@ type Orchestrator struct {
 	group             *key.Group
 	newGroup          *key.Group
 	reshareNodes      []node.Node
-	tls               bool
 	withCurl          bool
 	isBinaryCandidate bool
 	binary            string
@@ -70,10 +68,7 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 
 	fmt.Printf("[+] Simulation global folder: %s\n", c.BasePath)
 	checkErr(os.MkdirAll(c.BasePath, 0o740))
-	c.CertFolder = path.Join(c.BasePath, "certs")
 	c.BeaconID = common.GetCanonicalBeaconID(c.BeaconID)
-
-	checkErr(os.MkdirAll(c.CertFolder, 0o740))
 	nodes, paths := createNodes(c)
 
 	periodD, err := time.ParseDuration(c.Period)
@@ -89,8 +84,6 @@ func NewOrchestrator(c cfg.Config) *Orchestrator {
 		periodD:           periodD,
 		nodes:             nodes,
 		paths:             paths,
-		certFolder:        c.CertFolder,
-		tls:               c.WithTLS,
 		withCurl:          c.WithCurl,
 		binary:            c.Binary,
 		isBinaryCandidate: c.IsCandidate,
@@ -115,7 +108,7 @@ func (e *Orchestrator) startNodes(nodes []node.Node) error {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, n := range nodes {
 		fmt.Printf("\t- Starting node %s\n", n.PrivateAddr())
-		err := n.Start(e.certFolder, e.dbEngineType, e.pgDSN, e.memDBSize)
+		err := n.Start(e.dbEngineType, e.pgDSN, e.memDBSize)
 		if err != nil {
 			return err
 		}
@@ -159,7 +152,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	for i, n := range e.nodes {
 		identity, err := n.Identity()
 		if err != nil {
-			return fmt.Errorf("n.Identity: %w for %s", err, n.PublicAddr())
+			return fmt.Errorf("n.Identity: %w for %s", err, n.PrivateAddr())
 		}
 		joiners[i] = identity
 	}
@@ -174,7 +167,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
 		err = n.JoinDKG()
 		if err != nil {
-			return fmt.Errorf("n.JoinDKG: %w for %s", err, n.PublicAddr())
+			return fmt.Errorf("n.JoinDKG: %w for %s", err, n.PrivateAddr())
 		}
 	}
 
@@ -247,9 +240,9 @@ func (e *Orchestrator) WaitGenesis() {
 
 func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
-	currentRound := chain.CurrentRound(e.transition, e.periodD, e.genesis)
+	currentRound := common.CurrentRound(e.transition, e.periodD, e.genesis)
 
-	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d\n", to, e.transition, currentRound)
+	fmt.Printf("[+] Sleeping %s until transition happens (transition time: %d) currentRound: %d current time: %d\n", to, e.transition, currentRound, time.Now().Unix())
 	time.Sleep(to)
 	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", afterPeriodWait)
 	time.Sleep(afterPeriodWait)
@@ -261,10 +254,10 @@ func (e *Orchestrator) Wait(t time.Duration) {
 }
 
 func (e *Orchestrator) WaitPeriod() {
-	nRound, nTime := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, nTime := common.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
-	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
+	fmt.Printf("[+] Sleeping %ds to reach round %d [period %f, current %d]\n", int(until.Seconds()), nRound, e.periodD.Seconds(), nRound)
 	time.Sleep(until)
 }
 
@@ -299,14 +292,17 @@ func filterNodes(list []node.Node, exclude ...int) []node.Node {
 }
 
 func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl bool) {
-	nRound, _ := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, _ := common.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
 	fmt.Printf("[+] Checking randomness beacon for round %d via CLI\n", currRound)
 	var pubRand *drand.PublicRandResponse
 	var lastIndex int
 	for _, n := range nodes {
+		fmt.Println("\t[-] Trying node", n.PrivateAddr())
 		const maxTrials = 3
 		for i := 0; i < maxTrials; i++ {
+			fmt.Println("\t\t[-] attempt", i+1)
+
 			randResp, cmd := n.GetBeacon(group, currRound)
 			if pubRand == nil {
 				pubRand = randResp
@@ -317,35 +313,28 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 
 			// we first check both are at the same round
 			if randResp.GetRound() != pubRand.GetRound() {
-				fmt.Println("[-] Mismatch between last index", lastIndex, " vs current index ", n.Index(), " - trying again in some time...")
+				fmt.Println("\t\t[-] Mismatch between last index", lastIndex, " vs current index ", n.Index(), " - trying again in some time...")
 				time.Sleep(100 * time.Millisecond)
 				// we try again
 				continue
 			}
 			// then we check if the signatures match
 			if !bytes.Equal(randResp.GetSignature(), pubRand.GetSignature()) {
-				panic("[-] Inconsistent beacon signature between nodes")
+				panic("\t\t[-] Inconsistent beacon signature between nodes")
 			}
 			// everything is good
+			fmt.Println("\t\t[-] attempt", i+1, "SUCCESS")
 			break
 		}
 	}
+
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
 	var printed bool
 	for _, n := range nodes {
+		fmt.Println("\t[-] Trying node", n.PrivateAddr())
 		args := []string{"-k", "-s"}
-		http := "http"
-		if e.tls {
-			tmp, _ := os.CreateTemp("", "cert")
-			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			defer os.Remove(tmpName)
-			_ = tmp.Close()
-			n.WriteCertificate(tmpName)
-			args = append(args, pair("--cacert", tmpName)...)
-			http = http + "s"
-		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		url := http + "://" + n.PublicAddr() + "/public/"
+		url := "http://" + n.PublicAddr() + "/public/"
 		// add the round to make sure we don't ask for a later block if we're
 		// behind
 		url += strconv.Itoa(int(currRound))
@@ -355,7 +344,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		for i := 0; i < maxCurlRetries; i++ {
 			cmd := exec.Command("curl", args...)
 			if !printed {
-				fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
+				fmt.Printf("\t\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
 				printed = true
 			}
 			if tryCurl {
@@ -377,7 +366,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 					fmt.Printf("curl output rand: %x\n", r.GetSignature())
 					fmt.Printf("cli output: %s\n", pubRand)
 					fmt.Printf("cli output rand: %x\n", pubRand.GetSignature())
-					panic("[-] Inconsistent signature from curl vs CLI")
+					panic("\t[-] Inconsistent signature from curl vs CLI")
 				}
 			} else {
 				fmt.Printf("\t[-] Issue with curl command at the moment\n")
@@ -397,8 +386,6 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		Offset:       len(e.nodes) + 1,
 		Period:       e.period,
 		BasePath:     e.basePath,
-		CertFolder:   e.certFolder,
-		WithTLS:      e.tls,
 		Binary:       e.binary,
 		Scheme:       e.scheme,
 		BeaconID:     e.beaconID,
@@ -493,8 +480,8 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	leader := e.reshareNodes[0]
 
 	// if the transition time is in the past, the DKG will fail, so it needs to be long enough to complete the DKG
-	roundInOneMinute := chain.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
-	transitionTime := chain.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
+	roundInOneMinute := common.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
+	transitionTime := common.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
 	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)
@@ -561,7 +548,6 @@ func createNodes(cfg cfg.Config) ([]node.Node, []string) {
 		} else {
 			n = node.NewLocalNode(idx, "127.0.0.1", cfg)
 		}
-		n.WriteCertificate(path.Join(cfg.CertFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s --> ctrl port: %s\n", n.PrivateAddr(), cfg.BasePath, n.CtrlAddr())
 	}
@@ -608,7 +594,7 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		// Here we send the nil values to the start method to allow the node to reconnect to the same database
-		err := foundNode.Start(e.certFolder, "", nil, e.memDBSize)
+		err := foundNode.Start("", nil, e.memDBSize)
 		if err != nil {
 			panic(fmt.Errorf("[-] Could not start node %s error: %v", foundNode.PrivateAddr(), err))
 		}

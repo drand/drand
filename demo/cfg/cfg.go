@@ -11,7 +11,6 @@ type Config struct {
 	N            int
 	Thr          int
 	Period       string
-	WithTLS      bool
 	Binary       string
 	WithCurl     bool
 	Scheme       *crypto.Scheme
@@ -22,5 +21,4 @@ type Config struct {
 	MemDBSize    int
 	Offset       int
 	BasePath     string
-	CertFolder   string
 }

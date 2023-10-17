@@ -32,7 +32,7 @@ type hashableBeacon interface {
 	GetRound() uint64
 }
 
-type signedBeacon interface {
+type SignedBeacon interface {
 	hashableBeacon
 	GetSignature() []byte
 }
@@ -64,7 +64,7 @@ type Scheme struct {
 }
 
 // VerifyBeacon is verifying the aggregated beacon against the provided group public key
-func (s *Scheme) VerifyBeacon(b signedBeacon, pubkey kyber.Point) error {
+func (s *Scheme) VerifyBeacon(b SignedBeacon, pubkey kyber.Point) error {
 	return s.ThresholdScheme.VerifyRecovered(pubkey, s.DigestBeacon(b), b.GetSignature())
 }
 
@@ -280,6 +280,7 @@ func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
 
 	return SchemeFromName(id)
 }
+
 func GetSchemeByID(id string) (*Scheme, bool) {
 	if id == "" {
 		id = DefaultSchemeID
