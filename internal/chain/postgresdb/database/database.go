@@ -11,11 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/common/tracer"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // Calls init function.
 
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/metrics"
 )
 
 // Config is the required properties to use the database.
@@ -103,7 +104,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 //
 //nolint:gocritic // There is nothing wrong with using value semantics here.
 func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
-	ctx, span := metrics.NewSpan(ctx, "database.Open")
+	ctx, span := tracer.NewSpan(ctx, "database.Open")
 	defer span.End()
 
 	sslMode := "require"
@@ -137,7 +138,7 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 // StatusCheck returns nil if it can successfully talk to the database. It
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
-	ctx, span := metrics.NewSpan(ctx, "database.StatusCheck")
+	ctx, span := tracer.NewSpan(ctx, "database.StatusCheck")
 	defer span.End()
 
 	var pingError error
@@ -166,7 +167,7 @@ check:
 
 // WithinTran runs passed function and do commit/rollback at the end.
 func WithinTran(ctx context.Context, l log.Logger, db *sqlx.DB, fn func(context.Context, *sqlx.Tx) error) error {
-	ctx, span := metrics.NewSpan(ctx, "database.WithinTran")
+	ctx, span := tracer.NewSpan(ctx, "database.WithinTran")
 	defer span.End()
 
 	l.Infow("begin tran")

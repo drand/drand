@@ -27,18 +27,17 @@ type Client interface {
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
 
-	// Close will halt the client, any background processes it runs and any
+	// Closer means Close() will halt the client, any background processes it runs and any
 	// in-flight Get, Watch or Info requests. Behavior for usage of the client
 	// after Close is called is undefined.
-
 	io.Closer
 }
 
 // Result represents the randomness for a single drand round.
 type Result interface {
-	Round() uint64
-	Randomness() []byte
-	Signature() []byte
+	GetRound() uint64
+	GetRandomness() []byte
+	GetSignature() []byte
 }
 
 // LoggingClient sets the logger for use by clients that suppport it

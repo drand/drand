@@ -14,6 +14,7 @@ import (
 	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
@@ -54,12 +55,14 @@ type Handler struct {
 	ctx       context.Context
 	ctxCancel context.CancelFunc
 	addr      string
-	started   bool
-	running   bool
-	serving   bool
-	stopped   bool
-	version   common2.Version
-	l         log.Logger
+	// a handler is running when its main run method is launched
+	running bool
+	// a handler becomes serving once its ticker starts ticking, but not necessarily if catching up
+	serving bool
+	// a handler is really stopped only once
+	stopped bool
+	version common2.Version
+	l       log.Logger
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -67,7 +70,7 @@ type Handler struct {
 //
 //nolint:lll // This is a complex function
 func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version common2.Version) (*Handler, error) {
-	ctx, span := metrics.NewSpan(ctx, "NewHandler")
+	ctx, span := tracer.NewSpan(ctx, "NewHandler")
 	defer span.End()
 
 	if conf.Share == nil || conf.Group == nil {
@@ -119,14 +122,14 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
-	ctx, span := metrics.NewSpan(ctx, "h.ProcessPartialBeacon")
+	ctx, span := tracer.NewSpan(ctx, "h.ProcessPartialBeacon")
 	defer span.End()
 
 	addr := net.RemoteAddress(ctx)
 	pRound := p.GetRound()
 	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
 
-	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nextRound, _ := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
 	// we allow one round off in the future because of small clock drifts
@@ -152,6 +155,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	if idx < 0 {
 		err := fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 		span.RecordError(err)
+		h.l.Errorw("error", "err", err)
 		return nil, err
 	}
 
@@ -159,6 +163,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	if node == nil {
 		err := fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
 		span.RecordError(err)
+		h.l.Errorw("error", "err", err)
 		return nil, err
 	}
 
@@ -223,21 +228,19 @@ func (h *Handler) Store() CallbackStore {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start(ctx context.Context) error {
-	_, span := metrics.NewSpan(ctx, "h.Handler")
+	_, span := tracer.NewSpan(ctx, "h.Handler")
 	defer span.End()
+	if h.IsStopped() {
+		return fmt.Errorf("a stopped handler cannot be re-started")
+	}
 
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Errorw("", "genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
 
-	h.Lock()
-	// TODO: do we really need both started and running?
-	h.started = true
-	h.Unlock()
-
 	h.thresholdMonitor.Start()
-	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	_, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
 
@@ -250,14 +253,10 @@ func (h *Handler) Start(ctx context.Context) error {
 // it syncs its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup(ctx context.Context) {
-	ctx, span := metrics.NewSpan(ctx, "h.Catchup")
+	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
 	defer span.End()
 
-	h.Lock()
-	h.started = true
-	h.Unlock()
-
-	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nRound, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.l.Infow("Launching Catchup", "upto", nRound)
@@ -269,26 +268,23 @@ func (h *Handler) Catchup(ctx context.Context) {
 // randomness. To sync, he contacts the nodes listed in the previous group file
 // given.
 func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
-	ctx, span := metrics.NewSpan(ctx, "h.Transition")
+	ctx, span := tracer.NewSpan(ctx, "h.Transition")
 	defer span.End()
 
 	targetTime := h.conf.Group.TransitionTime
-	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
 
-	h.Lock()
-	h.started = true
-	h.Unlock()
-
 	go h.run(targetTime)
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0))
+	//nolint:govet // We don't want to call the cancel explicitly, it's not lost we're relying on the deadline
+	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0).Add(-h.conf.Group.Period))
 	h.chain.RunSync(ctx, tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
@@ -300,12 +296,12 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 		return
 	}
 
-	_, span := metrics.NewSpan(ctx, "h.TransitionNewGroup")
+	_, span := tracer.NewSpan(ctx, "h.TransitionNewGroup")
 	defer span.End()
 
 	targetTime := newGroup.TransitionTime
-	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
@@ -323,13 +319,6 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 		h.thresholdMonitor.UpdateThreshold(newGroup.Threshold)
 		h.chain.RemoveCallback("transition")
 	})
-}
-
-func (h *Handler) IsStarted() bool {
-	h.Lock()
-	defer h.Unlock()
-
-	return h.started
 }
 
 func (h *Handler) IsServing() bool {
@@ -353,33 +342,23 @@ func (h *Handler) IsStopped() bool {
 	return h.stopped
 }
 
-func (h *Handler) Reset(ctx context.Context) {
-	_, span := metrics.NewSpan(ctx, "h.Reset")
-	defer span.End()
-
-	h.Lock()
-	defer h.Unlock()
-
-	h.stopped = false
-	h.started = false
-	h.running = false
-	h.serving = false
-}
-
 // run will wait until it is supposed to start
 //
-//nolint:funlen // This is a long function
+//nolint:funlen // this is a big function
 func (h *Handler) run(startTime int64) {
+	// we cannot re-start a stopped handler
+	if h.IsStopped() {
+		return
+	}
+	h.Lock()
+	h.running = true
+	h.Unlock()
+
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Infow("starting handler run", "startTime", startTime, "current time", h.conf.Clock.Now().Unix())
 
 	var current roundInfo
-	setRunning := sync.Once{}
-
-	h.Lock()
-	// TODO: do we really need both started and running?
-	h.running = true
-	h.Unlock()
+	setServing := sync.Once{}
 
 	for {
 		select {
@@ -388,13 +367,13 @@ func (h *Handler) run(startTime int64) {
 			return
 		case current = <-chanTick:
 			func() {
-				ctx, span := metrics.NewSpan(h.ctx, "h.run.chanTick")
+				ctx, span := tracer.NewSpan(h.ctx, "h.run.chanTick")
 				defer span.End()
 				span.SetAttributes(
 					attribute.Int64("round", int64(current.round)),
 				)
 
-				setRunning.Do(func() {
+				setServing.Do(func() {
 					h.Lock()
 					h.serving = true
 					h.Unlock()
@@ -424,7 +403,7 @@ func (h *Handler) run(startTime int64) {
 				}
 			}()
 		case b := <-h.chain.AppendedBeaconNoSync():
-			ctx, span := metrics.NewSpan(h.ctx, "h.run.appendBeaconNoSync")
+			ctx, span := tracer.NewSpan(h.ctx, "h.run.appendBeaconNoSync")
 			span.SetAttributes(
 				attribute.Int64("round", int64(b.Round)),
 			)
@@ -472,7 +451,7 @@ func (h *Handler) run(startTime int64) {
 }
 
 func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, upon *common2.Beacon) {
-	ctx, span := metrics.NewSpan(ctx, "h.broadcastNextPartial")
+	ctx, span := tracer.NewSpan(ctx, "h.broadcastNextPartial")
 	defer span.End()
 
 	previousSig := upon.Signature
@@ -524,7 +503,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			continue
 		}
 		go func(i key.Identity) {
-			ctx, span := metrics.NewSpan(ctx, "h.broadcastNextPartial.SendTo")
+			ctx, span := tracer.NewSpan(ctx, "h.broadcastNextPartial.SendTo")
 			defer span.End()
 
 			select {
@@ -554,7 +533,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 // Stop the beacon loop from aggregating  further randomness, but it
 // finishes the one it is aggregating currently.
 func (h *Handler) Stop(ctx context.Context) {
-	_, span := metrics.NewSpan(ctx, "h.Stop")
+	_, span := tracer.NewSpan(ctx, "h.Stop")
 	defer span.End()
 
 	h.Lock()
@@ -576,7 +555,7 @@ func (h *Handler) Stop(ctx context.Context) {
 // StopAt will stop the handler at the given time. It is useful when
 // transitioning for a resharing.
 func (h *Handler) StopAt(ctx context.Context, stopTime int64) error {
-	ctx, span := metrics.NewSpan(ctx, "h.StopAt")
+	ctx, span := tracer.NewSpan(ctx, "h.StopAt")
 	defer span.End()
 
 	now := h.conf.Clock.Now().Unix()
@@ -595,7 +574,7 @@ func (h *Handler) StopAt(ctx context.Context, stopTime int64) error {
 
 // AddCallback is a proxy method to register a callback on the backend store
 func (h *Handler) AddCallback(ctx context.Context, id string, fn CallbackFunc) {
-	_, span := metrics.NewSpan(ctx, "h.AddCallback")
+	_, span := tracer.NewSpan(ctx, "h.AddCallback")
 	defer span.End()
 
 	h.chain.AddCallback(id, fn)
@@ -603,7 +582,7 @@ func (h *Handler) AddCallback(ctx context.Context, id string, fn CallbackFunc) {
 
 // RemoveCallback is a proxy method to remove a callback on the backend store
 func (h *Handler) RemoveCallback(ctx context.Context, id string) {
-	_, span := metrics.NewSpan(ctx, "h.RemoveCallback")
+	_, span := tracer.NewSpan(ctx, "h.RemoveCallback")
 	defer span.End()
 
 	h.chain.RemoveCallback(id)
@@ -611,7 +590,7 @@ func (h *Handler) RemoveCallback(ctx context.Context, id string) {
 
 // GetConfg returns the conf used by the handler
 func (h *Handler) GetConfg(ctx context.Context) *Config {
-	_, span := metrics.NewSpan(ctx, "h.GetConfg")
+	_, span := tracer.NewSpan(ctx, "h.GetConfg")
 	defer span.End()
 
 	return h.conf
@@ -622,7 +601,7 @@ func (h *Handler) GetConfg(ctx context.Context) *Config {
 // were corrupted / invalid / not found in the store.
 // Note: it does not attempt to correct or fetch these faulty beacons.
 func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	ctx, span := metrics.NewSpan(ctx, "h.ValidateChain")
+	ctx, span := tracer.NewSpan(ctx, "h.ValidateChain")
 	defer span.End()
 
 	return h.chain.ValidateChain(ctx, upTo, cb)
@@ -630,7 +609,7 @@ func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u u
 
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
 func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
-	ctx, span := metrics.NewSpan(ctx, "h.CorrectChain")
+	ctx, span := tracer.NewSpan(ctx, "h.CorrectChain")
 	defer span.End()
 
 	return h.chain.RunReSync(ctx, faultyBeacons, peers, cb)

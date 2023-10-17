@@ -12,6 +12,31 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
+func TestNamesInList(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"", false},
+		{crypto.DefaultSchemeID, true},
+		{crypto.ShortSigSchemeID, true},
+		{crypto.SigsOnG1ID, true},
+		{crypto.UnchainedSchemeID, true},
+		{"nonexistentschemename", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+"IsInList", func(t *testing.T) {
+			for _, v := range crypto.ListSchemes() {
+				if tt.name == v {
+					return
+				}
+			}
+			require.False(t, tt.expected)
+		})
+	}
+}
+
 func BenchmarkVerifyBeacon(b *testing.B) {
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
@@ -127,5 +152,48 @@ func TestVerifyBeacon(t *testing.T) {
 		require.NoError(t, err)
 		err = sch.VerifyBeacon(&common.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
 		require.NoError(t, err)
+	}
+}
+
+func TestGetSchemeByID(t *testing.T) {
+	tests := []struct {
+		name      string
+		isDefault bool
+		want      bool
+	}{
+		{"", true, true},
+		{crypto.DefaultSchemeID, true, true},
+		{crypto.ShortSigSchemeID, false, true},
+		{crypto.SigsOnG1ID, false, true},
+		{crypto.UnchainedSchemeID, false, true},
+		{"nonexistentschemename", false, false},
+		{crypto.DefaultSchemeID + "wrong", false, false},
+		{"wrong" + crypto.ShortSigSchemeID, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+"byID", func(t *testing.T) {
+			got, gotBool := crypto.GetSchemeByID(tt.name)
+			// special case "" is considered to be the default beacon
+			if gotBool && got.Name != tt.name && tt.name != "" {
+				t.Errorf("GetSchemeByID() got = %v, want %v", got, tt.name)
+			}
+			if tt.isDefault && got.Name != crypto.DefaultSchemeID {
+				t.Errorf("UnexpectedDefaultName got = %v", got.Name)
+			}
+			if gotBool != tt.want {
+				t.Errorf("GetSchemeByID() gotBool = %v, want %v", gotBool, tt.want)
+			}
+		})
+
+		t.Run(tt.name+"ByIDWithDefault", func(t *testing.T) {
+			got, err := crypto.GetSchemeByIDWithDefault(tt.name)
+			if (err != nil) == tt.want {
+				t.Errorf("GetSchemeByIDWithDefault() error = %v", err)
+				return
+			}
+			if tt.want && got.Name != tt.name && tt.name != "" {
+				t.Errorf("GetSchemeByIDWithDefault() got = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

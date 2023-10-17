@@ -7,10 +7,11 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/drand/drand/common/tracer"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/metrics"
 )
 
 // Store represents access to the in-memory storage for beacon management.
@@ -36,7 +37,7 @@ func NewStore(bufferSize int) *Store {
 }
 
 func (s *Store) Len(ctx context.Context) (int, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Len")
+	_, span := tracer.NewSpan(ctx, "memDB.Len")
 	defer span.End()
 
 	s.storeMtx.RLock()
@@ -46,7 +47,7 @@ func (s *Store) Len(ctx context.Context) (int, error) {
 }
 
 func (s *Store) Put(ctx context.Context, beacon *common.Beacon) error {
-	_, span := metrics.NewSpan(ctx, "memDB.Put")
+	_, span := tracer.NewSpan(ctx, "memDB.Put")
 	defer span.End()
 
 	s.storeMtx.Lock()
@@ -79,7 +80,7 @@ func (s *Store) Put(ctx context.Context, beacon *common.Beacon) error {
 }
 
 func (s *Store) Last(ctx context.Context) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Last")
+	_, span := tracer.NewSpan(ctx, "memDB.Last")
 	defer span.End()
 
 	s.storeMtx.RLock()
@@ -94,7 +95,7 @@ func (s *Store) Last(ctx context.Context) (*common.Beacon, error) {
 }
 
 func (s *Store) Get(ctx context.Context, round uint64) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Get")
+	_, span := tracer.NewSpan(ctx, "memDB.Get")
 	defer span.End()
 
 	s.storeMtx.RLock()
@@ -110,7 +111,7 @@ func (s *Store) Get(ctx context.Context, round uint64) (*common.Beacon, error) {
 }
 
 func (s *Store) Cursor(ctx context.Context, f func(context.Context, chain.Cursor) error) error {
-	ctx, span := metrics.NewSpan(ctx, "memDB.Cursor")
+	ctx, span := tracer.NewSpan(ctx, "memDB.Cursor")
 	defer span.End()
 
 	cursor := &memDBCursor{
@@ -125,7 +126,7 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) Del(ctx context.Context, round uint64) error {
-	_, span := metrics.NewSpan(ctx, "memDB.Del")
+	_, span := tracer.NewSpan(ctx, "memDB.Del")
 	defer span.End()
 
 	s.storeMtx.Lock()
@@ -149,7 +150,7 @@ func (s *Store) Del(ctx context.Context, round uint64) error {
 }
 
 func (s *Store) SaveTo(ctx context.Context, _ io.Writer) error {
-	_, span := metrics.NewSpan(ctx, "memDB.SaveTo")
+	_, span := tracer.NewSpan(ctx, "memDB.SaveTo")
 	defer span.End()
 
 	// TODO implement me
@@ -162,7 +163,7 @@ type memDBCursor struct {
 }
 
 func (m *memDBCursor) First(ctx context.Context) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Cursor.First")
+	_, span := tracer.NewSpan(ctx, "memDB.Cursor.First")
 	defer span.End()
 
 	m.s.storeMtx.RLock()
@@ -178,7 +179,7 @@ func (m *memDBCursor) First(ctx context.Context) (*common.Beacon, error) {
 }
 
 func (m *memDBCursor) Next(ctx context.Context) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Cursor.Next")
+	_, span := tracer.NewSpan(ctx, "memDB.Cursor.Next")
 	defer span.End()
 
 	m.s.storeMtx.RLock()
@@ -198,7 +199,7 @@ func (m *memDBCursor) Next(ctx context.Context) (*common.Beacon, error) {
 }
 
 func (m *memDBCursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Cursor.Seek")
+	_, span := tracer.NewSpan(ctx, "memDB.Cursor.Seek")
 	defer span.End()
 
 	m.s.storeMtx.RLock()
@@ -217,7 +218,7 @@ func (m *memDBCursor) Seek(ctx context.Context, round uint64) (*common.Beacon, e
 }
 
 func (m *memDBCursor) Last(ctx context.Context) (*common.Beacon, error) {
-	_, span := metrics.NewSpan(ctx, "memDB.Cursor.Last")
+	_, span := tracer.NewSpan(ctx, "memDB.Cursor.Last")
 	defer span.End()
 
 	m.s.storeMtx.RLock()

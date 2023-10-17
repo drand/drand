@@ -7,13 +7,18 @@ import (
 	"net/http"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/net"
 )
 
+// HTTPClient is currently used for relaying metrics between group members.
+type HTTPClient interface {
+	HandleHTTP(ctx context.Context, p net.Peer) (http.Handler, error)
+}
+
 // MetricsHandlerForPeer returns a handler for retrieving metric information from a peer in this group
 func (bp *BeaconProcess) MetricsHandlerForPeer(ctx context.Context, addr string) (http.Handler, error) {
-	ctx, span := metrics.NewSpan(ctx, "bp.MetricsHandlerForPeer")
+	ctx, span := tracer.NewSpan(ctx, "bp.MetricsHandlerForPeer")
 	defer span.End()
 
 	if bp.group == nil {
@@ -21,7 +26,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(ctx context.Context, addr string)
 	}
 
 	pc := bp.privGateway.ProtocolClient
-	hc, ok := pc.(net.HTTPClient)
+	hc, ok := pc.(HTTPClient)
 	if !ok {
 		return nil, errors.New("the ProtocolClient implementation does not support metrics")
 	}
@@ -31,7 +36,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(ctx context.Context, addr string)
 	//nolint:gocritic
 	for _, n := range bp.group.Nodes {
 		if n.Address() == addr {
-			p := net.CreatePeer(n.Address(), n.IsTLS())
+			p := net.CreatePeer(n.Address())
 			h, e := hc.HandleHTTP(ctx, p)
 			if e == nil {
 				return h, nil

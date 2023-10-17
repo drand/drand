@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/drand/common/tracer"
+
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto/vault"
 	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -47,7 +48,7 @@ type chainStore struct {
 
 //nolint:lll // The names are long but clear
 func newChainStore(ctx context.Context, l log.Logger, cf *Config, cl net.ProtocolClient, v *vault.Vault, store chain.Store, t *ticker) (*chainStore, error) {
-	ctx, span := metrics.NewSpan(ctx, "newChainStore")
+	ctx, span := tracer.NewSpan(ctx, "newChainStore")
 	defer span.End()
 
 	// we write some stats about the timing when new beacon is saved
@@ -159,7 +160,7 @@ func (c *chainStore) runAggregator() {
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
 		case partial := <-c.newPartials:
-			ctx, span := metrics.NewSpanFromSpanContext(c.ctx, partial.spanContext, "c.runAggregator")
+			ctx, span := tracer.NewSpanFromSpanContext(c.ctx, partial.spanContext, "c.runAggregator")
 
 			span.SetAttributes(
 				attribute.Int64("round", int64(partial.p.Round)),
@@ -285,7 +286,7 @@ func (c *chainStore) runAggregator() {
 }
 
 func (c *chainStore) tryAppend(ctx context.Context, last, newB *common.Beacon) bool {
-	ctx, span := metrics.NewSpan(ctx, "chainStore.tryAppend")
+	ctx, span := tracer.NewSpan(ctx, "chainStore.tryAppend")
 	defer span.End()
 
 	select {
@@ -340,7 +341,7 @@ func (c *chainStore) shouldSync(last *common.Beacon, newB likeBeacon) bool {
 // will follow the chain indefinitely. If peers is nil, it uses the peers of
 // the current group.
 func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer) {
-	ctx, span := metrics.NewSpan(ctx, "c.RunSync")
+	ctx, span := tracer.NewSpan(ctx, "c.RunSync")
 	defer span.End()
 
 	if len(peers) == 0 {
@@ -352,7 +353,7 @@ func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer)
 
 // RunReSync will sync up with other nodes to repair the invalid beacons in the store.
 func (c *chainStore) RunReSync(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
-	ctx, span := metrics.NewSpan(ctx, "c.RunReSync")
+	ctx, span := tracer.NewSpan(ctx, "c.RunReSync")
 	defer span.End()
 
 	// we do this check here because the SyncManager doesn't have the notion of group
@@ -367,7 +368,7 @@ func (c *chainStore) RunReSync(ctx context.Context, faultyBeacons []uint64, peer
 // and it returns the list of round numbers for which the beacons were corrupted / invalid / not found in the store.
 // Note: it does not attempt to correct or fetch these faulty beacons.
 func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	ctx, span := metrics.NewSpan(ctx, "c.ValidateChain")
+	ctx, span := tracer.NewSpan(ctx, "c.ValidateChain")
 	defer span.End()
 
 	return c.syncm.CheckPastBeacons(ctx, upTo, cb)

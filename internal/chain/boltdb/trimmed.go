@@ -7,13 +7,14 @@ import (
 	"path"
 	"sync"
 
+	"github.com/drand/drand/common/tracer"
+
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	chainerrors "github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/metrics"
 )
 
 // trimmedStore implements the Store interface using the kv storage boltdb (native
@@ -30,7 +31,7 @@ type trimmedStore struct {
 
 // newTrimmedStore returns a Store implementation using the boltdb storage engine.
 func newTrimmedStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (*trimmedStore, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.NewTrimmedStore")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.NewTrimmedStore")
 	defer span.End()
 
 	select {
@@ -62,7 +63,7 @@ func newTrimmedStore(ctx context.Context, l log.Logger, folder string, opts *bol
 //
 //nolint:dupl // This is a function on a separate type.
 func (b *trimmedStore) Len(ctx context.Context) (int, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Len")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Len")
 	defer span.End()
 
 	select {
@@ -95,7 +96,7 @@ func (b *trimmedStore) Close() error {
 // Put implements the Store interface. WARNING: It does NOT verify that this
 // beacon is not already saved in the database or not and will overwrite it.
 func (b *trimmedStore) Put(ctx context.Context, beacon *common.Beacon) error {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Put")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Put")
 	defer span.End()
 
 	select {
@@ -121,7 +122,7 @@ func (b *trimmedStore) Put(ctx context.Context, beacon *common.Beacon) error {
 
 // Last returns the last beacon signature saved into the db
 func (b *trimmedStore) Last(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Last")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Last")
 	defer span.End()
 
 	select {
@@ -149,7 +150,7 @@ func (b *trimmedStore) Last(ctx context.Context) (*common.Beacon, error) {
 
 // Get returns the beacon saved at this round
 func (b *trimmedStore) Get(ctx context.Context, round uint64) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Get")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Get")
 	defer span.End()
 
 	select {
@@ -212,7 +213,7 @@ func (b *trimmedStore) getBeacon(ctx context.Context, bucket *bolt.Bucket, round
 }
 
 func (b *trimmedStore) Del(ctx context.Context, round uint64) error {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Del")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Del")
 	defer span.End()
 
 	select {
@@ -228,7 +229,7 @@ func (b *trimmedStore) Del(ctx context.Context, round uint64) error {
 }
 
 func (b *trimmedStore) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Cursor")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Cursor")
 	defer span.End()
 
 	select {
@@ -254,7 +255,7 @@ func (b *trimmedStore) Cursor(ctx context.Context, fn func(context.Context, chai
 
 // SaveTo saves the bolt database to an alternate file.
 func (b *trimmedStore) SaveTo(ctx context.Context, w io.Writer) error {
-	_, span := metrics.NewSpan(ctx, "boltTrimmedStore.SaveTo")
+	_, span := tracer.NewSpan(ctx, "boltTrimmedStore.SaveTo")
 	defer span.End()
 
 	return b.db.View(func(tx *bolt.Tx) error {
@@ -269,7 +270,7 @@ type trimmedBoltCursor struct {
 }
 
 func (c *trimmedBoltCursor) First(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Cursor.First")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Cursor.First")
 	defer span.End()
 
 	return c.store.getCursorBeacon(ctx, c.Bucket(), c.Cursor.First)
@@ -278,14 +279,14 @@ func (c *trimmedBoltCursor) First(ctx context.Context) (*common.Beacon, error) {
 // Next returns the next value in the database for the given cursor.
 // When reaching the end of the database, it emits the ErrNoBeaconStored error to flag that it finished the iteration.
 func (c *trimmedBoltCursor) Next(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Cursor.Next")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Cursor.Next")
 	defer span.End()
 
 	return c.store.getCursorBeacon(ctx, c.Bucket(), c.Cursor.Next)
 }
 
 func (c *trimmedBoltCursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Cursor.Seek")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Cursor.Seek")
 	defer span.End()
 
 	select {
@@ -318,7 +319,7 @@ func (c *trimmedBoltCursor) Seek(ctx context.Context, round uint64) (*common.Bea
 }
 
 func (c *trimmedBoltCursor) Last(ctx context.Context) (*common.Beacon, error) {
-	ctx, span := metrics.NewSpan(ctx, "boltTrimmedStore.Cursor.Last")
+	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.Cursor.Last")
 	defer span.End()
 
 	return c.store.getCursorBeacon(ctx, c.Bucket(), c.Cursor.Last)

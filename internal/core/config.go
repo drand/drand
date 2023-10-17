@@ -16,7 +16,6 @@ import (
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/chain/postgresdb/database"
-	"github.com/drand/drand/internal/net"
 )
 
 // ConfigOption is a function that applies a specific setting to a Config.
@@ -30,7 +29,6 @@ type Config struct {
 	publicListenAddr      string
 	controlPort           string
 	dbStorageEngine       chain.StorageType
-	insecure              bool
 	dkgTimeout            time.Duration
 	dkgKickoffGracePeriod time.Duration
 	dkgPhaseTimeout       time.Duration
@@ -41,9 +39,6 @@ type Config struct {
 	pgConn                *sqlx.DB
 	memDBSize             int
 	dkgCallback           func(context.Context, *key.Share, *key.Group)
-	certPath              string
-	keyPath               string
-	certmanager           *net.CertManager
 	logger                log.Logger
 	clock                 clock.Clock
 	tracesEndpoint        string
@@ -84,11 +79,6 @@ func (d *Config) ConfigFolderMB() string {
 // If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
 	return path.Join(d.ConfigFolderMB(), common.GetCanonicalBeaconID(beaconID), DefaultDBFolder)
-}
-
-// Certs returns all custom certs currently being trusted by drand.
-func (d *Config) Certs() *net.CertManager {
-	return d.certmanager
 }
 
 // PrivateListenAddress returns the given default address or the listen address stored
@@ -221,41 +211,6 @@ func WithConfigFolder(folder string) ConfigOption {
 	}
 }
 
-// WithInsecure allows drand to listen on standard non-encrypted port and to
-// contact other nodes over non-encrypted TCP connections.
-func WithInsecure() ConfigOption {
-	return func(d *Config) {
-		d.insecure = true
-	}
-}
-
-// WithTLS registers the certificates and private key path so drand can accept
-// and issue connections using TLS.
-func WithTLS(certPath, keyPath string) ConfigOption {
-	return func(d *Config) {
-		d.certPath = certPath
-		d.keyPath = keyPath
-	}
-}
-
-// WithTrustedCerts saves the certificates at the given paths and forces drand
-// to trust them. Mostly useful for testing.
-func WithTrustedCerts(certPaths ...string) ConfigOption {
-	return func(d *Config) {
-		if len(certPaths) < 1 {
-			return
-		}
-		if d.certmanager == nil {
-			d.certmanager = net.NewCertManager(d.logger)
-		}
-		for _, p := range certPaths {
-			if err := d.certmanager.Add(p); err != nil {
-				panic(err)
-			}
-		}
-	}
-}
-
 // WithPublicListenAddress specifies the address the drand instance should bind to. It
 // is useful if you want to advertise a public proxy address and the drand
 // instance runs behind your network.
@@ -271,19 +226,6 @@ func WithPublicListenAddress(addr string) ConfigOption {
 func WithPrivateListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
 		d.privateListenAddr = addr
-	}
-}
-
-// WithLogLevel sets the logging verbosity to the given level.
-//
-// Deprecated: Use NewConfigWithLogger.
-func WithLogLevel(level int, jsonFormat bool) ConfigOption {
-	return func(d *Config) {
-		if jsonFormat {
-			d.logger = log.New(nil, level, false)
-		} else {
-			d.logger = log.New(nil, level, true)
-		}
 	}
 }
 

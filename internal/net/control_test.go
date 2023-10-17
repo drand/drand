@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/drand/drand/common/testlogger"
 	testnet "github.com/drand/drand/internal/test/net"
-	"github.com/drand/drand/internal/test/testlogger"
 )
 
 const runtimeGOOSWindows = "windows"

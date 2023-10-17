@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -108,7 +108,7 @@ func (d *Process) StartNetwork(
 	state *DBState,
 	options *drand.FirstProposalOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartNetwork")
+	_, span := tracer.NewSpan(ctx, "dkg.StartNetwork")
 	defer span.End()
 
 	genesisTime := options.GenesisTime
@@ -159,7 +159,7 @@ func (d *Process) StartProposal(
 	currentState *DBState,
 	options *drand.ProposalOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartProposal")
+	_, span := tracer.NewSpan(ctx, "dkg.StartProposal")
 	defer span.End()
 
 	var newEpoch uint32
@@ -212,7 +212,7 @@ func (d *Process) StartAbort(
 	current *DBState,
 	_ *drand.AbortOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartAbort")
+	_, span := tracer.NewSpan(ctx, "dkg.StartAbort")
 	defer span.End()
 
 	nextState, err := current.StartAbort(me)
@@ -239,7 +239,7 @@ func (d *Process) StartExecute(
 	state *DBState,
 	_ *drand.ExecutionOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartExecute")
+	_, span := tracer.NewSpan(ctx, "dkg.StartExecute")
 	defer span.End()
 
 	nextState, err := state.StartExecuting(me)
@@ -274,7 +274,7 @@ func (d *Process) StartJoin(
 	state *DBState,
 	options *drand.JoinOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartJoin")
+	_, span := tracer.NewSpan(ctx, "dkg.StartJoin")
 	defer span.End()
 
 	var previousGroupFile *key.Group
@@ -306,7 +306,7 @@ func (d *Process) StartAccept(
 	state *DBState,
 	_ *drand.AcceptOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartAccept")
+	_, span := tracer.NewSpan(ctx, "dkg.StartAccept")
 	defer span.End()
 
 	nextState, err := state.Accepted(me)
@@ -335,7 +335,7 @@ func (d *Process) StartReject(
 	state *DBState,
 	_ *drand.RejectOptions,
 ) (*DBState, *drand.GossipPacket, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.StartReject")
+	_, span := tracer.NewSpan(ctx, "dkg.StartReject")
 	defer span.End()
 
 	nextState, err := state.Rejected(me)
@@ -357,7 +357,7 @@ func (d *Process) StartReject(
 }
 
 func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
-	_, span := metrics.NewSpan(ctx, "dkg.Status")
+	_, span := tracer.NewSpan(ctx, "dkg.Status")
 	defer span.End()
 
 	finished, err := d.store.GetFinished(request.BeaconID)

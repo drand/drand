@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	clock "github.com/jonboulle/clockwork"
 	"net"
 	"os"
 	"os/exec"
@@ -14,10 +13,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/kabukky/httpscerts"
+	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
@@ -31,18 +28,11 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-var secretDKG = "dkgsecret_____________________32"
-
 type NodeProc struct {
-	base       string
-	i          int
-	period     string
-	publicPath string
-	certPath   string
-	// certificate key
-	keyPath string
-	// where all public certs are stored
-	certFolder   string
+	base         string
+	i            int
+	period       string
+	publicPath   string
 	startCmd     *exec.Cmd
 	lg           log.Logger
 	logPath      string
@@ -53,7 +43,6 @@ type NodeProc struct {
 	cancel       context.CancelFunc
 	ctrl         string
 	isCandidate  bool
-	tls          bool
 	groupPath    string
 	proposalPath string
 	binary       string
@@ -77,7 +66,6 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 	lg := log.New(nil, log.DefaultLevel, false).
 		Named(fmt.Sprintf("sub-proc-node-%d", i))
 	n := &NodeProc{
-		tls:          cfg.WithTLS,
 		base:         nbase,
 		i:            i,
 		lg:           lg,
@@ -104,20 +92,6 @@ func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 	n.isCandidate = isCandidate
 }
 
-func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, error) {
-	l := log.DefaultLogger()
-	defaultManager := drandnet.NewCertManager(l)
-	if err := defaultManager.Add(certPath); err != nil {
-		return nil, err
-	}
-	tlsCredentials := credentials.NewClientTLSFromCert(defaultManager.Pool(), "")
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(tlsCredentials))
-	if err != nil {
-		return nil, err
-	}
-	return drand.NewDKGControlClient(conn), nil
-}
-
 func (n *NodeProc) setup() {
 	var err error
 	// find a free port
@@ -127,19 +101,6 @@ func (n *NodeProc) setup() {
 	n.privAddr = host + ":" + freePort
 	n.pubAddr = host + ":" + freePortREST
 	ctrlPort := test.FreePort()
-
-	if n.tls {
-		// generate certificate
-		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
-		n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
-		func() {
-			// TODO how to get rid of that annoying creating cert..
-			err = httpscerts.Generate(n.certPath, n.keyPath, host)
-			if err != nil {
-				panic(err)
-			}
-		}()
-	}
 
 	dkgClient, err := drandnet.NewDKGControlClient(n.lg, ctrlPort)
 	if err != nil {
@@ -158,9 +119,6 @@ func (n *NodeProc) setup() {
 
 	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
 
-	if !n.tls {
-		args = append(args, "--tls-disable")
-	}
 	args = append(args, n.privAddr)
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
@@ -169,7 +127,7 @@ func (n *NodeProc) setup() {
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
-	n.priv, err = n.store.LoadKeyPair(nil)
+	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
 	}
@@ -178,7 +136,7 @@ func (n *NodeProc) setup() {
 	checkErr(err)
 }
 
-func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
+func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	if dbEngineType != "" {
 		n.dbEngineType = dbEngineType
 	}
@@ -203,13 +161,6 @@ func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDS
 	_, pubPort, _ := net.SplitHostPort(n.pubAddr)
 	args = append(args, pair("--private-listen", "0.0.0.0:"+privPort)...)
 	args = append(args, pair("--public-listen", "0.0.0.0:"+pubPort)...)
-	if n.tls {
-		args = append(args, pair("--tls-cert", n.certPath)...)
-		args = append(args, pair("--tls-key", n.keyPath)...)
-		args = append(args, []string{"--certs-dir", certFolder}...)
-	} else {
-		args = append(args, "--tls-disable")
-	}
 	args = append(args, pair("--db", string(n.dbEngineType))...)
 	args = append(args, pair("--pg-dsn", n.pgDSN)...)
 	args = append(args, pair("--memdb-size", fmt.Sprintf("%d", n.memDBSize))...)
@@ -219,7 +170,6 @@ func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDS
 
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
-	n.certFolder = certFolder
 
 	cmd := exec.CommandContext(ctx, n.binary, args...)
 	n.startCmd = cmd
@@ -396,10 +346,8 @@ func (n *NodeProc) GetGroup() *key.Group {
 }
 
 func (n *NodeProc) ChainInfo(_ string) bool {
-	args := []string{"get", "chain-info"}
-	if n.tls {
-		args = append(args, pair("--tls-cert", n.certPath)...)
-	}
+	args := []string{"show", "chain-info", "--control", n.ctrl}
+
 	args = append(args, n.privAddr)
 
 	cmd := exec.Command(n.binary, args...)
@@ -431,28 +379,22 @@ func (n *NodeProc) Ping() bool {
 }
 
 func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
-	args := []string{"get", "public"}
-	if n.tls {
-		args = append(args, pair("--tls-cert", n.certPath)...)
-	}
-	args = append(args, pair("--nodes", n.privAddr)...)
-	args = append(args, pair("--round", strconv.Itoa(int(round)))...)
-	args = append(args, groupPath)
-	cmd := exec.Command(n.binary, args...)
+	args := []string{"--no-progress-meter", n.pubAddr + "/public/" + strconv.Itoa(int(round))}
+
+	cmd := exec.Command("curl", args...)
 	out := runCommand(cmd)
+	if len(out) < 48 {
+		fmt.Println("Unable to GetBeacon, got an empty response")
+		return nil, "error"
+	}
+
 	s := new(drand.PublicRandResponse)
 	err := json.Unmarshal(out, s)
 	if err != nil {
-		fmt.Printf("failed to unmarshal beacon response: %s\n", out)
+		fmt.Printf("error %v, failed to unmarshal beacon response: %s\n", err, out)
 	}
 	checkErr(err)
 	return s, strings.Join(cmd.Args, " ")
-}
-
-func (n *NodeProc) WriteCertificate(path string) {
-	if n.tls {
-		runCommand(exec.Command("cp", n.certPath, path))
-	}
 }
 
 func (n *NodeProc) WritePublic(path string) {
@@ -493,7 +435,7 @@ func (n *NodeProc) PrintLog() {
 }
 
 func (n *NodeProc) Identity() (*drand.Participant, error) {
-	keypair, err := n.store.LoadKeyPair(nil)
+	keypair, err := n.store.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}
@@ -507,6 +449,7 @@ func pair(k, v string) []string {
 func runCommand(c *exec.Cmd, add ...string) []byte {
 	out, err := c.CombinedOutput()
 	if err != nil {
+		fmt.Printf("[-] Error: %v", err)
 		if len(add) > 0 {
 			fmt.Printf("[-] Msg failed command: %s\n", add[0])
 		}

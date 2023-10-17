@@ -10,8 +10,8 @@ import (
 
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
 	"github.com/drand/drand/protobuf/common"
@@ -105,7 +105,7 @@ func newEchoBroadcast(
 }
 
 func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
-	ctx, span := metrics.NewSpan(b.ctx, "b.PushDeals")
+	ctx, span := tracer.NewSpan(b.ctx, "b.PushDeals")
 	defer span.End()
 
 	b.dealCh <- *bundle
@@ -117,7 +117,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 }
 
 func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
-	ctx, span := metrics.NewSpan(b.ctx, "b.PushResponses")
+	ctx, span := tracer.NewSpan(b.ctx, "b.PushResponses")
 	defer span.End()
 
 	b.respCh <- *bundle
@@ -129,7 +129,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 }
 
 func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
-	ctx, span := metrics.NewSpan(b.ctx, "b.PushJustifications")
+	ctx, span := tracer.NewSpan(b.ctx, "b.PushJustifications")
 	defer span.End()
 
 	b.justCh <- *bundle
@@ -141,7 +141,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 }
 
 func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *drand.DKGPacket) error {
-	ctx, span := metrics.NewSpan(ctx, "b.BroadcastDKG")
+	ctx, span := tracer.NewSpan(ctx, "b.BroadcastDKG")
 	defer span.End()
 
 	b.Lock()
@@ -196,7 +196,7 @@ func (b *echoBroadcast) passToApplication(p packet) {
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
 func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass bool, beaconID string) {
-	ctx, span := metrics.NewSpan(ctx, "b.sendout")
+	ctx, span := tracer.NewSpan(ctx, "b.sendout")
 	defer span.End()
 
 	if b.isStopped {
@@ -297,7 +297,7 @@ type dispatcher struct {
 }
 
 func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
-	ctx, span := metrics.NewSpan(ctx, "newDispatcher")
+	ctx, span := tracer.NewSpan(ctx, "newDispatcher")
 	defer span.End()
 
 	var senders = make([]*sender, 0, len(to)-1)
@@ -318,7 +318,7 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 // broadcast uses the regular channel limitation for messages coming from other
 // nodes.
 func (d *dispatcher) broadcast(ctx context.Context, p broadcastPacket) {
-	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "d.broadcast")
+	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "d.broadcast")
 	defer span.End()
 
 	for _, i := range rand.Perm(len(d.senders)) {
@@ -329,7 +329,7 @@ func (d *dispatcher) broadcast(ctx context.Context, p broadcastPacket) {
 // broadcastDirect directly send to the other peers - it is used only for our
 // own packets so we're not bound to congestion events.
 func (d *dispatcher) broadcastDirect(ctx context.Context, p broadcastPacket) {
-	ctx, span := metrics.NewSpan(ctx, "d.broadcastDirect")
+	ctx, span := tracer.NewSpan(ctx, "d.broadcastDirect")
 	defer span.End()
 
 	for _, i := range rand.Perm(len(d.senders)) {
@@ -360,7 +360,7 @@ func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueS
 }
 
 func (s *sender) sendPacket(ctx context.Context, p broadcastPacket) {
-	_, span := metrics.NewSpan(ctx, "s.sendPacket")
+	_, span := tracer.NewSpan(ctx, "s.sendPacket")
 	defer span.End()
 
 	select {
@@ -371,7 +371,7 @@ func (s *sender) sendPacket(ctx context.Context, p broadcastPacket) {
 }
 
 func (s *sender) run(ctx context.Context) {
-	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "s.run")
+	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "s.run")
 	defer span.End()
 
 	for newPacket := range s.newCh {
@@ -380,7 +380,7 @@ func (s *sender) run(ctx context.Context) {
 }
 
 func (s *sender) sendDirect(ctx context.Context, newPacket broadcastPacket) {
-	ctx, span := metrics.NewSpanFromContext(context.Background(), ctx, "s.sendDirect")
+	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "s.sendDirect")
 	defer span.End()
 
 	node := util.ToPeer(s.to)
