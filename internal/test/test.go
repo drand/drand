@@ -3,7 +3,6 @@
 package test
 
 import (
-	"encoding/hex"
 	n "net"
 	"os"
 	"path"
@@ -19,7 +18,6 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/kyber"
-	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -39,11 +37,6 @@ func (t *testPeer) IsTLS() bool {
 // NewPeer returns a new net.Peer
 func NewPeer(addr string) net.Peer {
 	return &testPeer{a: addr, b: false}
-}
-
-// NewTLSPeer returns a new net.Peer with TLS enabled
-func NewTLSPeer(addr string) net.Peer {
-	return &testPeer{a: addr, b: true}
 }
 
 // Addresses returns a list of TCP 127.0.0.1 addresses starting from the given
@@ -169,15 +162,6 @@ func BatchIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *
 	return privs, group
 }
 
-// BatchTLSIdentities generates n secure (TLS) identities
-func BatchTLSIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
-	pairs, group := BatchIdentities(n, sch, beaconID)
-	for i := 0; i < n; i++ {
-		pairs[i].Public.TLS = true
-	}
-	return pairs, group
-}
-
 // ListFromPrivates returns a list of Identity from a list of Pair keys.
 func ListFromPrivates(keys []*key.Pair) []*key.Node {
 	list := make([]*key.Node, len(keys))
@@ -189,18 +173,6 @@ func ListFromPrivates(keys []*key.Pair) []*key.Node {
 	}
 	return list
 
-}
-
-// StringToPoint ...
-func StringToPoint(s string) (kyber.Point, error) {
-	pairing := bn256.NewSuite()
-	g := pairing.G2()
-	buff, err := hex.DecodeString(s)
-	if err != nil {
-		return nil, err
-	}
-	p := g.Point()
-	return p, p.UnmarshalBinary(buff)
 }
 
 // GetBeaconIDFromEnv read beacon id from an environment variable.

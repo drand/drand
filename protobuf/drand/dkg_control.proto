@@ -106,9 +106,8 @@ message ProposalTerms {
 
 message Participant {
   string address = 1;
-  bool tls = 2;
-  bytes key = 3;
-  bytes signature = 4;
+  bytes key = 2;
+  bytes signature = 3;
 }
 
 message AcceptProposal {

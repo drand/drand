@@ -7,18 +7,18 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/metrics"
 )
 
 func startCmd(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
 	ctx := c.Context
 
-	tracer, tracerShutdown := metrics.InitTracer("drand", conf.TracesEndpoint(), conf.TracesProbability())
+	trace, tracerShutdown := tracer.InitTracer("drand", conf.TracesEndpoint(), conf.TracesProbability())
 	defer tracerShutdown(ctx)
 
-	ctx, span := tracer.Start(ctx, "startCmd")
+	ctx, span := trace.Start(ctx, "startCmd")
 
 	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(ctx, conf)

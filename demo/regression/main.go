@@ -97,8 +97,6 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 	return nil
 }
 
-// TODO after merge unchained beacon feature, we should add a new test to
-// TODO run regression with decouplePrevSig on true
 func main() {
 	flag.Parse()
 	n := 5
@@ -142,7 +140,6 @@ func main() {
 			N:            n,
 			Thr:          thr,
 			Period:       period,
-			WithTLS:      true,
 			Binary:       *build,
 			WithCurl:     false,
 			Scheme:       sch,
@@ -181,7 +178,6 @@ func main() {
 			N:            n,
 			Thr:          thr,
 			Period:       period,
-			WithTLS:      true,
 			Binary:       *build,
 			WithCurl:     false,
 			Scheme:       sch,
@@ -222,7 +218,6 @@ func computeConfig(n int, thr int, period string, sch *crypto.Scheme, beaconID s
 		N:            n,
 		Thr:          thr,
 		Period:       period,
-		WithTLS:      true,
 		Binary:       *build,
 		WithCurl:     false,
 		Scheme:       sch,

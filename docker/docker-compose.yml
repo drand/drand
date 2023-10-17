@@ -4,7 +4,7 @@ services:
   drand_docker_demo:
     container_name: drand_docker_demo
     image: drandorg/go-drand:v1.5.3
-    command: start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
+    command: start --verbose --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo:/data/drand
     restart: always
@@ -18,4 +18,3 @@ volumes:
   drand_docker_demo:
     external: true
     name: drand_docker_demo
-

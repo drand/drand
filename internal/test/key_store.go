@@ -2,7 +2,6 @@ package test
 
 import (
 	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
 )
 
 type KeyStore struct {
@@ -21,7 +20,7 @@ func (k *KeyStore) SaveKeyPair(p *key.Pair) error {
 	return nil
 }
 
-func (k *KeyStore) LoadKeyPair(_ *crypto.Scheme) (*key.Pair, error) {
+func (k *KeyStore) LoadKeyPair() (*key.Pair, error) {
 	return k.priv, nil
 }
 
@@ -30,7 +29,7 @@ func (k *KeyStore) SaveShare(share *key.Share) error {
 	return nil
 }
 
-func (k *KeyStore) LoadShare(_ *crypto.Scheme) (*key.Share, error) {
+func (k *KeyStore) LoadShare() (*key.Share, error) {
 	return k.share, nil
 }
 

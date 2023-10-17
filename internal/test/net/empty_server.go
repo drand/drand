@@ -86,11 +86,6 @@ func (s *EmptyServer) PublicKey(context.Context, *drand.PublicKeyRequest) (*dran
 	return nil, nil
 }
 
-// PrivateKey is an empty implementation
-func (s *EmptyServer) PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
-	return nil, nil
-}
-
 // CollectiveKey is an empty implementation
 func (s *EmptyServer) CollectiveKey(context.Context, *drand.CokeyRequest) (*drand.CokeyResponse, error) {
 	return nil, nil
@@ -143,6 +138,6 @@ func (s *EmptyServer) DKGStatus(_ context.Context, _ *drand.DKGStatusRequest) (*
 	return nil, nil
 }
 
-func (s *EmptyServer) Migrate(_ context.Context, empty *drand.Empty) (*drand.Empty, error) {
+func (s *EmptyServer) Migrate(_ context.Context, _ *drand.Empty) (*drand.Empty, error) {
 	return nil, nil
 }

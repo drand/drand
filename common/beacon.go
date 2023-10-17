@@ -87,6 +87,10 @@ func (b *Beacon) Randomness() []byte {
 	return crypto.RandomnessFromSignature(b.Signature)
 }
 
+func (b *Beacon) GetRandomness() []byte {
+	return b.Randomness()
+}
+
 // GetPreviousSignature returns the previous signature if it's non-nil or nil otherwise
 func (b *Beacon) GetPreviousSignature() []byte {
 	if b.PreviousSig != nil {

@@ -36,10 +36,6 @@ jobs:
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make drand
-          make drand-client
-          make drand-relay-http
-          make drand-relay-gossip
-          make drand-relay-s3
 
   test:
     runs-on: ubuntu-latest

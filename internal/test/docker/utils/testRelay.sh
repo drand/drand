@@ -1,22 +1,22 @@
 ## Start drand-relay-http inside running drand containers (Dockerfile)
 mkdir -p tmp/relay/node_0
 cd ./tmp/relay/node_0
-nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_0:8081 --insecure --bind 0.0.0.0:9080' &
+nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_0:8081 --bind 0.0.0.0:9080' &
 cd ../../../
 
 mkdir -p tmp/relay/node_1
 cd ./tmp/relay/node_1
-nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_1:8181 --insecure --bind 0.0.0.0:9180' &
+nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_1:8181 --bind 0.0.0.0:9180' &
 cd ../../../
 
 mkdir -p tmp/relay/node_2
 cd ./tmp/relay/node_2
-nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_2:8281 --insecure --bind 0.0.0.0:9280' &
+nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_2:8281 --bind 0.0.0.0:9280' &
 cd ../../../
 
 mkdir -p tmp/relay/node_3
 cd ./tmp/relay/node_3
-nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_3:8381 --insecure --bind 0.0.0.0:9380' &
+nohup docker exec drand_relay /bin/sh -c 'drand-relay-http --url http://drand_3:8381 --bind 0.0.0.0:9380' &
 cd ../../../
 
 sleep 5s

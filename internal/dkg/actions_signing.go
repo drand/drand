@@ -2,8 +2,8 @@ package dkg
 
 import (
 	"errors"
-	"google.golang.org/protobuf/proto"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"
@@ -21,7 +21,7 @@ func (d *Process) signMessage(
 		return nil, err
 	}
 
-	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForProto(*proposal, packet, beaconID))
+	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForProto(proposal, packet, beaconID))
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +61,10 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 		return key.ErrInvalidKeyScheme
 	}
 
-	return kp.Scheme().AuthScheme.Verify(pubPoint, messageForProto(*proposal, packet, metadata.BeaconID), metadata.Signature)
+	return kp.Scheme().AuthScheme.Verify(pubPoint, messageForProto(proposal, packet, metadata.BeaconID), metadata.Signature)
 }
 
-func messageForProto(proposal drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
+func messageForProto(proposal *drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
 	// we remove the metadata for verification of the packet, as the signer hasn't created the metadta
 	// upon signing
 	packetWithoutMetadata := proto.Clone(packet).(*drand.GossipPacket)
