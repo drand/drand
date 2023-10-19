@@ -47,11 +47,11 @@ func (v Version) IsCompatible(verRcv Version) bool {
 	// We are using GRPC deprecation warnings to handle network packet changes to avoid bumping minor too often.
 	switch {
 	// we always keep retro-compatibility with the immediate minors predecessor
-	case v.Major == verRcv.Major && verRcv.Minor+1 >= v.Minor:
+	case v.Major == verRcv.Major && verRcv.Minor+1 >= v.Minor && v.Minor+1 >= verRcv.Minor:
 		return true
-	case v.Major == 1 && v.Minor >= 5 && v.Patch >= 7 && verRcv.Major == 2 && verRcv.Minor == 0:
+	case v.Major == 1 && v.Minor >= 5 && v.Patch >= 8 && verRcv.Major == 2 && verRcv.Minor == 0:
 		return true
-	case v.Major == 2 && v.Minor == 0 && verRcv.Major == 1 && verRcv.Minor >= 5 && verRcv.Patch >= 7:
+	case v.Major == 2 && v.Minor == 0 && verRcv.Major == 1 && verRcv.Minor >= 5 && verRcv.Patch >= 8:
 		return true
 	}
 
