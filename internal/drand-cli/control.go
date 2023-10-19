@@ -314,20 +314,23 @@ func printJSON(w io.Writer, j interface{}) error {
 }
 
 func selfSign(c *cli.Context, l log.Logger) error {
-	stores, err := getKeyStores(c, l)
+	conf := contextToConfig(c, l)
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
 	if err != nil {
 		return fmt.Errorf("drand: err reading beacons database: %w", err)
 	}
+
+	l.Infow("Detected stores", "amount", len(stores))
 
 	for beaconID, fs := range stores {
 		pair, err := fs.LoadKeyPair()
 
 		if err != nil {
-			return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
+			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
 		}
 		if pair.Public.ValidSignature() == nil {
 			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
-			return nil
+			continue
 		}
 
 		if err := pair.SelfSign(); err != nil {
