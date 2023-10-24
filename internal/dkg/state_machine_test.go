@@ -1680,7 +1680,6 @@ func NewParticipant(name string) *drand.Participant {
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address:   name + ":443",
-		Tls:       false,
 		Key:       pk,
 		Signature: k.Public.Signature,
 	}
