@@ -184,10 +184,13 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		if err != nil {
 			return err
 		}
+
+		// MIGRATION PATH: the signature is `nil` here due to an incompatibility between v1 and v2 sigs over pub keys
+		// the new signature will be filled in on first proposal using the new DKG
 		participants[i] = &drand.Participant{
 			Address:   node.Address(),
 			Key:       pk,
-			Signature: node.Signature,
+			Signature: nil,
 		}
 	}
 

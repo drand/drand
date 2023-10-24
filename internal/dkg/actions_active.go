@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/protobuf/common"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -161,6 +163,48 @@ func (d *Process) StartProposal(
 ) (*DBState, *drand.GossipPacket, error) {
 	_, span := tracer.NewSpan(ctx, "dkg.StartProposal")
 	defer span.End()
+
+	if currentState.Epoch == 1 && currentState.State == Complete {
+		d.log.Info("First proposal after upgrade to v2 - migrating keys from group file")
+		for i, r := range currentState.Remaining {
+			if r.Signature != nil {
+				fmt.Println("signature not nil - skipping")
+				continue
+			}
+			// fetch their public key via gRPC
+			identity, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &drand.IdentityRequest{Metadata: &common.Metadata{
+				BeaconID:  beaconID,
+				ChainHash: nil,
+			}})
+			if err != nil {
+				return nil, nil, err
+			}
+
+			// update the key mapping
+			updatedParticipant := drand.Participant{
+				Address:   r.Address,
+				Key:       identity.Key,
+				Signature: identity.Signature,
+			}
+
+			currentState.Remaining[i] = &updatedParticipant
+			// if they were the last leader, update their key also
+			if currentState.Leader == r {
+				currentState.Leader = &updatedParticipant
+			}
+
+			// store it in the DB
+			err = d.store.SaveCurrent(beaconID, currentState)
+			if err != nil {
+				return nil, nil, err
+			}
+			err = d.store.SaveFinished(beaconID, currentState)
+			if err != nil {
+				return nil, nil, err
+			}
+			d.log.Info("Key migration complete")
+		}
+	}
 
 	var newEpoch uint32
 	if currentState.State == Aborted || currentState.State == TimedOut {
