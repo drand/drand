@@ -737,6 +737,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 	}
 
 	// for migration from v1-v2, we need to actually get the updated public keys of the remainers and leavers
+	// TODO: remove this post-migration
 	for _, remainer := range remainers {
 		p, err := fetchPublicKey(beaconID, l, remainer, sch)
 		if err != nil {
@@ -745,6 +746,8 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		proposalFile.Remaining = append(proposalFile.Remaining, p)
 	}
 
+	// a best-effort shot at getting leavers' keys, just to simplify some of the verification of participants
+	// later in the protocol
 	for _, leaver := range leavers {
 		// first we try and contact the leaver directly
 		p, err := fetchPublicKey(beaconID, l, leaver, sch)

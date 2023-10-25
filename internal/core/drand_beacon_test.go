@@ -5,7 +5,7 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
-	dkg2 "github.com/drand/kyber/share/dkg"
+	kyberDKG "github.com/drand/kyber/share/dkg"
 	"os"
 	"path"
 	"testing"
@@ -330,7 +330,7 @@ func TestMigrateOldGroupFileWithLeavers(t *testing.T) {
 	// but `InstantiateBeaconProcess`
 	for i, node := range dt.nodes {
 		node.daemon.dkg.Migrate(beaconID, &group, &key.Share{
-			DistKeyShare: dkg2.DistKeyShare{
+			DistKeyShare: kyberDKG.DistKeyShare{
 				Commits: nil,
 				Share: &share.PriShare{
 					I: i,

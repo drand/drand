@@ -13,7 +13,7 @@ type Process struct {
 	lock           sync.Mutex
 	store          Store
 	internalClient net.DKGClient
-	// only necessary for upgrade path from v1->v2
+	// TODO: remove post v2, as only necessary for upgrade path from v1->v2
 	protocolClient   net.ProtocolClient
 	beaconIdentifier BeaconIdentifier
 	log              log.Logger

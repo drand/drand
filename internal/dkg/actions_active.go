@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
 	"time"
@@ -154,6 +155,25 @@ func (d *Process) StartNetwork(
 	}, nil
 }
 
+func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
+	sch, found := crypto.GetSchemeByID(response.GetSchemeName())
+	if !found {
+		return key.Identity{}, fmt.Errorf("peer return key of scheme %s, which was not found", response.GetSchemeName())
+	}
+
+	pk := sch.KeyGroup.Point()
+	err := pk.UnmarshalBinary(response.Key)
+	if err != nil {
+		return key.Identity{}, err
+	}
+	return key.Identity{
+		Key:       pk,
+		Addr:      response.Address,
+		Signature: response.Signature,
+		Scheme:    sch,
+	}, nil
+}
+
 func (d *Process) StartProposal(
 	ctx context.Context,
 	beaconID string,
@@ -164,6 +184,8 @@ func (d *Process) StartProposal(
 	_, span := tracer.NewSpan(ctx, "dkg.StartProposal")
 	defer span.End()
 
+	// Migration path for v1.5.8 -> v2 upgrade
+	// TODO: remove it in the future
 	if currentState.Epoch == 1 && currentState.State == Complete {
 		d.log.Info("First proposal after upgrade to v2 - migrating keys from group file")
 
@@ -175,7 +197,7 @@ func (d *Process) StartProposal(
 				continue
 			}
 			// fetch their public key via gRPC
-			identity, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &drand.IdentityRequest{Metadata: &common.Metadata{
+			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &drand.IdentityRequest{Metadata: &common.Metadata{
 				BeaconID:  beaconID,
 				ChainHash: nil,
 			}})
@@ -183,11 +205,22 @@ func (d *Process) StartProposal(
 				return nil, nil, err
 			}
 
+			// verify its signature
+			identity, err := asIdentity(response)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			err = identity.ValidSignature()
+			if err != nil {
+				return nil, nil, err
+			}
+
 			// update the key mapping
 			updatedParticipant := drand.Participant{
 				Address:   r.Address,
-				Key:       identity.Key,
-				Signature: identity.Signature,
+				Key:       response.Key,
+				Signature: response.Signature,
 			}
 
 			currentState.Joining[i] = &updatedParticipant
