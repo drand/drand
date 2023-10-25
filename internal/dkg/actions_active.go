@@ -166,7 +166,10 @@ func (d *Process) StartProposal(
 
 	if currentState.Epoch == 1 && currentState.State == Complete {
 		d.log.Info("First proposal after upgrade to v2 - migrating keys from group file")
-		for i, r := range currentState.Remaining {
+
+		// migration from v1 -> v2 makes all parties in the v1 group file 'joiners'
+		// the DKGProcess migration path will set old signatures to `nil`, hence we check it here
+		for i, r := range currentState.Joining {
 			if r.Signature != nil {
 				fmt.Println("signature not nil - skipping")
 				continue
@@ -187,9 +190,9 @@ func (d *Process) StartProposal(
 				Signature: identity.Signature,
 			}
 
-			currentState.Remaining[i] = &updatedParticipant
+			currentState.Joining[i] = &updatedParticipant
 			// if they were the last leader, update their key also
-			if currentState.Leader == r {
+			if currentState.Leader.Address == r.Address {
 				currentState.Leader = &updatedParticipant
 			}
 
@@ -204,6 +207,7 @@ func (d *Process) StartProposal(
 			}
 			d.log.Info("Key migration complete")
 		}
+
 	}
 
 	var newEpoch uint32

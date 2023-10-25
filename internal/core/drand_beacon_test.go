@@ -2,6 +2,10 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/common/key"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	dkg2 "github.com/drand/kyber/share/dkg"
 	"os"
 	"path"
 	"testing"
@@ -261,4 +265,83 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	status2, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
 	require.NoError(t, err)
 	require.NotNil(t, status2.Complete)
+}
+
+func TestMigrateOldGroupFileWithLeavers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping slow test in short mode.")
+	}
+
+	// first we create a bunch of nodes
+	const nodeCount = 3
+	const thr = 2
+	const period = 1 * time.Second
+
+	// set up a few nodes and run a DKG
+	beaconID := t.Name()
+	dt := NewDrandTestScenario(t, nodeCount, thr, period, beaconID, clockwork.NewFakeClockAt(time.Now()))
+
+	// then we turn them into an existing group file, as if we had completed a DKG using v1
+	sch := dt.scheme
+	k1 := dt.nodes[0].drand.priv
+	k2 := dt.nodes[1].drand.priv
+	k3 := dt.nodes[2].drand.priv
+	group := key.Group{
+		Threshold:     2,
+		Period:        1,
+		Scheme:        sch,
+		ID:            "banana",
+		CatchupPeriod: 1,
+		Nodes: []*key.Node{
+			{
+				Identity: &key.Identity{
+					Key:       k1.Public.Key,
+					Addr:      k1.Public.Addr,
+					Signature: []byte("deadbeef"),
+					Scheme:    sch,
+				},
+				Index: 0,
+			}, {
+				Identity: &key.Identity{
+					Key:       k2.Public.Key,
+					Addr:      k2.Public.Addr,
+					Signature: []byte("deadbeef"),
+					Scheme:    sch,
+				},
+				Index: 1,
+			},
+			{
+				Identity: &key.Identity{
+					Key:       k3.Public.Key,
+					Addr:      k3.Public.Addr,
+					Signature: []byte("deadbeef"),
+					Scheme:    sch,
+				},
+				Index: 2,
+			},
+		},
+		GenesisTime:    0,
+		GenesisSeed:    []byte("deadbeef"),
+		TransitionTime: 1,
+		PublicKey:      &key.DistPublic{Coefficients: []kyber.Point{sch.KeyGroup.Point()}},
+	}
+
+	// we run the migrate command manually, as the `MockNode` doesn't use `LoadBeaconFromStore`,
+	// but `InstantiateBeaconProcess`
+	for i, node := range dt.nodes {
+		node.daemon.dkg.Migrate(beaconID, &group, &key.Share{
+			DistKeyShare: dkg2.DistKeyShare{
+				Commits: nil,
+				Share: &share.PriShare{
+					I: i,
+					V: sch.KeyGroup.Scalar(),
+				},
+			},
+			Scheme: sch,
+		})
+	}
+
+	// then we run a reshare which should succeed
+	_, err := dt.RunReshare(t, time.Now().Add(10*time.Second), dt.nodes, []*MockNode{})
+	require.NoError(t, err)
 }
