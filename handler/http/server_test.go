@@ -1,4 +1,4 @@
-package http
+package http_test
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
+	dhttp "github.com/drand/drand/handler/http"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/test/mock"
 )
@@ -53,24 +53,33 @@ func validateEndpoint(endpoint string, round float64) error {
 		return fmt.Errorf("unexpected status: %v", resp.StatusCode)
 	}
 
+	return validateBodyFormat(resp.Body, round)
+}
+
+func validateBodyFormat(respBody io.Reader, round float64) error {
 	body := make(map[string]interface{})
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(respBody).Decode(&body); err != nil {
 		return err
 	}
-	if err := resp.Body.Close(); err != nil {
-		return err
+	if len(body) != 4 && len(body) != 3 {
+		return fmt.Errorf("beacon formatting expects 3 or 4 fields for the beacon")
 	}
-	if rep, ok := body["Round"].(float64); !ok || rep != round {
-		return fmt.Errorf("wrong response round number (!%f): %v", round, body)
+	if rep, ok := body["round"].(float64); !ok || rep != round {
+		return fmt.Errorf("wrong response round number or format (!%f): %v", round, body)
+	}
+	if rep, ok := body["randomness"].(string); !ok || len(rep) != 64 {
+		return fmt.Errorf("wrong randomness format (!%f): %v", round, body)
+	}
+	if rep, ok := body["signature"].(string); !ok || len(rep) < 96 {
+		return fmt.Errorf("wrong signature format (!%f): %v", round, body)
+	}
+	if rep, ok := body["previous_signature"].(string); len(body) == 4 && (!ok || len(rep) < 10) {
+		return fmt.Errorf("wrong previous_signature (!%f): %v", round, body)
 	}
 	return nil
 }
 
 func TestHTTPWaiting(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("test is flacky in CI")
-	}
-
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
@@ -81,7 +90,7 @@ func TestHTTPWaiting(t *testing.T) {
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 
-	handler, err := New(ctx, "")
+	handler, err := dhttp.New(ctx, "")
 	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
@@ -101,8 +110,11 @@ func TestHTTPWaiting(t *testing.T) {
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
 	next := getWithCtx(ctx, u, t)
-	_ = next.Body.Close()
 
+	validateBodyFormat(next.Body, 1969)
+	if err := next.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
 
@@ -111,6 +123,7 @@ func TestHTTPWaiting(t *testing.T) {
 	// Note: Removing this sleep will cause the test to randomly break.
 	time.Sleep(100 * time.Millisecond)
 
+	// the following tests when the request is among the pending ones and get released when it's emitted
 	done := make(chan time.Time)
 	before := clk.Now()
 	go func() {
@@ -127,10 +140,12 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal("shouldn't be done.", err)
 	default:
 	}
+	// we emit the request after having requested it
 	push(false)
 
 	var after time.Time
 	select {
+	// it should have arrived as soon as it's emitted
 	case x := <-done:
 		require.NoError(t, err)
 		after = x
@@ -138,7 +153,7 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal("should return after a round")
 	}
 
-	t.Logf("comparing values: before: %s after: %s\n", before, after)
+	t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
 
 	// mock grpc server spits out new round every second on streaming interface.
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
@@ -160,7 +175,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 
 	test.Tracer(t, ctx)
 
-	handler, err := New(ctx, "")
+	handler, err := dhttp.New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,10 +207,6 @@ func TestHTTPWatchFuture(t *testing.T) {
 }
 
 func TestHTTPHealth(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("test is flacky in CI")
-	}
-
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
 	ctx, cancel := context.WithCancel(ctx)
@@ -206,7 +217,7 @@ func TestHTTPHealth(t *testing.T) {
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 
-	handler, err := New(ctx, "")
+	handler, err := dhttp.New(ctx, "")
 	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
@@ -251,7 +262,7 @@ func TestHTTP404(t *testing.T) {
 
 	c, _ := withClient(t, clock.NewFakeClock())
 
-	handler, err := New(ctx, "")
+	handler, err := dhttp.New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
