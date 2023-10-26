@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/protobuf/common"
-	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -174,6 +175,7 @@ func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
 	}, nil
 }
 
+//nolint:funlen
 func (d *Process) StartProposal(
 	ctx context.Context,
 	beaconID string,
@@ -193,7 +195,7 @@ func (d *Process) StartProposal(
 		// the DKGProcess migration path will set old signatures to `nil`, hence we check it here
 		for i, r := range currentState.Joining {
 			if r.Signature != nil {
-				fmt.Println("signature not nil - skipping")
+				d.log.Debugw("proposal migration - signature not nil, skipping")
 				continue
 			}
 			// fetch their public key via gRPC
@@ -240,7 +242,6 @@ func (d *Process) StartProposal(
 			}
 			d.log.Info("Key migration complete")
 		}
-
 	}
 
 	var newEpoch uint32

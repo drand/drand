@@ -2,14 +2,15 @@ package core
 
 import (
 	"context"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	kyberDKG "github.com/drand/kyber/share/dkg"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/common/key"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	kyberDKG "github.com/drand/kyber/share/dkg"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
@@ -259,8 +260,8 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	require.Nil(t, status.Complete)
 
 	// run the migration and check that there now is a completed DKG
-	share := node.drand.share
-	err = node.daemon.dkg.Migrate(ts.beaconID, group, share)
+	nodeShare := node.drand.share
+	err = node.daemon.dkg.Migrate(ts.beaconID, group, nodeShare)
 	require.NoError(t, err)
 	status2, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
 	require.NoError(t, err)

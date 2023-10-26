@@ -207,7 +207,7 @@ func dkgInit(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("DKG proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
 	}
 
-	fmt.Println("DKG initialised successfully!")
+	fmt.Println("DKG initialized successfully!")
 
 	return nil
 }
