@@ -353,7 +353,9 @@ func TestProposalValidation(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			result := ValidateProposal(test.state, test.terms)
 			require.Equal(t, test.expected, result, "expected %s, got %s", test.expected, result)
 		})
@@ -1659,7 +1661,9 @@ type stateChangeTableTest struct {
 
 func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 	for _, test := range tests {
+		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := test.transitionFn(test.startingState)
 			require.Equal(t, test.expectedError, err, "expected %s error but got %s", test.expectedError, err)
 			if test.expectedResult != nil {
@@ -1680,7 +1684,6 @@ func NewParticipant(name string) *drand.Participant {
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address:   name + ":443",
-		Tls:       false,
 		Key:       pk,
 		Signature: k.Public.Signature,
 	}
