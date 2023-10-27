@@ -365,8 +365,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 					fmt.Printf("curl output: %s\n", out)
 					if !strings.Contains(string(out), "round") ||
 						!strings.Contains(string(out), "randomness") ||
-						!strings.Contains(string(out), "signature") ||
-						!strings.Contains(string(out), "previous_signature") {
+						!strings.Contains(string(out), "signature") {
 						panic("curl output is incorrect!")
 					}
 					fmt.Printf("curl output rand: %x\n", r.GetSignature())
