@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package drand;
 
-import "google/protobuf/timestamp.proto";
 import "crypto/dkg/dkg.proto";
+import "google/protobuf/timestamp.proto";
 option go_package = "github.com/drand/drand/protobuf/drand";
 
 service DKGControl {

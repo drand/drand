@@ -64,7 +64,6 @@ func NewParticipant(name string) *drand.Participant {
 	pk, _ := k.Public.Key.MarshalBinary()
 	return &drand.Participant{
 		Address: name,
-		Tls:     false,
 		Key:     pk,
 	}
 }

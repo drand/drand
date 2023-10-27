@@ -207,7 +207,7 @@ func dkgInit(c *cli.Context, l log.Logger) error {
 		return fmt.Errorf("DKG proposal was unsuccessful - you may need to issue an abort command. Error: %w", err)
 	}
 
-	fmt.Println("DKG initialised successfully!")
+	fmt.Println("DKG initialized successfully!")
 
 	return nil
 }
@@ -680,9 +680,9 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
+	// if there is an existing group file, it's not a fresh start
 	freshStart := false
-	r, err := client.GroupFile(beaconID)
-
+	groupFile, err := client.GroupFile(beaconID)
 	if err != nil {
 		// if it's a fresh start, we'll take a different path
 		if strings.Contains(err.Error(), core.ErrNoGroupSetup.Error()) {
@@ -702,36 +702,6 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		}
 		if len(leavers) > 0 {
 			return errors.New("the network isn't running yet - cannot have leavers")
-		}
-	} else {
-		current := make([]*drand.Participant, len(r.Nodes))
-		for i, node := range r.Nodes {
-			address := node.Public.Address
-			if !util.Cont(util.Concat(remainers, leavers), address) {
-				return fmt.Errorf("%s is missing in the attempted proposal but exists in the current network. "+
-					"It should be leaving or remaining", address)
-			}
-			current[i] = util.ToParticipant(node)
-		}
-
-		for _, remainer := range remainers {
-			matching, err := util.First(current, func(participant *drand.Participant) bool {
-				return participant.Address == remainer
-			})
-			if err != nil {
-				return fmt.Errorf("remainer %s is missing in the current network", remainer)
-			}
-			proposalFile.Remaining = append(proposalFile.Remaining, *matching)
-		}
-
-		for _, leaver := range leavers {
-			matching, err := util.First(current, func(participant *drand.Participant) bool {
-				return participant.Address == leaver
-			})
-			if err != nil {
-				return fmt.Errorf("leaver %s is missing in the current network", leaver)
-			}
-			proposalFile.Leaving = append(proposalFile.Leaving, *matching)
 		}
 	}
 
@@ -766,6 +736,32 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		proposalFile.Joining = append(proposalFile.Joining, p)
 	}
 
+	// for migration from v1-v2, we need to actually get the updated public keys of the remainers and leavers
+	// TODO: remove this post-migration
+	for _, remainer := range remainers {
+		p, err := fetchPublicKey(beaconID, l, remainer, sch)
+		if err != nil {
+			return err
+		}
+		proposalFile.Remaining = append(proposalFile.Remaining, p)
+	}
+
+	// a best-effort shot at getting leavers' keys, just to simplify some of the verification of participants
+	// later in the protocol
+	for _, leaver := range leavers {
+		// first we try and contact the leaver directly
+		p, err := fetchPublicKey(beaconID, l, leaver, sch)
+		if err != nil {
+			// if there is an error contacting them, we pull their public key from the old group file
+			l.Warnw("could not fetch public key for leaver", "leaver", leaver)
+			p, err = keyFromGroupFile(leaver, groupFile)
+			if err != nil {
+				return err
+			}
+		}
+		proposalFile.Leaving = append(proposalFile.Leaving, p)
+	}
+
 	// finally we write the proposal toml file to the output location
 	filepath := c.String(proposalOutputFlag.Name)
 	file, err := os.Create(filepath)
@@ -780,6 +776,17 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 
 	fmt.Printf("Proposal created successfully at path %s", filepath)
 	return nil
+}
+
+func keyFromGroupFile(address string, groupFile *drand.GroupPacket) (*drand.Participant, error) {
+	for _, node := range groupFile.Nodes {
+		if node.Public.Address != address {
+			continue
+		}
+		return util.ToParticipant(node), nil
+	}
+
+	return nil, fmt.Errorf("address %s was not found in the group file", address)
 }
 
 func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *crypto.Scheme) (*drand.Participant, error) {

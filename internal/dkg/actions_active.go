@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/protobuf/common"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"
@@ -152,6 +156,26 @@ func (d *Process) StartNetwork(
 	}, nil
 }
 
+func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
+	sch, found := crypto.GetSchemeByID(response.GetSchemeName())
+	if !found {
+		return key.Identity{}, fmt.Errorf("peer return key of scheme %s, which was not found", response.GetSchemeName())
+	}
+
+	pk := sch.KeyGroup.Point()
+	err := pk.UnmarshalBinary(response.Key)
+	if err != nil {
+		return key.Identity{}, err
+	}
+	return key.Identity{
+		Key:       pk,
+		Addr:      response.Address,
+		Signature: response.Signature,
+		Scheme:    sch,
+	}, nil
+}
+
+//nolint:funlen
 func (d *Process) StartProposal(
 	ctx context.Context,
 	beaconID string,
@@ -161,6 +185,64 @@ func (d *Process) StartProposal(
 ) (*DBState, *drand.GossipPacket, error) {
 	_, span := tracer.NewSpan(ctx, "dkg.StartProposal")
 	defer span.End()
+
+	// Migration path for v1.5.8 -> v2 upgrade
+	// TODO: remove it in the future
+	if currentState.Epoch == 1 && currentState.State == Complete {
+		d.log.Info("First proposal after upgrade to v2 - migrating keys from group file")
+
+		// migration from v1 -> v2 makes all parties in the v1 group file 'joiners'
+		// the DKGProcess migration path will set old signatures to `nil`, hence we check it here
+		for i, r := range currentState.Joining {
+			if r.Signature != nil {
+				d.log.Debugw("proposal migration - signature not nil, skipping")
+				continue
+			}
+			// fetch their public key via gRPC
+			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &drand.IdentityRequest{Metadata: &common.Metadata{
+				BeaconID:  beaconID,
+				ChainHash: nil,
+			}})
+			if err != nil {
+				return nil, nil, err
+			}
+
+			// verify its signature
+			identity, err := asIdentity(response)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			err = identity.ValidSignature()
+			if err != nil {
+				return nil, nil, err
+			}
+
+			// update the key mapping
+			updatedParticipant := drand.Participant{
+				Address:   r.Address,
+				Key:       response.Key,
+				Signature: response.Signature,
+			}
+
+			currentState.Joining[i] = &updatedParticipant
+			// if they were the last leader, update their key also
+			if currentState.Leader.Address == r.Address {
+				currentState.Leader = &updatedParticipant
+			}
+
+			// store it in the DB
+			err = d.store.SaveCurrent(beaconID, currentState)
+			if err != nil {
+				return nil, nil, err
+			}
+			err = d.store.SaveFinished(beaconID, currentState)
+			if err != nil {
+				return nil, nil, err
+			}
+			d.log.Info("Key migration complete")
+		}
+	}
 
 	var newEpoch uint32
 	if currentState.State == Aborted || currentState.State == TimedOut {
