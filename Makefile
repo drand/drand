@@ -132,8 +132,8 @@ demo-postgres:
 ############################################ Build ############################################
 
 build_proto:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN

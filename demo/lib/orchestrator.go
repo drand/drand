@@ -23,9 +23,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// 1s after dkg finishes, (new or reshared) beacon starts
-var beaconOffset = 1
-
 // how much should we wait before checking if the randomness is present. This is
 // mostly due to the fact we run on localhost on cheap machine with CI so we
 // need some delays to make sure *all* nodes that we check have gathered the
@@ -157,7 +154,8 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 		joiners[i] = identity
 	}
 
-	err := leader.StartLeaderDKG(e.thr, beaconOffset, joiners)
+	catchupPeriod := 0
+	err := leader.StartLeaderDKG(e.thr, catchupPeriod, joiners)
 	if err != nil {
 		return fmt.Errorf("leader.StartLeaderDKG: %w", err)
 	}
@@ -482,7 +480,8 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	// if the transition time is in the past, the DKG will fail, so it needs to be long enough to complete the DKG
 	roundInOneMinute := common.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
 	transitionTime := common.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
-	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), beaconOffset, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
+	catchupPeriod := 0
+	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), catchupPeriod, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)
 	}
