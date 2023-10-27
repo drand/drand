@@ -14,8 +14,8 @@ type Node interface {
 	CtrlAddr() string
 	PublicAddr() string
 	Index() int
-	StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error
-	StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error
+	StartLeaderDKG(thr int, catchupPeriod int, joiners []*drand.Participant) error
+	StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error
 	ExecuteLeaderDKG() error
 	ExecuteLeaderReshare() error
 	JoinDKG() error

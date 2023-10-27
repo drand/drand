@@ -202,13 +202,13 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	return cl
 }
 
-func (l *LocalNode) StartLeaderDKG(thr int, beaconOffset int, joiners []*drand.Participant) error {
+func (l *LocalNode) StartLeaderDKG(thr int, catchupPeriod int, joiners []*drand.Participant) error {
 	p, err := time.ParseDuration(l.period)
 	if err != nil {
 		return err
 	}
 	timeout := 5 * time.Minute
-	return l.dkgRunner.StartNetwork(thr, int(p.Seconds()), l.scheme.Name, timeout, beaconOffset, joiners)
+	return l.dkgRunner.StartNetwork(thr, int(p.Seconds()), l.scheme.Name, timeout, catchupPeriod, joiners)
 }
 
 func (l *LocalNode) ExecuteLeaderDKG() error {
@@ -254,8 +254,8 @@ func (l *LocalNode) GetGroup() *key.Group {
 	return group
 }
 
-func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, beaconOffset int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
-	err := l.dkgRunner.StartProposal(thr, transitionTime, beaconOffset, joiners, remainers, leavers)
+func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+	err := l.dkgRunner.StartProposal(thr, transitionTime, catchupPeriod, joiners, remainers, leavers)
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return err
