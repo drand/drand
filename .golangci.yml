@@ -16,6 +16,7 @@ issues:
         - nilnil
         - noctx
         - revive
+        - depguard
     - path: _test\.go
       text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go
@@ -56,7 +57,7 @@ linters:
     #- cyclop
     #- deadcode # Deprecated
     - decorder
-    - depguard
+    # - depguard
     - dogsled
     - dupl
     - dupword

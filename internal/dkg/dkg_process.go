@@ -10,9 +10,11 @@ import (
 )
 
 type Process struct {
-	lock             sync.Mutex
-	store            Store
-	internalClient   net.DKGClient
+	lock           sync.Mutex
+	store          Store
+	internalClient net.DKGClient
+	// TODO: remove post v2, as only necessary for upgrade path from v1->v2
+	protocolClient   net.ProtocolClient
 	beaconIdentifier BeaconIdentifier
 	log              log.Logger
 	config           Config
@@ -90,6 +92,7 @@ func NewDKGProcess(
 		store:            store,
 		beaconIdentifier: beaconIdentifier,
 		internalClient:   privateGateway.DKGClient,
+		protocolClient:   privateGateway.ProtocolClient,
 		log:              l,
 		Executions:       make(map[string]Broadcast),
 		SeenPackets:      make(map[string]bool),
@@ -114,7 +117,7 @@ func (d *Process) Close() {
 // It will fail if DKG state already exists for the given beaconID
 // Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 func (d *Process) Migrate(beaconID string, groupfile *key.Group, share *key.Share) error {
-	d.log.Debugw("Migrating DKG from group file...", "beaconID", beaconID)
+	d.log.Infow("Migrating DKG from group file...", "beaconID", beaconID)
 
 	if err := d.store.MigrateFromGroupfile(beaconID, groupfile, share); err != nil {
 		return err

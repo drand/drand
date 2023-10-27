@@ -276,7 +276,7 @@ func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	return nil
 }
 
-func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
 	proposalFileName := "proposal.toml"
 	proposal := ProposalFile{
 		Joining:   joiners,
@@ -294,6 +294,7 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, _ int, 
 		"dkg", "reshare",
 		"--control", n.ctrl,
 		"--id", n.beaconID,
+		"--catchup-period", fmt.Sprintf("%ds", catchupPeriod),
 		"--proposal", proposalFileName,
 		"--threshold", strconv.Itoa(thr),
 		"--transition-delay", durationUntilTransitionTime.String(),

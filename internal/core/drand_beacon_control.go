@@ -611,6 +611,15 @@ func (bp *BeaconProcess) sendPlainProgressCallback(ctx context.Context,
 }
 
 func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) error {
+	// theoretically this shouldn't happen under normal use,
+	// though if it does, we can safely transition to a new group file
+	// also is useful during v1->v2 migration tests
+	if oldGroup == nil {
+		if newGroup == nil {
+			return errors.New("the new group file could not be transitioned to, as it was `nil`")
+		}
+		return nil
+	}
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
 		bp.log.Errorw("", "setup_reshare", "invalid genesis time in received group")
 		return errors.New("control: old and new group have different genesis time")
