@@ -109,8 +109,8 @@ func pingpongCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func remotePingToNode(l log.Logger, addr string) error {
-	peer := net.CreatePeer(addr, true)
+func remotePingToNode(l log.Logger, addr string, insecure bool) error {
+	peer := net.CreatePeer(addr, !insecure)
 	client := net.NewGrpcClient(l)
 
 	ctx, cancel := context.WithCancel(context.Background())

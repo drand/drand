@@ -402,7 +402,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag),
+				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag, insecureFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("checkConnection")
@@ -787,12 +787,14 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
 	invalidIds := make([]string, 0)
 
+	insecure := c.IsSet(insecureFlag.Name)
+
 	for _, address := range names {
 		var err error
 		if isIdentityCheck {
-			err = checkIdentityAddress(lg, address, beaconID)
+			err = checkIdentityAddress(lg, address, beaconID, insecure)
 		} else {
-			err = remotePingToNode(lg, address)
+			err = remotePingToNode(lg, address, insecure)
 		}
 
 		if err != nil {
@@ -813,8 +815,8 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	return nil
 }
 
-func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
-	peer := net.CreatePeer(addr, true)
+func checkIdentityAddress(lg log.Logger, addr, beaconID string, insecure bool) error {
+	peer := net.CreatePeer(addr, !insecure)
 	client := net.NewGrpcClient(lg)
 
 	ctx, cancel := context.WithCancel(context.Background())

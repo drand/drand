@@ -287,7 +287,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 	// TODO can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
 
-	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
+	check := []string{"drand", "util", "check", "--insecure", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
