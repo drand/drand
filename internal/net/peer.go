@@ -13,20 +13,27 @@ import (
 // all.
 type Peer interface {
 	Address() string
+	IsTLS() bool
 }
 
 type sPeer struct {
 	addr string
+	tls  bool
 }
 
 func (s *sPeer) Address() string {
 	return s.addr
 }
 
+func (s *sPeer) IsTLS() bool {
+	return s.tls
+}
+
 // CreatePeer creates a peer from an address
-func CreatePeer(addr string) Peer {
+func CreatePeer(addr string, useTLS bool) Peer {
 	return &sPeer{
 		addr: addr,
+		tls:  useTLS,
 	}
 }
 

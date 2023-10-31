@@ -266,7 +266,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--insecure", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
 	listen := []string{"drand", "start", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
@@ -287,7 +287,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 	// TODO can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
 
-	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
+	check := []string{"drand", "util", "check", "--insecure", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
@@ -800,7 +800,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -826,7 +826,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -876,7 +876,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -901,7 +901,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -950,7 +950,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 
@@ -976,7 +976,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 
@@ -1029,7 +1029,6 @@ type drandInstance struct {
 	ctrlPort string
 	addr     string
 	metrics  string
-	certsDir string
 }
 
 func (d *drandInstance) stopAll() error {
@@ -1211,8 +1210,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 	tmpPath := t.TempDir()
 
-	certsDir := path.Join(tmpPath, "certs")
-	require.NoError(t, os.Mkdir(certsDir, 0o740))
 	l := testlogger.New(t)
 
 	ins := make([]*drandInstance, 0, n)
@@ -1229,7 +1226,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 		// generate key so it loads
 		// TODO let's remove this requirement - no need for longterm keys
-		priv, err := key.NewKeyPair(addr, nil)
+		priv, err := key.NewInsecureKeypair(addr, nil)
 		require.NoError(t, err)
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(l, core.WithConfigFolder(nodePath))
@@ -1242,7 +1239,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 			ctrlPort: ctrlPort,
 			path:     nodePath,
 			metrics:  metricsPort,
-			certsDir: certsDir,
 		})
 	}
 

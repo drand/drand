@@ -30,6 +30,12 @@ type Identity struct {
 	Addr      string
 	Signature []byte
 	Scheme    *crypto.Scheme
+	Tls       bool
+}
+
+// IsTLS returns true if this address is reachable over TLS.
+func (i *Identity) IsTLS() bool {
+	return i.Tls
 }
 
 // Address implements the net.Peer interface
@@ -85,6 +91,14 @@ func (p *Pair) SelfSign() error {
 
 // NewKeyPair returns a freshly created private / public key pair.
 func NewKeyPair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
+	return newKeyPair(address, targetScheme, false)
+}
+
+func NewInsecureKeypair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
+	return newKeyPair(address, targetScheme, true)
+}
+
+func newKeyPair(address string, targetScheme *crypto.Scheme, insecure bool) (*Pair, error) {
 	if targetScheme == nil {
 		var err error
 		targetScheme, err = crypto.GetSchemeFromEnv()
@@ -99,6 +113,7 @@ func NewKeyPair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
 		Key:    pubKey,
 		Addr:   address,
 		Scheme: targetScheme,
+		Tls:    !insecure,
 	}
 	p := &Pair{
 		Key:    key,
@@ -119,6 +134,7 @@ type PairTOML struct {
 type PublicTOML struct {
 	Address    string
 	Key        string
+	TLS        bool
 	Signature  string
 	SchemeName string
 }
@@ -172,6 +188,7 @@ func (i *Identity) FromTOML(t interface{}) error {
 		return fmt.Errorf("decoding public key: %w", err)
 	}
 	i.Addr = ptoml.Address
+	i.Tls = ptoml.TLS
 	if ptoml.Signature != "" {
 		i.Signature, err = hex.DecodeString(ptoml.Signature)
 	}
@@ -191,6 +208,7 @@ func (i *Identity) TOML() interface{} {
 	return &PublicTOML{
 		Address:    i.Addr,
 		Key:        hexKey,
+		TLS:        i.Tls,
 		Signature:  hex.EncodeToString(i.Signature),
 		SchemeName: schemeName,
 	}
@@ -223,6 +241,7 @@ var ErrInvalidKeyScheme = errors.New("the key's scheme may not match the beacon'
 type protoIdentity interface {
 	GetAddress() string
 	GetKey() []byte
+	GetTls() bool
 	GetSignature() []byte
 }
 
@@ -247,6 +266,7 @@ func IdentityFromProto(n protoIdentity, targetScheme *crypto.Scheme) (*Identity,
 		Key:       public,
 		Signature: n.GetSignature(),
 		Scheme:    targetScheme,
+		Tls:       n.GetTls(),
 	}
 	return id, nil
 }
@@ -258,6 +278,7 @@ func (i *Identity) ToProto() *proto.Identity {
 		Address:   i.Addr,
 		Key:       buff,
 		Signature: i.Signature,
+		Tls:       i.Tls,
 	}
 }
 
