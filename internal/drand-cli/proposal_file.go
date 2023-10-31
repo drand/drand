@@ -68,7 +68,7 @@ type TomlParticipant struct {
 	Address   string
 	Key       string
 	Signature string
-	Tls       bool
+	TLS       bool
 }
 
 func (t *TomlParticipant) Into() *drand.Participant {

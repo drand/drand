@@ -31,7 +31,7 @@ message ChainStoreStatus{
 
 message Address {
     string address = 1;
-    bool tls = 2 [deprecated = true];
+    bool tls = 2;
 }
 
 

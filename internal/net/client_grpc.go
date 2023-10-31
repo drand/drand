@@ -5,24 +5,26 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/weaveworks/common/httpgrpc"
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+
+	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 var _ Client = (*grpcClient)(nil)
