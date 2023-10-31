@@ -115,7 +115,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 					continue
 				}
 
-				nodes = append(nodes, &drand.Address{Address: node.Address()})
+				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.Tls})
 			}
 		}
 	}
@@ -208,7 +208,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 				continue
 			}
 
-			nodeList = append(nodeList, &drand.Address{Address: node.Address()})
+			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.Tls})
 		}
 	}
 

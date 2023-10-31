@@ -414,7 +414,7 @@ var appCommands = []*cli.Command{
 				Usage: "Ask for the statuses of remote nodes indicated by " +
 					"`ADDRESS1 ADDRESS2 ADDRESS3...`, including the network " +
 					"visibility over the rest of the addresses given.",
-				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag),
+				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag, insecureFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("remoteStatusCmd")

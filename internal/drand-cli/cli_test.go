@@ -800,7 +800,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -826,7 +826,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -876,7 +876,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -901,7 +901,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -950,7 +950,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 
@@ -976,7 +976,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 

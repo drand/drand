@@ -55,6 +55,7 @@ func remoteStatusCmd(c *cli.Context, l log.Logger) error {
 	for i := 0; i < len(ips); i++ {
 		addresses[i] = &control.Address{
 			Address: ips[i],
+			Tls:     !c.IsSet(insecureFlag.Name),
 		}
 	}
 
