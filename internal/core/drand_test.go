@@ -1345,7 +1345,7 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
-			Tls:       identity.Tls,
+			Tls:       identity.TLS,
 		}
 	}
 	err := scenario.nodes[0].dkgRunner.StartNetwork(2, 1, sch.Name, 1*time.Minute, 1, joiners)

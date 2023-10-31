@@ -46,7 +46,7 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 		PubKey:     protoKey,
 		Addr:       keyPair.Public.Addr,
 		Signature:  keyPair.Public.Signature,
-		Tls:        keyPair.Public.Tls,
+		Tls:        keyPair.Public.TLS,
 		Metadata:   bp.newMetadata(),
 		SchemeName: keyPair.Public.Scheme.Name,
 	}, nil
@@ -115,7 +115,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 					continue
 				}
 
-				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.Tls})
+				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.TLS})
 			}
 		}
 	}
@@ -208,7 +208,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 				continue
 			}
 
-			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.Tls})
+			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
 		}
 	}
 
