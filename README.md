@@ -48,6 +48,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
 - [Development](#development)
 - [Acknowledgments](#acknowledgments)
 - [Coverage](#coverage)
+- [Tracing](#tracing)
 - [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
