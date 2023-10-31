@@ -84,6 +84,9 @@ func (s *Server) PublicRand(_ context.Context, in *drand.PublicRandRequest) (*dr
 	s.l.Lock()
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
+	if s.chainInfo.SchemeID != crypto.DefaultSchemeID {
+		prev = nil
+	}
 	signature := decodeHex(s.d.Signature)
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
@@ -250,11 +253,13 @@ func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 
 // nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
-	previous := decodeHex(d.PreviousSignature)
+	previous := decodeHex(d.Signature)
 
 	var msg []byte
+	var prevData string
 	if d.Scheme.Name == crypto.DefaultSchemeID { // we're in chained mode
 		msg = sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+		prevData = hex.EncodeToString(previous[:])
 	} else { // we're in unchained mode
 		msg = sha256Hash(roundToBytes(d.Round + 1))
 	}
@@ -270,7 +275,7 @@ func nextMockData(d *Data) *Data {
 		secret:            d.secret,
 		Public:            d.Public,
 		Signature:         hex.EncodeToString(sig),
-		PreviousSignature: hex.EncodeToString(previous[:]),
+		PreviousSignature: prevData,
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,
 		Genesis:           d.Genesis,

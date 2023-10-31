@@ -10,8 +10,8 @@ import (
 
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/test/mock"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test/mock"
 )
 
 const serve = "127.0.0.1:1969"
