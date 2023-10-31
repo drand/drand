@@ -373,6 +373,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
+			Tls:       identity.Tls,
 		}
 	}
 
@@ -428,6 +429,7 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
+			Tls:       identity.Tls,
 		}
 	}
 
@@ -525,6 +527,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
+			Tls:       identity.Tls,
 		}
 	}
 
@@ -541,6 +544,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
+			Tls:       identity.Tls,
 		}
 	}
 

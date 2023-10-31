@@ -19,10 +19,13 @@ import (
 const testAddr = "127.0.0.1:80"
 
 func TestKeyPublic(t *testing.T) {
-	kp, err := NewKeyPair(testAddr, nil)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	kp, err := NewKeyPair(testAddr, sch)
 	require.NoError(t, err)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
+	require.Equal(t, kp.Public.Tls, ptoml.TLS)
 
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
@@ -34,7 +37,10 @@ func TestKeyPublic(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, p2.FromTOML(p2toml))
 
+	require.Equal(t, kp.Public.Scheme.Name, sch.Name)
+	require.Equal(t, p2.Scheme.Name, sch.Name)
 	require.Equal(t, kp.Public.Addr, p2.Addr)
+	require.Equal(t, kp.Public.Tls, p2.Tls)
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
@@ -150,7 +156,7 @@ func BatchIdentities(t *testing.T, n int) ([]*Pair, *Group) {
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
-		privs[i], _ = NewKeyPair(addr, sch)
+		privs[i], _ = NewInsecureKeypair(addr, sch)
 		pubs[i] = &Node{
 			Index:    uint32(i),
 			Identity: privs[i].Public,
