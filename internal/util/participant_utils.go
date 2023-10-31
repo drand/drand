@@ -120,7 +120,7 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 			Addr:      participant.Address,
 			Signature: participant.Signature,
 			Scheme:    sch,
-			Tls:       participant.Tls,
+			TLS:       participant.Tls,
 		},
 		Index: uint32(index),
 	}, nil

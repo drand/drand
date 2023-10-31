@@ -29,13 +29,13 @@ type Identity struct {
 	Key       kyber.Point
 	Addr      string
 	Signature []byte
-	Scheme    *crypto.Scheme
-	Tls       bool
+	Scheme *crypto.Scheme
+	TLS    bool
 }
 
 // IsTLS returns true if this address is reachable over TLS.
 func (i *Identity) IsTLS() bool {
-	return i.Tls
+	return i.TLS
 }
 
 // Address implements the net.Peer interface
@@ -113,7 +113,7 @@ func newKeyPair(address string, targetScheme *crypto.Scheme, insecure bool) (*Pa
 		Key:    pubKey,
 		Addr:   address,
 		Scheme: targetScheme,
-		Tls:    !insecure,
+		TLS:    !insecure,
 	}
 	p := &Pair{
 		Key:    key,
@@ -188,7 +188,7 @@ func (i *Identity) FromTOML(t interface{}) error {
 		return fmt.Errorf("decoding public key: %w", err)
 	}
 	i.Addr = ptoml.Address
-	i.Tls = ptoml.TLS
+	i.TLS = ptoml.TLS
 	if ptoml.Signature != "" {
 		i.Signature, err = hex.DecodeString(ptoml.Signature)
 	}
@@ -208,7 +208,7 @@ func (i *Identity) TOML() interface{} {
 	return &PublicTOML{
 		Address:    i.Addr,
 		Key:        hexKey,
-		TLS:        i.Tls,
+		TLS:        i.TLS,
 		Signature:  hex.EncodeToString(i.Signature),
 		SchemeName: schemeName,
 	}
@@ -266,7 +266,7 @@ func IdentityFromProto(n protoIdentity, targetScheme *crypto.Scheme) (*Identity,
 		Key:       public,
 		Signature: n.GetSignature(),
 		Scheme:    targetScheme,
-		Tls:       n.GetTls(),
+		TLS:       n.GetTls(),
 	}
 	return id, nil
 }
@@ -278,7 +278,7 @@ func (i *Identity) ToProto() *proto.Identity {
 		Address:   i.Addr,
 		Key:       buff,
 		Signature: i.Signature,
-		Tls:       i.Tls,
+		Tls:       i.TLS,
 	}
 }
 
