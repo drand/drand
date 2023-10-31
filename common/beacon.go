@@ -72,7 +72,7 @@ func (b *Beacon) Equal(b2 *Beacon) bool {
 		bytes.Equal(b.Signature, b2.Signature)
 }
 
-// Marshal provides a JSON encoding of a beacon
+// Marshal provides a JSON encoding of a beacon. Careful, this is not the one rendered by the public endpoints.
 func (b *Beacon) Marshal() ([]byte, error) {
 	return json.Marshal(b)
 }
