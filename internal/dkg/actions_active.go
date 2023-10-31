@@ -172,7 +172,7 @@ func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
 		Addr:      response.Address,
 		Signature: response.Signature,
 		Scheme:    sch,
-		Tls:       response.Tls,
+		TLS:       response.Tls,
 	}, nil
 }
 

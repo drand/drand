@@ -20,8 +20,9 @@ jobs:
           go-version: '1.20.5'
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@ab6203da1c3118e4406048171b09238ad31ad73e # pin@latest-16.02.2023
+        uses: arduino/setup-protoc@149f6c87b92550901b26acd1632e11c3662e381f # pin@v1.3.0
         with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
           version: '3.20.3'
 
       - name: Install Protoc-gen-go
@@ -42,10 +43,11 @@ jobs:
           version_extractor_regex: 'v(.*)$'
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@8f67e590f2d095516493f017008adc464e63adb1 # pin@v4.1.0
+        uses: goreleaser/goreleaser-action@336e29918d653399e599bfca99fadc1d7ffbc9f7 # pin@v4.3.0
         with:
+          distribution: goreleaser
           version: latest
-          args: release --rm-dist
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAJOR: ${{ steps.semver_parser.outputs.major }}
