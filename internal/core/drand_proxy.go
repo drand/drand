@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
@@ -36,11 +37,9 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, erro
 	if err != nil {
 		return nil, err
 	}
-	return &common.Beacon{
-		Round:       resp.Round,
-		Signature:   resp.Signature,
-		PreviousSig: resp.PreviousSignature,
-	}, nil
+	// we don't need to return the metadata
+	resp.Metadata = nil
+	return resp, err
 }
 
 // Watch returns new randomness as it becomes available.
@@ -99,13 +98,11 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 }
 
 func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
-	d := common.Beacon{
-		Round:       next.Round,
-		Signature:   next.Signature,
-		PreviousSig: next.PreviousSignature,
-	}
+	d := proto.Clone(next).(*drand.PublicRandResponse)
+	// we don't need to send the metadata, we just want a client.Result
+	d.Metadata = nil
 	select {
-	case s.outgoing <- &d:
+	case s.outgoing <- d:
 		return nil
 	case <-s.ctx.Done():
 		close(s.outgoing)
