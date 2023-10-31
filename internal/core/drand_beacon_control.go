@@ -317,7 +317,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 			continue
 		}
 		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, true))
+		peers = append(peers, net.CreatePeer(addr, false))
 	}
 
 	info, err := bp.chainInfoFromPeers(ctx, peers)
@@ -455,7 +455,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 			continue
 		}
 		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, true))
+		peers = append(peers, net.CreatePeer(addr, false))
 	}
 
 	logger.Debugw("validate_and_sync", "up_to", req.UpTo)
