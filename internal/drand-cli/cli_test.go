@@ -1029,7 +1029,6 @@ type drandInstance struct {
 	ctrlPort string
 	addr     string
 	metrics  string
-	certsDir string
 }
 
 func (d *drandInstance) stopAll() error {
@@ -1211,8 +1210,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 	tmpPath := t.TempDir()
 
-	certsDir := path.Join(tmpPath, "certs")
-	require.NoError(t, os.Mkdir(certsDir, 0o740))
 	l := testlogger.New(t)
 
 	ins := make([]*drandInstance, 0, n)
@@ -1229,7 +1226,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 		// generate key so it loads
 		// TODO let's remove this requirement - no need for longterm keys
-		priv, err := key.NewKeyPair(addr, nil)
+		priv, err := key.NewInsecureKeypair(addr, nil)
 		require.NoError(t, err)
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(l, core.WithConfigFolder(nodePath))
@@ -1242,7 +1239,6 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 			ctrlPort: ctrlPort,
 			path:     nodePath,
 			metrics:  metricsPort,
-			certsDir: certsDir,
 		})
 	}
 
