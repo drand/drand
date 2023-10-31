@@ -40,7 +40,7 @@ do
   # these will end up on drand1:8010, drand2:8020, drand3:8030, etc
   # note they map to the container's mapped ports, but the internal ports; internally the services still listen on 8080
   path=drand_docker_demo$i:80${i}0
-  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --id default $path 1>/dev/null
+  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --insecure --folder /data/drand/.drand --id default $path 1>/dev/null
 done
 
 ### now we start them all using docker-compose as it'll be easy to spin up and down
