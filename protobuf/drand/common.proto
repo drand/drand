@@ -31,7 +31,7 @@ message ChainStoreStatus{
 
 message Address {
     string address = 1;
-    bool tls = 2 [deprecated = true];
+    bool tls = 2;
 }
 
 
@@ -64,8 +64,8 @@ message Empty {
 message Identity {
     string address = 1;
     bytes key = 2;
-    bool tls = 3 [deprecated = true];
-    // BLS signature over the identity to prove possession of the private key
+    bool tls = 3;
+    // BLS signature over the identity to prove possession of the private key, it also verify the scheme used
     bytes signature = 4;
 }
 

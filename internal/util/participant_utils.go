@@ -103,6 +103,7 @@ func ToParticipant(node *drand.Node) *drand.Participant {
 		Address:   node.Public.Address,
 		Key:       node.Public.Key,
 		Signature: node.Public.Signature,
+		Tls:       node.Public.Tls,
 	}
 }
 
@@ -119,13 +120,14 @@ func ToKeyNode(index int, participant *drand.Participant, sch *crypto.Scheme) (k
 			Addr:      participant.Address,
 			Signature: participant.Signature,
 			Scheme:    sch,
+			Tls:       participant.Tls,
 		},
 		Index: uint32(index),
 	}, nil
 }
 
 func ToPeer(participant *drand.Participant) net.Peer {
-	return net.CreatePeer(participant.Address)
+	return net.CreatePeer(participant.Address, participant.Tls)
 }
 
 func pkToPoint(pk []byte, sch *crypto.Scheme) (kyber.Point, error) {

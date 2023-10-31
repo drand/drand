@@ -117,7 +117,7 @@ func (n *NodeProc) setup() {
 		panic(err)
 	}
 
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name, "--insecure"}
 
 	args = append(args, n.privAddr)
 	newKey := exec.Command(n.binary, args...)
