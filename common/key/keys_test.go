@@ -25,7 +25,7 @@ func TestKeyPublic(t *testing.T) {
 	require.NoError(t, err)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
-	require.Equal(t, kp.Public.Tls, ptoml.TLS)
+	require.Equal(t, kp.Public.TLS, ptoml.TLS)
 
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
@@ -40,7 +40,7 @@ func TestKeyPublic(t *testing.T) {
 	require.Equal(t, kp.Public.Scheme.Name, sch.Name)
 	require.Equal(t, p2.Scheme.Name, sch.Name)
 	require.Equal(t, kp.Public.Addr, p2.Addr)
-	require.Equal(t, kp.Public.Tls, p2.Tls)
+	require.Equal(t, kp.Public.TLS, p2.TLS)
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
