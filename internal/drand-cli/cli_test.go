@@ -266,7 +266,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--insecure", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
 	listen := []string{"drand", "start", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}

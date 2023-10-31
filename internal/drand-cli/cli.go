@@ -231,6 +231,12 @@ var schemeFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_SCHEME"},
 }
 
+var insecureFlag = &cli.BoolFlag{
+	Name:  "insecure",
+	Usage: "Set if you wish to create a keypair that does not use TLS. Probably should only be used for testing!",
+	Value: false,
+}
+
 var jsonFlag = &cli.BoolFlag{
 	Name:    "json",
 	Usage:   "Set the output as json format",
@@ -358,7 +364,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag),
+		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag, insecureFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c)).
@@ -681,7 +687,12 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 	}
 
 	fmt.Println("Generating private / public key pair.")
-	priv, err := key.NewKeyPair(addr, sch)
+	var priv *key.Pair
+	if c.IsSet(insecureFlag.Name) {
+		priv, err = key.NewInsecureKeypair(addr, sch)
+	} else {
+		priv, err = key.NewKeyPair(addr, sch)
+	}
 	if err != nil {
 		return err
 	}
@@ -803,7 +814,7 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 }
 
 func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
-	peer := net.CreatePeer(addr)
+	peer := net.CreatePeer(addr, true)
 	client := net.NewGrpcClient(lg)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -819,6 +830,7 @@ func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
 		Signature: identityResp.Signature,
 		Address:   identityResp.Address,
 		Key:       identityResp.Key,
+		Tls:       identityResp.Tls,
 	}
 	sch, err := crypto.SchemeFromName(identityResp.SchemeName)
 	if err != nil {

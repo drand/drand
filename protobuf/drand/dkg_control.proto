@@ -108,6 +108,7 @@ message Participant {
   string address = 1;
   bytes key = 2;
   bytes signature = 3;
+  bool tls = 4;
 }
 
 message AcceptProposal {

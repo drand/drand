@@ -30,6 +30,11 @@ type Identity struct {
 	Addr      string
 	Signature []byte
 	Scheme    *crypto.Scheme
+	Tls       bool
+}
+
+func (i *Identity) IsTLS() bool {
+	return i.Tls
 }
 
 // Address implements the net.Peer interface
@@ -85,6 +90,14 @@ func (p *Pair) SelfSign() error {
 
 // NewKeyPair returns a freshly created private / public key pair.
 func NewKeyPair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
+	return newKeyPair(address, targetScheme, false)
+}
+
+func NewInsecureKeypair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
+	return newKeyPair(address, targetScheme, true)
+}
+
+func newKeyPair(address string, targetScheme *crypto.Scheme, insecure bool) (*Pair, error) {
 	if targetScheme == nil {
 		var err error
 		targetScheme, err = crypto.GetSchemeFromEnv()
@@ -99,6 +112,7 @@ func NewKeyPair(address string, targetScheme *crypto.Scheme) (*Pair, error) {
 		Key:    pubKey,
 		Addr:   address,
 		Scheme: targetScheme,
+		Tls:    !insecure,
 	}
 	p := &Pair{
 		Key:    key,
@@ -224,6 +238,7 @@ type protoIdentity interface {
 	GetAddress() string
 	GetKey() []byte
 	GetSignature() []byte
+	GetTls() bool
 }
 
 // IdentityFromProto creates an identity from its wire representation and
@@ -247,6 +262,7 @@ func IdentityFromProto(n protoIdentity, targetScheme *crypto.Scheme) (*Identity,
 		Key:       public,
 		Signature: n.GetSignature(),
 		Scheme:    targetScheme,
+		Tls:       n.GetTls(),
 	}
 	return id, nil
 }
@@ -258,6 +274,7 @@ func (i *Identity) ToProto() *proto.Identity {
 		Address:   i.Addr,
 		Key:       buff,
 		Signature: i.Signature,
+		Tls:       i.IsTLS(),
 	}
 }
 

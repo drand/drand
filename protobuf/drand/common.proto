@@ -64,7 +64,7 @@ message Empty {
 message Identity {
     string address = 1;
     bytes key = 2;
-    bool tls = 3 [deprecated = true];
+    bool tls = 3;
     // BLS signature over the identity to prove possession of the private key
     bytes signature = 4;
 }
