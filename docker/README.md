@@ -9,7 +9,7 @@
 
 Pull the latest drand image:
 ```shell
-docker pull drandorg/go-drand:v1.5.3
+docker pull drandorg/go-drand:v2.0.0
 ```
 
 Create a volume where you're going to store your keypairs and other config data
@@ -20,7 +20,7 @@ docker volume create drand
 Next we must create a keypair and store it in the docker volume we've just created.
 
 ```shell
-docker run --rm --volume drand:/data/drand drandorg/go-drand:v1.5.3 generate-keypair  --folder /data/drand/.drand --id default 0.0.0.0:8080
+docker run --rm --volume drand:/data/drand drandorg/go-drand:v2.0.0 generate-keypair  --folder /data/drand/.drand --id default 0.0.0.0:8080
 ```
 
 This will create a keypair for the default public listening address (0.0.0.0:8080) and store it in the `/data/drand/.drand` directory
@@ -35,7 +35,7 @@ _Note_: access to this path should be firewalled to only allow connections from 
 ## Starting drand
 Finally we can start the docker container by running:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand drandorg/go-drand:v1.5.3 start --private-listen 0.0.0.0:8080
+docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand drandorg/go-drand:v2.0.0 start --private-listen 0.0.0.0:8080
 ```
 
 If we run `docker logs -f drand`, we should be able to see that the node has started and is waiting for distributed key generation:
@@ -51,7 +51,7 @@ nodes talk to one another. To expose the randomness itself, we must provide a pu
 
 Kill the container and rerun it with a command such as:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand drandorg/go-drand:v1.5.3 start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
+docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand drandorg/go-drand:v2.0.0 start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
 ```
 
 Now if we run `curl -v 127.0.0.1:9080/chains` we should get a 200 response back and an empty list of chains.

@@ -2,7 +2,7 @@
 
 
 num_of_nodes=3
-docker_image_version=v1.5.3
+docker_image_version=v2.0.0
 
 ### first we check if docker and docker-compose are installed
 
