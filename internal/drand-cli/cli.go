@@ -231,6 +231,15 @@ var schemeFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_SCHEME"},
 }
 
+var insecureFlag = &cli.BoolFlag{
+	Name:    "tls-disable",
+	Aliases: []string{"insecure"},
+	Usage: "Set if you wish to create a keypair that does not use TLS. Disable TLS for all GRPC communications. " +
+		"Should usually only be used for testing!",
+	Value:   false,
+	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
+}
+
 var jsonFlag = &cli.BoolFlag{
 	Name:    "json",
 	Usage:   "Set the output as json format",
@@ -358,7 +367,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag),
+		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c)).
@@ -396,7 +405,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag),
+				Flags: toArray(groupFlag, verboseFlag, beaconIDFlag, insecureFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("checkConnection")
@@ -408,7 +417,7 @@ var appCommands = []*cli.Command{
 				Usage: "Ask for the statuses of remote nodes indicated by " +
 					"`ADDRESS1 ADDRESS2 ADDRESS3...`, including the network " +
 					"visibility over the rest of the addresses given.",
-				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag),
+				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag, insecureFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("remoteStatusCmd")
@@ -680,8 +689,14 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	fmt.Println("Generating private / public key pair.")
-	priv, err := key.NewKeyPair(addr, sch)
+	var priv *key.Pair
+	if c.Bool(insecureFlag.Name) {
+		fmt.Println("Generating private / public key pair without TLS.")
+		priv, err = key.NewInsecureKeypair(addr, sch)
+	} else {
+		fmt.Println("Generating private / public key pair with TLS indication")
+		priv, err = key.NewKeyPair(addr, sch)
+	}
 	if err != nil {
 		return err
 	}
@@ -776,12 +791,14 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
 	invalidIds := make([]string, 0)
 
+	insecure := c.IsSet(insecureFlag.Name)
+
 	for _, address := range names {
 		var err error
 		if isIdentityCheck {
-			err = checkIdentityAddress(lg, address, beaconID)
+			err = checkIdentityAddress(lg, address, beaconID, insecure)
 		} else {
-			err = remotePingToNode(lg, address)
+			err = remotePingToNode(lg, address, insecure)
 		}
 
 		if err != nil {
@@ -802,8 +819,8 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	return nil
 }
 
-func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
-	peer := net.CreatePeer(addr)
+func checkIdentityAddress(lg log.Logger, addr, beaconID string, insecure bool) error {
+	peer := net.CreatePeer(addr, !insecure)
 	client := net.NewGrpcClient(lg)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -819,6 +836,7 @@ func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
 		Signature: identityResp.Signature,
 		Address:   identityResp.Address,
 		Key:       identityResp.Key,
+		Tls:       identityResp.Tls,
 	}
 	sch, err := crypto.SchemeFromName(identityResp.SchemeName)
 	if err != nil {

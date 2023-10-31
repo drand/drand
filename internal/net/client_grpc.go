@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -10,13 +11,15 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/weaveworks/common/httpgrpc"
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/common/tracer"
@@ -30,10 +33,11 @@ var _ Client = (*grpcClient)(nil)
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
-	conns   map[string]*grpc.ClientConn
-	opts    []grpc.DialOption
-	timeout time.Duration
-	log     log.Logger
+	conns    map[string]*grpc.ClientConn
+	opts     []grpc.DialOption
+	timeout  time.Duration
+	log      log.Logger
+	insecure bool
 }
 
 var defaultTimeout = 1 * time.Minute
@@ -42,10 +46,11 @@ var defaultTimeout = 1 * time.Minute
 // ExternalClient using gRPC connections
 func NewGrpcClient(l log.Logger, opts ...grpc.DialOption) Client {
 	client := grpcClient{
-		opts:    opts,
-		conns:   make(map[string]*grpc.ClientConn),
-		timeout: defaultTimeout,
-		log:     l,
+		opts:     opts,
+		conns:    make(map[string]*grpc.ClientConn),
+		timeout:  defaultTimeout,
+		log:      l,
+		insecure: false,
 	}
 	client.loadEnvironment()
 	return &client
@@ -246,19 +251,29 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	if !ok {
 		g.log.Debugw("", "grpc client", "initiating", "to", p.Address())
 		var opts []grpc.DialOption
-		opts = append(opts, g.opts...)
-		opts = append(opts,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-			grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-		)
 
-		c, err = grpc.DialContext(ctx, p.Address(), opts...)
-		if err != nil {
-			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-			g.log.Errorw("error initiating a new grpc conn", "to", p.Address(), "err", err)
-		} else {
+		if !p.IsTLS() {
+			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))...)
+			if err != nil {
+				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
+			}
 			g.conns[p.Address()] = c
+		} else {
+			config := &tls.Config{MinVersion: tls.VersionTLS12}
+			opts = append(opts, g.opts...)
+			opts = append(opts,
+				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+				grpc.WithTransportCredentials(credentials.NewTLS(config)),
+			)
+
+			c, err = grpc.DialContext(ctx, p.Address(), opts...)
+			if err != nil {
+				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
+				g.log.Errorw("error initiating a new grpc conn", "to", p.Address(), "err", err)
+			} else {
+				g.conns[p.Address()] = c
+			}
 		}
 	}
 
