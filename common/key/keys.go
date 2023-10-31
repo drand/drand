@@ -33,6 +33,7 @@ type Identity struct {
 	Tls       bool
 }
 
+// IsTLS returns true if this address is reachable over TLS.
 func (i *Identity) IsTLS() bool {
 	return i.Tls
 }
@@ -133,6 +134,7 @@ type PairTOML struct {
 type PublicTOML struct {
 	Address    string
 	Key        string
+	TLS        bool
 	Signature  string
 	SchemeName string
 }
@@ -186,6 +188,7 @@ func (i *Identity) FromTOML(t interface{}) error {
 		return fmt.Errorf("decoding public key: %w", err)
 	}
 	i.Addr = ptoml.Address
+	i.Tls = ptoml.TLS
 	if ptoml.Signature != "" {
 		i.Signature, err = hex.DecodeString(ptoml.Signature)
 	}
@@ -205,6 +208,7 @@ func (i *Identity) TOML() interface{} {
 	return &PublicTOML{
 		Address:    i.Addr,
 		Key:        hexKey,
+		TLS:        i.Tls,
 		Signature:  hex.EncodeToString(i.Signature),
 		SchemeName: schemeName,
 	}
@@ -237,8 +241,8 @@ var ErrInvalidKeyScheme = errors.New("the key's scheme may not match the beacon'
 type protoIdentity interface {
 	GetAddress() string
 	GetKey() []byte
-	GetSignature() []byte
 	GetTls() bool
+	GetSignature() []byte
 }
 
 // IdentityFromProto creates an identity from its wire representation and
@@ -274,7 +278,7 @@ func (i *Identity) ToProto() *proto.Identity {
 		Address:   i.Addr,
 		Key:       buff,
 		Signature: i.Signature,
-		Tls:       i.IsTLS(),
+		Tls:       i.Tls,
 	}
 }
 

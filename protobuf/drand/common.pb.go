@@ -465,7 +465,7 @@ type Identity struct {
 	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
 	Key     []byte `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
 	Tls     bool   `protobuf:"varint,3,opt,name=tls,proto3" json:"tls,omitempty"`
-	// BLS signature over the identity to prove possession of the private key
+	// BLS signature over the identity to prove possession of the private key, it also verify the scheme used
 	Signature []byte `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 

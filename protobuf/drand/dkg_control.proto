@@ -104,11 +104,13 @@ message ProposalTerms {
   repeated Participant leaving = 14;
 }
 
+// this is in sync with the Identity one in common.proto
 message Participant {
   string address = 1;
   bytes key = 2;
-  bytes signature = 3;
-  bool tls = 4;
+  bool tls = 3;
+  // BLS signature over the identity to prove possession of the private key, it also verify the scheme used
+  bytes signature = 4;
 }
 
 message AcceptProposal {

@@ -232,9 +232,12 @@ var schemeFlag = &cli.StringFlag{
 }
 
 var insecureFlag = &cli.BoolFlag{
-	Name:  "insecure",
-	Usage: "Set if you wish to create a keypair that does not use TLS. Probably should only be used for testing!",
-	Value: false,
+	Name:    "tls-disable",
+	Aliases: []string{"insecure"},
+	Usage: "Set if you wish to create a keypair that does not use TLS. Disable TLS for all GRPC communications. " +
+		"Should usually only be used for testing!",
+	Value:   false,
+	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
 }
 
 var jsonFlag = &cli.BoolFlag{
@@ -364,7 +367,7 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(controlFlag, folderFlag, beaconIDFlag, schemeFlag, insecureFlag),
+		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c)).
@@ -686,11 +689,12 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	fmt.Println("Generating private / public key pair.")
 	var priv *key.Pair
-	if c.IsSet(insecureFlag.Name) {
+	if c.Bool(insecureFlag.Name) {
+		fmt.Println("Generating private / public key pair without TLS.")
 		priv, err = key.NewInsecureKeypair(addr, sch)
 	} else {
+		fmt.Println("Generating private / public key pair with TLS indication")
 		priv, err = key.NewKeyPair(addr, sch)
 	}
 	if err != nil {
