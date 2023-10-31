@@ -256,7 +256,6 @@ func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler, ready chan bool) {
 		}
 
 		b, _ := json.Marshal(next)
-
 		bh.pendingLk.Lock()
 		if bh.latestRound+1 != next.GetRound() && bh.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
@@ -313,7 +312,7 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) (*cha
 }
 
 func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chain2.Info, round uint64) ([]byte, error) {
-	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
+	ctx, span := tracer.NewSpan(ctx, "h.getRand")
 	defer span.End()
 
 	bh, err := h.getBeaconHandler(chainHash)
