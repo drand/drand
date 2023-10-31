@@ -65,5 +65,6 @@ func NewParticipant(name string) *drand.Participant {
 	return &drand.Participant{
 		Address: name,
 		Key:     pk,
+		Tls:     false,
 	}
 }

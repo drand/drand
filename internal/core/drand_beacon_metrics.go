@@ -36,7 +36,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(ctx context.Context, addr string)
 	//nolint:gocritic
 	for _, n := range bp.group.Nodes {
 		if n.Address() == addr {
-			p := net.CreatePeer(n.Address())
+			p := net.CreatePeer(n.Address(), n.Tls)
 			h, e := hc.HandleHTTP(ctx, p)
 			if e == nil {
 				return h, nil

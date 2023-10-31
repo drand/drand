@@ -48,7 +48,7 @@ done
 
 err "[+] generating keys"
 for i in "${!f[@]}"; do
-    ./drand generate-keypair --folder "${f[${i}]}" 127.0.0.1:$((p["${i}"]+1))
+    ./drand generate-keypair --insecure --folder "${f[${i}]}" 127.0.0.1:$((p["${i}"]+1))
 done
 
 err "[+ ] running drand daemons..."
