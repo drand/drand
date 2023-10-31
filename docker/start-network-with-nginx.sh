@@ -13,7 +13,7 @@ docker compose --file docker-compose-nginx.yml down
 
 # then let's create a volume for the nginx drand node and put a keypair on it pointing to the grpc port
 docker volume create drand_docker_demo_drand
-docker run --rm --volume drand_docker_demo_drand:/data/drand drandorg/go-drand:v1.5.3 generate-keypair  --folder /data/drand/.drand --id default drand_docker_demo-nginx:81
+docker run --rm --volume drand_docker_demo_drand:/data/drand drandorg/go-drand:v2.0.0 generate-keypair  --folder /data/drand/.drand --id default drand_docker_demo-nginx:81
 docker compose --file docker-compose-nginx.yml up --detach
 
 # start the resharing as leader
