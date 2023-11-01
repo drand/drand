@@ -224,6 +224,7 @@ func (d *Process) StartProposal(
 				Address:   r.Address,
 				Key:       response.Key,
 				Signature: response.Signature,
+				Tls:       r.Tls,
 			}
 
 			currentState.Joining[i] = &updatedParticipant

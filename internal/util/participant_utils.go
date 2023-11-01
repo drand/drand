@@ -83,6 +83,7 @@ func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) 
 		Address:   identity.Address(),
 		Key:       pubKey,
 		Signature: identity.Signature,
+		Tls:       identity.TLS,
 	}, nil
 }
 
