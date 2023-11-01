@@ -295,6 +295,22 @@ var memDBSizeFlag = &cli.IntFlag{
 	EnvVars: []string{"DRAND_MEMDB_SIZE"},
 }
 
+// TODO: remove at some point in the future after migrating to v2
+var hiddenInsecureFlag = &cli.BoolFlag{
+	Name:    "tls-disable",
+	Aliases: []string{"insecure"},
+	Usage:   "This is a deprecated flag since now the daemon always assumes there is a reverse proxy doing TLS termination",
+	Value:   false,
+	Hidden:  true,
+	Action: func(c *cli.Context, _ bool) error {
+		l := log.New(nil, logLevel(c), logJSON(c))
+		l.Warnw("The '--insecure' or '--tls-disable' flags are now deprecated in v2, " +
+			"you can remove them from your 'drand start' command.")
+		return nil
+	},
+	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
+}
+
 var appCommands = []*cli.Command{
 	dkgCommand,
 	{
@@ -304,7 +320,7 @@ var appCommands = []*cli.Command{
 			metricsFlag, tracesFlag, tracesProbabilityFlag,
 			pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag, beaconIDFlag,
-			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
+			storageTypeFlag, pgDSNFlag, memDBSizeFlag, hiddenInsecureFlag),
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c))
