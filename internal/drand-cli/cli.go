@@ -723,8 +723,9 @@ func keygenCmd(c *cli.Context, l log.Logger) error {
 
 	if _, err := fileStore.LoadKeyPair(); err == nil {
 		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
-		fmt.Fprintf(c.App.Writer, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
-		return nil
+		fmt.Fprintf(c.App.Writer, "\nKeypair for beaconID %s already present in `%s`.\n"+
+			"Remove them before generating new one\n", beaconID, keyDirectory)
+		return fmt.Errorf("keypair already exists")
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
 		return fmt.Errorf("could not save key: %w", err)
