@@ -157,13 +157,13 @@ func (d *Process) StartNetwork(
 }
 
 func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
-	sch, found := crypto.GetSchemeByID(response.GetSchemeName())
-	if !found {
+	sch, err := crypto.GetSchemeByID(response.GetSchemeName())
+	if err != nil {
 		return key.Identity{}, fmt.Errorf("peer return key of scheme %s, which was not found", response.GetSchemeName())
 	}
 
 	pk := sch.KeyGroup.Point()
-	err := pk.UnmarshalBinary(response.Key)
+	err = pk.UnmarshalBinary(response.Key)
 	if err != nil {
 		return key.Identity{}, err
 	}

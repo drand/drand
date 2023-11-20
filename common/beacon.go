@@ -93,18 +93,12 @@ func (b *Beacon) GetRandomness() []byte {
 
 // GetPreviousSignature returns the previous signature if it's non-nil or nil otherwise
 func (b *Beacon) GetPreviousSignature() []byte {
-	if b.PreviousSig != nil {
-		return b.PreviousSig
-	}
-	return nil
+	return b.PreviousSig
 }
 
 // GetSignature returns the signature if it's non-nil or nil otherwise
 func (b *Beacon) GetSignature() []byte {
-	if b.Signature != nil {
-		return b.Signature
-	}
-	return nil
+	return b.Signature
 }
 
 // GetRound provides the round of the beacon

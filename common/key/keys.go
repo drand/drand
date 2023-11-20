@@ -29,8 +29,8 @@ type Identity struct {
 	Key       kyber.Point
 	Addr      string
 	Signature []byte
-	Scheme *crypto.Scheme
-	TLS    bool
+	Scheme    *crypto.Scheme
+	TLS       bool
 }
 
 // IsTLS returns true if this address is reachable over TLS.
@@ -178,7 +178,7 @@ func (i *Identity) FromTOML(t interface{}) error {
 	if !ok {
 		return errors.New("public can't decode from non PublicTOML struct")
 	}
-	sch, err := crypto.GetSchemeByIDWithDefault(ptoml.SchemeName)
+	sch, err := crypto.GetSchemeByID(ptoml.SchemeName)
 	if err != nil {
 		return err
 	}

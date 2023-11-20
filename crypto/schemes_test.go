@@ -172,7 +172,8 @@ func TestGetSchemeByID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name+"byID", func(t *testing.T) {
-			got, gotBool := crypto.GetSchemeByID(tt.name)
+			got, err := crypto.GetSchemeByID(tt.name)
+			gotBool := err == nil
 			// special case "" is considered to be the default beacon
 			if gotBool && got.Name != tt.name && tt.name != "" {
 				t.Errorf("GetSchemeByID() got = %v, want %v", got, tt.name)
@@ -182,17 +183,6 @@ func TestGetSchemeByID(t *testing.T) {
 			}
 			if gotBool != tt.want {
 				t.Errorf("GetSchemeByID() gotBool = %v, want %v", gotBool, tt.want)
-			}
-		})
-
-		t.Run(tt.name+"ByIDWithDefault", func(t *testing.T) {
-			got, err := crypto.GetSchemeByIDWithDefault(tt.name)
-			if (err != nil) == tt.want {
-				t.Errorf("GetSchemeByIDWithDefault() error = %v", err)
-				return
-			}
-			if tt.want && got.Name != tt.name && tt.name != "" {
-				t.Errorf("GetSchemeByIDWithDefault() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

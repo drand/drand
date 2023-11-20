@@ -14,7 +14,7 @@ import (
 
 // InfoFromProto returns a Info from the protocol description
 func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
-	sch, err := crypto.GetSchemeByIDWithDefault(p.SchemeID)
+	sch, err := crypto.GetSchemeByID(p.SchemeID)
 	if err != nil {
 		return nil, fmt.Errorf("scheme id received is not valid. Err: %w", err)
 	}
