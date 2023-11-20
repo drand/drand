@@ -58,7 +58,7 @@ sleep 5
 echo [+] Starting distributed key generation for the leader
 
 # we start the DKG and send it to the background;
-docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s"
+docker exec --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s"
 
 # and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
 sleep 1
@@ -68,7 +68,7 @@ echo [+] Joining distributed key generation for the followers
 for i in $(seq 2 $num_of_nodes);
 do
   # we start the DKG and send it to the background
-  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010"
+  docker exec --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010"
 done
 
 
