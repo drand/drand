@@ -270,10 +270,10 @@ func ListSchemes() []string {
 	return schemeIDs
 }
 
-// GetSchemeByIDWithDefault allows the user to retrieve the scheme configuration looking by its ID. It will return a boolean which indicates
+// GetSchemeByID allows the user to retrieve the scheme configuration looking by its ID. It will return a boolean which indicates
 // if the scheme was found or not. In addition to it, if the received ID is an empty string,
 // it will return the default defined scheme
-func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
+func GetSchemeByID(id string) (*Scheme, error) {
 	if id == "" {
 		id = DefaultSchemeID
 	}
@@ -281,24 +281,12 @@ func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
 	return SchemeFromName(id)
 }
 
-func GetSchemeByID(id string) (*Scheme, bool) {
-	if id == "" {
-		id = DefaultSchemeID
-	}
-
-	sch, err := SchemeFromName(id)
-	if err != nil {
-		return nil, false
-	}
-	return sch, true
-}
-
 // GetSchemeFromEnv allows the user to retrieve the scheme configuration looking by the ID set on an
 // environmental variable. If the scheme is not found, function will panic.
 func GetSchemeFromEnv() (*Scheme, error) {
 	id := os.Getenv("SCHEME_ID")
 
-	return GetSchemeByIDWithDefault(id)
+	return GetSchemeByID(id)
 }
 
 // RandomnessFromSignature derives the round randomness from its signature. We are using sha256 currently
