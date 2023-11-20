@@ -112,7 +112,7 @@ func (n *NodeProc) setup() {
 		Clock:    clock.NewRealClock(),
 	}
 	// call drand binary
-	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
+	n.priv, err = key.NewInsecureKeypair(n.privAddr, n.scheme)
 	if err != nil {
 		panic(err)
 	}

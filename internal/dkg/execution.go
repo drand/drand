@@ -236,8 +236,8 @@ func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNo
 	_, span := tracer.NewSpan(ctx, "dkg.asGroup")
 	defer span.End()
 
-	sch, found := crypto.GetSchemeByID(details.SchemeID)
-	if !found {
+	sch, err := crypto.GetSchemeByID(details.SchemeID)
+	if err != nil {
 		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
 	}
 
