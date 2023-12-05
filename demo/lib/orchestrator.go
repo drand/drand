@@ -305,7 +305,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 			if pubRand == nil {
 				pubRand = randResp
 				lastIndex = n.Index()
-				fmt.Printf("\t - Example command is: \"%s\"\n", cmd)
+				fmt.Printf("\t - Example command is: %q\n", cmd)
 				break
 			}
 
@@ -342,7 +342,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		for i := 0; i < maxCurlRetries; i++ {
 			cmd := exec.Command("curl", args...)
 			if !printed {
-				fmt.Printf("\t\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
+				fmt.Printf("\t\t- Example command: %q\n", strings.Join(cmd.Args, " "))
 				printed = true
 			}
 			if tryCurl {

@@ -58,11 +58,11 @@ func GetCanonicalBeaconID(id string) string {
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
 	// PreviousSig is the previous signature generated
-	PreviousSig []byte
+	PreviousSig []byte `json:"previous_signature,omitempty"`
 	// Round is the round number this beacon is tied to
-	Round uint64
-	// Signature is the BLS deterministic signature over Round || PreviousRand
-	Signature []byte
+	Round uint64 `json:"round,omitempty"`
+	// Signature is the BLS deterministic signature as per the crypto.Scheme used
+	Signature []byte `json:"signature,omitempty"`
 }
 
 // Equal indicates if two beacons are equal

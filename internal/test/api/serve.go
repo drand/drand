@@ -14,7 +14,7 @@ import (
 	"github.com/drand/drand/test/mock"
 )
 
-const serve = "127.0.0.1:1969"
+const serve = "127.0.0.1:31969"
 
 type TestJSON struct {
 	Public string
