@@ -60,9 +60,9 @@ type Beacon struct {
 	// PreviousSig is the previous signature generated
 	PreviousSig []byte `json:"previous_signature,omitempty"`
 	// Round is the round number this beacon is tied to
-	Round uint64 `json:"round,omitempty"`
+	Round uint64 `json:"round"`
 	// Signature is the BLS deterministic signature as per the crypto.Scheme used
-	Signature []byte `json:"signature,omitempty"`
+	Signature []byte `json:"signature"`
 }
 
 // Equal indicates if two beacons are equal

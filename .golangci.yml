@@ -32,15 +32,13 @@ issues:
     - path: internal/drand-cli
       linters:
         - forbidigo # we use Println in our UX
+        - goconst # we re-use some strings in our flags
     - path: internal/metrics/threshold_monitor_test.go
       linters:
         - revive # we use named parameters as an example for implementer
     - path: crypto/schemes.go
       linters:
         - dupl # we have explicit scheme instantiations
-#    - path: core/broadcast.go
-#      linters:
-#        - interfacer # Deprecated
 run:
   skip-dirs:
     - demo
@@ -158,8 +156,8 @@ linters-settings:
     lines: 100
     statements: 50
   goconst:
-    min-len: 2
-    min-occurrences: 2
+    min-len: 3
+    min-occurrences: 3
   gocritic:
     enabled-tags:
       - diagnostic

@@ -101,7 +101,7 @@ func commandType(command *drand.DKGCommand) string {
 	case *drand.DKGCommand_Join:
 		return "Joining"
 	case *drand.DKGCommand_Execute:
-		//nolint:goconst
+
 		return "Executing"
 	case *drand.DKGCommand_Abort:
 		return "Aborting"
