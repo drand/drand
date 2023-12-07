@@ -2,6 +2,8 @@ module github.com/drand/drand/v2
 
 go 1.21
 
+replace github.com/drand/kyber v1.2.0 => github.com/kevincharm/kyber v1.2.0-bn254.ea10cf74
+
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/ardanlabs/darwin/v2 v2.0.0
@@ -64,6 +66,7 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
+	go.dedis.ch/fixbuf v1.0.3 // indirect
 	go.opentelemetry.io/otel/metric v1.26.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
