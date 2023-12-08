@@ -22,11 +22,10 @@ type Info struct {
 	Scheme      string        `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
 	GenesisSeed []byte        `json:"group_hash"`
-	log         log.Logger
 }
 
 // NewChainInfo makes a chain Info from a group.
-func NewChainInfo(l log.Logger, g *key.Group) *Info {
+func NewChainInfo(g *key.Group) *Info {
 	return &Info{
 		ID:          g.ID,
 		Period:      g.Period,
@@ -34,7 +33,6 @@ func NewChainInfo(l log.Logger, g *key.Group) *Info {
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
 		GenesisSeed: g.GetGenesisSeed(),
-		log:         l,
 	}
 }
 
@@ -48,7 +46,7 @@ func (c *Info) Hash() []byte {
 
 	buff, err := c.PublicKey.MarshalBinary()
 	if err != nil {
-		c.log.Warnw("", "info", "failed to hash pubkey", "err", err)
+		log.DefaultLogger().Errorw("chain info: failed to hash pubkey", "err", err)
 	}
 
 	_, _ = h.Write(buff)

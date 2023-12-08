@@ -454,7 +454,7 @@ func runCommand(c *exec.Cmd, add ...string) []byte {
 		if len(add) > 0 {
 			fmt.Printf("[-] Msg failed command: %s\n", add[0])
 		}
-		fmt.Printf("[-] Command \"%s\" gave\n%s\n", strings.Join(c.Args, " "), string(out))
+		fmt.Printf("[-] Command %q gave\n%s\n", strings.Join(c.Args, " "), string(out))
 		panic(err)
 	}
 	return out

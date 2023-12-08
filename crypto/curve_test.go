@@ -1,7 +1,10 @@
 package crypto
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,4 +31,33 @@ func TestBLS12381Compatv112(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, scheme.AuthScheme.Verify(pub, msg, sig))
 	require.Equal(t, sig, sigExp)
+}
+
+//nolint:lll
+func TestBLS12381CompatMockData(t *testing.T) {
+	scheme := NewPedersenBLSChained()
+
+	pubHex := "90bcf1bc6f710c23963bf402ffffa55c3dd3a9168c40d05b395d1e794797835eb494249095542e3b7e7405c8fbdb0908"
+	previous := "628bdd13fbdf0eb52117514afc36af7310c3b72075780502f5f725deba2304e7"
+	round := 1969
+	sigExp, err := hex.DecodeString("b68afe4b92819ed4516a5894400cdf83ea4453c422c3b43f985087167bad044e6e11954bc4cf555905fd9968ea47ef2405a55f18afdf654c97ab9ea5c0f50921cb9288d70aa78b210191b313451c78f1c601bb2816a3d46d739a3d3b02858205")
+	require.NoError(t, err)
+
+	prev, err := hex.DecodeString(previous)
+	fmt.Println(len(prev))
+	require.NoError(t, err)
+
+	h := sha256.New()
+	_, _ = h.Write(prev)
+	_ = binary.Write(h, binary.BigEndian, uint64(round))
+	finalmsg := h.Sum(nil)
+
+	pubb, err := hex.DecodeString(pubHex)
+	require.NoError(t, err)
+
+	pub := scheme.KeyGroup.Point()
+	err = pub.UnmarshalBinary(pubb)
+	require.NoError(t, err)
+
+	require.NoError(t, scheme.ThresholdScheme.VerifyRecovered(pub, finalmsg, sigExp))
 }

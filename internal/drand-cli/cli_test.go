@@ -443,7 +443,6 @@ func TestStartWithoutGroup(t *testing.T) {
 
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
-	lg := testlogger.New(t)
 
 	testPing(t, ctrlPort)
 	testStatus(t, ctrlPort, beaconID)
@@ -452,20 +451,20 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath string, group *
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group.TOML()))
 
 	t.Log("Running CHAIN-INFO command")
-	chainInfo, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
+	chainInfo, err := json.MarshalIndent(chain2.NewChainInfo(group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
 	chainInfoCmd := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
-	buffCi, err := json.MarshalIndent(chain2.NewChainInfo(lg, group).ToProto(nil), "", "    ")
+	buffCi, err := json.MarshalIndent(chain2.NewChainInfo(group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
 	t.Log("Running CHAIN-INFO --HASH command")
 	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort}
-	expectedOutput = fmt.Sprintf("%x", chain2.NewChainInfo(lg, group).Hash())
+	expectedOutput = fmt.Sprintf("%x", chain2.NewChainInfo(group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state

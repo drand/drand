@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/protobuf/common"
@@ -16,13 +15,12 @@ import (
 
 //nolint:funlen
 func TestChainInfo(t *testing.T) {
-	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	beaconID := "test_beacon"
 
 	_, g1 := test.BatchIdentities(5, sch, beaconID)
-	c1 := NewChainInfo(lg, g1)
+	c1 := NewChainInfo(g1)
 	require.NotNil(t, c1)
 
 	h1 := c1.Hash()
@@ -36,7 +34,7 @@ func TestChainInfo(t *testing.T) {
 		ID:          beaconID,
 	}
 
-	c12 := NewChainInfo(lg, fake)
+	c12 := NewChainInfo(fake)
 	// Note: the fake group here does not hash the same.
 	c12.GenesisSeed = c1.GenesisSeed
 	h12 := c12.Hash()
@@ -46,7 +44,7 @@ func TestChainInfo(t *testing.T) {
 	require.Equal(t, c1.GetSchemeName(), g1.Scheme.Name)
 
 	_, g2 := test.BatchIdentities(5, sch, beaconID)
-	c2 := NewChainInfo(lg, g2)
+	c2 := NewChainInfo(g2)
 	h2 := c2.Hash()
 	require.NotEqual(t, h1, h2)
 	require.NotEqual(t, c1, c2)
@@ -73,7 +71,6 @@ func TestChainInfo(t *testing.T) {
 	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
-	c1.log = nil
 	require.Equal(t, c1, c13)
 
 	require.True(t, c1.Equal(c13))

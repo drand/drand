@@ -227,7 +227,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(ctx context.Context, beaconID string,
 
 	chainHash := ""
 	if bp.group != nil {
-		info := chain2.NewChainInfo(dd.log, bp.group)
+		info := chain2.NewChainInfo(bp.group)
 		chainHash = info.HashString()
 	}
 
@@ -255,7 +255,7 @@ func (dd *DrandDaemon) AddBeaconHandler(ctx context.Context, beaconID string, bp
 	_, span := tracer.NewSpan(ctx, "dd.AddBeaconHandler")
 	defer span.End()
 
-	chainHash := chain2.NewChainInfo(dd.log, bp.group).HashString()
+	chainHash := chain2.NewChainInfo(bp.group).HashString()
 
 	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, chainHash)
 
@@ -282,7 +282,7 @@ func (dd *DrandDaemon) RemoveBeaconHandler(ctx context.Context, beaconID string,
 		return
 	}
 
-	info := chain2.NewChainInfo(dd.log, bp.group)
+	info := chain2.NewChainInfo(bp.group)
 	dd.handler.RemoveBeaconHandler(info.HashString())
 	if common2.IsDefaultBeaconID(beaconID) {
 		dd.handler.RemoveBeaconHandler(common2.DefaultChainHash)
