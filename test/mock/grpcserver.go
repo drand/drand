@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -91,7 +90,7 @@ func (s *Server) PublicRand(_ context.Context, in *drand.PublicRandRequest) (*dr
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
-	randomness := sha256Hash(signature)
+	randomness := sha256Hash(signature, 0)
 	resp := drand.PublicRandResponse{
 		Round:             uint64(s.d.Round),
 		PreviousSignature: prev,
@@ -173,11 +172,11 @@ func testValid(d *Data) {
 	var msg, invMsg []byte
 	if d.Scheme.Name == crypto.DefaultSchemeID { // we're in chained mode
 		prev := decodeHex(d.PreviousSignature)
-		msg = sha256Hash(append(prev[:], roundToBytes(d.Round)...))
-		invMsg = sha256Hash(append(prev[:], roundToBytes(d.Round-1)...))
+		msg = sha256Hash(prev[:], d.Round)
+		invMsg = sha256Hash(prev[:], d.Round-1)
 	} else { // we are in unchained mode
-		msg = sha256Hash(roundToBytes(d.Round))
-		invMsg = sha256Hash(roundToBytes(d.Round - 1))
+		msg = sha256Hash(nil, d.Round)
+		invMsg = sha256Hash(nil, d.Round-1)
 	}
 
 	if err := d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
@@ -222,9 +221,9 @@ func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 
 	var msg []byte
 	if sch.Name == crypto.DefaultSchemeID { // we're in chained mode
-		msg = sha256Hash(append(previous[:], roundToBytes(round)...))
+		msg = sha256Hash(previous[:], round)
 	} else { // we're in unchained mode
-		msg = sha256Hash(roundToBytes(round))
+		msg = sha256Hash(nil, round)
 	}
 
 	sshare := share.PriShare{I: 0, V: secret}
@@ -253,15 +252,13 @@ func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 
 // nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
-	previous := decodeHex(d.Signature)
+	previous := decodeHex(d.PreviousSignature)
 
 	var msg []byte
-	var prevData string
 	if d.Scheme.Name == crypto.DefaultSchemeID { // we're in chained mode
-		msg = sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
-		prevData = hex.EncodeToString(previous[:])
+		msg = sha256Hash(previous, d.Round+1)
 	} else { // we're in unchained mode
-		msg = sha256Hash(roundToBytes(d.Round + 1))
+		msg = sha256Hash(nil, d.Round+1)
 	}
 
 	sshare := share.PriShare{I: 0, V: d.secret}
@@ -275,7 +272,7 @@ func nextMockData(d *Data) *Data {
 		secret:            d.secret,
 		Public:            d.Public,
 		Signature:         hex.EncodeToString(sig),
-		PreviousSignature: prevData,
+		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,
 		Genesis:           d.Genesis,
@@ -315,19 +312,15 @@ func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk cl
 	return server
 }
 
-func sha256Hash(in []byte) []byte {
+func sha256Hash(prev []byte, round int) []byte {
 	h := sha256.New()
-	h.Write(in)
-	return h.Sum(nil)
-}
-
-func roundToBytes(r int) []byte {
-	var buff bytes.Buffer
-	err := binary.Write(&buff, binary.BigEndian, uint64(r))
-	if err != nil {
-		return nil
+	if prev != nil {
+		_, _ = h.Write(prev)
 	}
-	return buff.Bytes()
+	if round > 0 {
+		_ = binary.Write(h, binary.BigEndian, uint64(round))
+	}
+	return h.Sum(nil)
 }
 
 // NewMockBeacon provides a random beacon and the chain it validates against

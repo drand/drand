@@ -259,7 +259,7 @@ func SchemeFromName(schemeName string) (*Scheme, error) {
 	case ShortSigSchemeID:
 		return NewPedersenBLSUnchainedSwapped(), nil
 	default:
-		return nil, fmt.Errorf("invalid scheme name '%s'", schemeName)
+		return nil, fmt.Errorf("invalid scheme name %q", schemeName)
 	}
 }
 

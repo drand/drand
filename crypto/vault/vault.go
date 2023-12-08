@@ -37,7 +37,7 @@ func NewVault(l log.Logger, currentGroup *key.Group, ks *key.Share, sch *crypto.
 	return &Vault{
 		log:    l,
 		Scheme: sch,
-		chain:  chain.NewChainInfo(l, currentGroup),
+		chain:  chain.NewChainInfo(currentGroup),
 		share:  ks,
 		pub:    currentGroup.PublicKey.PubPoly(sch),
 		group:  currentGroup,
