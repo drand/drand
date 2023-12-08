@@ -551,7 +551,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	lg := testlogger.New(t)
-	chainInfo := public.NewChainInfo(lg, group)
+	chainInfo := public.NewChainInfo(group)
 	client := NewGrpcClient(lg, chainInfo.Hash())
 
 	for i, node := range dt.nodes {
@@ -887,7 +887,7 @@ func TestDrandFollowChain(t *testing.T) {
 	require.NoError(t, err)
 
 	addrToFollow := []string{rootID.Address()}
-	hash := fmt.Sprintf("%x", public.NewChainInfo(testlogger.New(t), group).Hash())
+	hash := fmt.Sprintf("%x", public.NewChainInfo(group).Hash())
 
 	// First try with an invalid hash info
 	t.Logf(" \t [-] Trying to follow with an invalid hash\n")
@@ -1030,7 +1030,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Next trying with a fully valid chain
 	cancel()
 	ctx, cancel = context.WithCancel(context.Background())
-	hash := fmt.Sprintf("%x", public.NewChainInfo(testlogger.New(t), group).Hash())
+	hash := fmt.Sprintf("%x", public.NewChainInfo(group).Hash())
 	addrToFollow := []string{rootID.Address()}
 	upTo := uint64(5)
 

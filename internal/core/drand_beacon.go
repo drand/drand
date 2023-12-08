@@ -127,7 +127,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 
 	bp.state.Lock()
-	info := public.NewChainInfo(bp.log, bp.group)
+	info := public.NewChainInfo(bp.group)
 	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
 	bp.state.Unlock()
@@ -265,7 +265,7 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 	defer bp.state.Unlock()
 	bp.group = group
 	bp.share = share
-	bp.chainHash = public.NewChainInfo(bp.log, bp.group).Hash()
+	bp.chainHash = public.NewChainInfo(bp.group).Hash()
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {

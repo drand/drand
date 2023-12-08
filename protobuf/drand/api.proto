@@ -47,7 +47,7 @@ message PublicRandResponse {
     bytes previous_signature = 3;
     // randomness is simply there to demonstrate - it is the hash of the
     // signature. It should be computed locally.
-    bytes randomness = 4;
+    bytes randomness = 4 [deprecated = true];
     common.Metadata metadata = 5;
 }
 

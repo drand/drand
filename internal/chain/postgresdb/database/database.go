@@ -51,7 +51,6 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	if query.Has("sslmode") {
 		sslMode := query.Get("sslmode")
 		switch sslMode {
-		//nolint:goconst // Having to add constants is overkill.
 		case "disable":
 			cfg.DisableTLS = true
 		case "required":
