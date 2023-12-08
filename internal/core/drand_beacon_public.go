@@ -141,7 +141,7 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoReques
 		return nil, ErrNoGroupSetup
 	}
 
-	response := chain2.NewChainInfo(bp.log, group).ToProto(bp.newMetadata())
+	response := chain2.NewChainInfo(group).ToProto(bp.newMetadata())
 
 	return response, nil
 }
