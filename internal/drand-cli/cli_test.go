@@ -1327,9 +1327,9 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	require.NoError(t, err)
 
 	require.False(t, status.ChainStore.IsEmpty)
-	require.NotZero(t, status.ChainStore.LastRound)
+	require.NotZero(t, status.ChainStore.LastStored)
 
-	lastRoundBeforeShutdown := status.ChainStore.LastRound
+	lastRoundBeforeShutdown := status.ChainStore.LastStored
 
 	// Stop beacon process... not the entire node
 	err = instances[memDBNodeID].stop(beaconID)
@@ -1349,10 +1349,10 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	require.NoError(t, err)
 
 	require.False(t, status.ChainStore.IsEmpty)
-	require.NotZero(t, status.ChainStore.LastRound)
+	require.NotZero(t, status.ChainStore.LastStored)
 	expectedRound := lastRoundBeforeShutdown + uint64(roundsWhileMissing)
-	t.Logf("comparing lastRound %d with lastRoundBeforeShutdown %d\n", status.ChainStore.LastRound, expectedRound)
-	require.GreaterOrEqual(t, status.ChainStore.LastRound, expectedRound)
+	t.Logf("comparing lastRound %d with lastRoundBeforeShutdown %d\n", status.ChainStore.LastStored, expectedRound)
+	require.GreaterOrEqual(t, status.ChainStore.LastStored, expectedRound)
 }
 
 func TestDKGStatusDoesntBlowUp(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/chain"
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -14,8 +15,8 @@ type Node interface {
 	CtrlAddr() string
 	PublicAddr() string
 	Index() int
-	StartLeaderDKG(thr int, catchupPeriod int, joiners []*drand.Participant) error
-	StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error
+	StartLeaderDKG(thr int, catchupPeriod int, joiners []*pdkg.Participant) error
+	StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error
 	ExecuteLeaderDKG() error
 	ExecuteLeaderReshare() error
 	JoinDKG() error
@@ -27,7 +28,7 @@ type Node interface {
 	Ping() bool
 	GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string)
 	WritePublic(path string)
-	Identity() (*drand.Participant, error)
+	Identity() (*pdkg.Participant, error)
 	Stop()
 	PrintLog()
 }

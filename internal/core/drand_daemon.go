@@ -9,6 +9,8 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
 	common2 "github.com/drand/drand/common"
 	chain2 "github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/key"
@@ -367,7 +369,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		return nil, err
 	}
 
-	status, err := dd.dkg.DKGStatus(ctx, &drand.DKGStatusRequest{BeaconID: beaconID})
+	status, err := dd.dkg.DKGStatus(ctx, &pdkg.DKGStatusRequest{BeaconID: beaconID})
 	if err != nil {
 		span.RecordError(err)
 		return nil, err

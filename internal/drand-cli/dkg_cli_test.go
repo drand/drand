@@ -11,7 +11,7 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/dkg"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 func TestDKGPrintModelConversion(t *testing.T) {

@@ -7,9 +7,7 @@ syntax = "proto3";
 package drand;
 
 option go_package = "github.com/drand/drand/protobuf/drand";
-/*option go_package = "drand";*/
 
-import "common/common.proto";
 import "drand/common.proto";
 
 service Control {
@@ -51,21 +49,21 @@ message EntropyInfo {
   string script = 1;
   // do we only take this entropy source or mix it with /dev/urandom
   bool userOnly = 10;
-  common.Metadata metadata = 11;
+  Metadata metadata = 11;
 }
 
 message Ping {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message Pong {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 // RemoteStatusRequest contains the list of addresses that the local drand node
 // process should ask the status to.
 message RemoteStatusRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
   repeated Address addresses = 2;
 }
 
@@ -77,26 +75,26 @@ message RemoteStatusResponse {
 }
 
 message ListSchemesRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message ListSchemesResponse {
   repeated string ids = 1;
-  common.Metadata metadata = 2;
+  Metadata metadata = 2;
 }
 
 message ListBeaconIDsRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message ListBeaconIDsResponse {
   repeated string ids = 1;
-  common.Metadata metadata = 2;
+  Metadata metadata = 2;
 }
 
 // PublicKeyRequest requests the public key of a drand node
 message PublicKeyRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 // PublicKeyResponse holds the public key of a drand node
@@ -105,41 +103,41 @@ message PublicKeyResponse {
   string addr = 2;
   bool tls = 3;
   bytes signature = 4;
-  common.Metadata metadata = 5;
+  Metadata metadata = 5;
   string schemeName = 6;
 }
 
 // CokeyRequest requests the collective key of a drand node
 message CokeyRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
   bytes coKey = 2;
-  common.Metadata metadata = 3;
+  Metadata metadata = 3;
 }
 
 message GroupTOMLResponse {
   // TOML-encoded group file
   string group_toml = 1;
-  common.Metadata metadata = 2;
+  Metadata metadata = 2;
 }
 
 message ShutdownRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message ShutdownResponse {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message LoadBeaconRequest {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message LoadBeaconResponse {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }
 
 message StartSyncRequest {
@@ -154,20 +152,20 @@ message StartSyncRequest {
   // up_to tells the drand daemon to not sync up after the given round.
   // if up_to is 0, the sync operation continues until it is cancelled.
   uint64 up_to = 4;
-  common.Metadata metadata = 5;
+  Metadata metadata = 5;
 }
 
 message SyncProgress {
   uint64 current = 1;
   uint64 target = 2;
-  common.Metadata metadata = 3;
+  Metadata metadata = 3;
 }
 
 message BackupDBRequest {
   string output_file = 1;
-  common.Metadata metadata = 2;
+  Metadata metadata = 2;
 }
 
 message BackupDBResponse {
-  common.Metadata metadata = 1;
+  Metadata metadata = 1;
 }

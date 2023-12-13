@@ -11,7 +11,7 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"
 
-	common2 "github.com/drand/drand/common"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/common/tracer"
@@ -19,7 +19,6 @@ import (
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
@@ -61,7 +60,7 @@ type Handler struct {
 	serving bool
 	// a handler is really stopped only once
 	stopped bool
-	version common2.Version
+	version common.Version
 	l       log.Logger
 }
 
@@ -69,7 +68,7 @@ type Handler struct {
 // beacon.
 //
 //nolint:lll // This is a complex function
-func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version common2.Version) (*Handler, error) {
+func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version common.Version) (*Handler, error) {
 	ctx, span := tracer.NewSpan(ctx, "NewHandler")
 	defer span.End()
 
@@ -129,7 +128,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	pRound := p.GetRound()
 	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
 
-	nextRound, _ := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nextRound, _ := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
 	// we allow one round off in the future because of small clock drifts
@@ -148,7 +147,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	}
 
 	span.AddEvent("h.crypto.DigestBeacon")
-	msg := h.crypto.DigestBeacon(&common2.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
+	msg := h.crypto.DigestBeacon(&common.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
 	span.AddEvent("h.crypto.DigestBeacon - done")
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
@@ -240,7 +239,7 @@ func (h *Handler) Start(ctx context.Context) error {
 	}
 
 	h.thresholdMonitor.Start()
-	_, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	_, tTime := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Infow("", "beacon", "start", "scheme", h.crypto.Name)
 	go h.run(tTime)
 
@@ -256,7 +255,7 @@ func (h *Handler) Catchup(ctx context.Context) {
 	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
 	defer span.End()
 
-	nRound, tTime := common2.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nRound, tTime := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.l.Infow("Launching Catchup", "upto", nRound)
@@ -272,8 +271,8 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 	defer span.End()
 
 	targetTime := h.conf.Group.TransitionTime
-	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
@@ -300,8 +299,8 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 	defer span.End()
 
 	targetTime := newGroup.TransitionTime
-	tRound := common2.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := common2.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := common.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := common.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
@@ -310,7 +309,7 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
-	h.chain.AddCallback("transition", func(b *common2.Beacon, closed bool) {
+	h.chain.AddCallback("transition", func(b *common.Beacon, closed bool) {
 		if closed ||
 			b.Round < targetRound {
 			return
@@ -419,7 +418,7 @@ func (h *Handler) run(startTime int64) {
 				// already. If that next beacon is created soon after, this
 				// channel will trigger again etc. until we arrive at the correct
 				// round.
-				go func(c roundInfo, latest common2.Beacon) {
+				go func(c roundInfo, latest common.Beacon) {
 					defer span.End()
 
 					h.l.Debugw("sleeping now", "beacon_loop", "catchupmode",
@@ -450,13 +449,13 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, upon *common2.Beacon) {
+func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, upon *common.Beacon) {
 	ctx, span := tracer.NewSpan(ctx, "h.broadcastNextPartial")
 	defer span.End()
 
 	previousSig := upon.Signature
 	round := upon.Round + 1
-	beaconID := common2.GetCanonicalBeaconID(h.conf.Group.ID)
+	beaconID := common.GetCanonicalBeaconID(h.conf.Group.ID)
 	if current.round == upon.Round {
 		h.l.Debugw("broadcastNextPartial re-broadcasting already stored beacon", "round", current.round)
 		// we already have the beacon of the current round for some reasons - on
@@ -468,7 +467,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 		round = current.round
 	}
 
-	msg := h.crypto.DigestBeacon(&common2.Beacon{
+	msg := h.crypto.DigestBeacon(&common.Beacon{
 		Round:       round,
 		PreviousSig: previousSig,
 	})
@@ -480,7 +479,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 		return
 	}
 	h.l.Debugw("", "broadcast_partial", round, "prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
-	metadata := common.NewMetadata(h.version.ToProto())
+	metadata := proto.NewMetadata(h.version.ToProto())
 	metadata.BeaconID = beaconID
 
 	packet := &proto.PartialBeaconPacket{

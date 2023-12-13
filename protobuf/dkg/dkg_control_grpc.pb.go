@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v3.20.3
-// source: drand/dkg_control.proto
+// source: dkg/dkg_control.proto
 
-package drand
+package dkg
 
 import (
 	context "context"
@@ -19,10 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	DKGControl_Command_FullMethodName      = "/drand.DKGControl/Command"
-	DKGControl_Packet_FullMethodName       = "/drand.DKGControl/Packet"
-	DKGControl_DKGStatus_FullMethodName    = "/drand.DKGControl/DKGStatus"
-	DKGControl_BroadcastDKG_FullMethodName = "/drand.DKGControl/BroadcastDKG"
+	DKGControl_Command_FullMethodName      = "/dkg.DKGControl/Command"
+	DKGControl_Packet_FullMethodName       = "/dkg.DKGControl/Packet"
+	DKGControl_DKGStatus_FullMethodName    = "/dkg.DKGControl/DKGStatus"
+	DKGControl_BroadcastDKG_FullMethodName = "/dkg.DKGControl/BroadcastDKG"
 )
 
 // DKGControlClient is the client API for DKGControl service.
@@ -193,7 +193,7 @@ func _DKGControl_BroadcastDKG_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var DKGControl_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "drand.DKGControl",
+	ServiceName: "dkg.DKGControl",
 	HandlerType: (*DKGControlServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -214,5 +214,5 @@ var DKGControl_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "drand/dkg_control.proto",
+	Metadata: "dkg/dkg_control.proto",
 }

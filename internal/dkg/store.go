@@ -10,9 +10,10 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 type boltStore struct {
@@ -174,7 +175,7 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	}
 
 	// map all the nodes from the group file into `drand.Participant`s
-	participants := make([]*drand.Participant, len(groupFile.Nodes))
+	participants := make([]*pdkg.Participant, len(groupFile.Nodes))
 
 	if len(groupFile.Nodes) == 0 {
 		return errors.New("you cannot migrate from a group file that doesn't contain node info")
@@ -187,7 +188,7 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 
 		// MIGRATION PATH: the signature is `nil` here due to an incompatibility between v1 and v2 sigs over pub keys
 		// the new signature will be filled in on first proposal using the new DKG
-		participants[i] = &drand.Participant{
+		participants[i] = &pdkg.Participant{
 			Address:   node.Address(),
 			Key:       pk,
 			Tls:       node.TLS,

@@ -10,7 +10,6 @@ import (
 	"github.com/drand/drand/common/chain"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -35,7 +34,7 @@ func (c *Client) ChainInfo(ctx context.Context, p net.Peer) (*chain.Info, error)
 	ctx, span := tracer.NewSpan(ctx, "c.ChainInfo")
 	defer span.End()
 
-	metadata := common.Metadata{ChainHash: c.chainHash}
+	metadata := drand.Metadata{ChainHash: c.chainHash}
 	resp, err := c.client.ChainInfo(ctx, p, &drand.ChainInfoRequest{Metadata: &metadata})
 	if err != nil {
 		return nil, err

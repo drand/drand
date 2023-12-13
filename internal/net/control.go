@@ -10,10 +10,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	common2 "github.com/drand/drand/common"
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/log"
-	protoCommon "github.com/drand/drand/protobuf/common"
-	control "github.com/drand/drand/protobuf/drand"
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 const grpcDefaultIPNetwork = "tcp"
@@ -34,8 +35,8 @@ func NewGRPCListener(l log.Logger, s Service, controlAddr string) (ControlListen
 		return ControlListener{}, err
 	}
 
-	control.RegisterControlServer(grpcServer, s)
-	control.RegisterDKGControlServer(grpcServer, s)
+	proto.RegisterControlServer(grpcServer, s)
+	pdkg.RegisterDKGControlServer(grpcServer, s)
 
 	return ControlListener{log: l, conns: grpcServer, lis: lis}, nil
 }
@@ -45,10 +46,10 @@ func newListener(controlAddr string) (net.Listener, error) {
 	return net.Listen(listenAddrFor(controlAddr))
 }
 
-// Start the listener for the control commands
+// Start the listener for the proto commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		g.log.Errorw("", "control listener", "serve ended", "err", err)
+		g.log.Errorw("", "proto listener", "serve ended", "err", err)
 	}
 }
 
@@ -71,16 +72,16 @@ func (g *ControlListener) Stop() {
 	g.lis.Close()
 }
 
-// ControlClient is a struct that implement control.ControlClient and is used to
+// ControlClient is a struct that implement proto.ControlClient and is used to
 // request a Share to a ControlListener on a specific port
 type ControlClient struct {
 	log     log.Logger
 	conn    *grpc.ClientConn
-	client  control.ControlClient
-	version common2.Version
+	client  proto.ControlClient
+	version common.Version
 }
 
-// NewControlClient creates a client capable of issuing control commands to a
+// NewControlClient creates a client capable of issuing proto commands to a
 // 127.0.0.1 running drand node.
 func NewControlClient(l log.Logger, addr string) (*ControlClient, error) {
 	network, host := listenAddrFor(addr)
@@ -90,17 +91,17 @@ func NewControlClient(l log.Logger, addr string) (*ControlClient, error) {
 
 	conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		l.Errorw("", "control client", "connect failure", "err", err)
+		l.Errorw("", "proto client", "connect failure", "err", err)
 		return nil, err
 	}
 
-	c := control.NewControlClient(conn)
+	c := proto.NewControlClient(conn)
 
 	return &ControlClient{
 		log:     l,
 		conn:    conn,
 		client:  c,
-		version: common2.GetAppVersion(),
+		version: common.GetAppVersion(),
 	}, nil
 }
 
@@ -113,13 +114,13 @@ func (c *ControlClient) Close() error {
 }
 
 func (c *ControlClient) RemoteStatus(ct context.Context,
-	addresses []*control.Address,
-	beaconID string) (map[string]*control.StatusResponse, error) {
-	metadata := protoCommon.Metadata{
+	addresses []*proto.Address,
+	beaconID string) (map[string]*proto.StatusResponse, error) {
+	metadata := proto.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	packet := control.RemoteStatusRequest{
+	packet := proto.RemoteStatusRequest{
 		Metadata:  &metadata,
 		Addresses: addresses,
 	}
@@ -133,74 +134,74 @@ func (c *ControlClient) RemoteStatus(ct context.Context,
 
 // Ping the drand daemon to check if it's up and running
 func (c *ControlClient) Ping() error {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata := proto.NewMetadata(c.version.ToProto())
 
-	_, err := c.client.PingPong(context.Background(), &control.Ping{Metadata: metadata})
+	_, err := c.client.PingPong(context.Background(), &proto.Ping{Metadata: metadata})
 	return err
 }
 
 // LoadBeacon loads the beacon details
-func (c *ControlClient) LoadBeacon(beaconID string) (*control.LoadBeaconResponse, error) {
-	metadata := protoCommon.Metadata{
+func (c *ControlClient) LoadBeacon(beaconID string) (*proto.LoadBeaconResponse, error) {
+	metadata := proto.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	return c.client.LoadBeacon(context.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
+	return c.client.LoadBeacon(context.Background(), &proto.LoadBeaconRequest{Metadata: &metadata})
 }
 
 // ListBeaconIDs returns a list of all beacon ids
-func (c *ControlClient) ListBeaconIDs() (*control.ListBeaconIDsResponse, error) {
-	metadata := protoCommon.Metadata{
+func (c *ControlClient) ListBeaconIDs() (*proto.ListBeaconIDsResponse, error) {
+	metadata := proto.Metadata{
 		NodeVersion: c.version.ToProto(),
 	}
 
-	return c.client.ListBeaconIDs(context.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
+	return c.client.ListBeaconIDs(context.Background(), &proto.ListBeaconIDsRequest{Metadata: &metadata})
 }
 
 // Status gets the current daemon status
-func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error) {
-	metadata := protoCommon.Metadata{
+func (c *ControlClient) Status(beaconID string) (*proto.StatusResponse, error) {
+	metadata := proto.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	return c.client.Status(context.Background(), &control.StatusRequest{Metadata: &metadata})
+	return c.client.Status(context.Background(), &proto.StatusRequest{Metadata: &metadata})
 }
 
 // ListSchemes responds with the list of ids for the available schemes
-func (c *ControlClient) ListSchemes() (*control.ListSchemesResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) ListSchemes() (*proto.ListSchemesResponse, error) {
+	metadata := proto.NewMetadata(c.version.ToProto())
 
-	return c.client.ListSchemes(context.Background(), &control.ListSchemesRequest{Metadata: metadata})
+	return c.client.ListSchemes(context.Background(), &proto.ListSchemesRequest{Metadata: metadata})
 }
 
 // PublicKey returns the public key of the remote node
-func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+func (c *ControlClient) PublicKey(beaconID string) (*proto.PublicKeyResponse, error) {
+	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{Metadata: &metadata})
+	return c.client.PublicKey(context.Background(), &proto.PublicKeyRequest{Metadata: &metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
-func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+func (c *ControlClient) ChainInfo(beaconID string) (*proto.ChainInfoPacket, error) {
+	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{Metadata: &metadata})
+	return c.client.ChainInfo(context.Background(), &proto.ChainInfoRequest{Metadata: &metadata})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
-func (c *ControlClient) GroupFile(beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+func (c *ControlClient) GroupFile(beaconID string) (*proto.GroupPacket, error) {
+	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.GroupFile(context.Background(), &control.GroupRequest{Metadata: &metadata})
+	return c.client.GroupFile(context.Background(), &proto.GroupRequest{Metadata: &metadata})
 }
 
 // Shutdown stops the daemon
-func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+func (c *ControlClient) Shutdown(beaconID string) (*proto.ShutdownResponse, error) {
+	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	return c.client.Shutdown(ctx, &control.ShutdownRequest{Metadata: &metadata})
+	return c.client.Shutdown(ctx, &proto.ShutdownRequest{Metadata: &metadata})
 }
 
 const progressSyncQueue = 100
@@ -210,11 +211,11 @@ func (c *ControlClient) StartCheckChain(cc context.Context,
 	hashStr string,
 	nodes []string,
 	upTo uint64,
-	beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
+	beaconID string) (outCh chan *proto.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set in the metadata
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata := proto.NewMetadata(c.version.ToProto())
 	if beaconID == "" {
-		metadata.BeaconID = common2.DefaultBeaconID
+		metadata.BeaconID = common.DefaultBeaconID
 	} else {
 		metadata.BeaconID = beaconID
 	}
@@ -224,7 +225,7 @@ func (c *ControlClient) StartCheckChain(cc context.Context,
 		return nil, nil, err
 	}
 
-	if hashStr != common2.DefaultChainHash && hashStr != "" {
+	if hashStr != common.DefaultChainHash && hashStr != "" {
 		metadata.ChainHash = hash
 	}
 
@@ -236,7 +237,7 @@ func (c *ControlClient) StartCheckChain(cc context.Context,
 
 	c.log.Infow("Starting to check chain consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
 
-	stream, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
+	stream, err := c.client.StartCheckChain(cc, &proto.StartSyncRequest{
 		Nodes:    nodes,
 		UpTo:     upTo,
 		Metadata: metadata,
@@ -247,7 +248,7 @@ func (c *ControlClient) StartCheckChain(cc context.Context,
 		return nil, nil, err
 	}
 
-	outCh = make(chan *control.SyncProgress, progressSyncQueue)
+	outCh = make(chan *proto.SyncProgress, progressSyncQueue)
 	errCh = make(chan error)
 	go func() {
 		defer func() {
@@ -278,15 +279,15 @@ func (c *ControlClient) StartFollowChain(cc context.Context,
 	hashStr string,
 	nodes []string,
 	upTo uint64,
-	beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
+	beaconID string) (outCh chan *proto.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set and also the chain hash to check integrity of the chain info
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata := proto.NewMetadata(c.version.ToProto())
 	if beaconID == "" {
-		metadata.BeaconID = common2.DefaultBeaconID
+		metadata.BeaconID = common.DefaultBeaconID
 	} else {
 		metadata.BeaconID = beaconID
 	}
-	if hashStr == common2.DefaultChainHash || hashStr == "" {
+	if hashStr == common.DefaultChainHash || hashStr == "" {
 		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
 			" to validate the integrity of the chain info when following a chain")
 	}
@@ -296,7 +297,7 @@ func (c *ControlClient) StartFollowChain(cc context.Context,
 	}
 	metadata.ChainHash = hash
 	c.log.Infow("Launching a follow request", "nodes", nodes, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
-	stream, err := c.client.StartFollowChain(cc, &control.StartSyncRequest{
+	stream, err := c.client.StartFollowChain(cc, &proto.StartSyncRequest{
 		Nodes:    nodes,
 		UpTo:     upTo,
 		Metadata: metadata,
@@ -305,7 +306,7 @@ func (c *ControlClient) StartFollowChain(cc context.Context,
 		c.log.Errorw("Error while following chain", "err", err)
 		return nil, nil, err
 	}
-	outCh = make(chan *control.SyncProgress, progressSyncQueue)
+	outCh = make(chan *proto.SyncProgress, progressSyncQueue)
 	// TODO: currently if the remote node terminates during the follow, it won't close the client side process
 	errCh = make(chan error, 1)
 	go func() {
@@ -332,48 +333,48 @@ func (c *ControlClient) StartFollowChain(cc context.Context,
 
 // BackupDB backs up the database to a file
 func (c *ControlClient) BackupDB(outFile, beaconID string) error {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-	_, err := c.client.BackupDatabase(context.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
+	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	_, err := c.client.BackupDatabase(context.Background(), &proto.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
 }
 
 // DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
 type DefaultControlServer struct {
-	C control.ControlServer
+	C proto.ControlServer
 }
 
 // PingPong sends a ping to the server
-func (s *DefaultControlServer) PingPong(_ context.Context, _ *control.Ping) (*control.Pong, error) {
-	return &control.Pong{}, nil
+func (s *DefaultControlServer) PingPong(_ context.Context, _ *proto.Ping) (*proto.Pong, error) {
+	return &proto.Pong{}, nil
 }
 
 // Status initiates a status request
-func (s *DefaultControlServer) Status(c context.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
+func (s *DefaultControlServer) Status(c context.Context, in *proto.StatusRequest) (*proto.StatusResponse, error) {
 	if s.C == nil {
-		return &control.StatusResponse{}, nil
+		return &proto.StatusResponse{}, nil
 	}
 	return s.C.Status(c, in)
 }
 
-func (s *DefaultControlServer) RemoteStatus(c context.Context, in *control.RemoteStatusRequest) (*control.RemoteStatusResponse, error) {
+func (s *DefaultControlServer) RemoteStatus(c context.Context, in *proto.RemoteStatusRequest) (*proto.RemoteStatusResponse, error) {
 	if s.C == nil {
-		return &control.RemoteStatusResponse{}, nil
+		return &proto.RemoteStatusResponse{}, nil
 	}
 	return s.C.RemoteStatus(c, in)
 }
 
 // PublicKey gets the node's public key
-func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+func (s *DefaultControlServer) PublicKey(c context.Context, in *proto.PublicKeyRequest) (*proto.PublicKeyResponse, error) {
 	if s.C == nil {
-		return &control.PublicKeyResponse{}, nil
+		return &proto.PublicKeyResponse{}, nil
 	}
 	return s.C.PublicKey(c, in)
 }
 
 // ChainInfo gets the current chain information from the ndoe
-func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
+func (s *DefaultControlServer) ChainInfo(c context.Context, in *proto.ChainInfoRequest) (*proto.ChainInfoPacket, error) {
 	if s.C == nil {
-		return &control.ChainInfoPacket{}, nil
+		return &proto.ChainInfoPacket{}, nil
 	}
 	return s.C.ChainInfo(c, in)
 }

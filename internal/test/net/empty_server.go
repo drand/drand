@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/protobuf/drand"
@@ -37,7 +38,7 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 }
 
 // BroadcastDKG is an empty implementation
-func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.EmptyDKGResponse, error) {
+func (s *EmptyServer) BroadcastDKG(context.Context, *pdkg.DKGPacket) (*pdkg.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
@@ -126,15 +127,15 @@ func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.Server
 	return handler(srv, ss)
 }
 
-func (s *EmptyServer) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
+func (s *EmptyServer) Command(_ context.Context, _ *pdkg.DKGCommand) (*pdkg.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
+func (s *EmptyServer) Packet(_ context.Context, _ *pdkg.GossipPacket) (*pdkg.EmptyDKGResponse, error) {
 	return nil, nil
 }
 
-func (s *EmptyServer) DKGStatus(_ context.Context, _ *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+func (s *EmptyServer) DKGStatus(_ context.Context, _ *pdkg.DKGStatusRequest) (*pdkg.DKGStatusResponse, error) {
 	return nil, nil
 }
 
