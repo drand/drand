@@ -57,6 +57,9 @@ func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error)
 	if err := v.verify(ctx, info, rd); err != nil {
 		return nil, err
 	}
+	if round != 0 && rd.Round() != round {
+		return nil, fmt.Errorf("round misatch: %d != %d", rd.Round(), round)
+	}
 	return rd, nil
 }
 
