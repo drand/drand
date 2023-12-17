@@ -53,7 +53,12 @@ func VerifyFuncTest(t *testing.T, clients, upTo int) {
 }
 
 func TestGetWithRoundMismatch(t *testing.T) {
-	c, _ := mockClientWithVerifiableResults(t, 3, false)
-	_, err := c.Get(context.Background(), 2)
-	require.ErrorContains(t, err, "round mismatch: 1 != 2")
+	c, results := mockClientWithVerifiableResults(t, 3, false)
+	r0 := results[0]
+	for i := range results {
+		results[i] = r0
+	}
+
+	_, err := c.Get(context.Background(), 3)
+	require.ErrorContains(t, err, "round mismatch: 1 != 3")
 }
