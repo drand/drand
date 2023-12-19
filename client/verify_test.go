@@ -54,9 +54,8 @@ func VerifyFuncTest(t *testing.T, clients, upTo int) {
 
 func TestGetWithRoundMismatch(t *testing.T) {
 	c, results := mockClientWithVerifiableResults(t, 3, false)
-	r0 := results[0]
-	for i := range results {
-		results[i] = r0
+	for i := 1; i < len(results); i++ {
+		results[i] = results[0]
 	}
 
 	_, err := c.Get(context.Background(), 3)
