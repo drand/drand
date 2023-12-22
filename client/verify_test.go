@@ -12,13 +12,13 @@ import (
 	"github.com/drand/drand/crypto"
 )
 
-func mockClientWithVerifiableResults(t *testing.T, n int) (client.Client, []mock.Result) {
+func mockClientWithVerifiableResults(t *testing.T, n int, strictRounds bool) (client.Client, []mock.Result) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 
 	info, results := mock.VerifiableResults(n, sch)
-	mc := client.MockClient{Results: results, StrictRounds: true, OptionalInfo: info}
+	mc := client.MockClient{Results: results, StrictRounds: strictRounds, OptionalInfo: info}
 
 	var c client.Client
 
@@ -42,7 +42,7 @@ func TestVerifyWithOldVerifiedResult(t *testing.T) {
 }
 
 func VerifyFuncTest(t *testing.T, clients, upTo int) {
-	c, results := mockClientWithVerifiableResults(t, clients)
+	c, results := mockClientWithVerifiableResults(t, clients, true)
 
 	res, err := c.Get(context.Background(), results[upTo].Round())
 	require.NoError(t, err)
@@ -50,4 +50,14 @@ func VerifyFuncTest(t *testing.T, clients, upTo int) {
 	if res.Round() != results[upTo].Round() {
 		t.Fatal("expected to get result.", results[upTo].Round(), res.Round(), fmt.Sprintf("%v", c))
 	}
+}
+
+func TestGetWithRoundMismatch(t *testing.T) {
+	c, results := mockClientWithVerifiableResults(t, 3, false)
+	for i := 1; i < len(results); i++ {
+		results[i] = results[0]
+	}
+
+	_, err := c.Get(context.Background(), 3)
+	require.ErrorContains(t, err, "round mismatch: 1 != 3")
 }
