@@ -7,7 +7,7 @@ import (
 )
 
 func TestStoredDKGCanBeRetrieved(t *testing.T) {
-	// create active DKG store
+	// create a DKG store
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
@@ -32,7 +32,7 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 }
 
 func TestNoDKGStoredReturnsFresh(t *testing.T) {
-	// create active DKG store
+	// create a DKG store
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestNoDKGStoredReturnsFresh(t *testing.T) {
 }
 
 func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
-	// create active DKG store
+	// create a DKG store
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
@@ -68,12 +68,12 @@ func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
 	result, err := store.GetCurrent(anotherBeaconID)
 	require.NoError(t, err)
 
-	// you get active fresh one and not the saved one with active different ID
+	// you get a fresh one and not the saved one with a different ID
 	require.Equal(t, result, NewFreshState(anotherBeaconID))
 }
 
 func TestNoCompletedReturnsNil(t *testing.T) {
-	// create active DKG store
+	// create a DKG store
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
@@ -85,7 +85,7 @@ func TestNoCompletedReturnsNil(t *testing.T) {
 }
 
 func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
-	// create active DKG store
+	// create a DKG store
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
