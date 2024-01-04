@@ -73,10 +73,10 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	}
 
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	// we ignore the errors here because it's active best effort gossip
+	// we ignore the errors here because it's a best effort gossip
 	// however we can continue with execution
 	_, _ = d.gossip(me, recipients, packet)
-	// we could theoretically ignore when the gossip ends, but due to the mutex we're holding it _could_ lead to active race
+	// we could theoretically ignore when the gossip ends, but due to the mutex we're holding it _could_ lead to a race
 	// condition with future requests
 
 	if packet.GetExecute() != nil {
@@ -139,7 +139,7 @@ func (d *Process) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket) (*d
 	broadcaster := d.Executions[beaconID]
 	d.lock.Unlock()
 	if broadcaster == nil {
-		return nil, errors.New("could not broadcast active DKG message - there may not be active DKG in progress and in the execution phase")
+		return nil, errors.New("could not broadcast a DKG message - there may not be a DKG in progress and in the execution phase")
 	}
 
 	err := broadcaster.BroadcastDKG(ctx, packet)

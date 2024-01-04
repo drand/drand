@@ -12,7 +12,7 @@ import (
 	drand "github.com/drand/drand/protobuf/dkg"
 )
 
-// gossip marks active DKG packet as seen and sends it to the other parties in the network (that are passed in)
+// gossip marks a DKG packet as seen and sends it to the other parties in the network (that are passed in)
 //
 //nolint:gocritic // ewww the linter wants me to use named parameters
 func (d *Process) gossip(
@@ -23,7 +23,7 @@ func (d *Process) gossip(
 	done := make(chan bool, 1)
 	errChan := make(chan error, 1)
 
-	// we first filter the recipients to avoid active malicious broadcaster sending `nil`
+	// we first filter the recipients to avoid a malicious broadcaster sending `nil`
 	recipients = util.Filter(recipients, func(p *drand.Participant) bool {
 		return p != nil && p.Address != ""
 	})
@@ -34,7 +34,7 @@ func (d *Process) gossip(
 	}
 
 	if packet.Metadata == nil {
-		errChan <- errors.New("cannot process active packet without metadata")
+		errChan <- errors.New("cannot process a packet without metadata")
 		return done, errChan
 	}
 
@@ -61,7 +61,7 @@ func (d *Process) gossip(
 		go func() {
 			err := sendToPeer(d.internalClient, p, packet)
 			if err != nil {
-				d.log.Warnw("tried gossiping active packet but failed", "addr", p.Address, "packet", packetSig[0:8], "err", err)
+				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "packet", packetSig[0:8], "err", err)
 				errChan <- err
 			}
 			wg.Done()
@@ -84,7 +84,7 @@ func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.Gossip
 	peer := net.CreatePeer(p.Address, p.Tls)
 	var err error
 	for i := 0; i < retries; i++ {
-		// we use active separate context here, so it can continue outside the lifecycle of the gRPC request
+		// we use a separate context here, so it can continue outside the lifecycle of the gRPC request
 		// that spawned the gossip request
 		_, err = client.Packet(context.Background(), peer, packet)
 		if err == nil {
