@@ -250,7 +250,13 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	dkgStore, err := dkg.NewDKGStore(node.daemon.opts.configFolder, node.daemon.opts.boltOpts)
 	require.NoError(t, err)
 	node.daemon.dkg = dkg.NewDKGProcess(
-		dkgStore, node.daemon, node.daemon.completedDKGs, node.daemon.privGateway, dkg.Config{}, node.daemon.log,
+		dkgStore,
+		node.daemon,
+		node.daemon.completedDKGs,
+		node.daemon.privGateway.DKGClient,
+		node.daemon.privGateway.ProtocolClient,
+		dkg.Config{},
+		node.daemon.log,
 	)
 	require.NoError(t, err)
 

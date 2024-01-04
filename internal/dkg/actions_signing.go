@@ -83,7 +83,6 @@ func termsFromState(state *DBState) *drand.ProposalTerms {
 		CatchupPeriodSeconds: uint32(state.CatchupPeriod.Seconds()),
 		GenesisTime:          timestamppb.New(state.GenesisTime),
 		GenesisSeed:          state.GenesisSeed,
-		TransitionTime:       timestamppb.New(state.TransitionTime),
 		Timeout:              timestamppb.New(state.Timeout),
 		Leader:               state.Leader,
 		Joining:              state.Joining,

@@ -34,7 +34,7 @@ type DrandDaemon struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
-	dkg *dkg.Process
+	dkg DKGProcess
 
 	handler *dhttp.DrandHandler
 
@@ -48,6 +48,15 @@ type DrandDaemon struct {
 
 	// version indicates the base code variant
 	version common2.Version
+}
+
+type DKGProcess interface {
+	DKGStatus(context context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error)
+	Command(context context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error)
+	Packet(context context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error)
+	Migrate(beaconID string, group *key.Group, share *key.Share) error
+	BroadcastDKG(context context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error)
+	Close()
 }
 
 // NewDrandDaemon creates a new instance of DrandDaemon
@@ -175,7 +184,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		KickoffGracePeriod:   c.dkgKickoffGracePeriod,
 		SkipKeyVerification:  false,
 	}
-	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway, dkgConfig, dd.log)
+	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway.DKGClient, dd.privGateway.ProtocolClient, dkgConfig, dd.log)
 
 	go dd.control.Start()
 

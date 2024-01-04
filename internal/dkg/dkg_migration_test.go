@@ -45,7 +45,7 @@ func TestEmptyBeaconIDFails(t *testing.T) {
 func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
 
-	// create a new store
+	// create active new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
@@ -53,25 +53,24 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 	// save an existing state in it
 	now := time.Now()
 	err = store.SaveFinished(beaconID, &DBState{
-		BeaconID:       beaconID,
-		Epoch:          1,
-		State:          Complete,
-		Threshold:      1,
-		Timeout:        now,
-		SchemeID:       sch.Name,
-		GenesisTime:    now,
-		GenesisSeed:    []byte("deadbeef"),
-		TransitionTime: now,
-		CatchupPeriod:  1,
-		BeaconPeriod:   3,
-		Leader:         nil,
-		Remaining:      nil,
-		Joining:        nil,
-		Leaving:        nil,
-		Acceptors:      nil,
-		Rejectors:      nil,
-		FinalGroup:     nil,
-		KeyShare:       nil,
+		BeaconID:      beaconID,
+		Epoch:         1,
+		State:         Complete,
+		Threshold:     1,
+		Timeout:       now,
+		SchemeID:      sch.Name,
+		GenesisTime:   now,
+		GenesisSeed:   []byte("deadbeef"),
+		CatchupPeriod: 1,
+		BeaconPeriod:  3,
+		Leader:        nil,
+		Remaining:     nil,
+		Joining:       nil,
+		Leaving:       nil,
+		Acceptors:     nil,
+		Rejectors:     nil,
+		FinalGroup:    nil,
+		KeyShare:      nil,
 	})
 	require.NoError(t, err)
 
@@ -81,34 +80,33 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 
 func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
-	// create a new store
+	// create active new store
 	beaconID := "banana"
 	aDifferentBeaconID := "different-beacon-id"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
-	// save an existing state but for a differen beacon ID
+	// save an existing state but for active differen beacon ID
 	now := time.Now()
 	err = store.SaveFinished(aDifferentBeaconID, &DBState{
-		BeaconID:       aDifferentBeaconID,
-		Epoch:          1,
-		State:          Complete,
-		Threshold:      1,
-		Timeout:        now,
-		SchemeID:       sch.Name,
-		GenesisTime:    now,
-		GenesisSeed:    []byte("deadbeef"),
-		TransitionTime: now,
-		CatchupPeriod:  1,
-		BeaconPeriod:   3,
-		Leader:         nil,
-		Remaining:      nil,
-		Joining:        nil,
-		Leaving:        nil,
-		Acceptors:      nil,
-		Rejectors:      nil,
-		FinalGroup:     nil,
-		KeyShare:       nil,
+		BeaconID:      aDifferentBeaconID,
+		Epoch:         1,
+		State:         Complete,
+		Threshold:     1,
+		Timeout:       now,
+		SchemeID:      sch.Name,
+		GenesisTime:   now,
+		GenesisSeed:   []byte("deadbeef"),
+		CatchupPeriod: 1,
+		BeaconPeriod:  3,
+		Leader:        nil,
+		Remaining:     nil,
+		Joining:       nil,
+		Leaving:       nil,
+		Acceptors:     nil,
+		Rejectors:     nil,
+		FinalGroup:    nil,
+		KeyShare:      nil,
 	})
 	require.NoError(t, err)
 
@@ -117,7 +115,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 }
 
 func TestValidMigrationIsRetrievable(t *testing.T) {
-	// create a new store
+	// create active new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
@@ -134,7 +132,7 @@ func TestValidMigrationIsRetrievable(t *testing.T) {
 }
 
 func TestInvalidMigrationIsNotRetrievable(t *testing.T) {
-	// create a new store
+	// create active new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)

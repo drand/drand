@@ -145,7 +145,6 @@ func TestReshare(t *testing.T) {
 	currentState := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
 	validProposal := drand.ProposalOptions{
 		Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-		TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Minute)),
 		Threshold:            1,
 		CatchupPeriodSeconds: 10,
 		Joining:              []*drand.Participant{carol},
