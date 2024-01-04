@@ -96,7 +96,7 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 	return config, nil
 }
 
-// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
+// this is done rarely and is active shared object: no good reason not to use active clone (and it makes the race checker happy)
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
 	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
@@ -111,69 +111,41 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		return err
 	}
 
-	executeAndStoreDKG := func() error {
-		output, err := d.startDKGExecution(ctx, beaconID, current, config)
-		if err != nil {
-			// if the DKG doesn't reach threshold, we must transition to `Failed` instead of
-			// returning an error and rolling back
-			if !util.ErrorContains(err, "dkg: too many uncompliant new participants") && !util.ErrorContains(err, "dkg abort") {
-				return err
-			}
-
-			d.log.Errorw("DKG failed as too many nodes were evicted. Storing failed state")
-
-			next, err := current.Failed()
-			if err != nil {
-				return err
-			}
-
-			return d.store.SaveCurrent(beaconID, next)
-		}
-
-		finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
-		if err != nil {
-			return err
-		}
-
-		err = d.store.SaveFinished(beaconID, finalState)
-		if err != nil {
-			return err
-		}
-
-		d.completedDKGs <- SharingOutput{
-			BeaconID: beaconID,
-			Old:      lastCompleted,
-			New:      *finalState,
-		}
-
-		d.log.Infow("DKG completed successfully!", "beaconID", beaconID, "epoch", finalState.Epoch)
-		return nil
-	}
-
-	leaveNetwork := func(err error) {
-		d.log.Errorw(
-			"There was an error during the DKG - we were likely evicted. Will attempt to store failed state",
-			"error", err,
-		)
-		// could this also be a timeout? is that semantically the same as eviction after DKG execution was triggered?
-		evictedState, err := current.Evicted()
-		if err != nil {
-			d.log.Errorw("Failed to store failed state", "error", err)
-			return
-		}
-		err = d.store.SaveCurrent(beaconID, evictedState)
-		if err != nil {
-			d.log.Errorw("Failed to store failed state", "error", err)
-			return
-		}
-	}
-
-	err = executeAndStoreDKG()
+	output, err := d.startDKGExecution(ctx, beaconID, current, config)
 	if err != nil {
-		leaveNetwork(err)
+		dkgErr := err
+		d.log.Errorw("DKG failed as too many nodes were evicted. Storing failed state")
+
+		next, err := current.Failed()
+		if err != nil {
+			return err
+		}
+
+		err = d.store.SaveCurrent(beaconID, next)
+		if err != nil {
+			return err
+		}
+		return dkgErr
 	}
 
-	return err
+	finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
+	if err != nil {
+		return err
+	}
+
+	err = d.store.SaveFinished(beaconID, finalState)
+	if err != nil {
+		return err
+	}
+
+	d.completedDKGs <- SharingOutput{
+		BeaconID: beaconID,
+		Old:      lastCompleted,
+		New:      *finalState,
+	}
+
+	d.log.Infow("DKG completed successfully!", "beaconID", beaconID, "epoch", finalState.Epoch)
+	return nil
 }
 
 func (d *Process) startDKGExecution(
@@ -187,7 +159,7 @@ func (d *Process) startDKGExecution(
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
 	go phaser.Start()
 
-	// NewProtocol actually _starts_ the protocol on a goroutine also
+	// NewProtocol actually _starts_ the protocol on active goroutine also
 	d.lock.Lock()
 	broadcaster := d.Executions[beaconID]
 	d.lock.Unlock()
@@ -205,6 +177,15 @@ func (d *Process) startDKGExecution(
 			return nil, result.Error
 		}
 
+		var transitionTime int64
+
+		if current.Epoch == 1 {
+			transitionTime = current.GenesisTime.Unix()
+		} else {
+			roundsUntilTransition := 10
+			currentRound := common.CurrentRound(time.Now().Unix(), current.BeaconPeriod, current.GenesisTime.Unix())
+			transitionTime = common.TimeOfRound(current.BeaconPeriod, current.GenesisTime.Unix(), currentRound+uint64(roundsUntilTransition))
+		}
 		keypair, err := d.beaconIdentifier.KeypairFor(beaconID)
 		if err != nil {
 			return nil, err
@@ -217,7 +198,7 @@ func (d *Process) startDKGExecution(
 			finalGroup = append(finalGroup, config.NewNodes[v.Index])
 		}
 
-		groupFile, err := asGroup(ctx, current, &share, finalGroup)
+		groupFile, err := asGroup(ctx, current, &share, finalGroup, transitionTime)
 		if err != nil {
 			return nil, err
 		}
@@ -232,7 +213,7 @@ func (d *Process) startDKGExecution(
 	}
 }
 
-func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node) (key.Group, error) {
+func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNodes []dkg.Node, transitionTime int64) (key.Group, error) {
 	_, span := tracer.NewSpan(ctx, "dkg.asGroup")
 	defer span.End()
 
@@ -260,7 +241,7 @@ func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNo
 		CatchupPeriod:  details.CatchupPeriod,
 		GenesisTime:    details.GenesisTime.Unix(),
 		GenesisSeed:    details.GenesisSeed,
-		TransitionTime: details.TransitionTime.Unix(),
+		TransitionTime: transitionTime,
 		Nodes:          remainingNodes,
 		PublicKey:      keyShare.Public(),
 	}
@@ -281,8 +262,8 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		return nil, err
 	}
 
-	// although this is an "initial" DKG, we could be a joiner, and we may need to set some things
-	// from a prior DKG provided by the network
+	// although this is an "initial" DKG, we could be active joiner, and we may need to set some things
+	// from active prior DKG provided by the network
 	var nodes []dkg.Node
 	var publicCoeffs []kyber.Point
 	var oldThreshold = 0
@@ -317,7 +298,7 @@ func (d *Process) reshareDKGConfig(
 	sortedParticipants []*drand.Participant,
 ) (*dkg.Config, error) {
 	if previous == nil {
-		return nil, errors.New("cannot reshare with a nil previous DKG state")
+		return nil, errors.New("cannot reshare with active nil previous DKG state")
 	}
 
 	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, func(index int, participant *drand.Participant) (dkg.Node, error) {

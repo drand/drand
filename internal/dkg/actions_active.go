@@ -18,8 +18,8 @@ import (
 	"github.com/drand/drand/internal/util"
 )
 
-// actions_active contains all the DKG actions that require user interaction: creating a network,
-// accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
+// actions_active contains all the DKG actions that require user interaction: creating active network,
+// accepting or rejecting active DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
 //nolint:gocyclo //
 func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
@@ -34,7 +34,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	// fetch our keypair from the BeaconProcess and remap it into a `Participant`
+	// fetch our keypair from the BeaconProcess and remap it into active `Participant`
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 
 		packetToGossip.Metadata = metadata
 		done, errs := d.gossip(me, recipients, packetToGossip)
-		// if it's a proposal, let's block until it finishes or a timeout,
+		// if it's active proposal, let's block until it finishes or active timeout,
 		// because we want to be sure everybody received it
 		// QUESTION: do we _really_ want to fail on errors? we will probably have to abort if that's the case
 		if command.GetInitial() != nil || command.GetResharing() != nil {
@@ -130,15 +130,13 @@ func (d *Process) StartNetwork(
 		SchemeID:    options.Scheme,
 		GenesisTime: genesisTime,
 		// GenesisSeed is created after the DKG, so it cannot exist yet
-		GenesisSeed: nil,
-		// for the initial proposal, we want the transition time should be the same as the genesis time
-		TransitionTime:       genesisTime,
+		GenesisSeed:          nil,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
 		Joining:              util.Filter(options.Joining, util.NonEmpty),
 	}
 
-	// apply our enriched DKG payload onto the current DKG state to create a new state
+	// apply our enriched DKG payload onto the current DKG state to create active new state
 	nextState, err := state.Proposing(me, &terms)
 	if err != nil {
 		return nil, nil, err
@@ -262,7 +260,6 @@ func (d *Process) StartProposal(
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		GenesisTime:          timestamppb.New(currentState.GenesisTime),
 		GenesisSeed:          currentState.GenesisSeed,
-		TransitionTime:       options.TransitionTime,
 		Timeout:              options.Timeout,
 		Leader:               me,
 		Joining:              options.Joining,
@@ -461,21 +458,20 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 		}
 	}
 	currentEntry := drand.DKGEntry{
-		BeaconID:       current.BeaconID,
-		State:          uint32(current.State),
-		Epoch:          current.Epoch,
-		Threshold:      current.Threshold,
-		Timeout:        timestamppb.New(current.Timeout),
-		GenesisTime:    timestamppb.New(current.GenesisTime),
-		GenesisSeed:    current.GenesisSeed,
-		TransitionTime: timestamppb.New(current.TransitionTime),
-		Leader:         current.Leader,
-		Remaining:      current.Remaining,
-		Joining:        current.Joining,
-		Leaving:        current.Leaving,
-		Acceptors:      current.Acceptors,
-		Rejectors:      current.Rejectors,
-		FinalGroup:     finalGroup,
+		BeaconID:    current.BeaconID,
+		State:       uint32(current.State),
+		Epoch:       current.Epoch,
+		Threshold:   current.Threshold,
+		Timeout:     timestamppb.New(current.Timeout),
+		GenesisTime: timestamppb.New(current.GenesisTime),
+		GenesisSeed: current.GenesisSeed,
+		Leader:      current.Leader,
+		Remaining:   current.Remaining,
+		Joining:     current.Joining,
+		Leaving:     current.Leaving,
+		Acceptors:   current.Acceptors,
+		Rejectors:   current.Rejectors,
+		FinalGroup:  finalGroup,
 	}
 
 	if finished == nil {
@@ -490,27 +486,26 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 
 	return &drand.DKGStatusResponse{
 		Complete: &drand.DKGEntry{
-			BeaconID:       finished.BeaconID,
-			State:          uint32(finished.State),
-			Epoch:          finished.Epoch,
-			Threshold:      finished.Threshold,
-			Timeout:        timestamppb.New(finished.Timeout),
-			GenesisTime:    timestamppb.New(finished.GenesisTime),
-			GenesisSeed:    finished.GenesisSeed,
-			TransitionTime: timestamppb.New(finished.TransitionTime),
-			Leader:         finished.Leader,
-			Remaining:      finished.Remaining,
-			Joining:        finished.Joining,
-			Leaving:        finished.Leaving,
-			Acceptors:      finished.Acceptors,
-			Rejectors:      finished.Rejectors,
-			FinalGroup:     finishedFinalGroup,
+			BeaconID:    finished.BeaconID,
+			State:       uint32(finished.State),
+			Epoch:       finished.Epoch,
+			Threshold:   finished.Threshold,
+			Timeout:     timestamppb.New(finished.Timeout),
+			GenesisTime: timestamppb.New(finished.GenesisTime),
+			GenesisSeed: finished.GenesisSeed,
+			Leader:      finished.Leader,
+			Remaining:   finished.Remaining,
+			Joining:     finished.Joining,
+			Leaving:     finished.Leaving,
+			Acceptors:   finished.Acceptors,
+			Rejectors:   finished.Rejectors,
+			FinalGroup:  finishedFinalGroup,
 		},
 		Current: &currentEntry,
 	}, nil
 }
 
-// identityForBeacon grabs the key.Pair from a BeaconProcess and marshals it to a drand.Participant
+// identityForBeacon grabs the key.Pair from active BeaconProcess and marshals it to active drand.Participant
 func (d *Process) identityForBeacon(beaconID string) (*drand.Participant, error) {
 	identity, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {

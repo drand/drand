@@ -59,7 +59,6 @@ var dkgCommand = &cli.Command{
 				catchupPeriodFlag,
 				proposalFlag,
 				dkgTimeoutFlag,
-				transitionTimeFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
@@ -172,17 +171,13 @@ var genesisTimeFlag = &cli.StringFlag{
 	Usage: "The duration from now until the network should start creating randomness",
 }
 
-var transitionTimeFlag = &cli.StringFlag{
-	Name:  "transition-delay",
-	Usage: "The duration from now until which keys generated during the next DKG should be used. It will be modified to the nearest round.",
-}
-
 var dkgTimeoutFlag = &cli.StringFlag{
 	Name:  "timeout",
 	Usage: "The duration from now in which DKG participants should abort the DKG if it has not completed.",
 	Value: "24h",
 }
 
+//nolint:dupl//no it's not??
 func dkgInit(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 	client, err := net.NewDKGControlClient(l, controlPort)
@@ -212,6 +207,7 @@ func dkgInit(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
+//nolint:dupl//no it's not??
 func dkgReshare(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 	client, err := net.NewDKGControlClient(l, controlPort)
@@ -221,7 +217,7 @@ func dkgReshare(c *cli.Context, l log.Logger) error {
 
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 
-	proposal, err := parseProposal(c, l)
+	proposal, err := parseProposal(c)
 	if err != nil {
 		return err
 	}
@@ -300,8 +296,7 @@ func validateInitialProposal(proposalFile *ProposalFile) error {
 	return nil
 }
 
-func parseProposal(c *cli.Context, l log.Logger) (*drand.ProposalOptions, error) {
-	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
+func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 	bannedFlags := []*cli.StringFlag{periodFlag, schemeFlag}
 	for _, flag := range bannedFlags {
 		if c.IsSet(flag.Name) {
@@ -335,38 +330,8 @@ func parseProposal(c *cli.Context, l log.Logger) (*drand.ProposalOptions, error)
 		timeout = time.Now().Add(core.DefaultDKGTimeout)
 	}
 
-	// figure out the round closest to the transition duration provided
-	var transitionTime time.Time
-	if c.IsSet(transitionTimeFlag.Name) {
-		transitionTime = time.Now().Add(c.Duration(transitionTimeFlag.Name))
-	} else {
-		transitionTime = time.Now().Add(1 * time.Minute)
-	}
-
-	// first we get the chainInfo for the beacon
-	var ctrlPort string
-	if c.IsSet(controlFlag.Name) {
-		ctrlPort = c.String(controlFlag.Name)
-	} else {
-		ctrlPort = core.DefaultControlPort
-	}
-
-	ctrlClient, err := net.NewControlClient(l, ctrlPort)
-	if err != nil {
-		return nil, err
-	}
-	info, err := ctrlClient.ChainInfo(beaconID)
-	if err != nil {
-		return nil, err
-	}
-
-	// then we use it to work out the real transition time
-	transitionRound := common.CurrentRound(transitionTime.Unix(), time.Duration(info.Period)*time.Second, info.GenesisTime)
-	actualTransitionTime := common.TimeOfRound(time.Duration(info.Period)*time.Second, info.GenesisTime, transitionRound)
-
 	return &drand.ProposalOptions{
 		Timeout:              timestamppb.New(timeout),
-		TransitionTime:       timestamppb.New(time.Unix(actualTransitionTime, 0)),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
 		Joining:              proposalFile.Joining,
@@ -535,14 +500,13 @@ func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 
 	_, err := fmt.Fprintf(
 		c.App.Writer,
-		"BeaconID:%s,State:%s,Epoch:%d,Threshold:%d,Timeout:%s,GenesisTime:%s,TransitionTime:%s,GenesisSeed:%s,Leader:%s",
+		"BeaconID:%s,State:%s,Epoch:%d,Threshold:%d,Timeout:%s,GenesisTime:%s,GenesisSeed:%s,Leader:%s",
 		entry.BeaconID,
 		dkg.Status(entry.State).String(),
 		entry.Epoch,
 		entry.Threshold,
 		entry.Timeout.AsTime().String(),
 		entry.GenesisTime.AsTime().String(),
-		entry.TransitionTime.AsTime().String(),
 		hex.EncodeToString(entry.GenesisSeed),
 		entry.Leader.Address,
 	)
@@ -552,21 +516,20 @@ func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 }
 
 type printModel struct {
-	Status         string
-	BeaconID       string
-	Epoch          string
-	Threshold      string
-	Timeout        string
-	GenesisTime    string
-	TransitionTime string
-	GenesisSeed    string
-	Leader         string
-	Joining        string
-	Remaining      string
-	Leaving        string
-	Accepted       string
-	Rejected       string
-	FinalGroup     string
+	Status      string
+	BeaconID    string
+	Epoch       string
+	Threshold   string
+	Timeout     string
+	GenesisTime string
+	GenesisSeed string
+	Leader      string
+	Joining     string
+	Remaining   string
+	Leaving     string
+	Accepted    string
+	Rejected    string
+	FinalGroup  string
 }
 
 func convert(entry *drand.DKGEntry) printModel {
@@ -605,21 +568,20 @@ func convert(entry *drand.DKGEntry) printModel {
 	}
 
 	return printModel{
-		Status:         dkg.Status(entry.State).String(),
-		BeaconID:       entry.BeaconID,
-		Epoch:          strconv.Itoa(int(entry.Epoch)),
-		Threshold:      strconv.Itoa(int(entry.Threshold)),
-		Timeout:        entry.Timeout.AsTime().Format(time.RFC3339),
-		GenesisTime:    entry.GenesisTime.AsTime().Format(time.RFC3339),
-		TransitionTime: entry.TransitionTime.AsTime().Format(time.RFC3339),
-		GenesisSeed:    hex.EncodeToString(entry.GenesisSeed),
-		Leader:         entry.Leader.Address,
-		Joining:        formatAddresses(entry.Joining),
-		Remaining:      formatAddresses(entry.Remaining),
-		Leaving:        formatAddresses(entry.Leaving),
-		Accepted:       formatAddresses(entry.Acceptors),
-		Rejected:       formatAddresses(entry.Rejectors),
-		FinalGroup:     formatFinalGroup(entry.FinalGroup),
+		Status:      dkg.Status(entry.State).String(),
+		BeaconID:    entry.BeaconID,
+		Epoch:       strconv.Itoa(int(entry.Epoch)),
+		Threshold:   strconv.Itoa(int(entry.Threshold)),
+		Timeout:     entry.Timeout.AsTime().Format(time.RFC3339),
+		GenesisTime: entry.GenesisTime.AsTime().Format(time.RFC3339),
+		GenesisSeed: hex.EncodeToString(entry.GenesisSeed),
+		Leader:      entry.Leader.Address,
+		Joining:     formatAddresses(entry.Joining),
+		Remaining:   formatAddresses(entry.Remaining),
+		Leaving:     formatAddresses(entry.Leaving),
+		Accepted:    formatAddresses(entry.Acceptors),
+		Rejected:    formatAddresses(entry.Rejectors),
+		FinalGroup:  formatFinalGroup(entry.FinalGroup),
 	}
 }
 
@@ -642,7 +604,6 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 	tw.AppendRow(table.Row{"Threshold", currentModel.Threshold, finishedModel.Threshold})
 	tw.AppendRow(table.Row{"Timeout", currentModel.Timeout, finishedModel.Timeout})
 	tw.AppendRow(table.Row{"GenesisTime", currentModel.GenesisTime, finishedModel.GenesisTime})
-	tw.AppendRow(table.Row{"TransitionTime", currentModel.TransitionTime, finishedModel.TransitionTime})
 	tw.AppendRow(table.Row{"GenesisSeed", currentModel.GenesisSeed, finishedModel.GenesisSeed})
 	tw.AppendRow(table.Row{"Leader", currentModel.Leader, finishedModel.Leader})
 	tw.AppendRow(table.Row{"Joining", currentModel.Joining, finishedModel.Joining})
