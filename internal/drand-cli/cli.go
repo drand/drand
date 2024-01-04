@@ -129,7 +129,7 @@ var catchupPeriodFlag = &cli.StringFlag{
 
 var thresholdFlag = &cli.IntFlag{
 	Name:    "threshold",
-	Usage:   "threshold to use for the DKG",
+	Usage:   "threshold to use for the Receive",
 	EnvVars: []string{"DRAND_THRESHOLD"},
 }
 
@@ -149,7 +149,7 @@ var oldGroupFlag = &cli.StringFlag{
 	Name: "from",
 	Usage: "Old group.toml path to specify when a new node wishes to participate " +
 		"in a resharing protocol. This flag is optional in case a node is already" +
-		"included in the current DKG.",
+		"included in the current Receive.",
 	EnvVars: []string{"DRAND_FROM"},
 }
 

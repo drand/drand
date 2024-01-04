@@ -19,21 +19,20 @@ func TestDKGPrintModelConversion(t *testing.T) {
 	genesisSeed, err := hex.DecodeString("deadbeef")
 	require.NoError(t, err)
 	entry := drand.DKGEntry{
-		BeaconID:       "banana",
-		State:          uint32(dkg.Complete),
-		Epoch:          3,
-		Threshold:      2,
-		Timeout:        timestamppb.New(now),
-		GenesisTime:    timestamppb.New(now.Add(1 * time.Minute)),
-		TransitionTime: timestamppb.New(now.Add(2 * time.Minute)),
-		GenesisSeed:    genesisSeed,
-		Leader:         NewParticipant("alice"),
-		Remaining:      []*drand.Participant{NewParticipant("alice"), NewParticipant("bob"), NewParticipant("carol")},
-		Joining:        []*drand.Participant{NewParticipant("david")},
-		Leaving:        nil,
-		Acceptors:      nil,
-		Rejectors:      nil,
-		FinalGroup:     []string{"alice", "bob", "carol"},
+		BeaconID:    "banana",
+		State:       uint32(dkg.Complete),
+		Epoch:       3,
+		Threshold:   2,
+		Timeout:     timestamppb.New(now),
+		GenesisTime: timestamppb.New(now.Add(1 * time.Minute)),
+		GenesisSeed: genesisSeed,
+		Leader:      NewParticipant("alice"),
+		Remaining:   []*drand.Participant{NewParticipant("alice"), NewParticipant("bob"), NewParticipant("carol")},
+		Joining:     []*drand.Participant{NewParticipant("david")},
+		Leaving:     nil,
+		Acceptors:   nil,
+		Rejectors:   nil,
+		FinalGroup:  []string{"alice", "bob", "carol"},
 	}
 	printModel := convert(&entry)
 
@@ -43,7 +42,6 @@ func TestDKGPrintModelConversion(t *testing.T) {
 	require.Equal(t, "2", printModel.Threshold)
 	require.Equal(t, "2023-01-01T01:01:02Z", printModel.Timeout)
 	require.Equal(t, "2023-01-01T01:02:02Z", printModel.GenesisTime)
-	require.Equal(t, "2023-01-01T01:03:02Z", printModel.TransitionTime)
 	require.Equal(t, "deadbeef", printModel.GenesisSeed)
 	require.Equal(t, "alice", printModel.Leader)
 	require.Equal(t, "[\n\talice,\n\tbob,\n\tcarol,\n]", printModel.Remaining)

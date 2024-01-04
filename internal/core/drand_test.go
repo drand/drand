@@ -921,7 +921,7 @@ func TestDrandFollowChain(t *testing.T) {
 		for goon := true; goon; {
 			select {
 			case p, ok := <-progress:
-				t.Logf(" \t\t --> Received progress: %d / %d \n", p.Current, p.Target)
+				t.Logf(" \t\t --> DKG progress: %d / %d \n", p.Current, p.Target)
 				if ok && p.Current == exp {
 					t.Logf("\t\t -->Successful beacon rcv. Round: %d.\n", exp)
 					goon = false
@@ -1295,7 +1295,6 @@ func TestPacketWithoutMetadata(t *testing.T) {
 			Threshold:            uint32(scenario.thr),
 			Timeout:              timestamppb.New(scenario.clock.Now().Add(1 * time.Minute)),
 			CatchupPeriodSeconds: 6,
-			TransitionTime:       timestamppb.New(scenario.clock.Now().Add(10 * time.Second)),
 		}}, Metadata: nil},
 	)
 
