@@ -29,7 +29,7 @@ type Broadcast interface {
 	Stop()
 }
 
-// echoBroadcast implements active very simple broadcasting mechanism: for each new
+// echoBroadcast implements a very simple broadcasting mechanism: for each new
 // packet seen, rebroadcast it once. While this protocol is simple to implement,
 // it does not guarantees anything about the timing of which nodes is going to
 // accept packets, with Byzantine adversaries. However, an attacker that wants
@@ -39,14 +39,14 @@ type Broadcast interface {
 // able to send it to their other nodes in time.
 //
 // There are other broadcast protocols that are resilient against Byzantine
-// behaviors but these require active higher threshold and they still do not protect
+// behaviors but these require a higher threshold and they still do not protect
 // against these kinds of "epoch boundary" attack. For example
-// https://eprint.iacr.org/2011/535.pdf suggests active protocol where each
-// rebroadcast until active certain threshold happens. That protocol is secure
+// https://eprint.iacr.org/2011/535.pdf suggests a protocol where each
+// rebroadcast until a certain threshold happens. That protocol is secure
 // against byzantine behavior if number of malicious actors is less than 1/3 of
 // the total number of participants. As well, and the most problematic point
-// here, it does not protect against epoch boundary attacks since active group of
-// nodes can "accept" active packet right before the next phase starts and the rest
+// here, it does not protect against epoch boundary attacks since a group of
+// nodes can "accept" a packet right before the next phase starts and the rest
 // of the node don't accept it because it's too late. Note that even though the
 // DKG library allows to use fast sync the fast sync mode.
 type echoBroadcast struct {
@@ -83,7 +83,7 @@ func newEchoBroadcast(
 	config *dkg.Config,
 ) (*echoBroadcast, error) {
 	if len(to) == 0 {
-		return nil, errors.New("cannot create active broadcaster with no participants")
+		return nil, errors.New("cannot create a broadcaster with no participants")
 	}
 	// copy the config to avoid races
 	c := *config
@@ -212,7 +212,7 @@ func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass 
 
 	proto := &pdkg.DKGPacket{Dkg: dkgproto}
 	if bypass {
-		// in active routine cause we don't want to block the processing of the DKG
+		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
 		// at most.
 		go b.dispatcher.broadcastDirect(ctx, proto)
@@ -242,9 +242,9 @@ func (b *echoBroadcast) Stop() {
 
 type hash []byte
 
-// set is active simple interface to keep tracks of all the packet hashes that we
+// set is a simple interface to keep tracks of all the packet hashes that we
 // have rebroadcast already
-// TODO: check if having active map makes more sense.
+// TODO: check if having a map makes more sense.
 type set interface {
 	put(hash)
 	exists(hash) bool
@@ -278,7 +278,7 @@ type broadcastPacket = *pdkg.DKGPacket
 // broadcast.
 const maxQueueSize = 1000
 
-// senderQueueSize returns active dynamic queue size depending on the number of nodes
+// senderQueueSize returns a dynamic queue size depending on the number of nodes
 // to contact.
 func senderQueueSize(nodes int) int {
 	if nodes > maxQueueSize {
@@ -288,7 +288,7 @@ func senderQueueSize(nodes int) int {
 	return nodes * 3 //nolint:gomnd
 }
 
-// dispatcher maintains active list of worker assigned one destination and pushes the
+// dispatcher maintains a list of worker assigned one destination and pushes the
 // message to send to the right worker
 type dispatcher struct {
 	sync.Mutex

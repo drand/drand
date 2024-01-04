@@ -158,15 +158,15 @@ func (s *boltStore) Close() error {
 
 func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
 	if beaconID == "" {
-		return errors.New("you must pass active beacon ID")
+		return errors.New("you must pass a beacon ID")
 	}
 	if groupFile == nil {
-		return errors.New("you cannot migrate without passing active previous group file")
+		return errors.New("you cannot migrate without passing a previous group file")
 	}
 	if share == nil {
-		return errors.New("you cannot migrate without active previous distributed key share")
+		return errors.New("you cannot migrate without a previous distributed key share")
 	}
-	// we use active separate lock here to avoid reentrancy when calling `.SaveFinished()`
+	// we use a separate lock here to avoid reentrancy when calling `.SaveFinished()`
 	s.migrationLock.Lock()
 	defer s.migrationLock.Unlock()
 
@@ -175,7 +175,7 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		return err
 	}
 
-	// if there has previously been active DKG in the database, abort!
+	// if there has previously been a DKG in the database, abort!
 	if current != nil {
 		return errors.New("cannot migrate from groupfile if DKG state exists for beacon")
 	}
@@ -184,7 +184,7 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	participants := make([]*pdkg.Participant, len(groupFile.Nodes))
 
 	if len(groupFile.Nodes) == 0 {
-		return errors.New("you cannot migrate from active group file that doesn't contain node info")
+		return errors.New("you cannot migrate from a group file that doesn't contain node info")
 	}
 	for i, node := range groupFile.Nodes {
 		pk, err := node.Key.MarshalBinary()

@@ -60,7 +60,7 @@ func (i *Identity) Hash() []byte {
 // correct or not
 func (i *Identity) ValidSignature() error {
 	msg := []byte(i.Scheme.Name)
-	// we prepend the scheme name to avoid scheme confusion during Receive
+	// we prepend the scheme name to avoid scheme confusion during DKG
 	msg = append(msg, i.Hash()...)
 	return i.Scheme.AuthScheme.Verify(i.Key, msg, i.Signature)
 }
@@ -79,7 +79,7 @@ func (i *Identity) Equal(i2 *Identity) bool {
 // SelfSign signs the public key with the key pair
 func (p *Pair) SelfSign() error {
 	msg := []byte(p.Public.Scheme.Name)
-	// we prepend the scheme name to avoid scheme confusion during Receive
+	// we prepend the scheme name to avoid scheme confusion during DKG
 	msg = append(msg, p.Public.Hash()...)
 	signature, err := p.Public.Scheme.AuthScheme.Sign(p.Key, msg)
 	if err != nil {
@@ -283,7 +283,7 @@ func (i *Identity) ToProto() *proto.Identity {
 }
 
 // Share represents the private information that a node holds after a successful
-// Receive. This information MUST stay private !
+// DKG. This information MUST stay private !
 type Share struct {
 	dkg.DistKeyShare
 	Scheme *crypto.Scheme
@@ -366,7 +366,7 @@ type ShareTOML struct {
 	SchemeName  string
 }
 
-// DistPublic represents the distributed public key generated during a Receive. This
+// DistPublic represents the distributed public key generated during a DKG. This
 // is the information that can be safely exported to end users verifying a
 // drand signature. It is the list of all commitments of the coefficients of the
 // private distributed polynomial.

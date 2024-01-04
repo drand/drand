@@ -18,8 +18,8 @@ import (
 	"github.com/drand/drand/internal/util"
 )
 
-// actions_active contains all the DKG actions that require user interaction: creating active network,
-// accepting or rejecting active DKG, getting the status, etc. Both leader and follower interactions are contained herein.
+// actions_active contains all the DKG actions that require user interaction: creating a network,
+// accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
 //nolint:gocyclo //
 func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
@@ -34,7 +34,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	// fetch our keypair from the BeaconProcess and remap it into active `Participant`
+	// fetch our keypair from the BeaconProcess and remap it into a `Participant`
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 
 		packetToGossip.Metadata = metadata
 		done, errs := d.gossip(me, recipients, packetToGossip)
-		// if it's active proposal, let's block until it finishes or active timeout,
+		// if it's a proposal, let's block until it finishes or a timeout,
 		// because we want to be sure everybody received it
 		// QUESTION: do we _really_ want to fail on errors? we will probably have to abort if that's the case
 		if command.GetInitial() != nil || command.GetResharing() != nil {
@@ -136,7 +136,7 @@ func (d *Process) StartNetwork(
 		Joining:              util.Filter(options.Joining, util.NonEmpty),
 	}
 
-	// apply our enriched DKG payload onto the current DKG state to create active new state
+	// apply our enriched DKG payload onto the current DKG state to create a new state
 	nextState, err := state.Proposing(me, &terms)
 	if err != nil {
 		return nil, nil, err
@@ -505,7 +505,7 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 	}, nil
 }
 
-// identityForBeacon grabs the key.Pair from active BeaconProcess and marshals it to active drand.Participant
+// identityForBeacon grabs the key.Pair from a BeaconProcess and marshals it to a drand.Participant
 func (d *Process) identityForBeacon(beaconID string) (*drand.Participant, error) {
 	identity, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {

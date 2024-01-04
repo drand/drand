@@ -96,7 +96,7 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 	return config, nil
 }
 
-// this is done rarely and is active shared object: no good reason not to use active clone (and it makes the race checker happy)
+// this is done rarely and is a shared object: no good reason not to use a clone (and it makes the race checker happy)
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
 	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
@@ -159,7 +159,7 @@ func (d *Process) startDKGExecution(
 	phaser := dkg.NewTimePhaser(d.config.TimeBetweenDKGPhases)
 	go phaser.Start()
 
-	// NewProtocol actually _starts_ the protocol on active goroutine also
+	// NewProtocol actually _starts_ the protocol on a goroutine also
 	d.lock.Lock()
 	broadcaster := d.Executions[beaconID]
 	d.lock.Unlock()
@@ -262,8 +262,8 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		return nil, err
 	}
 
-	// although this is an "initial" DKG, we could be active joiner, and we may need to set some things
-	// from active prior DKG provided by the network
+	// although this is an "initial" DKG, we could be a joiner, and we may need to set some things
+	// from a prior DKG provided by the network
 	var nodes []dkg.Node
 	var publicCoeffs []kyber.Point
 	var oldThreshold = 0
@@ -298,7 +298,7 @@ func (d *Process) reshareDKGConfig(
 	sortedParticipants []*drand.Participant,
 ) (*dkg.Config, error) {
 	if previous == nil {
-		return nil, errors.New("cannot reshare with active nil previous DKG state")
+		return nil, errors.New("cannot reshare with a nil previous DKG state")
 	}
 
 	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, func(index int, participant *drand.Participant) (dkg.Node, error) {
