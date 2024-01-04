@@ -211,7 +211,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "if current status is not Left, active proposed epoch of 1 higher than the previous epoch succeeds",
+			name: "if current status is not Left, a proposed epoch of 1 higher than the previous epoch succeeds",
 			state: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Complete, alice)
 				details.Epoch = 2
@@ -223,7 +223,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "if current status is not Left, active proposed epoch of > 1 higher returns an error",
+			name: "if current status is not Left, a proposed epoch of > 1 higher returns an error",
 			state: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Complete, alice)
 				return details
@@ -258,13 +258,13 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrInvalidEpoch,
 		},
 		{
-			name:     "leaving out an existing node in active proposal returns an error",
+			name:     "leaving out an existing node in a proposal returns an error",
 			state:    NewCompleteDKGEntry(t, beaconID, Complete, alice, bob),
 			terms:    NewValidProposal(beaconID, 2, alice),
 			expected: ErrMissingNodesInProposal,
 		},
 		{
-			name:     "proposing active remainer who doesn't exist in the current epoch returns an error",
+			name:     "proposing a remainer who doesn't exist in the current epoch returns an error",
 			state:    NewCompleteDKGEntry(t, beaconID, Complete, alice),
 			terms:    NewValidProposal(beaconID, 2, alice, bob),
 			expected: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
@@ -550,7 +550,7 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
-			name: "fresh state can join with active valid proposal",
+			name: "fresh state can join with a valid proposal",
 			startingState: func() *DBState {
 				s, err := NewFreshState(beaconID).Proposed(bob, NewInitialProposal(beaconID, alice, bob), &drand.GossipMetadata{Address: alice.Address})
 				if err != nil {
@@ -615,7 +615,7 @@ func TestProposingDKGFromFresh(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
-			name:          "Proposing active valid DKG changes state to Proposing",
+			name:          "Proposing a valid DKG changes state to Proposing",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewInitialProposal(beaconID, alice))
@@ -653,7 +653,7 @@ func TestProposingDKGFromFresh(t *testing.T) {
 			expectedError:  ErrInvalidEpoch,
 		},
 		{
-			name:          "Proposing active DKG as non-alice returns an error",
+			name:          "Proposing a DKG as non-alice returns an error",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				someRandomPerson := NewParticipant("somebody-that-isnt-me.com")
@@ -664,7 +664,7 @@ func TestProposingDKGFromFresh(t *testing.T) {
 			expectedError:  ErrCannotProposeAsNonLeader,
 		},
 		{
-			name:          "Proposing active DKG with epoch > 1 when fresh state returns an error",
+			name:          "Proposing a DKG with epoch > 1 when fresh state returns an error",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -682,7 +682,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
-			name:          "Proposing active valid DKG from Complete changes state to Proposing",
+			name:          "Proposing a valid DKG from Complete changes state to Proposing",
 			startingState: NewCompleteDKGEntry(t, beaconID, Complete, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -710,7 +710,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Proposing active valid DKG from Aborted changes state to Proposing",
+			name:          "Proposing a valid DKG from Aborted changes state to Proposing",
 			startingState: NewCompleteDKGEntry(t, beaconID, Aborted, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -738,7 +738,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Proposing active valid DKG after Timeout changes state to Proposing",
+			name:          "Proposing a valid DKG after Timeout changes state to Proposing",
 			startingState: NewCompleteDKGEntry(t, beaconID, TimedOut, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -766,7 +766,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "cannot propose active DKG when already joined",
+			name:          "cannot propose a DKG when already joined",
 			startingState: NewCompleteDKGEntry(t, beaconID, Joined, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -774,7 +774,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Joined, Proposing),
 		},
 		{
-			name:          "proposing active DKG when leaving returns error",
+			name:          "proposing a DKG when leaving returns error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Left, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -782,7 +782,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Left, Proposing),
 		},
 		{
-			name:          "proposing active DKG when already proposing returns an error",
+			name:          "proposing a DKG when already proposing returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -790,7 +790,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Proposing, Proposing),
 		},
 		{
-			name:          "proposing active DKG when one has already been proposed returns an error",
+			name:          "proposing a DKG when one has already been proposed returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposed, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -799,7 +799,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Proposed, Proposing),
 		},
 		{
-			name:          "proposing active DKG during execution returns an error",
+			name:          "proposing a DKG during execution returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -807,7 +807,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Executing, Proposing),
 		},
 		{
-			name:          "proposing active DKG after acceptance returns an error",
+			name:          "proposing a DKG after acceptance returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Accepted, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -815,7 +815,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedError: InvalidStateChange(Accepted, Proposing),
 		},
 		{
-			name:          "proposing active DKG after rejection returns an error",
+			name:          "proposing a DKG after rejection returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Rejected, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice))
@@ -833,7 +833,7 @@ func TestProposedDKG(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
-			name:          "Being proposed active valid DKG from Complete changes state to Proposed",
+			name:          "Being proposed a valid DKG from Complete changes state to Proposed",
 			startingState: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -864,7 +864,7 @@ func TestProposedDKG(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Being proposed active valid DKG with epoch 1 from Fresh state changes state to Proposed",
+			name:          "Being proposed a valid DKG with epoch 1 from Fresh state changes state to Proposed",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -895,7 +895,7 @@ func TestProposedDKG(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Being proposed active valid DKG but without me included in some way returns an error",
+			name:          "Being proposed a valid DKG but without me included in some way returns an error",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -906,7 +906,7 @@ func TestProposedDKG(t *testing.T) {
 			expectedError: ErrSelfMissingFromProposal,
 		},
 		{
-			name:          "Being proposed active valid DKG with epoch > 1 from Fresh state changes state to Proposed",
+			name:          "Being proposed a valid DKG with epoch > 1 from Fresh state changes state to Proposed",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -937,7 +937,7 @@ func TestProposedDKG(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "Being proposed active valid DKG from state Executing returns an error",
+			name:          "Being proposed a valid DKG from state Executing returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -948,7 +948,7 @@ func TestProposedDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Executing, Proposed),
 		},
 		{
-			name:          "Being proposed active DKG by somebody who isn't the alice returns an error",
+			name:          "Being proposed a DKG by somebody who isn't the alice returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Aborted, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				me := bob
@@ -988,7 +988,7 @@ func TestAcceptingDKG(t *testing.T) {
 			expectedError:  nil,
 		},
 		{
-			name:          "cannot accept active fresh proposal",
+			name:          "cannot accept a fresh proposal",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Accepted(alice)
@@ -1004,7 +1004,7 @@ func TestAcceptingDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Proposing, Accepted),
 		},
 		{
-			name:          "cannot accept active proposal i've already rejected",
+			name:          "cannot accept a proposal i've already rejected",
 			startingState: NewCompleteDKGEntry(t, beaconID, Rejected, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Accepted(alice)
@@ -1012,7 +1012,7 @@ func TestAcceptingDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Rejected, Accepted),
 		},
 		{
-			name:          "cannot accept active proposal that has already timed out",
+			name:          "cannot accept a proposal that has already timed out",
 			startingState: PastTimeout(NewCompleteDKGEntry(t, beaconID, Proposed, alice)),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Accepted(alice)
@@ -1020,7 +1020,7 @@ func TestAcceptingDKG(t *testing.T) {
 			expectedError: ErrTimeoutReached,
 		},
 		{
-			name: "cannot accept active proposal where I am leaving",
+			name: "cannot accept a proposal where I am leaving",
 			startingState: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				details.Leaving = []*drand.Participant{alice}
@@ -1032,7 +1032,7 @@ func TestAcceptingDKG(t *testing.T) {
 			expectedError: ErrCannotAcceptProposalWhereLeaving,
 		},
 		{
-			name: "cannot accept active proposal where I am joining",
+			name: "cannot accept a proposal where I am joining",
 			startingState: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				details.Joining = []*drand.Participant{alice}
@@ -1063,7 +1063,7 @@ func TestRejectingDKG(t *testing.T) {
 			expectedError:  nil,
 		},
 		{
-			name:          "cannot reject active fresh proposal",
+			name:          "cannot reject a fresh proposal",
 			startingState: NewFreshState(beaconID),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Rejected(alice)
@@ -1079,7 +1079,7 @@ func TestRejectingDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Proposing, Rejected),
 		},
 		{
-			name:          "cannot rejected active proposal i've already accepted",
+			name:          "cannot rejected a proposal i've already accepted",
 			startingState: NewCompleteDKGEntry(t, beaconID, Accepted, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Rejected(alice)
@@ -1087,7 +1087,7 @@ func TestRejectingDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Accepted, Rejected),
 		},
 		{
-			name:          "cannot reject active proposal that has already timed out",
+			name:          "cannot reject a proposal that has already timed out",
 			startingState: PastTimeout(NewCompleteDKGEntry(t, beaconID, Proposed, alice)),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Rejected(alice)
@@ -1095,7 +1095,7 @@ func TestRejectingDKG(t *testing.T) {
 			expectedError: ErrTimeoutReached,
 		},
 		{
-			name: "cannot reject active proposal where I am leaving",
+			name: "cannot reject a proposal where I am leaving",
 			startingState: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				details.Leaving = []*drand.Participant{alice}
@@ -1107,7 +1107,7 @@ func TestRejectingDKG(t *testing.T) {
 			expectedError: ErrCannotRejectProposalWhereLeaving,
 		},
 		{
-			name: "cannot reject active proposal where I am joining",
+			name: "cannot reject a proposal where I am joining",
 			startingState: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				details.Joining = []*drand.Participant{alice}
@@ -1129,7 +1129,7 @@ func TestLeftDKG(t *testing.T) {
 
 	tests := []stateChangeTableTest{
 		{
-			name: "can leave valid proposal that contains me as active leaver",
+			name: "can leave valid proposal that contains me as a leaver",
 			startingState: func() *DBState {
 				details := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				details.Leaving = []*drand.Participant{alice}
@@ -1163,7 +1163,7 @@ func TestLeftDKG(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "trying to leave if not active leaver returns an error",
+			name:          "trying to leave if not a leaver returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Left(bob)
@@ -1213,7 +1213,7 @@ func TestExecutingDKG(t *testing.T) {
 			expectedError:  nil,
 		},
 		{
-			name:          "executing active valid proposal that I have rejected returns an error",
+			name:          "executing a valid proposal that I have rejected returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Rejected, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Executing(alice, &drand.GossipMetadata{Address: alice.Address})
@@ -1221,7 +1221,7 @@ func TestExecutingDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Rejected, Executing),
 		},
 		{
-			name:          "executing active proposal after time out returns an error",
+			name:          "executing a proposal after time out returns an error",
 			startingState: PastTimeout(NewCompleteDKGEntry(t, beaconID, Accepted, alice, bob)),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Executing(alice, &drand.GossipMetadata{Address: alice.Address})
@@ -1229,7 +1229,7 @@ func TestExecutingDKG(t *testing.T) {
 			expectedError: ErrTimeoutReached,
 		},
 		{
-			name:          "executing active valid proposal that I am not joining or remaining in returns an error (but shouldn't have been possible anyway)",
+			name:          "executing a valid proposal that I am not joining or remaining in returns an error (but shouldn't have been possible anyway)",
 			startingState: NewCompleteDKGEntry(t, beaconID, Accepted, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Executing(alice, &drand.GossipMetadata{Address: bob.Address})
@@ -1237,7 +1237,7 @@ func TestExecutingDKG(t *testing.T) {
 			expectedError: ErrCannotExecuteIfNotJoinerOrRemainer,
 		},
 		{
-			name: "executing as active leaver transitions me to Left",
+			name: "executing as a leaver transitions me to Left",
 			startingState: func() *DBState {
 				state := NewCompleteDKGEntry(t, beaconID, Proposed, alice, bob)
 				state.Leaving = append(state.Leaving, bob)
@@ -1253,7 +1253,7 @@ func TestExecutingDKG(t *testing.T) {
 			}(),
 		},
 		{
-			name:          "active non-leader node attempting to execute the proposal returns an error",
+			name:          "a non-leader node attempting to execute the proposal returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Accepted, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Executing(bob, &drand.GossipMetadata{Address: bob.Address})
@@ -1273,7 +1273,7 @@ func TestCompleteDKG(t *testing.T) {
 
 	tests := []stateChangeTableTest{
 		{
-			name:          "completing active valid executing proposal succeeds",
+			name:          "completing a valid executing proposal succeeds",
 			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Complete(&finalGroup, &keyShare)
@@ -1288,7 +1288,7 @@ func TestCompleteDKG(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "completing active non-executing proposal returns an error",
+			name:          "completing a non-executing proposal returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Accepted, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Complete(&finalGroup, &keyShare)
@@ -1296,7 +1296,7 @@ func TestCompleteDKG(t *testing.T) {
 			expectedError: InvalidStateChange(Accepted, Complete),
 		},
 		{
-			name:          "completing active proposal after time out returns an error",
+			name:          "completing a proposal after time out returns an error",
 			startingState: PastTimeout(NewCompleteDKGEntry(t, beaconID, Executing, alice, bob)),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Complete(&finalGroup, &keyShare)
@@ -1314,7 +1314,7 @@ func TestReceivedAcceptance(t *testing.T) {
 
 	tests := []stateChangeTableTest{
 		{
-			name:          "receiving active valid acceptance for active proposal adds it to the list of acceptors",
+			name:          "receiving a valid acceptance for a proposal adds it to the list of acceptors",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedAcceptance(bob, &drand.GossipMetadata{Address: bob.Address})
@@ -1327,7 +1327,7 @@ func TestReceivedAcceptance(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "receiving an acceptance for active proposal who isn't the person who makes it should error",
+			name:          "receiving an acceptance for a proposal who isn't the person who makes it should error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, bob, alice, carol),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedAcceptance(alice, &drand.GossipMetadata{Address: bob.Address})
@@ -1335,7 +1335,7 @@ func TestReceivedAcceptance(t *testing.T) {
 			expectedError: ErrInvalidAcceptor,
 		},
 		{
-			name:          "receiving an acceptance from somebody who isn't active remainer returns an error",
+			name:          "receiving an acceptance from somebody who isn't a remainer returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				who := NewParticipant("who-is-this.com")
@@ -1381,7 +1381,7 @@ func TestReceivedAcceptance(t *testing.T) {
 			expectedError: ErrDuplicateAcceptance,
 		},
 		{
-			name: "if active party has rejected and they send an acceptance, they are moved into acceptance",
+			name: "if a party has rejected and they send an acceptance, they are moved into acceptance",
 			startingState: func() *DBState {
 				d := NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob)
 				d.Rejectors = []*drand.Participant{bob}
@@ -1407,7 +1407,7 @@ func TestReceivedRejection(t *testing.T) {
 	beaconID := "some-wonderful-beacon-id"
 	tests := []stateChangeTableTest{
 		{
-			name:          "receiving active valid rejection for active proposal I made adds it to the list of rejectors",
+			name:          "receiving a valid rejection for a proposal I made adds it to the list of rejectors",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedRejection(bob, &drand.GossipMetadata{Address: bob.Address})
@@ -1420,7 +1420,7 @@ func TestReceivedRejection(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "receiving active rejection from active person who didn't send it returns an error",
+			name:          "receiving a rejection from a person who didn't send it returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, bob, alice),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.ReceivedRejection(bob, &drand.GossipMetadata{Address: alice.Address})
@@ -1428,7 +1428,7 @@ func TestReceivedRejection(t *testing.T) {
 			expectedError: ErrInvalidRejector,
 		},
 		{
-			name:          "receiving active rejection from somebody who isn't active remainer returns an error",
+			name:          "receiving a rejection from somebody who isn't a remainer returns an error",
 			startingState: NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				who := NewParticipant("who-is-this.com")
@@ -1474,7 +1474,7 @@ func TestReceivedRejection(t *testing.T) {
 			expectedError: ErrDuplicateRejection,
 		},
 		{
-			name: "if active party has accepted and they send active rejection, they are moved into rejectors",
+			name: "if a party has accepted and they send a rejection, they are moved into rejectors",
 			startingState: func() *DBState {
 				d := NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob)
 				d.Acceptors = []*drand.Participant{bob}
@@ -1504,7 +1504,7 @@ func TestCompletion(t *testing.T) {
 	keyShare := key.Share{}
 	tests := []stateChangeTableTest{
 		{
-			name:          "receiving active valid share and group file succeeds",
+			name:          "receiving a valid share and group file succeeds",
 			startingState: NewCompleteDKGEntry(t, beaconID, Executing, alice, bob),
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Complete(&group, &keyShare)
@@ -1617,7 +1617,7 @@ func NewParticipant(name string) *drand.Participant {
 	}
 }
 
-// NewCompleteDKGEntry returns active full DKG state (minus some key material) for epoch 1 - consider it the result of the first DKG
+// NewCompleteDKGEntry returns a full DKG state (minus some key material) for epoch 1 - consider it the result of the first DKG
 func NewCompleteDKGEntry(t *testing.T, beaconID string, status Status, previousLeader *drand.Participant, others ...*drand.Participant) *DBState {
 	sch, _ := crypto.GetSchemeFromEnv()
 	state := DBState{

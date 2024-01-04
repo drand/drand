@@ -20,19 +20,19 @@ type Process struct {
 	config           Config
 	// this is public in order to replace it in the test code to simulate failures
 	Executions map[string]Broadcast
-	// active set of the packets that have been seen already for easy deduping
+	// a set of the packets that have been seen already for easy deduping
 	SeenPackets   map[string]bool
 	completedDKGs chan<- SharingOutput
 }
 
 type Config struct {
-	// the length of time after which this node will abort active DKG
+	// the length of time after which this node will abort a DKG
 	Timeout time.Duration
 
 	// the length of time the phaser should use when moving between DKG phases
 	TimeBetweenDKGPhases time.Duration
 
-	// the length of time active node should wait before broadcasting DKG packets in the execution phase
+	// the length of time a node should wait before broadcasting DKG packets in the execution phase
 	// to allow other nodes to set up their echo broadcast to prevent race conditions
 	KickoffGracePeriod time.Duration
 
@@ -59,23 +59,23 @@ type Store interface {
 	// GetFinished returns the last completed DKG state (i.e. completed or aborted), or nil if one has not been finished
 	GetFinished(beaconID string) (*DBState, error)
 
-	// SaveCurrent stores active DKG packet for an ongoing DKG
+	// SaveCurrent stores a DKG packet for an ongoing DKG
 	SaveCurrent(beaconID string, state *DBState) error
 
-	// SaveFinished stores active completed, successful DKG and overwrites the current packet
+	// SaveFinished stores a completed, successful DKG and overwrites the current packet
 	SaveFinished(beaconID string, state *DBState) error
 
 	// Close closes and cleans up any database handles
 	Close() error
 
-	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates active first epoch DKG state for them.
+	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 	// It will fail if DKG state already exists for the given beaconID
 	// Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 	MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error
 }
 
-// BeaconIdentifier is necessary because we need to get our identity on active per-beacon basis from the `DrandDaemon`
-// but that would introduce active circular dependency
+// BeaconIdentifier is necessary because we need to get our identity on a per-beacon basis from the `DrandDaemon`
+// but that would introduce a circular dependency
 type BeaconIdentifier interface {
 	KeypairFor(beaconID string) (*key.Pair, error)
 }
@@ -114,7 +114,7 @@ func (d *Process) Close() {
 	}
 }
 
-// Migrate takes an existing groupfile and keyshare, and creates active first epoch DKG state for them.
+// Migrate takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 // It will fail if DKG state already exists for the given beaconID
 // Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 func (d *Process) Migrate(beaconID string, groupfile *key.Group, share *key.Share) error {
