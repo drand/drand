@@ -55,7 +55,7 @@ type Scheme struct {
 	ThresholdScheme sign.ThresholdScheme
 	// AuthScheme is the signature scheme used to identify public identities
 	AuthScheme sign.Scheme
-	// DKGAuthScheme is the signature scheme used to authenticate packets during broadcast in a Receive
+	// DKGAuthScheme is the signature scheme used to authenticate packets during broadcast in a DKG
 	DKGAuthScheme sign.Scheme
 	// the hash function used by this scheme
 	IdentityHash func() hash.Hash `toml:"-"`

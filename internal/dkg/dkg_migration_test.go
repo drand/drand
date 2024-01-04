@@ -45,7 +45,7 @@ func TestEmptyBeaconIDFails(t *testing.T) {
 func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
 
-	// create active new store
+	// create a new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
@@ -80,13 +80,13 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 
 func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
-	// create active new store
+	// create a new store
 	beaconID := "banana"
 	aDifferentBeaconID := "different-beacon-id"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
 
-	// save an existing state but for active differen beacon ID
+	// save an existing state but for a different beacon ID
 	now := time.Now()
 	err = store.SaveFinished(aDifferentBeaconID, &DBState{
 		BeaconID:      aDifferentBeaconID,
@@ -115,7 +115,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 }
 
 func TestValidMigrationIsRetrievable(t *testing.T) {
-	// create active new store
+	// create a new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestValidMigrationIsRetrievable(t *testing.T) {
 }
 
 func TestInvalidMigrationIsNotRetrievable(t *testing.T) {
-	// create active new store
+	// create a new store
 	beaconID := "banana"
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)
