@@ -381,17 +381,16 @@ func TestStartWithoutGroup(t *testing.T) {
 	dStore, err := dkg2.NewDKGStore(tmpPath, nil)
 	require.NoError(t, err)
 	err = dStore.SaveFinished(beaconID, &dkg2.DBState{
-		BeaconID:       beaconID,
-		Epoch:          1,
-		State:          dkg2.Complete,
-		Threshold:      1,
-		Timeout:        time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
-		SchemeID:       sch.Name,
-		GenesisTime:    time.Unix(1669718523, 0).UTC(),
-		GenesisSeed:    []byte("deadbeef"),
-		TransitionTime: time.Unix(1669718523, 0).UTC(),
-		CatchupPeriod:  5 * time.Second,
-		BeaconPeriod:   10 * time.Second,
+		BeaconID:      beaconID,
+		Epoch:         1,
+		State:         dkg2.Complete,
+		Threshold:     1,
+		Timeout:       time.Unix(2549084715, 0).UTC(), // this will need updated in 2050 :^)
+		SchemeID:      sch.Name,
+		GenesisTime:   time.Unix(1669718523, 0).UTC(),
+		GenesisSeed:   []byte("deadbeef"),
+		CatchupPeriod: 5 * time.Second,
+		BeaconPeriod:  10 * time.Second,
 
 		Leader:    nil,
 		Remaining: nil,

@@ -66,7 +66,6 @@ func (r *DKGRunner) StartProposal(
 			Threshold:            uint32(threshold),
 			CatchupPeriodSeconds: uint32(catchupPeriod),
 			Timeout:              timestamppb.New(r.Clock.Now().Add(1 * time.Minute)),
-			TransitionTime:       timestamppb.New(transitionTime),
 			Joining:              joiners,
 			Remaining:            remainers,
 			Leaving:              leavers,
@@ -140,6 +139,7 @@ func (r *DKGRunner) Abort() error {
 
 var ErrTimeout = errors.New("DKG timed out")
 var ErrDKGFailed = errors.New("DKG failed")
+var ErrDKGAborted = errors.New("DKG aborted")
 
 func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
 	for i := 0; i < numberOfSeconds; i++ {
@@ -152,12 +152,10 @@ func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, num
 		}
 
 		switch res.Current.State {
-		case uint32(dkg.Evicted):
-			return errors.New("leader got evicted")
 		case uint32(dkg.TimedOut):
 			return ErrTimeout
 		case uint32(dkg.Aborted):
-			return errors.New("DKG aborted")
+			return ErrDKGAborted
 		case uint32(dkg.Failed):
 			return ErrDKGFailed
 		}

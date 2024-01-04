@@ -66,10 +66,9 @@ message ProposalOptions {
   google.protobuf.Timestamp timeout = 1;
   uint32 threshold = 2;
   uint32 catchup_period_seconds = 3;
-  google.protobuf.Timestamp transition_time = 4;
-  repeated Participant joining = 5;
-  repeated Participant leaving = 6;
-  repeated Participant remaining = 7;
+  repeated Participant joining = 4;
+  repeated Participant leaving = 5;
+  repeated Participant remaining = 6;
 }
 
 message AbortOptions {
@@ -98,11 +97,10 @@ message ProposalTerms {
   string schemeID = 8;
   google.protobuf.Timestamp genesis_time = 9;
   bytes genesis_seed = 10; // joiners require this as they don't have the original group file to generate it
-  google.protobuf.Timestamp transition_time = 11;
 
-  repeated Participant joining = 12;
-  repeated Participant remaining = 13;
-  repeated Participant leaving = 14;
+  repeated Participant joining = 11;
+  repeated Participant remaining = 12;
+  repeated Participant leaving = 13;
 }
 
 // this is in sync with the Identity one in common.proto
@@ -160,15 +158,14 @@ message DKGEntry {
   uint32 threshold = 4;
   google.protobuf.Timestamp timeout = 5;
   google.protobuf.Timestamp genesis_time = 6;
-  google.protobuf.Timestamp transition_time = 7;
-  bytes genesis_seed = 8;
-  Participant leader = 9;
-  repeated Participant remaining = 10;
-  repeated Participant joining = 11;
-  repeated Participant leaving = 12;
-  repeated Participant acceptors = 13;
-  repeated Participant rejectors = 14;
-  repeated string finalGroup = 15;
+  bytes genesis_seed = 7;
+  Participant leader = 8;
+  repeated Participant remaining = 9;
+  repeated Participant joining = 10;
+  repeated Participant leaving = 11;
+  repeated Participant acceptors = 12;
+  repeated Participant rejectors = 13;
+  repeated string finalGroup = 14;
 }
 
 // DKGPacket is the packet that nodes send to others nodes as part of the
