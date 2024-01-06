@@ -390,13 +390,9 @@ func (d *DBState) TimedOut() (*DBState, error) {
 	return d, nil
 }
 
-func (d *DBState) StartAbort(me *drand.Participant) (*DBState, error) {
+func (d *DBState) StartAbort() (*DBState, error) {
 	if !isValidStateChange(d.State, Aborted) {
 		return nil, InvalidStateChange(d.State, Aborted)
-	}
-
-	if d.Leader.Address != me.Address {
-		return nil, ErrOnlyLeaderCanAbort
 	}
 
 	d.State = Aborted
@@ -409,7 +405,7 @@ func (d *DBState) Aborted(metadata *drand.GossipMetadata) (*DBState, error) {
 	}
 
 	if d.Leader.Address != metadata.Address {
-		return nil, ErrOnlyLeaderCanAbort
+		return nil, ErrOnlyLeaderCanRemoteAbort
 	}
 
 	d.State = Aborted
@@ -641,7 +637,7 @@ var ErrCannotRejectProposalWhereLeaving = errors.New("you cannot reject a propos
 var ErrCannotRejectProposalWhereJoining = errors.New("you cannot reject a proposal where your node is joining (just turn your node off)")
 var ErrCannotLeaveIfNotALeaver = errors.New("you cannot execute leave if you were not included as a leaver in the proposal")
 var ErrOnlyLeaderCanTriggerExecute = errors.New("only the leader can trigger the execution")
-var ErrOnlyLeaderCanAbort = errors.New("only the leader can abort the DKG")
+var ErrOnlyLeaderCanRemoteAbort = errors.New("only the leader can remotely abort the DKG")
 var ErrCannotExecuteIfNotJoinerOrRemainer = errors.New("you cannot start execution if you are not a remainer or joiner to the DKG")
 var ErrUnknownAcceptor = errors.New("somebody unknown tried to accept the proposal")
 var ErrDuplicateAcceptance = errors.New("this participant already accepted the proposal")

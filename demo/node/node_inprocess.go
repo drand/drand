@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/internal/dkg"
 	"io"
 	"net/http"
 	"os"
@@ -39,7 +40,7 @@ type LocalNode struct {
 	pubAddr    string
 	ctrlAddr   string
 	ctrlClient *net.ControlClient
-	dkgRunner  *test.DKGRunner
+	dkgRunner  *dkg.TestRunner
 	priv       *key.Pair
 
 	dbEngineType chain.StorageType
@@ -78,7 +79,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
 		memDBSize:    cfg.MemDBSize,
-		dkgRunner:    &test.DKGRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
+		dkgRunner:    &dkg.TestRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
 	}
 
 	priv, err := key.NewInsecureKeypair(l.privAddr, l.scheme)
@@ -254,8 +255,8 @@ func (l *LocalNode) GetGroup() *key.Group {
 	return group
 }
 
-func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
-	err := l.dkgRunner.StartProposal(thr, transitionTime, catchupPeriod, joiners, remainers, leavers)
+func (l *LocalNode) StartLeaderReshare(thr int, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
+	err := l.dkgRunner.StartReshare(thr, catchupPeriod, joiners, remainers, leavers)
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return err

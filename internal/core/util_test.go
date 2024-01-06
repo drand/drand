@@ -438,14 +438,7 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 	leader := d.nodes[0]
 	followers := d.nodes[1:]
 
-	err := leader.dkgRunner.StartProposal(
-		d.thr,
-		d.clock.Now().Add(20*time.Second),
-		1,
-		[]*drand.Participant{},
-		remainers,
-		[]*drand.Participant{},
-	)
+	err := leader.dkgRunner.StartReshare(d.thr, 1, []*drand.Participant{}, remainers, []*drand.Participant{})
 	if err != nil {
 		return err
 	}
@@ -466,13 +459,13 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 
 	// advance by the grace period so all nodes kick off the DKG
 	d.AdvanceMockClock(d.t, d.nodes[0].daemon.opts.dkgKickoffGracePeriod)
-	return leader.dkgRunner.WaitForDKG(leader.daemon.log, leader.dkgRunner.BeaconID, 2, 30)
+	return leader.dkgRunner.WaitForDKG(leader.daemon.log, 2, 30)
 }
 
 // WaitForDKG waits for the DKG complete and returns the group file
 // it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
 func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint32, numberOfSeconds int) (*key.Group, error) {
-	err := node.dkgRunner.WaitForDKG(node.drand.log, d.beaconID, epoch, numberOfSeconds)
+	err := node.dkgRunner.WaitForDKG(node.drand.log, epoch, numberOfSeconds)
 	if err != nil {
 		return nil, fmt.Errorf("DrandTestScenario.WaitForDKG failed: %w", err)
 	}
@@ -550,14 +543,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 	}
 
-	err := leader.dkgRunner.StartProposal(
-		d.thr,
-		transitionTime,
-		int(d.catchupPeriod.Seconds()),
-		joiners,
-		remainers,
-		[]*drand.Participant{},
-	)
+	err := leader.dkgRunner.StartReshare(d.thr, int(d.catchupPeriod.Seconds()), joiners, remainers, []*drand.Participant{})
 	if err != nil {
 		return nil, err
 	}

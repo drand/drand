@@ -538,7 +538,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Aborted(&drand.GossipMetadata{Address: bob.Address})
 			},
-			expectedError: ErrOnlyLeaderCanAbort,
+			expectedError: ErrOnlyLeaderCanRemoteAbort,
 		},
 	}
 
