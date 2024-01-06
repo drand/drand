@@ -3,9 +3,10 @@ package migration
 import (
 	"path"
 
+	"github.com/drand/drand/internal/core"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/internal/core"
 	"github.com/drand/drand/internal/fs"
 )
 
