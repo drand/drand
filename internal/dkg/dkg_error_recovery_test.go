@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -203,6 +204,7 @@ func (m *messageBus) BroadcastDKG(
 // stubbedDKGProcess simulates errors and delegates to a real DKG process when not in an error state
 // it has pairwise pointers with the TestRunner to simplify usage - naughty, naughty
 type stubbedDKGProcess struct {
+	lock     sync.Mutex
 	delegate RealProcess
 	runner   *TestRunner
 	key      *key.Pair
@@ -254,11 +256,15 @@ func newStubbedDKGProcess(t *testing.T, name string, bus *messageBus) (*stubbedD
 }
 
 func (p *stubbedDKGProcess) Break() {
+	p.lock.Lock()
 	p.broken = true
+	p.lock.Unlock()
 }
 
 func (p *stubbedDKGProcess) Fix() {
+	p.lock.Lock()
 	p.broken = false
+	p.lock.Unlock()
 }
 
 func (p *stubbedDKGProcess) DKGStatus(
@@ -266,14 +272,20 @@ func (p *stubbedDKGProcess) DKGStatus(
 	request *drand.DKGStatusRequest,
 	_ ...grpc.CallOption,
 ) (*drand.DKGStatusResponse, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	return p.delegate.DKGStatus(ctx, request)
 }
 
 func (p *stubbedDKGProcess) Command(ctx context.Context, command *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	return p.delegate.Command(ctx, command)
 }
 
 func (p *stubbedDKGProcess) Packet(ctx context.Context, packet *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.broken {
 		return nil, errors.New("boom")
 	}
@@ -290,6 +302,8 @@ func (p *stubbedDKGProcess) BroadcastDKG(
 	packet *drand.DKGPacket,
 	_ ...grpc.CallOption,
 ) (*drand.EmptyDKGResponse, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	if p.broken {
 		return nil, errors.New("boom")
 	}
