@@ -7,6 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -57,6 +59,6 @@ func listenAddrFor(listenAddr string) (network, addr string) {
 }
 
 type DKGClient interface {
-	Packet(ctx context.Context, p Peer, packet *drand.GossipPacket, opts ...grpc.CallOption) (*drand.EmptyDKGResponse, error)
-	BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...grpc.CallOption) (*drand.EmptyDKGResponse, error)
+	Packet(ctx context.Context, p Peer, packet *pdkg.GossipPacket, opts ...grpc.CallOption) (*pdkg.EmptyDKGResponse, error)
+	BroadcastDKG(ctx context.Context, p Peer, in *pdkg.DKGPacket, opts ...grpc.CallOption) (*pdkg.EmptyDKGResponse, error)
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/drand/drand/internal/chain/beacon"
 	"github.com/drand/drand/internal/fs"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -156,7 +155,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 
 // Status responds with the actual status of drand process
 //
-
+//nolint:gocyclo
 func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	ctx, span := tracer.NewSpan(ctx, "bp.Status")
 	defer span.End()
@@ -186,28 +185,17 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 
 		if err == nil && lastBeacon != nil {
 			chainStore.IsEmpty = false
-			chainStore.LastRound = lastBeacon.GetRound()
-			chainStore.Length = lastBeacon.GetRound() + 1
+			chainStore.LastStored = lastBeacon.GetRound()
+			chainStore.ExpectedLast = common2.CurrentRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
 		}
 	}
 
 	// remote network connectivity
 	nodeList := in.GetCheckConn()
-	// in case of an empty list, we test all nodes in the group file
-	if bp.beacon != nil && bp.group != nil {
+	// in case of a remote nodelist made of only ourself, instead we test all nodes in the group file
+	if len(nodeList) == 1 && nodeList[0].Address == bp.priv.Public.Addr && bp.beacon != nil && bp.group != nil {
 		bp.log.Debugw("Empty node connectivity list, populating with group file")
 		for _, node := range bp.group.Nodes {
-			found := false
-			for _, nl := range nodeList {
-				if node.Addr == nl.Address {
-					found = true
-					break
-				}
-			}
-			if found {
-				continue
-			}
-
 			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
 		}
 	}
@@ -520,7 +508,7 @@ func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, peers []net.Pee
 
 	// we first craft our request
 	request := new(drand.ChainInfoRequest)
-	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
+	request.Metadata = &drand.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 
 	var info *public.Info
 	var err error

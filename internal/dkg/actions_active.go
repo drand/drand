@@ -8,14 +8,14 @@ import (
 
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/common"
+	drand "github.com/drand/drand/protobuf/dkg"
+	proto "github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 // actions_active contains all the DKG actions that require user interaction: creating a network,
@@ -156,7 +156,7 @@ func (d *Process) StartNetwork(
 	}, nil
 }
 
-func asIdentity(response *drand.IdentityResponse) (key.Identity, error) {
+func asIdentity(response *proto.IdentityResponse) (key.Identity, error) {
 	sch, err := crypto.GetSchemeByID(response.GetSchemeName())
 	if err != nil {
 		return key.Identity{}, fmt.Errorf("peer return key of scheme %s, which was not found", response.GetSchemeName())
@@ -200,7 +200,7 @@ func (d *Process) StartProposal(
 				continue
 			}
 			// fetch their public key via gRPC
-			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address, r.Tls), &drand.IdentityRequest{Metadata: &common.Metadata{
+			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address, r.Tls), &proto.IdentityRequest{Metadata: &proto.Metadata{
 				BeaconID:  beaconID,
 				ChainHash: nil,
 			}})

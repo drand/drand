@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common"
-	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
+	pdkg "github.com/drand/drand/protobuf/dkg"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"
@@ -500,7 +500,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 			require.NoError(t, err)
 
 			// ensure that the abort has indeed been stored on the leader node and haven't updated their epoch
-			leaderStatus, err := leaderClient.DKGStatus(context.Background(), &drand.DKGStatusRequest{
+			leaderStatus, err := leaderClient.DKGStatus(context.Background(), &pdkg.DKGStatusRequest{
 				BeaconID: beaconID,
 			})
 			require.NoError(t, err)
@@ -512,7 +512,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 			follower := dt.nodes[1]
 			followerClient, err := net.NewDKGControlClient(l, follower.drand.opts.controlPort)
 			require.NoError(t, err)
-			followerStatus, err := followerClient.DKGStatus(context.Background(), &drand.DKGStatusRequest{
+			followerStatus, err := followerClient.DKGStatus(context.Background(), &pdkg.DKGStatusRequest{
 				BeaconID: beaconID,
 			})
 			require.NoError(t, err)
@@ -1287,8 +1287,8 @@ func TestPacketWithoutMetadata(t *testing.T) {
 	_, err := scenario.RunDKG(t)
 	require.NoError(t, err)
 
-	_, err = scenario.nodes[0].daemon.Packet(context.Background(), &drand.GossipPacket{Packet: &drand.GossipPacket_Proposal{
-		Proposal: &drand.ProposalTerms{
+	_, err = scenario.nodes[0].daemon.Packet(context.Background(), &pdkg.GossipPacket{Packet: &pdkg.GossipPacket_Proposal{
+		Proposal: &pdkg.ProposalTerms{
 			BeaconID:             beaconID,
 			Epoch:                2,
 			Leader:               nil,
@@ -1310,7 +1310,7 @@ func TestDKGPacketWithoutMetadata(t *testing.T) {
 	_, err := scenario.RunDKG(t)
 	require.NoError(t, err)
 
-	_, err = scenario.nodes[0].daemon.BroadcastDKG(context.Background(), &drand.DKGPacket{
+	_, err = scenario.nodes[0].daemon.BroadcastDKG(context.Background(), &pdkg.DKGPacket{
 		Dkg: &pdkg.Packet{
 			Bundle: &pdkg.Packet_Deal{
 				Deal: &pdkg.DealBundle{
@@ -1333,7 +1333,7 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
 	sch, _ := crypto.GetSchemeFromEnv()
 	// the first slot will be nil
-	joiners := make([]*drand.Participant, len(scenario.nodes)+1)
+	joiners := make([]*pdkg.Participant, len(scenario.nodes)+1)
 	for i, node := range scenario.nodes {
 		identity := node.drand.priv.Public
 		pk, err := identity.Key.MarshalBinary()
@@ -1341,7 +1341,7 @@ func TestDKGPacketWithNilInArray(t *testing.T) {
 			t.Fatal(err)
 		}
 		// + 1 here, so the first entry is nil
-		joiners[i+1] = &drand.Participant{
+		joiners[i+1] = &pdkg.Participant{
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,

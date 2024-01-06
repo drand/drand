@@ -23,8 +23,8 @@ import (
 	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	common2 "github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 var dkgCommand = &cli.Command{
@@ -714,7 +714,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		return key.ErrInvalidKeyScheme
 	}
 
-	id, err := key.IdentityFromProto(&drand.Identity{
+	id, err := key.IdentityFromProto(&proto.Identity{
 		Signature: identityResp.Signature,
 		Address:   identityResp.Addr,
 		Key:       identityResp.PubKey,
@@ -779,7 +779,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func keyFromGroupFile(address string, groupFile *drand.GroupPacket) (*drand.Participant, error) {
+func keyFromGroupFile(address string, groupFile *proto.GroupPacket) (*drand.Participant, error) {
 	for _, node := range groupFile.Nodes {
 		if node.Public.Address != address {
 			continue
@@ -800,7 +800,7 @@ func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *cr
 		peer = net.CreatePeer(address, false)
 	}
 	client := net.NewGrpcClient(l)
-	identity, err := client.GetIdentity(context.Background(), peer, &drand.IdentityRequest{Metadata: &common2.Metadata{BeaconID: beaconID}})
+	identity, err := client.GetIdentity(context.Background(), peer, &proto.IdentityRequest{Metadata: &proto.Metadata{BeaconID: beaconID}})
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch public key for %s: %w", address, err)
 	}

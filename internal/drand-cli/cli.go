@@ -31,7 +31,6 @@ import (
 	"github.com/drand/drand/internal/core/migration"
 	"github.com/drand/drand/internal/fs"
 	"github.com/drand/drand/internal/net"
-	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -843,7 +842,7 @@ func checkIdentityAddress(lg log.Logger, addr, beaconID string, insecure bool) e
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	metadata := &common2.Metadata{BeaconID: beaconID}
+	metadata := &drand.Metadata{BeaconID: beaconID}
 	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{Metadata: metadata})
 	if err != nil {
 		return err

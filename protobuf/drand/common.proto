@@ -6,11 +6,21 @@ syntax = "proto3";
 package drand;
 
 option go_package = "github.com/drand/drand/protobuf/drand";
-/*option go_package = "drand";*/
 
-import "common/common.proto";
+message NodeVersion {
+    uint32 major = 1;
+    uint32 minor = 2;
+    uint32 patch = 3;
+    optional string prerelease = 4;
+}
 
-// TODO make doc for these
+message Metadata {
+    NodeVersion node_version = 1;
+    string beaconID = 2;
+    bytes chain_hash = 3;
+}
+
+
 message DkgStatus{
     uint32 status = 1;
 }
@@ -25,8 +35,8 @@ message BeaconStatus{
 
 message ChainStoreStatus{
     bool is_empty = 1;
-    uint64 last_round = 2;
-    uint64 length = 3;
+    uint64 last_stored = 2;
+    uint64 expected_last = 3;
 }
 
 message Address {
@@ -38,9 +48,9 @@ message Address {
 message StatusRequest {
     // the check_conn contains the list of addresses to check connectivity to,
     // i.e. calls Home() on it.
-    // If the field is absent or empty, then there is no connectivity checks.
+    // If the field is absent or empty, then all nodes in the group file are tested.
     repeated Address check_conn = 1;
-    common.Metadata metadata = 2;
+    Metadata metadata = 2;
 }
 
 
@@ -57,7 +67,7 @@ message StatusResponse {
 
 
 message Empty {
-    common.Metadata metadata = 1;
+    Metadata metadata = 1;
 }
 
 // REMINDER: This fields should be kept in sync with IdentityResponse message
@@ -90,14 +100,14 @@ message GroupPacket {
     // catchup_period in seconds
     uint32 catchup_period = 8;
     string schemeID = 9;
-    common.Metadata metadata = 10;
+    Metadata metadata = 10;
 }
 message GroupRequest {
-    common.Metadata metadata = 1;
+    Metadata metadata = 1;
 }
 
 message ChainInfoRequest {
-    common.Metadata metadata = 1;
+    Metadata metadata = 1;
 }
 
 message ChainInfoPacket {
@@ -114,5 +124,5 @@ message ChainInfoPacket {
     bytes groupHash = 5;
     // indicates a set of values the process will use to act in specific ways
     string schemeID = 6;
-    common.Metadata metadata = 7;
+    Metadata metadata = 7;
 }

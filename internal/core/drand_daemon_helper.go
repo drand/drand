@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/common"
-	protoCommon "github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/protobuf/drand"
 )
 
-func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, error) {
+func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 	rcvBeaconID := metadata.GetBeaconID()
 
 	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
@@ -47,7 +47,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 	rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
 	// make sure the metadata use a correct beacon id
 	if metadata == nil {
-		metadata = &protoCommon.Metadata{}
+		metadata = &drand.Metadata{}
 	}
 	// we explicitly set the beacon id on the metadata in case it changed because of GetCanonicalBeaconID
 	metadata.BeaconID = rcvBeaconID
@@ -67,7 +67,7 @@ func (dd *DrandDaemon) getBeaconProcessByID(beaconID string) (*BeaconProcess, er
 	return nil, fmt.Errorf("beacon id [%s] is not running", beaconID)
 }
 
-func (dd *DrandDaemon) getBeaconProcessFromRequest(metadata *protoCommon.Metadata) (*BeaconProcess, error) {
+func (dd *DrandDaemon) getBeaconProcessFromRequest(metadata *drand.Metadata) (*BeaconProcess, error) {
 	beaconID, err := dd.readBeaconID(metadata)
 	if err != nil {
 		return nil, err

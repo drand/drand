@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/common"
@@ -145,7 +146,7 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	leader := e.nodes[0]
 
 	fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
-	joiners := make([]*drand.Participant, len(e.nodes))
+	joiners := make([]*pdkg.Participant, len(e.nodes))
 	for i, n := range e.nodes {
 		identity, err := n.Identity()
 		if err != nil {
@@ -416,9 +417,9 @@ func (e *Orchestrator) UpdateGlobalBinary(binary string, isCandidate bool) {
 }
 
 type ResharingGroup struct {
-	leaving   []*drand.Participant
-	joining   []*drand.Participant
-	remaining []*drand.Participant
+	leaving   []*pdkg.Participant
+	joining   []*pdkg.Participant
+	remaining []*pdkg.Participant
 }
 
 func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) (*ResharingGroup, error) {

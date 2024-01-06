@@ -7,10 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/drand/drand/protobuf/drand"
+
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/protobuf/common"
 )
 
 //nolint:funlen
@@ -98,7 +99,7 @@ func TestChainInfo(t *testing.T) {
 	require.ErrorContains(t, err, "point is not on")
 
 	// testing ToProto
-	packet := c1.ToProto(&common.Metadata{
+	packet := c1.ToProto(&drand.Metadata{
 		BeaconID: "differentfrom" + beaconID,
 	})
 	require.Equal(t, beaconID, packet.Metadata.BeaconID)

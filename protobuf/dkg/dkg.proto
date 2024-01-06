@@ -6,10 +6,9 @@ syntax = "proto3";
 
 package dkg;
 
-option go_package = "github.com/drand/drand/protobuf/crypto/dkg";
-/*option go_package = "dkg";*/
+option go_package = "github.com/drand/drand/protobuf/dkg";
 
-import "common/common.proto";
+import "drand/common.proto";
 
 // Packet is a wrapper around the three different types of DKG messages
 message Packet {
@@ -18,7 +17,7 @@ message Packet {
         ResponseBundle response = 2;
         JustificationBundle justification = 3;
     }
-    common.Metadata metadata = 4;
+    drand.Metadata metadata = 4;
 }
 
 
