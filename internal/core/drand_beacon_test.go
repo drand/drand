@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common/key"
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	kyberDKG "github.com/drand/kyber/share/dkg"
@@ -21,7 +22,6 @@ import (
 	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/internal/dkg"
 	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 func TestBeaconProcess_Stop(t *testing.T) {
@@ -255,7 +255,7 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// there should be no completed DKGs now for that node
-	status, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
+	status, err := node.daemon.DKGStatus(context.Background(), &pdkg.DKGStatusRequest{BeaconID: ts.beaconID})
 	require.NoError(t, err)
 	require.Nil(t, status.Complete)
 
@@ -263,7 +263,7 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	nodeShare := node.drand.share
 	err = node.daemon.dkg.Migrate(ts.beaconID, group, nodeShare)
 	require.NoError(t, err)
-	status2, err := node.daemon.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: ts.beaconID})
+	status2, err := node.daemon.DKGStatus(context.Background(), &pdkg.DKGStatusRequest{BeaconID: ts.beaconID})
 	require.NoError(t, err)
 	require.NotNil(t, status2.Complete)
 }

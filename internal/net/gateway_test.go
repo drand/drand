@@ -8,10 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	proto "github.com/drand/drand/protobuf/drand"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/common/testlogger"
 	testnet "github.com/drand/drand/internal/test/net"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 type testPeer struct {
@@ -32,14 +34,14 @@ type testRandomnessServer struct {
 	round uint64
 }
 
-func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	return &drand.PublicRandResponse{Round: t.round}, nil
+func (t *testRandomnessServer) PublicRand(context.Context, *proto.PublicRandRequest) (*proto.PublicRandResponse, error) {
+	return &proto.PublicRandResponse{Round: t.round}, nil
 }
 
-func (t *testRandomnessServer) Group(_ context.Context, _ *drand.GroupRequest) (*drand.GroupPacket, error) {
+func (t *testRandomnessServer) Group(_ context.Context, _ *proto.GroupRequest) (*proto.GroupPacket, error) {
 	return nil, nil
 }
-func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error) {
+func (t *testRandomnessServer) Home(context.Context, *proto.HomeRequest) (*proto.HomeResponse, error) {
 	return nil, nil
 }
 
@@ -73,8 +75,8 @@ func TestListener(t *testing.T) {
 
 	// GRPC
 	client := NewGrpcClient(lg)
-	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peerGRPC, &proto.PublicRandRequest{})
 	require.NoError(t, err)
-	expected := &drand.PublicRandResponse{Round: randServer.round}
+	expected := &proto.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }

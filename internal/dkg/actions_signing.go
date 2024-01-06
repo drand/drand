@@ -8,7 +8,7 @@ import (
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 func (d *Process) signMessage(

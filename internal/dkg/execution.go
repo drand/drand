@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/sign/schnorr"

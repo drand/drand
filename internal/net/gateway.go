@@ -7,6 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -48,7 +50,7 @@ type Service interface {
 	drand.ControlServer
 	drand.ProtocolServer
 	drand.Interceptors
-	drand.DKGControlServer
+	pdkg.DKGControlServer
 }
 
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the

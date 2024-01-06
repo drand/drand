@@ -8,10 +8,8 @@ syntax = "proto3";
 package drand;
 
 option go_package = "github.com/drand/drand/protobuf/drand";
-/*option go_package = "drand";*/
 
 import "drand/common.proto";
-import "common/common.proto";
 
 service Protocol {
     // GetIdentity returns the identity of the drand node
@@ -25,7 +23,7 @@ service Protocol {
 }
 
 message IdentityRequest {
-    common.Metadata metadata = 1;
+    Metadata metadata = 1;
 }
 
 message IdentityResponse {
@@ -35,7 +33,7 @@ message IdentityResponse {
     // BLS signature over the identity to prove possession of the private key
     bytes signature = 4;
     // --------------
-    common.Metadata metadata = 5;
+    Metadata metadata = 5;
     // We need to specify the scheme name to make sure the key is getting probably decoded on the client side
     string schemeName = 6;
 }
@@ -51,7 +49,7 @@ message PartialBeaconPacket {
     // the final beacon at the given round.
     bytes partial_sig = 3;
     //
-    common.Metadata metadata = 4;
+    Metadata metadata = 4;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the
@@ -59,12 +57,12 @@ message PartialBeaconPacket {
 message SyncRequest {
     uint64 from_round = 1;
     //
-    common.Metadata metadata = 2;
+    Metadata metadata = 2;
 }
 
 message BeaconPacket {
     bytes previous_signature = 1;
     uint64 round = 2;
     bytes signature = 3;
-    common.Metadata metadata = 4;
+    Metadata metadata = 4;
 }
