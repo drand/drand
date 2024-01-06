@@ -1369,7 +1369,7 @@ func TestFailedReshareContinuesUsingOldGroupfile(t *testing.T) {
 
 	leader := scenario.nodes[0]
 	err = scenario.RunFailingReshare()
-	require.Equal(t, test.ErrDKGFailed, err)
+	require.Equal(t, dkg.ErrDKGFailed, err)
 	require.Equal(t, leader.drand.group, g)
 }
 
