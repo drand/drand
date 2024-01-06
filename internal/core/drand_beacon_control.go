@@ -192,21 +192,10 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 
 	// remote network connectivity
 	nodeList := in.GetCheckConn()
-	// in case of an empty list, we test all nodes in the group file
-	if len(nodeList) == 1 && bp.beacon != nil && bp.group != nil {
+	// in case of a remote nodelist made of only ourself, instead we test all nodes in the group file
+	if len(nodeList) == 1 && nodeList[0].Address == bp.priv.Public.Addr && bp.beacon != nil && bp.group != nil {
 		bp.log.Debugw("Empty node connectivity list, populating with group file")
 		for _, node := range bp.group.Nodes {
-			found := false
-			for _, nl := range nodeList {
-				if node.Addr == nl.Address {
-					found = true
-					break
-				}
-			}
-			if found {
-				continue
-			}
-
 			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
 		}
 	}
