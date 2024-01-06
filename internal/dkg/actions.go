@@ -9,7 +9,7 @@ import (
 
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 // gossip marks a DKG packet as seen and sends it to the other parties in the network (that are passed in)

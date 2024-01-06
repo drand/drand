@@ -5,7 +5,6 @@ import (
 
 	"github.com/drand/drand/common/tracer"
 
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -56,7 +55,7 @@ func (dd *DrandDaemon) Home(c context.Context, _ *drand.HomeRequest) (*drand.Hom
 	_, span := tracer.NewSpan(c, "dd.Home")
 	defer span.End()
 
-	ctx := common.NewMetadata(dd.version.ToProto())
+	ctx := drand.NewMetadata(dd.version.ToProto())
 
 	return &drand.HomeResponse{Metadata: ctx}, nil
 }

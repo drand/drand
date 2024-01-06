@@ -7,7 +7,8 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
+	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -99,7 +100,7 @@ func ToNode(index int, participant *drand.Participant, sch *crypto.Scheme) (dkg.
 	}, nil
 }
 
-func ToParticipant(node *drand.Node) *drand.Participant {
+func ToParticipant(node *proto.Node) *drand.Participant {
 	return &drand.Participant{
 		Address:   node.Public.Address,
 		Key:       node.Public.Key,

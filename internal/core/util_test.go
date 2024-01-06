@@ -15,13 +15,15 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 
+	proto "github.com/drand/drand/protobuf/drand"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 //nolint:gocritic
@@ -323,12 +325,12 @@ func (d *DrandTestScenario) CheckBeaconLength(t *testing.T, nodes []*MockNode, e
 }
 
 // CheckPublicBeacon looks if we can get the latest beacon on this node
-func (d *DrandTestScenario) CheckPublicBeacon(ctx context.Context, nodeAddress string, newGroup bool) *drand.PublicRandResponse {
+func (d *DrandTestScenario) CheckPublicBeacon(ctx context.Context, nodeAddress string, newGroup bool) *proto.PublicRandResponse {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	client := net.NewGrpcClient(dr.log, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(ctx, test.NewPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, test.NewPeer(dr.priv.Public.Addr), &proto.PublicRandRequest{})
 
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
@@ -625,8 +627,8 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
-		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound >= round {
-			t.Logf("node %s has reached expected round (%d)\n", node.addr, status.ChainStore.LastRound)
+		if !status.ChainStore.IsEmpty && status.ChainStore.LastStored >= round {
+			t.Logf("node %s has reached expected round (%d)\n", node.addr, status.ChainStore.LastStored)
 			return nil
 		}
 
@@ -635,7 +637,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 			return fmt.Errorf("timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
-		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...\n", node.addr, status.ChainStore.LastRound, round)
+		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...\n", node.addr, status.ChainStore.LastStored, round)
 		time.Sleep(d.period)
 	}
 }
@@ -651,7 +653,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 		require.NoError(t, err)
 
 		if status.Beacon.IsServing {
-			t.Logf("node %s has its beacon chain running on round %d\n", node.addr, status.ChainStore.LastRound)
+			t.Logf("node %s has its beacon chain running on round %d\n", node.addr, status.ChainStore.LastStored)
 			return nil
 		}
 

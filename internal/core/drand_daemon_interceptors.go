@@ -5,17 +5,17 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/protobuf/common"
 )
 
 type MetadataGetter interface {
-	GetMetadata() *common.Metadata
+	GetMetadata() *drand.Metadata
 }
 
 func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{},

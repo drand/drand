@@ -14,8 +14,7 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/common"
-	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
@@ -26,7 +25,7 @@ import (
 // implement the broadcasting mechanism.
 type Broadcast interface {
 	dkg.Board
-	BroadcastDKG(ctx context.Context, p *drand.DKGPacket) error
+	BroadcastDKG(ctx context.Context, p *pdkg.DKGPacket) error
 	Stop()
 }
 
@@ -79,7 +78,7 @@ func newEchoBroadcast(
 	version commonutils.Version,
 	beaconID string,
 	own string,
-	to []*drand.Participant,
+	to []*pdkg.Participant,
 	scheme *crypto.Scheme,
 	config *dkg.Config,
 ) (*echoBroadcast, error) {
@@ -140,7 +139,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
 
-func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *drand.DKGPacket) error {
+func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *pdkg.DKGPacket) error {
 	ctx, span := tracer.NewSpan(ctx, "b.BroadcastDKG")
 	defer span.End()
 
@@ -211,7 +210,7 @@ func (b *echoBroadcast) sendout(ctx context.Context, h []byte, p packet, bypass 
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
 
-	proto := &drand.DKGPacket{Dkg: dkgproto}
+	proto := &pdkg.DKGPacket{Dkg: dkgproto}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
@@ -273,7 +272,7 @@ func (a *arraySet) exists(hash hash) bool {
 	return false
 }
 
-type broadcastPacket = *drand.DKGPacket
+type broadcastPacket = *pdkg.DKGPacket
 
 // maxQueueSize is the maximum queue size we reserve for each destination of
 // broadcast.
@@ -296,7 +295,7 @@ type dispatcher struct {
 	senders []*sender
 }
 
-func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, to []*drand.Participant, us string) *dispatcher {
+func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, to []*pdkg.Participant, us string) *dispatcher {
 	ctx, span := tracer.NewSpan(ctx, "newDispatcher")
 	defer span.End()
 
@@ -346,11 +345,11 @@ func (d *dispatcher) stop() {
 type sender struct {
 	l      log.Logger
 	client net.DKGClient
-	to     *drand.Participant
+	to     *pdkg.Participant
 	newCh  chan broadcastPacket
 }
 
-func newSender(client net.DKGClient, to *drand.Participant, l log.Logger, queueSize int) *sender {
+func newSender(client net.DKGClient, to *pdkg.Participant, l log.Logger, queueSize int) *sender {
 	return &sender{
 		l:      l.Named("Sender"),
 		client: client,
@@ -505,7 +504,7 @@ func dealToProto(d *dkg.DealBundle, beaconID string) *pdkg.Packet {
 	bundle.Signature = d.Signature
 	bundle.SessionId = d.SessionID
 	packet.Bundle = &pdkg.Packet_Deal{Deal: bundle}
-	packet.Metadata = &common.Metadata{
+	packet.Metadata = &drand.Metadata{
 		BeaconID: beaconID,
 	}
 	return packet
@@ -526,7 +525,7 @@ func respToProto(r *dkg.ResponseBundle, beaconID string) *pdkg.Packet {
 	bundle.SessionId = r.SessionID
 	bundle.Signature = r.Signature
 	packet.Bundle = &pdkg.Packet_Response{Response: bundle}
-	packet.Metadata = &common.Metadata{
+	packet.Metadata = &drand.Metadata{
 		BeaconID: beaconID,
 	}
 	return packet
@@ -548,7 +547,7 @@ func justifToProto(j *dkg.JustificationBundle, beaconID string) *pdkg.Packet {
 	bundle.SessionId = j.SessionID
 	bundle.Signature = j.Signature
 	packet.Bundle = &pdkg.Packet_Justification{Justification: bundle}
-	packet.Metadata = &common.Metadata{
+	packet.Metadata = &drand.Metadata{
 		BeaconID: beaconID,
 	}
 	return packet

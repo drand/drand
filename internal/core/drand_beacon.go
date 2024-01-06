@@ -24,7 +24,6 @@ import (
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	pbCommon "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -478,8 +477,8 @@ func (bp *BeaconProcess) getChainHash() []byte {
 	return bp.chainHash
 }
 
-func (bp *BeaconProcess) newMetadata() *pbCommon.Metadata {
-	metadata := pbCommon.NewMetadata(bp.version.ToProto())
+func (bp *BeaconProcess) newMetadata() *drand.Metadata {
+	metadata := drand.NewMetadata(bp.version.ToProto())
 	metadata.BeaconID = bp.getBeaconID()
 
 	if hash := bp.getChainHash(); len(hash) > 0 {

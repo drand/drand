@@ -17,7 +17,6 @@ import (
 
 	common2 "github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
@@ -459,7 +458,7 @@ func (g *Group) ToProto(version common2.Version) *proto.GroupPacket {
 	out.GenesisSeed = g.GetGenesisSeed()
 	out.SchemeID = g.Scheme.Name
 
-	out.Metadata = common.NewMetadata(version.ToProto())
+	out.Metadata = proto.NewMetadata(version.ToProto())
 	out.Metadata.BeaconID = common2.GetCanonicalBeaconID(g.ID)
 
 	if g.PublicKey != nil {

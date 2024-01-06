@@ -15,6 +15,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
+
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/metrics"
 	"github.com/drand/drand/protobuf/drand"
@@ -65,7 +67,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
-	drand.RegisterDKGControlServer(grpcServer, s)
+	pdkg.RegisterDKGControlServer(grpcServer, s)
 
 	g := &grpcListener{
 		Service:    s,

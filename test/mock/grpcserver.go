@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/common/log"
@@ -333,14 +334,14 @@ func NewMockBeacon(t *testing.T, sch *crypto.Scheme, clk clock.Clock) (*drand.Ch
 	return c, r
 }
 
-func (s *Server) Command(_ context.Context, _ *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
+func (s *Server) Command(_ context.Context, _ *pdkg.DKGCommand) (*pdkg.EmptyDKGResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }
 
-func (s *Server) Packet(_ context.Context, _ *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
+func (s *Server) Packet(_ context.Context, _ *pdkg.GossipPacket) (*pdkg.EmptyDKGResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }
 
-func (s *Server) DKGStatus(_ context.Context, _ *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+func (s *Server) DKGStatus(_ context.Context, _ *pdkg.DKGStatusRequest) (*pdkg.DKGStatusResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }

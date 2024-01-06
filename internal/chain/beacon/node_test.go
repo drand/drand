@@ -21,8 +21,8 @@ import (
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
 	testnet "github.com/drand/drand/internal/test/net"
-	pbCommon "github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/protobuf/drand"
+	pdkg "github.com/drand/drand/protobuf/dkg"
+	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"
@@ -37,7 +37,7 @@ type testBeaconServer struct {
 	h *Handler
 }
 
-func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+func (t *testBeaconServer) PartialBeacon(c context.Context, in *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -47,7 +47,7 @@ func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBea
 	return t.h.ProcessPartialBeacon(c, in)
 }
 
-func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
+func (t *testBeaconServer) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
 	t.Lock()
 	if t.disable {
 		t.Unlock()
@@ -57,12 +57,12 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
-func (t *testBeaconServer) Command(context.Context, *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
-	return &drand.EmptyDKGResponse{}, nil
+func (t *testBeaconServer) Command(context.Context, *pdkg.DKGCommand) (*pdkg.EmptyDKGResponse, error) {
+	return &pdkg.EmptyDKGResponse{}, nil
 }
 
-func (t *testBeaconServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
-	return &drand.EmptyDKGResponse{}, nil
+func (t *testBeaconServer) Packet(context.Context, *pdkg.GossipPacket) (*pdkg.EmptyDKGResponse, error) {
+	return &pdkg.EmptyDKGResponse{}, nil
 }
 
 func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []kyber.Point) {
@@ -623,7 +623,7 @@ func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T)
 	ctx := context.Background()
 	bt := NewBeaconTest(ctx, t, clock.NewFakeClock(), 3, 2, 30*time.Second, 0, "default")
 
-	packet := drand.PartialBeaconPacket{
+	packet := proto.PartialBeaconPacket{
 		Round:             1,
 		PreviousSignature: []byte("deadbeef"),
 		PartialSig:        []byte("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
@@ -643,21 +643,21 @@ func TestSyncChainWithoutMetadata(t *testing.T) {
 	)
 	require.Equal(
 		t,
-		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: &pbCommon.Metadata{BeaconID: expectedBeaconID}}, "127.0.0.1"),
+		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: &proto.Metadata{BeaconID: expectedBeaconID}}, "127.0.0.1"),
 		expectedBeaconID,
 	)
 }
 
 type TestSyncRequest struct {
 	round    uint64
-	metadata *pbCommon.Metadata
+	metadata *proto.Metadata
 }
 
 func (t TestSyncRequest) GetFromRound() uint64 {
 	return t.round
 }
 
-func (t TestSyncRequest) GetMetadata() *pbCommon.Metadata {
+func (t TestSyncRequest) GetMetadata() *proto.Metadata {
 	return t.metadata
 }
 
