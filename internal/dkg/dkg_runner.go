@@ -1,30 +1,31 @@
-package test
+package dkg
 
 import (
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
+	drand "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/dkg"
-	drand "github.com/drand/drand/protobuf/dkg"
 )
 
-type DKGRunner struct {
+const GenesisDelay = 20 * time.Second
+
+// TestRunner is a convenience struct for running DKG tests
+type TestRunner struct {
 	Client   drand.DKGControlClient
 	BeaconID string
 	Clock    clock.Clock
 }
 
-func (r *DKGRunner) StartNetwork(
+func (r *TestRunner) StartNetwork(
 	threshold int,
 	period int,
 	schemeID string,
@@ -42,7 +43,7 @@ func (r *DKGRunner) StartNetwork(
 			Scheme:               schemeID,
 			CatchupPeriodSeconds: uint32(catchupPeriod),
 			// put the genesis a little in the future to give demo nodes some time to do the DKG
-			GenesisTime: timestamppb.New(r.Clock.Now().Add(20 * time.Second)),
+			GenesisTime: timestamppb.New(r.Clock.Now().Add(GenesisDelay)),
 			Joining:     joiners,
 		},
 	},
@@ -51,9 +52,8 @@ func (r *DKGRunner) StartNetwork(
 	return err
 }
 
-func (r *DKGRunner) StartProposal(
+func (r *TestRunner) StartReshare(
 	threshold int,
-	transitionTime time.Time,
 	catchupPeriod int,
 	joiners []*drand.Participant,
 	remainers []*drand.Participant,
@@ -75,7 +75,7 @@ func (r *DKGRunner) StartProposal(
 	return err
 }
 
-func (r *DKGRunner) StartExecution() error {
+func (r *TestRunner) StartExecution() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Execute{
@@ -85,7 +85,7 @@ func (r *DKGRunner) StartExecution() error {
 	return err
 }
 
-func (r *DKGRunner) JoinDKG() error {
+func (r *TestRunner) JoinDKG() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Join{
@@ -98,7 +98,7 @@ func (r *DKGRunner) JoinDKG() error {
 	return err
 }
 
-func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
+func (r *TestRunner) JoinReshare(oldGroup *key.Group) error {
 	var groupFileBytes bytes.Buffer
 	err := toml.NewEncoder(&groupFileBytes).Encode(oldGroup.TOML())
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *DKGRunner) JoinReshare(oldGroup *key.Group) error {
 	return err
 }
 
-func (r *DKGRunner) Accept() error {
+func (r *TestRunner) Accept() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Accept{
@@ -126,7 +126,7 @@ func (r *DKGRunner) Accept() error {
 	return err
 }
 
-func (r *DKGRunner) Abort() error {
+func (r *TestRunner) Abort() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Abort{
@@ -141,30 +141,30 @@ var ErrTimeout = errors.New("DKG timed out")
 var ErrDKGFailed = errors.New("DKG failed")
 var ErrDKGAborted = errors.New("DKG aborted")
 
-func (r *DKGRunner) WaitForDKG(lg log.Logger, beaconID string, epoch uint32, numberOfSeconds int) error {
+func (r *TestRunner) WaitForDKG(lg log.Logger, epoch uint32, numberOfSeconds int) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	for i := 0; i < numberOfSeconds; i++ {
 		time.Sleep(1 * time.Second)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		res, err := r.Client.DKGStatus(ctx, &drand.DKGStatusRequest{BeaconID: beaconID})
+		res, err := r.Client.DKGStatus(ctx, &drand.DKGStatusRequest{BeaconID: r.BeaconID})
 		if err != nil {
 			continue
 		}
 
 		switch res.Current.State {
-		case uint32(dkg.TimedOut):
+		case uint32(TimedOut):
 			return ErrTimeout
-		case uint32(dkg.Aborted):
+		case uint32(Aborted):
 			return ErrDKGAborted
-		case uint32(dkg.Failed):
+		case uint32(Failed):
 			return ErrDKGFailed
 		}
 		if res.Complete == nil || res.Complete.Epoch != epoch {
 			continue
 		}
 
-		if res.Complete.State != uint32(dkg.Complete) {
-			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", dkg.Status(res.Complete.State).String()))
+		if res.Complete.State != uint32(Complete) {
+			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", Status(res.Complete.State).String()))
 		}
 
 		if err == nil {

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/internal/dkg"
+
 	"github.com/BurntSushi/toml"
 	pdkg "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
@@ -49,7 +51,7 @@ type NodeProc struct {
 	binary       string
 	scheme       *crypto.Scheme
 	beaconID     string
-	dkgRunner    *test.DKGRunner
+	dkgRunner    *dkg.TestRunner
 
 	dbEngineType chain.StorageType
 	memDBSize    int
@@ -107,7 +109,7 @@ func (n *NodeProc) setup() {
 	if err != nil {
 		panic("could not create DKG client")
 	}
-	n.dkgRunner = &test.DKGRunner{
+	n.dkgRunner = &dkg.TestRunner{
 		BeaconID: n.beaconID,
 		Client:   dkgClient,
 		Clock:    clock.NewRealClock(),
@@ -277,7 +279,7 @@ func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	return nil
 }
 
-func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
+func (n *NodeProc) StartLeaderReshare(thr int, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
 	proposalFileName := "proposal.toml"
 	proposal := ProposalFile{
 		Joining:   joiners,
@@ -289,7 +291,6 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchup
 		return err
 	}
 
-	durationUntilTransitionTime := time.Until(transitionTime)
 
 	proposeArgs := []string{
 		"dkg", "reshare",
@@ -298,7 +299,6 @@ func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchup
 		"--catchup-period", fmt.Sprintf("%ds", catchupPeriod),
 		"--proposal", proposalFileName,
 		"--threshold", strconv.Itoa(thr),
-		"--transition-delay", durationUntilTransitionTime.String(),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -330,7 +330,7 @@ func (n *NodeProc) AcceptReshare() error {
 }
 
 func (n *NodeProc) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.Group, error) {
-	err := n.dkgRunner.WaitForDKG(n.lg, n.beaconID, epoch, int(timeout.Seconds()))
+	err := n.dkgRunner.WaitForDKG(n.lg, epoch, int(timeout.Seconds()))
 	if err != nil {
 		return nil, err
 	}
