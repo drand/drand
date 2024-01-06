@@ -487,7 +487,7 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	roundInOneMinute := common.CurrentRound(time.Now().Add(1*time.Minute).Unix(), e.periodD, e.genesis)
 	transitionTime := common.TimeOfRound(e.periodD, e.genesis, roundInOneMinute)
 	catchupPeriod := 0
-	err := leader.StartLeaderReshare(e.newThr, time.Unix(transitionTime, 0), catchupPeriod, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
+	err := leader.StartLeaderReshare(e.newThr, catchupPeriod, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
 		panic(err)
 	}

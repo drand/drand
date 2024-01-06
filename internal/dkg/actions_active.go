@@ -64,7 +64,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	case *drand.DKGCommand_Execute:
 		afterState, packetToGossip, err = d.StartExecute(ctx, beaconID, me, currentState, c.Execute)
 	case *drand.DKGCommand_Abort:
-		afterState, packetToGossip, err = d.StartAbort(ctx, beaconID, me, currentState, c.Abort)
+		afterState, packetToGossip, err = d.StartAbort(ctx, beaconID, currentState, c.Abort)
 	default:
 		return nil, errors.New("unrecognized DKG command")
 	}
@@ -289,14 +289,13 @@ func (d *Process) StartProposal(
 func (d *Process) StartAbort(
 	ctx context.Context,
 	beaconID string,
-	me *drand.Participant,
 	current *DBState,
 	_ *drand.AbortOptions,
 ) (*DBState, *drand.GossipPacket, error) {
 	_, span := tracer.NewSpan(ctx, "dkg.StartAbort")
 	defer span.End()
 
-	nextState, err := current.StartAbort(me)
+	nextState, err := current.StartAbort()
 	if err != nil {
 		return nil, nil, err
 	}

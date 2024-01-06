@@ -33,7 +33,8 @@ func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)
 	c = mock.NewGrpcClient(s.(*mock.Server))
 	require.NoError(t, err)
 
-	return c, s.(mock.Service).EmitRand
+	service := s.(mock.Service)
+	return c, service.EmitRand
 }
 
 func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {

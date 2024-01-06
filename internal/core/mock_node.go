@@ -3,10 +3,11 @@ package core
 import (
 	"time"
 
+	"github.com/drand/drand/internal/dkg"
+
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/test"
 )
 
 type MockNode struct {
@@ -14,7 +15,7 @@ type MockNode struct {
 	daemon    *DrandDaemon
 	drand     *BeaconProcess
 	clock     clock.FakeClock
-	dkgRunner *test.DKGRunner
+	dkgRunner *dkg.TestRunner
 }
 
 // newNode creates a node struct from a daemon and sets the clock according to the test clock.
@@ -35,7 +36,7 @@ func newNode(now time.Time, daemon *DrandDaemon, dr *BeaconProcess) (*MockNode, 
 		daemon: daemon,
 		drand:  dr,
 		clock:  c,
-		dkgRunner: &test.DKGRunner{
+		dkgRunner: &dkg.TestRunner{
 			BeaconID: dr.beaconID,
 			Client:   dkgClient,
 			Clock:    c,
