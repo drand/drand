@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 
@@ -203,7 +204,7 @@ func (n *NodeProc) Index() int {
 	return n.i
 }
 
-func (n *NodeProc) StartLeaderDKG(thr int, _ int, joiners []*drand.Participant) error {
+func (n *NodeProc) StartLeaderDKG(thr int, _ int, joiners []*pdkg.Participant) error {
 	proposal := ProposalFile{
 		Joining: joiners,
 	}
@@ -276,7 +277,7 @@ func (n *NodeProc) JoinReshare(oldGroup key.Group) error {
 	return nil
 }
 
-func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+func (n *NodeProc) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
 	proposalFileName := "proposal.toml"
 	proposal := ProposalFile{
 		Joining:   joiners,
@@ -435,7 +436,7 @@ func (n *NodeProc) PrintLog() {
 	fmt.Printf("%s\n", string(buff))
 }
 
-func (n *NodeProc) Identity() (*drand.Participant, error) {
+func (n *NodeProc) Identity() (*pdkg.Participant, error) {
 	keypair, err := n.store.LoadKeyPair()
 	if err != nil {
 		return nil, err

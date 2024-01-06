@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 func (g *grpcClient) Command(ctx context.Context, p Peer, in *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {

@@ -21,7 +21,6 @@ import (
 	chainerrors "github.com/drand/drand/internal/chain/errors"
 	dcontext "github.com/drand/drand/internal/context"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
@@ -401,7 +400,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	req := &proto.SyncRequest{
 		FromRound: from,
-		Metadata:  &common.Metadata{BeaconID: s.info.ID},
+		Metadata:  &proto.Metadata{BeaconID: s.info.ID},
 	}
 
 	beaconCh, err := s.client.SyncChain(cnode, peer, req)
@@ -512,7 +511,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 // Those exist in both the protocol API and the public API.
 type SyncRequest interface {
 	GetFromRound() uint64
-	GetMetadata() *common.Metadata
+	GetMetadata() *proto.Metadata
 }
 
 // SyncStream is an interface representing any kind of stream to send beacons to.

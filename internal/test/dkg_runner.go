@@ -5,8 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	clock "github.com/jonboulle/clockwork"
 	"time"
+
+	clock "github.com/jonboulle/clockwork"
 
 	"github.com/BurntSushi/toml"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -14,7 +15,7 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/log"
 	"github.com/drand/drand/internal/dkg"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 )
 
 type DKGRunner struct {

@@ -9,7 +9,6 @@ import (
 	"github.com/drand/drand/common/key"
 	"github.com/drand/drand/common/tracer"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -18,7 +17,7 @@ import (
 func (dd *DrandDaemon) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong, error) {
 	_, span := tracer.NewSpan(ctx, "dd.PingPong")
 	defer span.End()
-	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata := drand.NewMetadata(dd.version.ToProto())
 	return &drand.Pong{Metadata: metadata}, nil
 }
 
@@ -39,7 +38,7 @@ func (dd *DrandDaemon) ListSchemes(ctx context.Context, _ *drand.ListSchemesRequ
 	_, span := tracer.NewSpan(ctx, "dd.ListSchemes")
 	defer span.End()
 
-	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata := drand.NewMetadata(dd.version.ToProto())
 
 	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: metadata}, nil
 }
@@ -98,7 +97,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 		dd.RemoveBeaconProcess(ctx, beaconID, bp)
 	}
 
-	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata := drand.NewMetadata(dd.version.ToProto())
 	metadata.BeaconID = in.GetMetadata().GetBeaconID()
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
@@ -123,7 +122,7 @@ func (dd *DrandDaemon) LoadBeacon(ctx context.Context, in *drand.LoadBeaconReque
 		return nil, err
 	}
 
-	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata := drand.NewMetadata(dd.version.ToProto())
 	return &drand.LoadBeaconResponse{Metadata: metadata}, nil
 }
 
@@ -167,7 +166,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 	_, span := tracer.NewSpan(ctx, "dd.ListBeaconIDs")
 	defer span.End()
 
-	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata := drand.NewMetadata(dd.version.ToProto())
 
 	dd.state.Lock()
 	defer dd.state.Unlock()

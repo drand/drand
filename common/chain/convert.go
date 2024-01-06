@@ -7,9 +7,9 @@ import (
 
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+
+	"github.com/drand/drand/crypto"
 )
 
 // InfoFromProto returns a Info from the protocol description
@@ -34,13 +34,13 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 }
 
 // ToProto returns the protobuf description of the chain info
-func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
+func (c *Info) ToProto(metadata *drand.Metadata) *drand.ChainInfoPacket {
 	buff, _ := c.PublicKey.MarshalBinary()
 
 	if metadata != nil {
 		metadata.BeaconID = c.ID
 	} else {
-		metadata = &common.Metadata{BeaconID: c.ID}
+		metadata = &drand.Metadata{BeaconID: c.ID}
 	}
 
 	return &drand.ChainInfoPacket{
@@ -70,7 +70,7 @@ func InfoFromJSON(buff io.Reader) (*Info, error) {
 }
 
 // ToJSON provides a json serialization of an info packet
-func (c *Info) ToJSON(w io.Writer, metadata *common.Metadata) error {
+func (c *Info) ToJSON(w io.Writer, metadata *drand.Metadata) error {
 	info := c.ToProto(metadata)
 	return json.NewEncoder(w).Encode(info)
 }

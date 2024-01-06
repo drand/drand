@@ -10,7 +10,7 @@ import (
 	"github.com/drand/drand/common/testlogger"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/protobuf/dkg"
 	"github.com/drand/kyber/share/dkg"
 )
 

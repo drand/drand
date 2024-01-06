@@ -11,6 +11,7 @@ import (
 	"path"
 	"time"
 
+	pdkg "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 
 	common2 "github.com/drand/drand/common"
@@ -23,7 +24,6 @@ import (
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/test"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -202,7 +202,7 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	return cl
 }
 
-func (l *LocalNode) StartLeaderDKG(thr int, catchupPeriod int, joiners []*drand.Participant) error {
+func (l *LocalNode) StartLeaderDKG(thr int, catchupPeriod int, joiners []*pdkg.Participant) error {
 	p, err := time.ParseDuration(l.period)
 	if err != nil {
 		return err
@@ -221,7 +221,7 @@ func (l *LocalNode) WaitDKGComplete(epoch uint32, timeout time.Duration) (*key.G
 		return nil, err
 	}
 
-	groupPacket, err := l.daemon.GroupFile(context.Background(), &drand.GroupRequest{Metadata: &common.Metadata{
+	groupPacket, err := l.daemon.GroupFile(context.Background(), &drand.GroupRequest{Metadata: &drand.Metadata{
 		BeaconID: l.beaconID,
 	}})
 	if err != nil {
@@ -254,7 +254,7 @@ func (l *LocalNode) GetGroup() *key.Group {
 	return group
 }
 
-func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*drand.Participant, remainers []*drand.Participant, leavers []*drand.Participant) error {
+func (l *LocalNode) StartLeaderReshare(thr int, transitionTime time.Time, catchupPeriod int, joiners []*pdkg.Participant, remainers []*pdkg.Participant, leavers []*pdkg.Participant) error {
 	err := l.dkgRunner.StartProposal(thr, transitionTime, catchupPeriod, joiners, remainers, leavers)
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
@@ -349,7 +349,7 @@ func (l *LocalNode) PrintLog() {
 	fmt.Printf("%s\n", string(buff))
 }
 
-func (l *LocalNode) Identity() (*drand.Participant, error) {
+func (l *LocalNode) Identity() (*pdkg.Participant, error) {
 	keypair, err := l.daemon.KeypairFor(l.beaconID)
 	if err != nil {
 		return nil, err

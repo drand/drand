@@ -1,10 +1,11 @@
 syntax = "proto3";
 
-package drand;
+package dkg;
 
-import "crypto/dkg/dkg.proto";
 import "google/protobuf/timestamp.proto";
-option go_package = "github.com/drand/drand/protobuf/drand";
+import "dkg/dkg.proto";
+
+option go_package = "github.com/drand/drand/protobuf/dkg";
 
 service DKGControl {
   rpc Command(DKGCommand) returns (EmptyDKGResponse){}
@@ -173,5 +174,5 @@ message DKGEntry {
 // DKGPacket is the packet that nodes send to others nodes as part of the
 // broadcasting protocol.
 message DKGPacket {
-  dkg.Packet dkg = 1;
+  Packet dkg = 1;
 }
