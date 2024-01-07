@@ -51,11 +51,11 @@ type DrandDaemon struct {
 }
 
 type DKGProcess interface {
-	DKGStatus(context context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error)
-	Command(context context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error)
-	Packet(context context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error)
+	DKGStatus(context context.Context, request *pdkg.DKGStatusRequest) (*pdkg.DKGStatusResponse, error)
+	Command(context context.Context, command *pdkg.DKGCommand) (*pdkg.EmptyDKGResponse, error)
+	Packet(context context.Context, packet *pdkg.GossipPacket) (*pdkg.EmptyDKGResponse, error)
 	Migrate(beaconID string, group *key.Group, share *key.Share) error
-	BroadcastDKG(context context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error)
+	BroadcastDKG(context context.Context, packet *pdkg.DKGPacket) (*pdkg.EmptyDKGResponse, error)
 	Close()
 }
 

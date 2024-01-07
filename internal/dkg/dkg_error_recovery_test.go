@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/internal/net"
 	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/dkg"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 	mb := newMessageBus()
 
 	nodes := make([]*stubbedDKGProcess, nodeCount)
-	identities := make([]*drand.Participant, nodeCount)
+	identities := make([]*dkg.Participant, nodeCount)
 	for i := 0; i < nodeCount; i++ {
 		stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", i), mb)
 		require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 	require.Error(t, ErrDKGFailed, err)
 
 	// we then check there are still no 'completed' DKGs
-	failedStatus, err := leader.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
+	failedStatus, err := leader.DKGStatus(context.Background(), &dkg.DKGStatusRequest{BeaconID: beaconID})
 	require.NoError(t, err)
 	require.Equal(t, Failed.String(), Status(failedStatus.Current.State).String())
 	require.Nil(t, failedStatus.Complete)
@@ -90,7 +90,7 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 	require.NoError(t, err)
 
 	// the leader reports the DKG is complete
-	successfulStatus, err := leader.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
+	successfulStatus, err := leader.DKGStatus(context.Background(), &dkg.DKGStatusRequest{BeaconID: beaconID})
 	require.NoError(t, err)
 	require.Equal(t, Complete.String(), Status(successfulStatus.Current.State).String())
 	require.Equal(t, Complete.String(), Status(successfulStatus.Complete.State).String())
@@ -101,7 +101,7 @@ func TestFailedReshare(t *testing.T) {
 	mb := newMessageBus()
 
 	nodes := make([]*stubbedDKGProcess, nodeCount)
-	identities := make([]*drand.Participant, nodeCount)
+	identities := make([]*dkg.Participant, nodeCount)
 	for i := 0; i < nodeCount; i++ {
 		stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", i), mb)
 		require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestFailedReshare(t *testing.T) {
 
 	err = leader.runner.WaitForDKG(log.DefaultLogger(), 2, 60)
 	require.Error(t, ErrDKGFailed, err)
-	status, err := leader.delegate.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
+	status, err := leader.delegate.DKGStatus(context.Background(), &dkg.DKGStatusRequest{BeaconID: beaconID})
 	require.NoError(t, err)
 	require.Equal(t, uint32(1), status.Complete.Epoch)
 }
@@ -162,25 +162,25 @@ func (s stubbedBeacon) KeypairFor(_ string) (*key.Pair, error) {
 
 // messageBus manages messaging between DKG processes without having to actually use gRPC
 type messageBus struct {
-	listeners map[string]drand.DKGControlClient
+	listeners map[string]dkg.DKGControlClient
 }
 
 func newMessageBus() *messageBus {
 	return &messageBus{
-		listeners: make(map[string]drand.DKGControlClient),
+		listeners: make(map[string]dkg.DKGControlClient),
 	}
 }
 
-func (m *messageBus) Add(address string, process drand.DKGControlClient) {
+func (m *messageBus) Add(address string, process dkg.DKGControlClient) {
 	m.listeners[address] = process
 }
 
 func (m *messageBus) Packet(
 	_ context.Context,
 	p net.Peer,
-	packet *drand.GossipPacket,
+	packet *dkg.GossipPacket,
 	_ ...grpc.CallOption,
-) (*drand.EmptyDKGResponse, error) {
+) (*dkg.EmptyDKGResponse, error) {
 	listener := m.listeners[p.Address()]
 	if listener == nil {
 		return nil, errors.New("no such address")
@@ -191,9 +191,9 @@ func (m *messageBus) Packet(
 func (m *messageBus) BroadcastDKG(
 	_ context.Context,
 	p net.Peer,
-	in *drand.DKGPacket,
+	in *dkg.DKGPacket,
 	_ ...grpc.CallOption,
-) (*drand.EmptyDKGResponse, error) {
+) (*dkg.EmptyDKGResponse, error) {
 	listener := m.listeners[p.Address()]
 	if listener == nil {
 		return nil, errors.New("no such address")
@@ -212,11 +212,11 @@ type stubbedDKGProcess struct {
 }
 
 type RealProcess interface {
-	DKGStatus(context context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error)
-	Command(context context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error)
-	Packet(context context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error)
+	DKGStatus(context context.Context, request *dkg.DKGStatusRequest) (*dkg.DKGStatusResponse, error)
+	Command(context context.Context, command *dkg.DKGCommand) (*dkg.EmptyDKGResponse, error)
+	Packet(context context.Context, packet *dkg.GossipPacket) (*dkg.EmptyDKGResponse, error)
 	Migrate(beaconID string, group *key.Group, share *key.Share) error
-	BroadcastDKG(context context.Context, packet *drand.DKGPacket) (*drand.EmptyDKGResponse, error)
+	BroadcastDKG(context context.Context, packet *dkg.DKGPacket) (*dkg.EmptyDKGResponse, error)
 	Close()
 }
 
@@ -269,21 +269,21 @@ func (p *stubbedDKGProcess) Fix() {
 
 func (p *stubbedDKGProcess) DKGStatus(
 	ctx context.Context,
-	request *drand.DKGStatusRequest,
+	request *dkg.DKGStatusRequest,
 	_ ...grpc.CallOption,
-) (*drand.DKGStatusResponse, error) {
+) (*dkg.DKGStatusResponse, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.delegate.DKGStatus(ctx, request)
 }
 
-func (p *stubbedDKGProcess) Command(ctx context.Context, command *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+func (p *stubbedDKGProcess) Command(ctx context.Context, command *dkg.DKGCommand, _ ...grpc.CallOption) (*dkg.EmptyDKGResponse, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.delegate.Command(ctx, command)
 }
 
-func (p *stubbedDKGProcess) Packet(ctx context.Context, packet *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
+func (p *stubbedDKGProcess) Packet(ctx context.Context, packet *dkg.GossipPacket, _ ...grpc.CallOption) (*dkg.EmptyDKGResponse, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.broken {
@@ -299,9 +299,9 @@ func (p *stubbedDKGProcess) Migrate(beaconID string, group *key.Group, share *ke
 
 func (p *stubbedDKGProcess) BroadcastDKG(
 	ctx context.Context,
-	packet *drand.DKGPacket,
+	packet *dkg.DKGPacket,
 	_ ...grpc.CallOption,
-) (*drand.EmptyDKGResponse, error) {
+) (*dkg.EmptyDKGResponse, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.broken {
