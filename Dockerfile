@@ -44,7 +44,7 @@ FROM --platform=linux/amd64 busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ENV GOPATH                 /go
-ENV SRC_PATH               /go/src/github.com/drand/drand/v2
+ENV SRC_PATH               /go/src/github.com/drand/drand
 ENV DRAND_HOME             /data/drand
 ENV DRAND_PUBLIC_ADDRESS   ""
 
