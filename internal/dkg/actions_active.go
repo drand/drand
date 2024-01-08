@@ -245,7 +245,7 @@ func (d *Process) StartProposal(
 	}
 
 	var newEpoch uint32
-	if currentState.State == Aborted || currentState.State == TimedOut {
+	if currentState.State == Aborted || currentState.State == TimedOut || currentState.State == Failed {
 		newEpoch = currentState.Epoch
 	} else {
 		newEpoch = currentState.Epoch + 1
