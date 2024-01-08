@@ -15,8 +15,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	common2 "github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
+	common2 "github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
 )
 
 type DKGState int

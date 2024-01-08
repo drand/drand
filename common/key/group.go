@@ -15,9 +15,9 @@ import (
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/blake2b"
 
-	common2 "github.com/drand/drand/common"
-	"github.com/drand/drand/crypto"
-	proto "github.com/drand/drand/protobuf/drand"
+	common2 "github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/crypto"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 )

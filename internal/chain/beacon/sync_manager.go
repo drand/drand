@@ -12,16 +12,16 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	commonutils "github.com/drand/drand/common"
-	public "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
-	chainerrors "github.com/drand/drand/internal/chain/errors"
-	dcontext "github.com/drand/drand/internal/context"
-	"github.com/drand/drand/internal/net"
-	proto "github.com/drand/drand/protobuf/drand"
+	commonutils "github.com/drand/drand/v2/common"
+	public "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
+	chainerrors "github.com/drand/drand/v2/internal/chain/errors"
+	dcontext "github.com/drand/drand/v2/internal/context"
+	"github.com/drand/drand/v2/internal/net"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // SyncManager manages all the sync requests to other peers. It performs a

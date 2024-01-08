@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 type GrpcClient struct {

@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
 )
 
 // PrevSignatureMattersOnContext checks if the previous signature matters or not for future operations

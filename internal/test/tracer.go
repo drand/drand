@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 

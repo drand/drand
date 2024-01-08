@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
-	"github.com/drand/drand/internal/util"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/internal/util"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 // actions_passive contains all internal messaging between nodes triggered by the protocol - things it does automatically

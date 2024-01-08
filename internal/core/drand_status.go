@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 const UnknownDesc = "Unknown"

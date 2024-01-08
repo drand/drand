@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/crypto"
 )
 
 // DefaultBeaconID is the value used when beacon id has an empty value. This

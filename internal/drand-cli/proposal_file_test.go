@@ -7,8 +7,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/net"
 )
 
 func generateJoiningProposal(l log.Logger, beaconID string, joining []string) (string, error) {

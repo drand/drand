@@ -3,10 +3,10 @@ package vault
 import (
 	"sync"
 
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber/share"
 )
 

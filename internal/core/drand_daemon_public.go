@@ -3,9 +3,9 @@ package core
 import (
 	"context"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // PartialBeacon receives a beacon generation request and answers

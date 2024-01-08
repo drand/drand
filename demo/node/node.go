@@ -3,10 +3,10 @@ package node
 import (
 	"time"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/internal/chain"
-	pdkg "github.com/drand/drand/protobuf/dkg"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/internal/chain"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 type Node interface {

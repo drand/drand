@@ -7,9 +7,9 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 )

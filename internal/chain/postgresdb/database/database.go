@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // Calls init function.
 
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/log"
 )
 
 // Config is the required properties to use the database.

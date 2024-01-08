@@ -15,12 +15,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/util"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/util"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 func TestInitialDKG(t *testing.T) {

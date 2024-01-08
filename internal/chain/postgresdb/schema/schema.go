@@ -6,12 +6,12 @@ import (
 	_ "embed" // Calls init function.
 	"fmt"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
 	"github.com/ardanlabs/darwin/v2"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/drand/drand/internal/chain/postgresdb/database"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/database"
 )
 
 var (

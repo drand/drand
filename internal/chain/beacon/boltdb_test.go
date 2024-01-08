@@ -6,10 +6,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/chain/boltdb"
-	context2 "github.com/drand/drand/internal/test/context"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/boltdb"
+	context2 "github.com/drand/drand/v2/internal/test/context"
 )
 
 func createStore(t *testing.T, l log.Logger, b *BeaconTest, idx int) (chain.Store, error) {

@@ -1,8 +1,8 @@
 package core
 
 import (
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 func beaconToProto(b *common.Beacon) *drand.PublicRandResponse {

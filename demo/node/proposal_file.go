@@ -7,8 +7,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	cli "github.com/drand/drand/internal/drand-cli"
-	drand "github.com/drand/drand/protobuf/dkg"
+	cli "github.com/drand/drand/v2/internal/drand-cli"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 type ProposalFile struct {

@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/internal/chain/postgresdb/database"
-	"github.com/drand/drand/internal/chain/postgresdb/schema"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/database"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/schema"
 )
 
 // StartPGDB starts a database instance.

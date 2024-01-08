@@ -14,24 +14,24 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/drand/drand/common"
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/common"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	public "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
-	derrors "github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/dkg"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/test"
-	context2 "github.com/drand/drand/internal/test/context"
-	"github.com/drand/drand/protobuf/drand"
+	public "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
+	derrors "github.com/drand/drand/v2/internal/chain/errors"
+	"github.com/drand/drand/v2/internal/dkg"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/test"
+	context2 "github.com/drand/drand/v2/internal/test/context"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 //nolint:gocritic

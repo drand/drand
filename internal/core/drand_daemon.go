@@ -9,20 +9,20 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	common2 "github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	dhttp "github.com/drand/drand/handler/http"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/dkg"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/internal/metrics/pprof"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	common2 "github.com/drand/drand/v2/common"
+	chain2 "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	dhttp "github.com/drand/drand/v2/handler/http"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/dkg"
+	"github.com/drand/drand/v2/internal/metrics"
+	"github.com/drand/drand/v2/internal/metrics/pprof"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 type DrandDaemon struct {

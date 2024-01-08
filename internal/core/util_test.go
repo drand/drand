@@ -15,15 +15,15 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 
-	proto "github.com/drand/drand/protobuf/drand"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/test"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/test"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 //nolint:gocritic

@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/internal/chain/boltdb"
-	context2 "github.com/drand/drand/internal/test/context"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/internal/chain/boltdb"
+	context2 "github.com/drand/drand/v2/internal/test/context"
 )
 
 func TestStoreCallback(t *testing.T) {

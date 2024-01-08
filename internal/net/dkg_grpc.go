@@ -6,9 +6,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/log"
 )
 
 func NewDKGControlClient(l log.Logger, addr string) (pdkg.DKGControlClient, error) {

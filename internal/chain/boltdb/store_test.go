@@ -7,10 +7,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/internal/chain"
-	chainerrors "github.com/drand/drand/internal/chain/errors"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/internal/chain"
+	chainerrors "github.com/drand/drand/v2/internal/chain/errors"
 )
 
 func TestStoreBoltOrder(t *testing.T) {

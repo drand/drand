@@ -14,12 +14,12 @@ import (
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
 
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/net"
-	control "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/internal/net"
+	control "github.com/drand/drand/v2/protobuf/drand"
 )
 
 type beaconIDsStatuses struct {

@@ -11,7 +11,7 @@
 package dkg
 
 import (
-	drand "github.com/drand/drand/protobuf/drand"
+	drand "github.com/drand/drand/v2/protobuf/drand"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"

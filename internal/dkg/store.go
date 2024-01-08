@@ -11,10 +11,10 @@ import (
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
 )
 
 type boltStore struct {

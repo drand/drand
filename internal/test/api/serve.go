@@ -8,10 +8,10 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/protobuf/drand"
+	"github.com/drand/drand/v2/test/mock"
 )
 
 const serve = "127.0.0.1:1969"

@@ -1,7 +1,7 @@
 package pgdb
 
 import (
-	"github.com/drand/drand/common"
+	"github.com/drand/drand/v2/common"
 )
 
 // dbBeacon represents a beacon that is stored in the database.

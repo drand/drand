@@ -21,17 +21,17 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/chain/boltdb"
-	"github.com/drand/drand/internal/core"
-	"github.com/drand/drand/internal/core/migration"
-	"github.com/drand/drand/internal/fs"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/boltdb"
+	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/internal/core/migration"
+	"github.com/drand/drand/v2/internal/fs"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Automatically set through -ldflags

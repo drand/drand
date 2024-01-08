@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package drand;
 
-option go_package = "github.com/drand/drand/protobuf/drand";
+option go_package = "github.com/drand/drand/v2/protobuf/drand";
 
 message NodeVersion {
     uint32 major = 1;

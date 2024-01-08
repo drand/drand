@@ -13,13 +13,13 @@ import (
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/crypto"
-	dhttp "github.com/drand/drand/handler/http"
-	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/crypto"
+	dhttp "github.com/drand/drand/v2/handler/http"
+	"github.com/drand/drand/v2/internal/test"
+	"github.com/drand/drand/v2/test/mock"
 )
 
 func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {

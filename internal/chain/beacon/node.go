@@ -11,15 +11,15 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/crypto/vault"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/internal/net"
-	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/crypto/vault"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/metrics"
+	"github.com/drand/drand/v2/internal/net"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Config holds the different cryptographic information necessary to run the

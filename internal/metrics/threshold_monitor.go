@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/log"
 )
 
 type ThresholdMonitor struct {

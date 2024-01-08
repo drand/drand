@@ -15,11 +15,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/metrics"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/metrics"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 var isGrpcPrometheusMetricsRegisted = false

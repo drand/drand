@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/peer"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/testlogger"
-	"github.com/drand/drand/internal/chain/boltdb"
-	dcontext "github.com/drand/drand/internal/test/context"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/testlogger"
+	"github.com/drand/drand/v2/internal/chain/boltdb"
+	dcontext "github.com/drand/drand/v2/internal/test/context"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 type testSyncStream struct {

@@ -6,9 +6,9 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/internal/core"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/core"
 )
 
 func startCmd(c *cli.Context, l log.Logger) error {

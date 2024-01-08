@@ -10,16 +10,16 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"
 
-	common2 "github.com/drand/drand/common"
-	public "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/chain/beacon"
-	"github.com/drand/drand/internal/fs"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	common2 "github.com/drand/drand/v2/common"
+	public "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/beacon"
+	"github.com/drand/drand/v2/internal/fs"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // PublicKey is a functionality of Control Service defined in protobuf/control

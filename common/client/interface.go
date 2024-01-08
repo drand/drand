@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/log"
 )
 
 // Client represents the drand Client interface.

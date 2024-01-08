@@ -6,7 +6,7 @@ syntax = "proto3";
 
 package dkg;
 
-option go_package = "github.com/drand/drand/protobuf/dkg";
+option go_package = "github.com/drand/drand/v2/protobuf/dkg";
 
 import "drand/common.proto";
 

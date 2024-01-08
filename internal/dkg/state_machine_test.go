@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/util"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/util"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 // alice, bob and carol are the actors for all the tests
