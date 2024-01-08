@@ -214,9 +214,26 @@ func TestReshare(t *testing.T) {
 			name:     "valid proposal after timeout does not change epoch",
 			proposal: &validProposal,
 			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
-				abortedState := NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob)
-				abortedState.Epoch = uint32(2)
-				store.On("GetCurrent", beaconID).Return(abortedState, nil)
+				timedOutState := NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob)
+				timedOutState.Epoch = uint32(2)
+				store.On("GetCurrent", beaconID).Return(timedOutState, nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Proposing, output.State)
+				require.Equal(t, uint32(2), output.Epoch)
+			},
+			expectedError:            nil,
+			expectedNetworkCallCount: 2,
+		},
+		{
+			name:     "valid proposal after fail does not change epoch",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				failedState := NewCompleteDKGEntry(t, beaconID, Failed, alice, bob)
+				failedState.Epoch = uint32(2)
+				store.On("GetCurrent", beaconID).Return(failedState, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
