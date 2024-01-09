@@ -5,7 +5,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	drand "github.com/drand/drand/protobuf/dkg"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 type ProposalFileFormat struct {

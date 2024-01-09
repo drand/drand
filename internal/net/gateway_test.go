@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	proto "github.com/drand/drand/protobuf/drand"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/testlogger"
-	testnet "github.com/drand/drand/internal/test/net"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/testlogger"
+	testnet "github.com/drand/drand/v2/internal/test/net"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 type testPeer struct {

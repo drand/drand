@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/chain/postgresdb/pgdb"
-	"github.com/drand/drand/internal/test"
-	context2 "github.com/drand/drand/internal/test/context"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/pgdb"
+	"github.com/drand/drand/v2/internal/test"
+	context2 "github.com/drand/drand/v2/internal/test/context"
 )
 
 var c *test.Container

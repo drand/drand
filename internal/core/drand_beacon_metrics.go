@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/net"
 )
 
 // HTTPClient is currently used for relaying metrics between group members.

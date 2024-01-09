@@ -9,10 +9,10 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/client"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	chain2 "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // drandProxy is used as a proxy between a Public service (e.g. the node as a server)

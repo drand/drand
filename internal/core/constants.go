@@ -4,7 +4,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/internal/fs"
+	"github.com/drand/drand/v2/internal/fs"
 )
 
 // DefaultConfigFolderName is the name of the folder containing all key materials

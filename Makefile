@@ -7,8 +7,8 @@
 .PHONY: deploy-local linter install build drand
 .PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
 
-VER_PACKAGE=github.com/drand/drand/common
-CLI_PACKAGE=github.com/drand/drand/internal/drand-cli
+VER_PACKAGE=github.com/drand/drand/v2/common
+CLI_PACKAGE=github.com/drand/drand/v2/internal/drand-cli
 
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)

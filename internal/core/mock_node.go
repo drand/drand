@@ -3,11 +3,11 @@ package core
 import (
 	"time"
 
-	"github.com/drand/drand/internal/dkg"
 
 	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/v2/internal/dkg"
+	"github.com/drand/drand/v2/internal/net"
 )
 
 type MockNode struct {

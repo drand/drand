@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/net"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/net"
 )
 
 type Process struct {

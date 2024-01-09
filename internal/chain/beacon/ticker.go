@@ -5,7 +5,7 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/common"
+	"github.com/drand/drand/v2/common"
 )
 
 const tickerChanBacklog = 5

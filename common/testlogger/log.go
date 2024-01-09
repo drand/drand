@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/log"
 )
 
 // Level returns the level to default the logger based on the DRAND_TEST_LOGS presence

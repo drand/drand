@@ -7,9 +7,9 @@ import (
 
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/protobuf/drand"
 
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/crypto"
 )
 
 // InfoFromProto returns a Info from the protocol description
