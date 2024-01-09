@@ -177,7 +177,7 @@ var dkgTimeoutFlag = &cli.StringFlag{
 	Value: "24h",
 }
 
-//nolint:dupl//no it's not??
+//nolint:dupl//not worth extracting a few lines
 func dkgInit(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 	client, err := net.NewDKGControlClient(l, controlPort)
@@ -207,7 +207,7 @@ func dkgInit(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-//nolint:dupl//no it's not??
+//nolint:dupl//not worth extracting a few lines
 func dkgReshare(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 	client, err := net.NewDKGControlClient(l, controlPort)
