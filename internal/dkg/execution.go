@@ -202,7 +202,7 @@ func (d *Process) startDKGExecution(
 
 		output := ExecutionOutput{
 			FinalGroup: &groupFile,
-			KeyShare:   &share,
+			KeyShare:   share,
 		}
 		return &output, nil
 	case <-time.After(time.Until(current.Timeout)):
