@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/internal/dkg"
-
 	"github.com/BurntSushi/toml"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
@@ -25,6 +23,7 @@ import (
 	"github.com/drand/drand/v2/demo/cfg"
 	"github.com/drand/drand/v2/internal/chain"
 	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/internal/dkg"
 	drandnet "github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/test"
 	"github.com/drand/drand/v2/internal/util"
@@ -290,7 +289,6 @@ func (n *NodeProc) StartLeaderReshare(thr int, catchupPeriod int, joiners []*pdk
 	if err != nil {
 		return err
 	}
-
 
 	proposeArgs := []string{
 		"dkg", "reshare",
