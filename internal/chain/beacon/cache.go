@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // partialCache is a cache that stores (or not) all the partials the node

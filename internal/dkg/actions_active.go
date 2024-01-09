@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/net"
-	drand "github.com/drand/drand/protobuf/dkg"
-	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/net"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/internal/util"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/util"
 )
 
 // actions_active contains all the DKG actions that require user interaction: creating a network,

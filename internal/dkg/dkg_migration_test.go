@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/share/dkg"

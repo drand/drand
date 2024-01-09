@@ -8,8 +8,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/internal/fs"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/internal/fs"
 )
 
 // Store abstracts the loading and saving of any private/public cryptographic

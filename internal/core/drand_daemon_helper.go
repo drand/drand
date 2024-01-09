@@ -3,8 +3,8 @@ package core
 import (
 	"fmt"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {

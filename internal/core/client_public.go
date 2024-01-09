@@ -3,14 +3,14 @@ package core
 import (
 	"context"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
 	"google.golang.org/grpc"
 
-	"github.com/drand/drand/common/chain"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Client is the endpoint logic, communicating with drand servers

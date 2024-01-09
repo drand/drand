@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/test"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/test"
 )
 
 var c *test.Container

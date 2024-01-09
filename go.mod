@@ -1,4 +1,4 @@
-module github.com/drand/drand
+module github.com/drand/drand/v2
 
 go 1.20
 

@@ -3,11 +3,10 @@ package migration
 import (
 	"path"
 
-	"github.com/drand/drand/internal/core"
-
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/internal/fs"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/internal/fs"
 )
 
 // CheckSBFolderStructure checks if the file structure has been migrated from single-beacon to multi-beacon or not

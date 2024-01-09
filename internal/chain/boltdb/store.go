@@ -8,15 +8,15 @@ import (
 	"path"
 	"sync"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
 	json "github.com/nikkolasg/hexjson"
 	bolt "go.etcd.io/bbolt"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
-	chainerrors "github.com/drand/drand/internal/chain/errors"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/chain"
+	chainerrors "github.com/drand/drand/v2/internal/chain/errors"
 )
 
 // BoltStore implements the Store interface using the kv storage boltdb (native

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // PingPong simply responds with an empty packet, proving that this drand node

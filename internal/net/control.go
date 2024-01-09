@@ -10,11 +10,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
-	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 const grpcDefaultIPNetwork = "tcp"

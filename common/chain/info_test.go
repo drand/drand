@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/protobuf/drand"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/test"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/test"
 )
 
 //nolint:funlen

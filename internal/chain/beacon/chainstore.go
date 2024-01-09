@@ -5,18 +5,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/common/tracer"
+	"github.com/drand/drand/v2/common/tracer"
 
 	"go.opentelemetry.io/otel/attribute"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto/vault"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto/vault"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 const (

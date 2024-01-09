@@ -34,10 +34,10 @@ RUN \
   go install \
   -mod=readonly \
   -ldflags \
-  "-X github.com/drand/drand/common.COMMIT=${gitCommit} \
-  -X github.com/drand/drand/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/internal/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/internal/drand-cli.gitCommit=${gitCommit}" \
+  "-X github.com/drand/drand/v2/common.COMMIT=${gitCommit} \
+  -X github.com/drand/drand/v2/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/v2/internal/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/v2/internal/drand-cli.gitCommit=${gitCommit}" \
   ./cmd/drand
 
 FROM --platform=linux/amd64 busybox:1-glibc
