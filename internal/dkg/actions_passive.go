@@ -29,6 +29,9 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 
 	packetName := packetName(packet)
 	packetSig := hex.EncodeToString(packet.Metadata.Signature)
+	if len(packetSig) < 8 {
+		return nil, errors.New("packet signature is too short")
+	}
 	shortSig := packetSig[0:8]
 	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig)
 	_, span := tracer.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
