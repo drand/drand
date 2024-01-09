@@ -154,8 +154,6 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 }
 
 // Status responds with the actual status of drand process
-//
-//nolint:gocyclo
 func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	ctx, span := tracer.NewSpan(ctx, "bp.Status")
 	defer span.End()

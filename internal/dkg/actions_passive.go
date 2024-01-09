@@ -15,6 +15,8 @@ import (
 // actions_passive contains all internal messaging between nodes triggered by the protocol - things it does automatically
 // upon receiving messages from other nodes: storing proposals, aborting when the leader aborts, etc
 
+const ShortSigLength = 8
+
 func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -29,10 +31,10 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 
 	packetName := packetName(packet)
 	packetSig := hex.EncodeToString(packet.Metadata.Signature)
-	if len(packetSig) < 8 {
+	if len(packetSig) < ShortSigLength {
 		return nil, errors.New("packet signature is too short")
 	}
-	shortSig := packetSig[0:8]
+	shortSig := packetSig[0:ShortSigLength]
 	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig)
 	_, span := tracer.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
 	defer span.End()

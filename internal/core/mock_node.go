@@ -3,7 +3,6 @@ package core
 import (
 	"time"
 
-
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/v2/internal/dkg"
