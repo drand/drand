@@ -122,10 +122,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		}
 
 		err = d.store.SaveCurrent(beaconID, next)
-		if err != nil {
-			return err
-		}
-		return dkgErr
+		return errors.Join(dkgErr, err)
 	}
 
 	finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
@@ -190,7 +187,7 @@ func (d *Process) startDKGExecution(
 		if err != nil {
 			return nil, err
 		}
-		share := key.Share{DistKeyShare: *result.Result.Key, Scheme: keypair.Scheme()}
+		share := &key.Share{DistKeyShare: *result.Result.Key, Scheme: keypair.Scheme()}
 
 		var finalGroup []dkg.Node
 		// the index in the for loop may _not_ align with the index returned in QUAL!
@@ -198,7 +195,7 @@ func (d *Process) startDKGExecution(
 			finalGroup = append(finalGroup, config.NewNodes[v.Index])
 		}
 
-		groupFile, err := asGroup(ctx, current, &share, finalGroup, transitionTime)
+		groupFile, err := asGroup(ctx, current, share, finalGroup, transitionTime)
 		if err != nil {
 			return nil, err
 		}
