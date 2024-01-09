@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/drand/drand/common"
+	"github.com/drand/drand/v2/common"
 )
 
 // store contains all the definitions and implementation of the logic that

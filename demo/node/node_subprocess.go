@@ -12,23 +12,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/internal/dkg"
-
 	"github.com/BurntSushi/toml"
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/demo/cfg"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/internal/core"
-	drandnet "github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/test"
-	"github.com/drand/drand/internal/util"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/demo/cfg"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/core"
+	"github.com/drand/drand/v2/internal/dkg"
+	drandnet "github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/test"
+	"github.com/drand/drand/v2/internal/util"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 type NodeProc struct {
@@ -290,7 +289,6 @@ func (n *NodeProc) StartLeaderReshare(thr int, catchupPeriod int, joiners []*pdk
 	if err != nil {
 		return err
 	}
-
 
 	proposeArgs := []string{
 		"dkg", "reshare",

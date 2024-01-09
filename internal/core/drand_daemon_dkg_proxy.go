@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	drand "github.com/drand/drand/protobuf/dkg"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 func (dd *DrandDaemon) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {

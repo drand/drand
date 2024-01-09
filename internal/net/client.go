@@ -7,9 +7,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Client implements methods to call on the protocol API and the public API of a

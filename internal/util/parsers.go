@@ -6,7 +6,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/drand/drand/common/key"
+	"github.com/drand/drand/v2/common/key"
 )
 
 func ParseGroupFileBytes(groupFileBytes []byte) (*key.Group, error) {

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/internal/net"
-	"github.com/drand/drand/internal/util"
-	drand "github.com/drand/drand/protobuf/dkg"
+	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/util"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 // gossip marks a DKG packet as seen and sends it to the other parties in the network (that are passed in)

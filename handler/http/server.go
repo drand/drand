@@ -17,12 +17,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"github.com/drand/drand/common"
-	chain2 "github.com/drand/drand/common/chain"
-	client2 "github.com/drand/drand/common/client"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/v2/common"
+	chain2 "github.com/drand/drand/v2/common/chain"
+	client2 "github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/metrics"
 )
 
 const (

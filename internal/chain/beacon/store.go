@@ -10,14 +10,14 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/common/tracer"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/chain"
-	dcontext "github.com/drand/drand/internal/context"
-	"github.com/drand/drand/internal/metrics"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
+	dcontext "github.com/drand/drand/v2/internal/context"
+	"github.com/drand/drand/v2/internal/metrics"
 )
 
 // CallbackFunc defines the callback type that's accepted by CallbackStore

@@ -11,13 +11,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/log"
-	"github.com/drand/drand/internal/chain"
-	chainerrors "github.com/drand/drand/internal/chain/errors"
-	"github.com/drand/drand/internal/chain/postgresdb/pgdb"
-	"github.com/drand/drand/internal/test"
-	context2 "github.com/drand/drand/internal/test/context"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/internal/chain"
+	chainerrors "github.com/drand/drand/v2/internal/chain/errors"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/pgdb"
+	"github.com/drand/drand/v2/internal/test"
+	context2 "github.com/drand/drand/v2/internal/test/context"
 )
 
 var c *test.Container

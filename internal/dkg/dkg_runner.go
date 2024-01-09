@@ -5,15 +5,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	drand "github.com/drand/drand/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/common/log"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	drand "github.com/drand/drand/v2/protobuf/dkg"
 )
 
 const GenesisDelay = 20 * time.Second

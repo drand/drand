@@ -13,10 +13,10 @@ import (
 
 	"github.com/rogpeppe/go-internal/lockedfile"
 
-	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/internal/net"
+	commonutils "github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 )

@@ -5,7 +5,7 @@ package main_test
 import (
 	"testing"
 
-	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/v2/internal/chain"
 )
 
 func withTestDB() chain.StorageType {

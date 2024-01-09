@@ -12,16 +12,16 @@ import (
 	"strings"
 	"time"
 
-	pdkg "github.com/drand/drand/protobuf/dkg"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/common/key"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/demo/cfg"
-	"github.com/drand/drand/demo/node"
-	"github.com/drand/drand/internal/chain"
-	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/demo/cfg"
+	"github.com/drand/drand/v2/demo/node"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 // how much should we wait before checking if the randomness is present. This is

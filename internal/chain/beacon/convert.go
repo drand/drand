@@ -1,8 +1,8 @@
 package beacon
 
 import (
-	"github.com/drand/drand/common"
-	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/v2/common"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 func beaconToProto(b *common.Beacon, beaconID string) *proto.BeaconPacket {
