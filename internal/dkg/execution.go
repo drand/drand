@@ -118,7 +118,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 
 		next, err := current.Failed()
 		if err != nil {
-			return err
+			return errors.Join(err, dkgErr)
 		}
 
 		err = d.store.SaveCurrent(beaconID, next)
