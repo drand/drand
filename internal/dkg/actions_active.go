@@ -174,7 +174,7 @@ func asIdentity(response *proto.IdentityResponse) (key.Identity, error) {
 	}, nil
 }
 
-//nolint:funlen
+//nolint:gocyclo,funlen
 func (d *Process) StartProposal(
 	ctx context.Context,
 	beaconID string,

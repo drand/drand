@@ -5,10 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	clock "github.com/jonboulle/clockwork"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/jonboulle/clockwork"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
@@ -22,7 +22,7 @@ const GenesisDelay = 20 * time.Second
 type TestRunner struct {
 	Client   drand.DKGControlClient
 	BeaconID string
-	Clock    clock.Clock
+	Clock    clockwork.Clock
 }
 
 func (r *TestRunner) StartNetwork(
