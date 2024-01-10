@@ -12,6 +12,10 @@ type dbBeacon struct {
 }
 
 func toChainBeacon(dbB dbBeacon) *common.Beacon {
-	cb := common.Beacon(dbB)
+	cb := common.Beacon{
+		PreviousSig: dbB.PreviousSig,
+		Round:       dbB.Round,
+		Signature:   dbB.Signature,
+	}
 	return &cb
 }
