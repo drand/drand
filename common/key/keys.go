@@ -157,7 +157,7 @@ func (p *Pair) FromTOML(i interface{}) error {
 		return errors.New("private can't decode toml from non PairTOML struct")
 	}
 	p.Public = new(Identity)
-	sch, err := crypto.SchemeFromName(ptoml.SchemeName)
+	sch, err := crypto.SchemeFromNameWithDefault(ptoml.SchemeName)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (s *Share) FromTOML(i interface{}) error {
 	if !ok {
 		return errors.New("invalid struct received for share")
 	}
-	sch, err := crypto.SchemeFromName(t.SchemeName)
+	sch, err := crypto.SchemeFromNameWithDefault(t.SchemeName)
 	if err != nil {
 		return err
 	}
