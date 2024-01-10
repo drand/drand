@@ -262,6 +262,20 @@ func SchemeFromName(schemeName string) (*Scheme, error) {
 		return nil, fmt.Errorf("invalid scheme name %q", schemeName)
 	}
 }
+func SchemeFromNameWithDefault(schemeName string) (*Scheme, error) {
+	switch schemeName {
+	case DefaultSchemeID:
+		return NewPedersenBLSChained(), nil
+	case UnchainedSchemeID:
+		return NewPedersenBLSUnchained(), nil
+	case SigsOnG1ID:
+		return NewPedersenBLSUnchainedG1(), nil
+	case ShortSigSchemeID:
+		return NewPedersenBLSUnchainedSwapped(), nil
+	default:
+		return NewPedersenBLSChained(), nil
+	}
+}
 
 var schemeIDs = []string{DefaultSchemeID, UnchainedSchemeID, SigsOnG1ID, ShortSigSchemeID}
 
