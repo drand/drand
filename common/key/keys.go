@@ -157,7 +157,7 @@ func (p *Pair) FromTOML(i interface{}) error {
 		return errors.New("private can't decode toml from non PairTOML struct")
 	}
 	p.Public = new(Identity)
-	sch, err := crypto.SchemeFromNameWithDefault(ptoml.SchemeName)
+	sch, err := crypto.GetSchemeByID(ptoml.SchemeName)
 	if err != nil {
 		return err
 	}
