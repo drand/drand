@@ -325,7 +325,7 @@ func (s *Share) FromTOML(i interface{}) error {
 	if !ok {
 		return errors.New("invalid struct received for share")
 	}
-	sch, err := crypto.SchemeFromNameWithDefault(t.SchemeName)
+	sch, err := crypto.GetSchemeByID(t.SchemeName)
 	if err != nil {
 		return err
 	}
