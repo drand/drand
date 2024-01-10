@@ -7,10 +7,11 @@ before:
     # you may remove this if you don't need go generate
     # - go generate ./...
 builds:
+- main: ./cmd/drand/drand.go
 - env:
   - CGO_ENABLED=0
   ldflags:
-     - -s -w -X github.com/drand/drand/v2/internal/drand-cli.buildDate={{.Date}} -X github.com/drand/drand/v2/internal/drand-cli.gitCommit={{.ShortCommit}} ./cmd/drand/drand.go
+     - -s -w -X github.com/drand/drand/v2/internal/drand-cli.buildDate={{.Date}} -X github.com/drand/drand/v2/internal/drand-cli.gitCommit={{.ShortCommit}}
   mod_timestamp: '{{ .CommitTimestamp }}'
 checksum:
   name_template: 'checksums.txt'
