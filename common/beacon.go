@@ -58,11 +58,11 @@ func GetCanonicalBeaconID(id string) string {
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
 	// PreviousSig is the previous signature generated
-	PreviousSig []byte `json:"previous_signature,omitempty"`
+	PreviousSig HexBytes `json:"previous_signature,omitempty"`
 	// Round is the round number this beacon is tied to
 	Round uint64 `json:"round"`
 	// Signature is the BLS deterministic signature as per the crypto.Scheme used
-	Signature []byte `json:"signature"`
+	Signature HexBytes `json:"signature"`
 }
 
 // Equal indicates if two beacons are equal
@@ -123,4 +123,29 @@ func shortSigStr(sig []byte) string {
 		max = len(sig)
 	}
 	return hex.EncodeToString(sig[0:max])
+}
+
+// HexBytes ensures that JSON marshallers marshal to hex rather than base64 to keep compatibility
+// with old store formats
+type HexBytes []byte
+
+func (h *HexBytes) MarshalJSON() ([]byte, error) {
+	hexString := hex.EncodeToString(*h)
+	return json.Marshal(hexString)
+}
+
+// UnmarshalJSON converts a hexadecimal string from JSON to a byte slice
+func (h *HexBytes) UnmarshalJSON(data []byte) error {
+	var hexString string
+	if err := json.Unmarshal(data, &hexString); err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(hexString)
+	if err != nil {
+		return err
+	}
+
+	*h = b
+	return nil
 }
