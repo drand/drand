@@ -34,6 +34,8 @@ func newTrimmedStore(ctx context.Context, l log.Logger, folder string, opts *bol
 	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.NewTrimmedStore")
 	defer span.End()
 
+	l.Infow("Starting boltdb", "mode", "trimmed")
+
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
