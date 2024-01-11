@@ -69,6 +69,8 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 		return newTrimmedStore(ctx, l, folder, opts)
 	}
 
+	l.Infow("Starting boltdb", "mode", "untrimmed")
+
 	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
 	if err != nil {
 		return nil, err
