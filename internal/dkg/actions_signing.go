@@ -61,7 +61,13 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 		return key.ErrInvalidKeyScheme
 	}
 
-	return kp.Scheme().AuthScheme.Verify(pubPoint, messageForProto(proposal, packet, metadata.BeaconID), metadata.Signature)
+	// we need to copy here or the GC/compiler does something weird
+	sig := make([]byte, len(metadata.Signature))
+	copy(sig, metadata.Signature)
+
+	msg := messageForProto(proposal, packet, metadata.BeaconID)
+
+	return kp.Scheme().AuthScheme.Verify(pubPoint, msg, sig)
 }
 
 func messageForProto(proposal *drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
