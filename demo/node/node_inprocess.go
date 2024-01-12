@@ -11,9 +11,6 @@ import (
 	"path"
 	"time"
 
-	pdkg "github.com/drand/drand/v2/protobuf/dkg"
-	clock "github.com/jonboulle/clockwork"
-
 	common2 "github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
@@ -25,7 +22,9 @@ import (
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/test"
 	"github.com/drand/drand/v2/internal/util"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
+	clock "github.com/jonboulle/clockwork"
 )
 
 // LocalNode ...
