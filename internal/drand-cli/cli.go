@@ -877,7 +877,7 @@ func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 
 	startRoundStr := c.Args().First()
 	sr, err := strconv.Atoi(startRoundStr)
-	if err != nil {
+	if err != nil || sr < 0 {
 		return fmt.Errorf("given round not valid: %d", sr)
 	}
 
