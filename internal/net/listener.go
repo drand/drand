@@ -61,6 +61,9 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 				grpcrecovery.UnaryServerInterceptor(), // TODO (dlsniper): This turns panics into grpc errors. Do we want that?
 			),
 		),
+		// this limits the number of concurrent streams to each ServerTransport to prevent potential remote DoS
+		//nolint:gomnd
+		grpc.MaxConcurrentStreams(256),
 	)
 
 	grpcServer := grpc.NewServer(opts...)
