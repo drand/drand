@@ -1387,3 +1387,54 @@ func TestDKGStatusDoesntBlowUp(t *testing.T) {
 	err = CLI().Run([]string{"drand", "dkg", "status", "--control", instances[0].ctrlPort})
 	require.NoError(t, err)
 }
+
+func TestDeleteBeaconNegativeRound(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+	l := testlogger.New(t)
+	ctx := context.Background()
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	if sch.Name == crypto.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
+	tmp := path.Join(t.TempDir(), "drand")
+
+	opt := core.WithConfigFolder(tmp)
+	conf := core.NewConfig(l, opt)
+	fs.CreateSecureFolder(conf.DBFolder(beaconID))
+	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
+	require.NoError(t, err)
+	err = store.Put(ctx, &common.Beacon{
+		Round:     1,
+		Signature: []byte("Hello"),
+	})
+	require.NoError(t, err)
+	err = store.Put(ctx, &common.Beacon{
+		Round:     2,
+		Signature: []byte("Hello"),
+	})
+	require.NoError(t, err)
+	err = store.Put(ctx, &common.Beacon{
+		Round:     3,
+		Signature: []byte("Hello"),
+	})
+	require.NoError(t, err)
+	err = store.Put(ctx, &common.Beacon{
+		Round:     4,
+		Signature: []byte("hello"),
+	})
+	require.NoError(t, err)
+	b, err := store.Get(ctx, 3)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	b, err = store.Get(ctx, 4)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+
+	err = store.Close()
+	require.NoError(t, err)
+
+	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "--", "-3"}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
