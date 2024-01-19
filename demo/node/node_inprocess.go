@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -314,7 +315,7 @@ func (l *LocalNode) GetBeacon(_ string, round uint64) (ret *drand.PublicRandResp
 	}
 
 	r := common2.Beacon{}
-	new(net.HexJSON).Unmarshal(roundData, r)
+	json.Unmarshal(roundData, r)
 
 	ret = &drand.PublicRandResponse{
 		Round:      r.GetRound(),
