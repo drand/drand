@@ -72,7 +72,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 	t.Logf("Creating %d nodes for beaconID %s\n", n, beaconID)
 	var privs []*key.Pair
 
-	privs, group = test.BatchIdentities(n, sch, beaconID)
+	privs, group = test.BatchIdentities(t, n, sch, beaconID)
 
 	ports := test.Ports(n)
 	daemons = make([]*DrandDaemon, n)
@@ -154,8 +154,6 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt := new(DrandTestScenario)
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
-	// hmm it seems like this _has_ to be insecure as the `ControlClient` uses insecure credentials?
-	// dunno how any tests were passing if this was the case though
 	daemons, drands, _, dir := BatchNewDrand(t, 0, n, sch, beaconID, append(opts, WithCallOption(grpc.WaitForReady(true)))...)
 
 	dt.t = t
@@ -375,7 +373,6 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
-			Tls:       identity.TLS,
 		}
 	}
 
@@ -431,7 +428,6 @@ func (d *DrandTestScenario) RunFailingReshare() error {
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
-			Tls:       identity.TLS,
 		}
 	}
 
@@ -522,7 +518,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
-			Tls:       identity.TLS,
 		}
 	}
 
@@ -539,7 +534,6 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 			Address:   identity.Addr,
 			Key:       pk,
 			Signature: identity.Signature,
-			Tls:       identity.TLS,
 		}
 	}
 

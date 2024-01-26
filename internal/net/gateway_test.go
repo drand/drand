@@ -18,15 +18,10 @@ import (
 
 type testPeer struct {
 	addr string
-	t    bool
 }
 
 func (t *testPeer) Address() string {
 	return t.addr
-}
-
-func (t *testPeer) IsTLS() bool {
-	return t.t
 }
 
 type testRandomnessServer struct {
@@ -65,7 +60,7 @@ func TestListener(t *testing.T) {
 	lisREST, err := NewRESTListenerForPublic(ctx, "127.0.0.1:", mux)
 	require.NoError(t, err)
 
-	peerGRPC := &testPeer{lisGRPC.Addr(), false}
+	peerGRPC := &testPeer{lisGRPC.Addr()}
 
 	go lisGRPC.Start()
 	defer lisGRPC.Stop(ctx)

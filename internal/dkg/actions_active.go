@@ -170,7 +170,6 @@ func asIdentity(response *proto.IdentityResponse) (key.Identity, error) {
 		Addr:      response.Address,
 		Signature: response.Signature,
 		Scheme:    sch,
-		TLS:       response.Tls,
 	}, nil
 }
 
@@ -198,7 +197,7 @@ func (d *Process) StartProposal(
 				continue
 			}
 			// fetch their public key via gRPC
-			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address, r.Tls), &proto.IdentityRequest{Metadata: &proto.Metadata{
+			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &proto.IdentityRequest{Metadata: &proto.Metadata{
 				BeaconID:  beaconID,
 				ChainHash: nil,
 			}})
@@ -222,7 +221,6 @@ func (d *Process) StartProposal(
 				Address:   r.Address,
 				Key:       response.Key,
 				Signature: response.Signature,
-				Tls:       r.Tls,
 			}
 
 			currentState.Joining[i] = &updatedParticipant

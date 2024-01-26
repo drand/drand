@@ -101,7 +101,7 @@ message PublicKeyRequest {
 message PublicKeyResponse {
   bytes pubKey = 1;
   string addr = 2;
-  bool tls = 3;
+  bool tls = 3 [deprecated = true];
   bytes signature = 4;
   Metadata metadata = 5;
   string schemeName = 6;

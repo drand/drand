@@ -55,7 +55,6 @@ func remoteStatusCmd(c *cli.Context, l log.Logger) error {
 	for i := 0; i < len(ips); i++ {
 		addresses[i] = &control.Address{
 			Address: ips[i],
-			Tls:     !c.IsSet(insecureFlag.Name),
 		}
 	}
 
@@ -110,8 +109,8 @@ func pingpongCmd(c *cli.Context, l log.Logger) error {
 	return nil
 }
 
-func remotePingToNode(l log.Logger, addr string, insecure bool) error {
-	peer := net.CreatePeer(addr, !insecure)
+func remotePingToNode(l log.Logger, addr string) error {
+	peer := net.CreatePeer(addr)
 	client := net.NewGrpcClient(l)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -20,7 +20,7 @@ func TestChainInfo(t *testing.T) {
 	require.NoError(t, err)
 	beaconID := "test_beacon"
 
-	_, g1 := test.BatchIdentities(5, sch, beaconID)
+	_, g1 := test.BatchIdentities(t, 5, sch, beaconID)
 	c1 := NewChainInfo(g1)
 	require.NotNil(t, c1)
 
@@ -44,7 +44,7 @@ func TestChainInfo(t *testing.T) {
 	require.Equal(t, c1.HashString(), hex.EncodeToString(h12))
 	require.Equal(t, c1.GetSchemeName(), g1.Scheme.Name)
 
-	_, g2 := test.BatchIdentities(5, sch, beaconID)
+	_, g2 := test.BatchIdentities(t, 5, sch, beaconID)
 	c2 := NewChainInfo(g2)
 	h2 := c2.Hash()
 	require.NotEqual(t, h1, h2)

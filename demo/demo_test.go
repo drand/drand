@@ -59,6 +59,8 @@ func testLocalOrchestration(t *testing.T) {
 	err = o.StartCurrentNodes()
 	require.NoError(t, err)
 
+	o.PrintMetrics()
+
 	err = o.RunDKG(20 * time.Second)
 	require.NoError(t, err)
 

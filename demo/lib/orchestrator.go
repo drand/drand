@@ -398,7 +398,7 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		PgDSN:        e.pgDSN,
 		MemDBSize:    e.memDBSize,
 	}
-	//  offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool
+	//  offset int, period, basePath, certFolder string, binary string, sch scheme.Scheme, beaconID string, isCandidate bool
 	e.newNodes, e.newPaths = createNodes(c)
 }
 

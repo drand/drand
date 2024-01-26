@@ -35,7 +35,6 @@ func generateProposal(l log.Logger, beaconID string, joining, remaining, leaving
 				Address:   res.Addr,
 				Key:       hex.EncodeToString(res.PubKey),
 				Signature: hex.EncodeToString(res.Signature),
-				TLS:       res.Tls,
 			})
 		}
 		return participants, nil

@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -57,7 +56,7 @@ var (
 		Help: "Number of API calls that we have received",
 	}, []string{"api_method"})
 
-	// GroupDialFailures (Group) how manuy failures connecting outbound
+	// GroupDialFailures (Group) how many failures connecting outbound
 	GroupDialFailures = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dial_failures",
 		Help: "Number of times there have been network connection issues",
@@ -362,14 +361,20 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 // Handler abstracts a helper for relaying http requests to a group peer
 type Handler func(ctx context.Context, addr string) (http.Handler, error)
 
-// Start starts a prometheus metrics server with debug endpoints.
-func Start(logger log.Logger, metricsBind string, pprof http.Handler, groupHandlers []Handler) net.Listener {
-	logger.Debugw("", "metrics", "starting listener", "at", metricsBind)
+// Client is the same as net.MetricsClient but avoids cyclic dependencies in our metric and net code.
+type Client interface {
+	GetMetrics(ctx context.Context, p string) (string, error)
+}
+
+// Start starts a prometheus metrics server with debug endpoints. If metricsBind is 0 it will use an available port.
+func Start(logger log.Logger, metricsBind string, pprof http.Handler, cli Client) net.Listener {
+	logger.Infow("metrics starting", "desired_port", metricsBind)
 
 	metricsBound.Do(func() {
 		bindMetrics(logger)
 	})
 
+	// handle metricsBind being just a port value
 	if !strings.Contains(metricsBind, ":") {
 		metricsBind = "127.0.0.1:" + metricsBind
 	}
@@ -378,13 +383,12 @@ func Start(logger log.Logger, metricsBind string, pprof http.Handler, groupHandl
 		logger.Warnw("", "metrics", "listen failed", "err", err)
 		return nil
 	}
-	s := http.Server{Addr: l.Addr().String(), ReadHeaderTimeout: 3 * time.Second}
+	logger.Infow("metric listener started", "addr", l.Addr())
+
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
-	if groupHandlers != nil {
-		mux.Handle("/peer/", newLazyPeerHandler(logger, groupHandlers))
-	}
+	mux.Handle("/peer/", newRemotePeerHandler(logger, cli))
 
 	if pprof != nil {
 		mux.Handle("/debug/pprof/", pprof)
@@ -394,108 +398,49 @@ func Start(logger log.Logger, metricsBind string, pprof http.Handler, groupHandl
 		runtime.GC()
 		fmt.Fprintf(w, "GC run complete")
 	})
-	s.Handler = mux
+
+	s := http.Server{Addr: l.Addr().String(), ReadHeaderTimeout: 3 * time.Second, Handler: mux}
 	go func() {
 		logger.Warnw("", "metrics", "listen finished", "err", s.Serve(l))
 	}()
 	return l
 }
 
-// GroupHandler provides metrics shared to other group members
-// This HTTP handler, which would typically be mounted at `/metrics` exposes `GroupMetrics`
-func GroupHandler(logger log.Logger) http.Handler {
-	metricsBound.Do(func() {
-		bindMetrics(logger)
-	})
-	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
-}
-
-// lazyPeerHandler is a structure that defers learning which peers this node is connected
-// to until an http request is received for a specific peer. It handles all peers that
+// remotePeerHandler is a structure that handles all peers that
 // this node is connected to regardless of which group they are a part of.
-type lazyPeerHandler struct {
-	log             log.Logger
-	metricsHandlers []Handler
-	// handlerCache is a cache of peer address -> handler
-	// TODO Do we need to evict from cache at some point? The only case when it should be
-	//      invalidated is if a peer leaves e.g. during a Reshare
-	handlerCache sync.Map
+type remotePeerHandler struct {
+	log    log.Logger
+	client Client
 }
 
-// newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
-func newLazyPeerHandler(logger log.Logger, metricsHandlers []Handler) *lazyPeerHandler {
-	return &lazyPeerHandler{
-		log:             logger,
-		metricsHandlers: metricsHandlers,
-		handlerCache:    sync.Map{},
+// newRemotePeerHandler creates a new remotePeerHandler from a MetricsClient
+func newRemotePeerHandler(logger log.Logger, cli Client) *remotePeerHandler {
+	logger.Warnw("Creating new peer handler with", "cli", cli)
+	return &remotePeerHandler{
+		log:    logger,
+		client: cli,
 	}
 }
 
-// handlerForPeer returns the http.Handler associated with a given peer address.
-// Metrics are group-agnostic. Therefore, we just need the Handler for a group that the
-// peer in question has joined, regardless of the group. If a peer belongs to multiple
-// groups, it will return the handler associated with the group that appears first in
-// the metricsHandlers whose beacon the peer has joined.
-//
-// If the peer is not found, it will return a nil handler and a nil error.
-// If there is any other error it will return false and the given error.
-func (l *lazyPeerHandler) handlerForPeer(ctx context.Context, addr string) (http.Handler, error) {
-	h, found := l.handlerCache.Load(addr)
-	if found && h != nil {
-		return h.(http.Handler), nil
-	}
-
-	var err error
-
-	for _, handlerFunc := range l.metricsHandlers {
-		h, err = handlerFunc(ctx, addr)
-		if err != nil {
-			if errors.Is(err, common2.ErrNotPartOfGroup) {
-				continue
-			}
-
-			return nil, err
-		}
-
-		if h == nil {
-			return nil, fmt.Errorf("metrics `Handler` could not be created for peer with addr %s", addr)
-		}
-
-		l.handlerCache.Store(addr, h)
-		return h.(http.Handler), nil
-	}
-
-	return nil, common2.ErrPeerNotFound
-}
-
-// ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
-// URI is in the form /peer/<peer_address>
-func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP serves the metrics for the peer whose address is given in the URI.
+// It assumes that the URI is in the form /peer/<peer_address>
+func (l *remotePeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
 	if index := strings.Index(addr, "/"); index != -1 {
 		addr = addr[:index]
 	}
 
-	handler, err := l.handlerForPeer(r.Context(), addr)
-
+	metrics, err := l.client.GetMetrics(r.Context(), addr)
 	if err != nil {
-		if errors.Is(err, common2.ErrPeerNotFound) {
-			l.log.Warnw("", "metrics", "peer not found", "addr", addr)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		l.log.Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
 
-	// The request to make to the peer is for its "/metrics" endpoint
-	// Note that at present this shouldn't matter, since the only handler
-	// mounted for the other end of these requests is `GroupHandler()` above,
-	// so all paths / requests should see group metrics as a response.
-	r.URL.Path = "/metrics"
-	handler.ServeHTTP(w, r)
+	l.log.Debugw("Received metrics through GRPC", "from", addr, "err", err)
+
+	_, err = w.Write([]byte(metrics))
+	if err != nil {
+		l.log.Errorw("Error serving remote metrics for peer", "addr", addr)
+	}
 }
 
 func getBuildTimestamp(buildDate string) int64 {

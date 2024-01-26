@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/rogpeppe/go-internal/lockedfile"
@@ -23,20 +24,15 @@ import (
 
 type testPeer struct {
 	a string
-	b bool
 }
 
 func (t *testPeer) Address() string {
 	return t.a
 }
 
-func (t *testPeer) IsTLS() bool {
-	return t.b
-}
-
 // NewPeer returns a new net.Peer
 func NewPeer(addr string) net.Peer {
-	return &testPeer{a: addr, b: false}
+	return &testPeer{a: addr}
 }
 
 // Addresses returns a list of TCP 127.0.0.1 addresses starting from the given
@@ -139,14 +135,17 @@ func GenerateIDs(n int) []*key.Pair {
 	keys := make([]*key.Pair, n)
 	addrs := Addresses(n)
 	for i := range addrs {
-		priv, _ := key.NewInsecureKeypair(addrs[i], nil)
+		priv, _ := key.NewKeyPair(addrs[i], nil)
 		keys[i] = priv
 	}
 	return keys
 }
 
 // BatchIdentities generates n insecure identities
-func BatchIdentities(n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
+func BatchIdentities(t *testing.T, n int, sch *crypto.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
+	if n < 1 {
+		t.Fatalf("cannot generate less than 1 identity in tests")
+	}
 	beaconID = commonutils.GetCanonicalBeaconID(beaconID)
 	privs := GenerateIDs(n)
 
