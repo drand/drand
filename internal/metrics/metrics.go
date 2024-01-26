@@ -415,7 +415,6 @@ type remotePeerHandler struct {
 
 // newRemotePeerHandler creates a new remotePeerHandler from a MetricsClient
 func newRemotePeerHandler(logger log.Logger, cli Client) *remotePeerHandler {
-	logger.Warnw("Creating new peer handler with", "cli", cli)
 	return &remotePeerHandler{
 		log:    logger,
 		client: cli,

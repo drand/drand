@@ -12,11 +12,12 @@ import (
 	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
-
-	pdkg "github.com/drand/drand/v2/protobuf/dkg"
+	"google.golang.org/grpc/health"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/internal/metrics"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
@@ -65,14 +66,19 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 
 	grpcServer := grpc.NewServer(opts...)
 
+	// support GRPC health checking
+	healthcheck := health.NewServer()
+	healthgrpc.RegisterHealthServer(grpcServer, healthcheck)
+
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
 	pdkg.RegisterDKGControlServer(grpcServer, s)
 
 	g := &grpcListener{
-		Service:    s,
-		grpcServer: grpcServer,
-		lis:        lis,
+		Service:      s,
+		grpcServer:   grpcServer,
+		lis:          lis,
+		healthServer: healthcheck,
 	}
 
 	grpcprometheus.Register(grpcServer)
@@ -136,8 +142,9 @@ func (g *restListener) Stop(ctx context.Context) {
 
 type grpcListener struct {
 	Service
-	grpcServer *grpc.Server
-	lis        net.Listener
+	grpcServer   *grpc.Server
+	lis          net.Listener
+	healthServer *health.Server
 }
 
 func (g *grpcListener) Addr() string {
@@ -146,11 +153,13 @@ func (g *grpcListener) Addr() string {
 
 func (g *grpcListener) Start() {
 	go func() {
+		g.healthServer.SetServingStatus("", healthgrpc.HealthCheckResponse_SERVING)
 		_ = g.grpcServer.Serve(g.lis)
 	}()
 }
 
 func (g *grpcListener) Stop(_ context.Context) {
+	g.healthServer.SetServingStatus("", healthgrpc.HealthCheckResponse_NOT_SERVING)
 	g.grpcServer.Stop()
 	_ = g.lis.Close()
 }

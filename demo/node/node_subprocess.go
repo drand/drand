@@ -153,20 +153,18 @@ func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, me
 	// create log file
 	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
-	logFile, err := os.OpenFile(n.logPath, flags, 0777)
+	logFile, err := os.OpenFile(n.logPath, flags, 0640)
 	checkErr(err)
-	_, _ = logFile.Write([]byte("\n\nNEW LOG\n\n"))
+	_, _ = logFile.Write([]byte("\n\nNEW LOG for NodeProc subprocess\n\n"))
 
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
 	_, privPort, _ := net.SplitHostPort(n.privAddr)
 	_, pubPort, _ := net.SplitHostPort(n.pubAddr)
-	n.metricPort = test.FreePort()
 
 	args = append(args, pair("--private-listen", "0.0.0.0:"+privPort)...)
 	args = append(args, pair("--public-listen", "0.0.0.0:"+pubPort)...)
-	args = append(args, pair("--metrics", "0.0.0.0:"+n.metricPort)...)
 
 	args = append(args, pair("--db", string(n.dbEngineType))...)
 	args = append(args, pair("--pg-dsn", n.pgDSN)...)

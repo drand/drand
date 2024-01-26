@@ -13,11 +13,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
@@ -256,26 +256,20 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		)
 
-		//nolint:gomnd
-		tctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
-		c, err = grpc.DialContext(tctx, p.Address(), append(opts,
-			grpc.WithConnectParams(grpc.ConnectParams{
-				Backoff: backoff.Config{
-					BaseDelay:  time.Second / 3,   // reduced default from 1s
-					Multiplier: 1.6,               // default values
-					Jitter:     0.2,               // default values
-					MaxDelay:   120 * time.Second, // default values
-				},
-				MinConnectTimeout: time.Second, // reduced default from 20s
-			}),
-			grpc.WithTransportCredentials(credentials.NewTLS(config)),
-			grpc.WithReturnConnectionError())...) // needed to see TLS handshake failures
+		c, err = grpc.DialContext(ctx, p.Address(), append(opts,
+			grpc.WithTransportCredentials(credentials.NewTLS(config)))...)
+		if err == nil {
+			// we do a health check to check the connection can be properly established
+			client := grpc_health_v1.NewHealthClient(c)
+			_, err = client.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+		}
+		// we are relying on the same err
 		if err != nil {
 			g.log.Errorw("error initiating a new grpc conn using TLS", "to", p.Address(), "err", err)
 
 			// we fall back to non-TLS GRPC conn since we are not transmitted unauthenticated or secret data over GRPC.
 			g.log.Warnw("falling back to non-TLS grpc conn")
+
 			c, err = grpc.DialContext(ctx, p.Address(), append(opts,
 				grpc.WithTransportCredentials(insecure.NewCredentials()))...)
 			if err != nil {
@@ -289,15 +283,17 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 			g.log.Debugw("new grpc conn established", "state", c.GetState(), "to", p.Address())
 
 			g.conns[p.Address()] = c
+			metrics.OutgoingConnections.Set(float64(len(g.conns)))
 		}
 	}
 
 	// Emit the connection state regardless of whether it's a new or an existing connection
 	if err == nil {
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
+	} else {
+		g.log.Warnw("grpc conn encountered errors when dialing", "err", err)
 	}
 
-	metrics.OutgoingConnections.Set(float64(len(g.conns)))
 	return c, err
 }
 
