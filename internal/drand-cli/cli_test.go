@@ -690,9 +690,9 @@ func TestDrandReloadBeacon(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	defer func() {
 		for _, inst := range instances {
@@ -869,9 +869,9 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check that each node can reach each other
 	for i, instance := range instances {
@@ -943,9 +943,9 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check that each node can reach each other
 	for i, instance := range instances {
@@ -1380,9 +1380,9 @@ func TestDKGStatusDoesntBlowUp(t *testing.T) {
 	instances[0].executeDKG(t, beaconID)
 
 	// wait for the DKG to finish
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check the status command runs fine
 	err = CLI().Run([]string{"drand", "dkg", "status", "--control", instances[0].ctrlPort})
@@ -1461,9 +1461,9 @@ func TestMetricsForPeer(t *testing.T) {
 	instances[0].executeDKG(t, beaconID)
 
 	// wait for the DKG to finish
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check the metrics are fine
 	args := []string{"--no-progress-meter", "127.0.0.1:" + instances[0].metrics + "/metrics"}
