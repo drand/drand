@@ -42,7 +42,7 @@ func TestDrandDaemon_Stop(t *testing.T) {
 	ctx := context.Background()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	privs, _ := test.BatchIdentities(1, sch, t.Name())
+	privs, _ := test.BatchIdentities(t, 1, sch, t.Name())
 
 	port := test.FreePort()
 

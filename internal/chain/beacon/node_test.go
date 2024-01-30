@@ -136,13 +136,14 @@ type BeaconTest struct {
 func NewBeaconTest(
 	ctx context.Context, t *testing.T, c clock.FakeClock,
 	n, thr int, period time.Duration,
-	genesisTime int64, beaconID string) *BeaconTest {
+	genesisTime int64, beaconID string,
+) *BeaconTest {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	prefix := t.TempDir()
 	paths := createBoltStores(t, prefix, n)
 	shares, commits := dkgShares(t, n, thr, sch)
-	privs, group := test.BatchIdentities(n, sch, beaconID)
+	privs, group := test.BatchIdentities(t, n, sch, beaconID)
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime

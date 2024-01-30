@@ -142,3 +142,7 @@ func (s *EmptyServer) DKGStatus(_ context.Context, _ *pdkg.DKGStatusRequest) (*p
 func (s *EmptyServer) Migrate(_ context.Context, _ *drand.Empty) (*drand.Empty, error) {
 	return nil, nil
 }
+
+func (s *EmptyServer) Metrics(_ context.Context, _ *drand.MetricsRequest) (*drand.MetricsResponse, error) {
+	return nil, nil
+}

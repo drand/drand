@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -175,7 +176,7 @@ func TestStartAndStop(t *testing.T) {
 	require.NoError(t, err)
 	beaconID := test.GetBeaconIDFromEnv()
 
-	_, group := test.BatchIdentities(n, sch, beaconID)
+	_, group := test.BatchIdentities(t, n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
@@ -266,7 +267,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--insecure", "--id", beaconID, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
 	listen := []string{"drand", "start", "--control", test.FreePort(), "--private-listen", keyAddr, "--folder", tmp}
@@ -287,7 +288,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 	// TODO can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
 
-	check := []string{"drand", "util", "check", "--insecure", "--id", beaconID, keyAddr}
+	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
@@ -348,7 +349,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	t.Log(" --- DRAND GROUP ---")
 
 	// fake group
-	_, group := test.BatchIdentities(5, sch, beaconID)
+	_, group := test.BatchIdentities(t, 5, sch, beaconID)
 
 	// fake dkg output
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
@@ -573,7 +574,7 @@ func TestClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// fake group
-	_, group := test.BatchIdentities(5, sch, beaconID)
+	_, group := test.BatchIdentities(t, 5, sch, beaconID)
 	// fake dkg outuput
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
@@ -689,9 +690,9 @@ func TestDrandReloadBeacon(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	defer func() {
 		for _, inst := range instances {
@@ -798,7 +799,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -824,7 +825,7 @@ func TestDrandStatus_WithoutDKG(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, allAddresses...)
 		var buff bytes.Buffer
 
@@ -868,13 +869,13 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -899,7 +900,7 @@ func TestDrandStatus_WithDKG_NoAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		var buff bytes.Buffer
 
 		cli := CLI()
@@ -942,13 +943,13 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 	}
 	instances[0].executeDKG(t, beaconID)
 
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check that each node can reach each other
 	for i, instance := range instances {
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 
@@ -974,7 +975,7 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 		if i == toStop {
 			continue
 		}
-		remote := []string{"drand", "util", "remote-status", "--insecure", "--control", instance.ctrlPort}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
 		remote = append(remote, instances[i].addr)
 		var buff bytes.Buffer
 
@@ -1224,7 +1225,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 		// generate key so it loads
 		// TODO let's remove this requirement - no need for longterm keys
-		priv, err := key.NewInsecureKeypair(addr, nil)
+		priv, err := key.NewKeyPair(addr, nil)
 		require.NoError(t, err)
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(l, core.WithConfigFolder(nodePath))
@@ -1379,9 +1380,9 @@ func TestDKGStatusDoesntBlowUp(t *testing.T) {
 	instances[0].executeDKG(t, beaconID)
 
 	// wait for the DKG to finish
+	t.Log("waiting for initial set up to settle on all nodes")
 	dkgTimeoutSeconds := 20
 	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
-	t.Log("waiting for initial set up to settle on all nodes")
 
 	// check the status command runs fine
 	err = CLI().Run([]string{"drand", "dkg", "status", "--control", instances[0].ctrlPort})
@@ -1437,4 +1438,51 @@ func TestDeleteBeaconNegativeRound(t *testing.T) {
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "--", "-3"}
 	app := CLI()
 	require.Error(t, app.Run(args))
+}
+
+func TestMetricsForPeer(t *testing.T) {
+	l := testlogger.New(t)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	// start some nodes
+	n := 3
+	instances := genAndLaunchDrandInstances(t, n)
+
+	// execute a DKG
+	for i, inst := range instances {
+		if i == 0 {
+			inst.startInitialDKG(t, l, instances, n, 1, beaconID, sch)
+		} else {
+			inst.join(t, beaconID)
+		}
+	}
+	instances[0].executeDKG(t, beaconID)
+
+	// wait for the DKG to finish
+	t.Log("waiting for initial set up to settle on all nodes")
+	dkgTimeoutSeconds := 20
+	require.NoError(t, instances[0].awaitDKGComplete(t, beaconID, 1, dkgTimeoutSeconds))
+
+	// check the metrics are fine
+	args := []string{"--no-progress-meter", "127.0.0.1:" + instances[0].metrics + "/metrics"}
+	cmd := exec.Command("curl", args...)
+	out, err := cmd.CombinedOutput()
+	metrics := string(out)
+	require.NoError(t, err, "Error: ", metrics)
+	require.Contains(t, string(out), "dkg_leader")
+	require.Contains(t, string(out), "outgoing_connection_state")
+	require.GreaterOrEqual(t, len(out), 512)
+
+	// check the peer metrics are fine
+	args = []string{"--no-progress-meter", "127.0.0.1:" + instances[0].metrics + "/peer/" + instances[1].addr + "/metrics"}
+	fmt.Println("Running curl", args)
+	cmd = exec.Command("curl", args...)
+	out, err = cmd.CombinedOutput()
+	metrics = string(out)
+	require.NoError(t, err, "Error: ", metrics)
+	require.Contains(t, string(out), "dkg_leader")
+	require.Contains(t, string(out), "outgoing_connection_state")
+	require.GreaterOrEqual(t, len(out), 512)
 }

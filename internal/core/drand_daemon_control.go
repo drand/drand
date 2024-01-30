@@ -188,8 +188,6 @@ func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
 	return bp.priv, nil
 }
 
-// /////////
-
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
 	ctx, span := tracer.NewSpan(ctx, "dd.Stop")
