@@ -69,7 +69,6 @@ func (g *Group) Find(pub *Identity) *Node {
 					Addr:      pu.Addr,
 					Signature: pu.Signature,
 					Scheme:    g.Scheme,
-					TLS:       pu.TLS,
 				},
 				Index: pu.Index,
 			}
@@ -443,7 +442,6 @@ func (g *Group) ToProto(version common2.Version) *proto.GroupPacket {
 				Address:   id.Address(),
 				Key:       key,
 				Signature: id.Signature,
-				Tls:       id.TLS,
 			},
 			Index: id.Index,
 		}

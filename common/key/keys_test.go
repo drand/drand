@@ -25,7 +25,6 @@ func TestKeyPublic(t *testing.T) {
 	require.NoError(t, err)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
-	require.Equal(t, kp.Public.TLS, ptoml.TLS)
 
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
@@ -40,7 +39,6 @@ func TestKeyPublic(t *testing.T) {
 	require.Equal(t, kp.Public.Scheme.Name, sch.Name)
 	require.Equal(t, p2.Scheme.Name, sch.Name)
 	require.Equal(t, kp.Public.Addr, p2.Addr)
-	require.Equal(t, kp.Public.TLS, p2.TLS)
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
@@ -156,7 +154,7 @@ func BatchIdentities(t *testing.T, n int) ([]*Pair, *Group) {
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
-		privs[i], _ = NewInsecureKeypair(addr, sch)
+		privs[i], _ = NewKeyPair(addr, sch)
 		pubs[i] = &Node{
 			Index:    uint32(i),
 			Identity: privs[i].Public,

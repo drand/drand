@@ -45,7 +45,6 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyReques
 		PubKey:     protoKey,
 		Addr:       keyPair.Public.Addr,
 		Signature:  keyPair.Public.Signature,
-		Tls:        keyPair.Public.TLS,
 		Metadata:   bp.newMetadata(),
 		SchemeName: keyPair.Public.Scheme.Name,
 	}, nil
@@ -114,7 +113,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 					continue
 				}
 
-				nodes = append(nodes, &drand.Address{Address: node.Address(), Tls: node.TLS})
+				nodes = append(nodes, &drand.Address{Address: node.Address()})
 			}
 		}
 	}
@@ -137,7 +136,7 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 			resp, err = bp.Status(ctx, statusReq)
 		} else {
 			bp.log.Debugw("Sending status request", "for_node", remoteAddress)
-			p := net.CreatePeer(remoteAddress, addr.Tls)
+			p := net.CreatePeer(remoteAddress)
 			resp, err = bp.privGateway.Status(ctx, p, statusReq)
 		}
 		if err != nil {
@@ -194,7 +193,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 	if len(nodeList) == 1 && nodeList[0].Address == bp.priv.Public.Addr && bp.beacon != nil && bp.group != nil {
 		bp.log.Debugw("Empty node connectivity list, populating with group file")
 		for _, node := range bp.group.Nodes {
-			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
+			nodeList = append(nodeList, &drand.Address{Address: node.Address()})
 		}
 	}
 
@@ -211,7 +210,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 			continue
 		}
 
-		p := net.CreatePeer(remoteAddress, addr.Tls)
+		p := net.CreatePeer(remoteAddress)
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
 			ctx, span := tracer.NewSpan(ctx, "bp.Status.sendingHome")
@@ -302,8 +301,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		if addr == bp.priv.Public.Address() {
 			continue
 		}
-		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, false))
+		peers = append(peers, net.CreatePeer(addr))
 	}
 
 	info, err := bp.chainInfoFromPeers(ctx, peers)
@@ -441,7 +439,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 			continue
 		}
 		// TODO add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, false))
+		peers = append(peers, net.CreatePeer(addr))
 	}
 
 	logger.Debugw("validate_and_sync", "up_to", req.UpTo)

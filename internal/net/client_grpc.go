@@ -7,19 +7,17 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/weaveworks/common/httpgrpc"
-	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
@@ -33,11 +31,10 @@ var _ Client = (*grpcClient)(nil)
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
-	conns    map[string]*grpc.ClientConn
-	opts     []grpc.DialOption
-	timeout  time.Duration
-	log      log.Logger
-	insecure bool
+	conns   map[string]*grpc.ClientConn
+	opts    []grpc.DialOption
+	timeout time.Duration
+	log     log.Logger
 }
 
 var defaultTimeout = 1 * time.Minute
@@ -46,11 +43,10 @@ var defaultTimeout = 1 * time.Minute
 // ExternalClient using gRPC connections
 func NewGrpcClient(l log.Logger, opts ...grpc.DialOption) Client {
 	client := grpcClient{
-		opts:     opts,
-		conns:    make(map[string]*grpc.ClientConn),
-		timeout:  defaultTimeout,
-		log:      l,
-		insecure: false,
+		opts:    opts,
+		conns:   make(map[string]*grpc.ClientConn),
+		timeout: defaultTimeout,
+		log:     l,
 	}
 	client.loadEnvironment()
 	return &client
@@ -241,6 +237,7 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	defer g.Unlock()
 	var err error
 
+	// we try to retrieve an existing connection if available
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
@@ -249,41 +246,55 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
 
+	// otherwise we try to re-dial it
 	if !ok {
-		g.log.Debugw("", "grpc client", "initiating", "to", p.Address())
+		g.log.Debugw("initiating new grpc conn using TLS", "to", p.Address())
 		var opts []grpc.DialOption
 
-		if !p.IsTLS() {
-			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))...)
-			if err != nil {
-				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-			}
-			g.conns[p.Address()] = c
-		} else {
-			config := &tls.Config{MinVersion: tls.VersionTLS12}
-			opts = append(opts, g.opts...)
-			opts = append(opts,
-				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-				grpc.WithTransportCredentials(credentials.NewTLS(config)),
-			)
+		config := &tls.Config{MinVersion: tls.VersionTLS12}
+		opts = append(opts, g.opts...)
+		opts = append(opts,
+			grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+		)
 
-			c, err = grpc.DialContext(ctx, p.Address(), opts...)
+		c, err = grpc.DialContext(ctx, p.Address(), append(opts,
+			grpc.WithTransportCredentials(credentials.NewTLS(config)))...)
+		if err == nil {
+			// we do a health check to check the connection can be properly established
+			client := grpc_health_v1.NewHealthClient(c)
+			_, err = client.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+		}
+		// we are relying on the same err
+		if err != nil {
+			g.log.Errorw("error initiating a new grpc conn using TLS", "to", p.Address(), "err", err)
+
+			// we fall back to non-TLS GRPC conn since we are not transmitted unauthenticated or secret data over GRPC.
+			g.log.Warnw("falling back to non-TLS grpc conn")
+
+			c, err = grpc.DialContext(ctx, p.Address(), append(opts,
+				grpc.WithTransportCredentials(insecure.NewCredentials()))...)
 			if err != nil {
+				// We increase the GroupDialFailures counter when both failed
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-				g.log.Errorw("error initiating a new grpc conn", "to", p.Address(), "err", err)
-			} else {
-				g.conns[p.Address()] = c
+				g.log.Errorw("error initiating a new grpc non-TLS conn", "to", p.Address(), "err", err)
 			}
+		}
+
+		if err == nil {
+			g.log.Debugw("new grpc conn established", "state", c.GetState(), "to", p.Address())
+
+			g.conns[p.Address()] = c
+			metrics.OutgoingConnections.Set(float64(len(g.conns)))
 		}
 	}
 
 	// Emit the connection state regardless of whether it's a new or an existing connection
 	if err == nil {
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
+	} else {
+		g.log.Warnw("grpc conn encountered errors when dialing", "err", err)
 	}
 
-	metrics.OutgoingConnections.Set(float64(len(g.conns)))
 	return c, err
 }
 
@@ -296,39 +307,20 @@ func (g *grpcClient) Stop() {
 	g.conns = make(map[string]*grpc.ClientConn)
 }
 
-type httpHandler struct {
-	httpgrpc.HTTPClient
-}
-
-func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req, err := httpgrpcserver.HTTPRequest(r)
+func (g *grpcClient) GetMetrics(ctx context.Context, addr string) (string, error) {
+	g.log.Debugw("GetMetrics grpcClient called", "target_addr", addr)
+	p := CreatePeer(addr)
+	var resp *drand.MetricsResponse
+	// remote metrics are not group specific for now.
+	in := &drand.MetricsRequest{}
+	c, err := g.conn(ctx, p)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return "", err
 	}
-	resp, err := h.Handle(r.Context(), req)
-	if err != nil {
-		var ok bool
-		resp, ok = httpgrpc.HTTPResponseFromError(err)
-
-		if !ok {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if err := httpgrpcserver.WriteResponse(w, resp); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
-func (g *grpcClient) HandleHTTP(ctx context.Context, p Peer) (http.Handler, error) {
-	conn, err := g.conn(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-	client := httpgrpc.NewHTTPClient(conn)
-
-	return &httpHandler{client}, nil
+	client := drand.NewMetricsClient(c)
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+	// we try to use compression since it's requesting a large string
+	resp, err = client.Metrics(ctx, in, grpc.UseCompressor(gzip.Name))
+	return string(resp.GetMetrics()), err
 }

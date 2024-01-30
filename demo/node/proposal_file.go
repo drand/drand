@@ -46,6 +46,5 @@ func toTomlModel(p *drand.Participant) *cli.TomlParticipant {
 		Address:   p.Address,
 		Key:       hex.EncodeToString(p.Key),
 		Signature: hex.EncodeToString(p.Signature),
-		TLS:       p.Tls,
 	}
 }
