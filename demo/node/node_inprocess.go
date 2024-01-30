@@ -82,7 +82,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dkgRunner:    &dkg.TestRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
 	}
 
-	priv, err := key.NewInsecureKeypair(l.privAddr, l.scheme)
+	priv, err := key.NewKeyPair(l.privAddr, l.scheme)
 	if err != nil {
 		panic(err)
 	}

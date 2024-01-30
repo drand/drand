@@ -18,6 +18,7 @@ type Client interface {
 	ProtocolClient
 	PublicClient
 	DKGClient
+	MetricsClient
 }
 
 // Stoppable is an interface that some clients can implement to close their
@@ -45,6 +46,10 @@ type PublicClient interface {
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
+}
+
+type MetricsClient interface {
+	GetMetrics(ctx context.Context, addr string) (string, error)
 }
 
 // listenAddrFor parses the address specified into a dialable / listenable address

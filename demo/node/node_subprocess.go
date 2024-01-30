@@ -55,6 +55,8 @@ type NodeProc struct {
 	dbEngineType chain.StorageType
 	memDBSize    int
 	pgDSN        string
+
+	metricPort string
 }
 
 func NewNode(i int, cfg cfg.Config) *NodeProc {
@@ -114,12 +116,12 @@ func (n *NodeProc) setup() {
 		Clock:    clock.NewRealClock(),
 	}
 	// call drand binary
-	n.priv, err = key.NewInsecureKeypair(n.privAddr, n.scheme)
+	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
 	if err != nil {
 		panic(err)
 	}
 
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name, "--insecure"}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
 
 	args = append(args, n.privAddr)
 	newKey := exec.Command(n.binary, args...)
@@ -137,7 +139,6 @@ func (n *NodeProc) setup() {
 	n.ctrl = ctrlPort
 	checkErr(err)
 }
-
 func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	if dbEngineType != "" {
 		n.dbEngineType = dbEngineType
@@ -152,17 +153,19 @@ func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, me
 	// create log file
 	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
-	logFile, err := os.OpenFile(n.logPath, flags, 0777)
+	logFile, err := os.OpenFile(n.logPath, flags, 0640)
 	checkErr(err)
-	_, _ = logFile.Write([]byte("\n\nNEW LOG\n\n"))
+	_, _ = logFile.Write([]byte("\n\nNEW LOG for NodeProc subprocess\n\n"))
 
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
 	_, privPort, _ := net.SplitHostPort(n.privAddr)
 	_, pubPort, _ := net.SplitHostPort(n.pubAddr)
+
 	args = append(args, pair("--private-listen", "0.0.0.0:"+privPort)...)
 	args = append(args, pair("--public-listen", "0.0.0.0:"+pubPort)...)
+
 	args = append(args, pair("--db", string(n.dbEngineType))...)
 	args = append(args, pair("--pg-dsn", n.pgDSN)...)
 	args = append(args, pair("--memdb-size", fmt.Sprintf("%d", n.memDBSize))...)

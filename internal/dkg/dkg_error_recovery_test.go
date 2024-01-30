@@ -23,6 +23,10 @@ import (
 const beaconID = "default"
 
 func TestDKGFailedAtProtocol(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	nodeCount := 3
 	mb := newMessageBus()
 
@@ -97,6 +101,10 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 }
 
 func TestFailedReshare(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	nodeCount := 3
 	mb := newMessageBus()
 

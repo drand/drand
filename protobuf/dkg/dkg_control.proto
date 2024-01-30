@@ -107,9 +107,8 @@ message ProposalTerms {
 message Participant {
   string address = 1;
   bytes key = 2;
-  bool tls = 3;
   // BLS signature over the identity to prove possession of the private key, it also verify the scheme used
-  bytes signature = 4;
+  bytes signature = 3;
 }
 
 message AcceptProposal {

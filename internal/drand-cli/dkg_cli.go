@@ -679,7 +679,6 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		Signature: identityResp.Signature,
 		Address:   identityResp.Addr,
 		Key:       identityResp.PubKey,
-		Tls:       identityResp.Tls,
 	}, sch)
 	if err != nil {
 		return key.ErrInvalidKeyScheme
@@ -752,14 +751,7 @@ func keyFromGroupFile(address string, groupFile *proto.GroupPacket) (*drand.Part
 }
 
 func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *crypto.Scheme) (*drand.Participant, error) {
-	parts := strings.Split(address, "https://")
-	tls := len(parts) > 1
-	var peer net.Peer
-	if tls {
-		peer = net.CreatePeer(parts[1], true)
-	} else {
-		peer = net.CreatePeer(address, false)
-	}
+	peer := net.CreatePeer(address)
 	client := net.NewGrpcClient(l)
 	identity, err := client.GetIdentity(context.Background(), peer, &proto.IdentityRequest{Metadata: &proto.Metadata{BeaconID: beaconID}})
 	if err != nil {
@@ -774,7 +766,6 @@ func fetchPublicKey(beaconID string, l log.Logger, address string, targetSch *cr
 		Address:   identity.Address,
 		Key:       identity.Key,
 		Signature: identity.Signature,
-		Tls:       identity.Tls,
 	}
 
 	id, err := key.IdentityFromProto(part, targetSch)

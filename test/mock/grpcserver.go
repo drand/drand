@@ -345,3 +345,7 @@ func (s *Server) Packet(_ context.Context, _ *pdkg.GossipPacket) (*pdkg.EmptyDKG
 func (s *Server) DKGStatus(_ context.Context, _ *pdkg.DKGStatusRequest) (*pdkg.DKGStatusResponse, error) {
 	return nil, errors.New("unimplemented for mock server")
 }
+
+func (s *Server) Metrics(_ context.Context, _ *drand.MetricsRequest) (*drand.MetricsResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
