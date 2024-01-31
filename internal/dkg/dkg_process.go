@@ -7,6 +7,7 @@ import (
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/util"
 )
 
 type Process struct {
@@ -22,7 +23,7 @@ type Process struct {
 	Executions map[string]Broadcast
 	// a set of the packets that have been seen already for easy deduping
 	SeenPackets   map[string]bool
-	completedDKGs chan<- SharingOutput
+	completedDKGs *util.FanOutChan[SharingOutput]
 }
 
 type Config struct {
@@ -83,7 +84,7 @@ type BeaconIdentifier interface {
 func NewDKGProcess(
 	store Store,
 	beaconIdentifier BeaconIdentifier,
-	completedDKGs chan<- SharingOutput,
+	completedDKGs *util.FanOutChan[SharingOutput],
 	dkgClient net.DKGClient,
 	protocolClient net.ProtocolClient,
 	config Config,

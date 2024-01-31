@@ -44,7 +44,7 @@ type BeaconProcess struct {
 	privGateway *net.PrivateGateway
 
 	beacon        *beacon.Handler
-	completedDKGs <-chan dkg.SharingOutput
+	completedDKGs *util.FanOutChan[dkg.SharingOutput]
 
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
@@ -68,7 +68,7 @@ type BeaconProcess struct {
 func NewBeaconProcess(ctx context.Context,
 	log dlog.Logger,
 	store key.Store,
-	completedDKGs chan dkg.SharingOutput,
+	completedDKGs *util.FanOutChan[dkg.SharingOutput],
 	beaconID string,
 	opts *Config,
 	privGateway *net.PrivateGateway) (*BeaconProcess, error) {
@@ -186,9 +186,13 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
 	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
-	for dkgOutput := range bp.completedDKGs {
-		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
-			bp.log.Errorw("Error performing DKG key transition", "err", err)
+	ch := bp.completedDKGs.Listen()
+	for {
+		select {
+		case dkgOutput := <-ch:
+			if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
+				bp.log.Errorw("Error performing DKG key transition", "err", err)
+			}
 		}
 	}
 }

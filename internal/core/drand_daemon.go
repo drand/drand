@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"sync"
 
+	"github.com/drand/drand/v2/internal/util"
 	"go.opentelemetry.io/otel/attribute"
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
@@ -43,7 +44,7 @@ type DrandDaemon struct {
 
 	// global state lock
 	state         sync.Mutex
-	completedDKGs chan dkg.SharingOutput
+	completedDKGs *util.FanOutChan[dkg.SharingOutput]
 	exitCh        chan bool
 
 	// version indicates the base code variant
@@ -70,7 +71,7 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 		opts:            c,
 		log:             logger,
 		exitCh:          make(chan bool, 1),
-		completedDKGs:   make(chan dkg.SharingOutput),
+		completedDKGs:   util.NewFanOutChan[dkg.SharingOutput](),
 		version:         common2.GetAppVersion(),
 		beaconProcesses: make(map[string]*BeaconProcess),
 		chainHashes:     make(map[string]string),
