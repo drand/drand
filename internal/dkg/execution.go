@@ -135,7 +135,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		return err
 	}
 
-	d.completedDKGs <- SharingOutput{
+	d.completedDKGs.Chan() <- SharingOutput{
 		BeaconID: beaconID,
 		Old:      lastCompleted,
 		New:      *finalState,

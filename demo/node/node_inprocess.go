@@ -147,7 +147,7 @@ func (l *LocalNode) Start(dbEngineType chain.StorageType, pgDSN func() string, m
 		}
 
 		err = bp.Load(ctx)
-		isFreshRun := err == core.ErrDKGNotStarted
+		isFreshRun := errors.Is(err, core.ErrDKGNotStarted)
 		if err != nil && !isFreshRun {
 			return err
 		}

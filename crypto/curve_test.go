@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,7 +43,6 @@ func TestBLS12381CompatMockData(t *testing.T) {
 	require.NoError(t, err)
 
 	prev, err := hex.DecodeString(previous)
-	fmt.Println(len(prev))
 	require.NoError(t, err)
 
 	h := sha256.New()
