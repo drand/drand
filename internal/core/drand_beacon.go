@@ -187,12 +187,9 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
 	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
 	ch := bp.completedDKGs.Listen()
-	for {
-		select {
-		case dkgOutput := <-ch:
-			if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
-				bp.log.Errorw("Error performing DKG key transition", "err", err)
-			}
+	for dkgOutput := range ch {
+		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
+			bp.log.Errorw("Error performing DKG key transition", "err", err)
 		}
 	}
 }

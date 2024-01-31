@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"sync"
 
-	"github.com/drand/drand/v2/internal/util"
 	"go.opentelemetry.io/otel/attribute"
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
@@ -23,6 +22,7 @@ import (
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/metrics/pprof"
 	"github.com/drand/drand/v2/internal/net"
+	"github.com/drand/drand/v2/internal/util"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 

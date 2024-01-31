@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+//nolint:funlen // it's a test
 func TestDKGFailedAtProtocol(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
@@ -130,6 +131,7 @@ func TestFailedReshare(t *testing.T) {
 
 	leaderNode := nodes[0]
 	leader, err := leaderNode.RunnerFor(beaconID)
+	require.NoError(t, err)
 	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
 	require.NoError(t, err)
 
@@ -172,6 +174,7 @@ func TestFailedReshare(t *testing.T) {
 	require.Equal(t, uint32(1), status.Complete.Epoch)
 }
 
+//nolint:funlen // it's a test
 func TestMultipleDKGsInFlight(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
