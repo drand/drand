@@ -57,7 +57,7 @@ func (d *Process) gossip(
 			continue
 		}
 
-		// attempt to gossip with exponential backoff
+		// attempt to gossip with other peers
 		go func() {
 			err := sendToPeer(d.internalClient, p, packet)
 			if err != nil {
