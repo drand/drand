@@ -742,7 +742,7 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrThresholdHigherThanNodeCount
 	}
 
-	if err = validateEpoch(currentState, terms); err != nil {
+	if err := validateEpoch(currentState, terms); err != nil {
 		return err
 	}
 
@@ -812,7 +812,6 @@ func validateReshareTerms(terms *drand.ProposalTerms) error {
 }
 
 func validateReshareContinuity(currentState *DBState, terms *drand.ProposalTerms) error {
-
 	if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
 		return ErrGenesisTimeNotEqual
 	}

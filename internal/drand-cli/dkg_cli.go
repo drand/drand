@@ -139,9 +139,7 @@ var dkgCommand = &cli.Command{
 				beaconIDFlag,
 				folderFlag,
 			),
-			Action: func(c *cli.Context) error {
-				return NukeDKGStateCmd(c)
-			},
+			Action: NukeDKGStateCmd,
 		},
 	},
 }

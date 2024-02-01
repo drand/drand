@@ -18,7 +18,7 @@ import (
 )
 
 type BoltStore struct {
-	sync.RWMutex
+	lock          sync.RWMutex
 	db            *bolt.DB
 	log           log.Logger
 	migrationLock sync.Mutex
@@ -117,8 +117,8 @@ func (s *BoltStore) SaveFinished(beaconID string, state *DBState) error {
 	// we want the two writes to be transactional
 	// so users don't try and e.g. abort mid-completion
 	// it should happen rarely, so we don't care about lock contention
-	s.Lock()
-	defer s.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	// we save it to both buckets as it's the most up to date
 	err := s.save(finishedStateBucket, beaconID, state)
