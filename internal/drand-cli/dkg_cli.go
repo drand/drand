@@ -133,6 +133,16 @@ var dkgCommand = &cli.Command{
 				return generateProposalCmd(c, l)
 			},
 		},
+		{
+			Name: "nuke",
+			Flags: toArray(
+				beaconIDFlag,
+				folderFlag,
+			),
+			Action: func(c *cli.Context) error {
+				return NukeDKGStateCmd(c)
+			},
+		},
 	},
 }
 
