@@ -626,7 +626,7 @@ var ErrLeaderCantJoinAfterFirstEpoch = errors.New("you cannot lead a DKG and joi
 var ErrLeaderNotRemaining = errors.New("you cannot lead a DKG and leave at the same time")
 var ErrLeaderNotJoining = errors.New("the leader must join in the first epoch")
 var ErrOnlyJoinersAllowedForFirstEpoch = errors.New("participants can only be joiners for the first epoch")
-var ErrNoNodesRemaining = errors.New("cannot propose a network common.Without nodes remaining")
+var ErrNoNodesRemaining = errors.New("cannot propose a network without nodes remaining")
 var ErrMissingNodesInProposal = errors.New("some node(s) in the current epoch are missing from the proposal - they should be remaining or leaving")
 var ErrCannotProposeAsNonLeader = errors.New("cannot make a proposal where you are not the leader")
 var ErrThresholdHigherThanNodeCount = errors.New("the threshold cannot be higher than the count of remaining + joining nodes")
@@ -703,6 +703,10 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return validateFirstEpoch(terms)
 	}
 
+	if err := validateReshareTerms(terms); err != nil {
+		return err
+	}
+
 	// nodes joining after the first epoch accept some things at face value
 	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
@@ -712,7 +716,7 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		}
 	}
 
-	return validateReshareTerms(terms)
+	return nil
 }
 
 func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error {
