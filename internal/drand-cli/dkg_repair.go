@@ -24,6 +24,25 @@ func NukeDKGStateCmd(c *cli.Context) error {
 		beaconID = common.DefaultBeaconID
 	}
 
+	if err := printPrompt(beaconID, baseFolder); err != nil {
+		return err
+	}
+
+	store, err := dkg.NewDKGStore(baseFolder, nil)
+	if err != nil {
+		return fmt.Errorf("error opening DKG database: %w", err)
+	}
+
+	if err := store.NukeState(beaconID); err != nil {
+		return err
+	}
+
+	fmt.Println("DKG state deleted successfully")
+
+	return nil
+}
+
+func printPrompt(beaconID string, baseFolder string) error {
 	fmt.Printf("You are about to nuke the DKG DB state for beacon `%s` located at `%s`.\n", beaconID, baseFolder)
 	fmt.Println("For it to be successful, your node should be switched off.")
 	fmt.Println()
@@ -36,16 +55,5 @@ func NukeDKGStateCmd(c *cli.Context) error {
 	if s != "y" {
 		return errors.New("aborted by user")
 	}
-
-	store, err := dkg.NewDKGStore(baseFolder, nil)
-	if err != nil {
-		return fmt.Errorf("error opening DKG database: %w", err)
-	}
-
-	err = store.NukeState(beaconID)
-	if err != nil {
-		return err
-	}
-	fmt.Println("DKG state deleted successfully")
 	return nil
 }
