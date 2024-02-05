@@ -43,7 +43,6 @@ require (
 replace github.com/urfave/cli/v2 => github.com/urfave/cli/v2 v2.19.3
 
 require (
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
