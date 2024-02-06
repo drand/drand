@@ -42,7 +42,7 @@ func NukeDKGStateCmd(c *cli.Context) error {
 	return nil
 }
 
-func printPrompt(beaconID string, baseFolder string) error {
+func printPrompt(beaconID, baseFolder string) error {
 	fmt.Printf("You are about to nuke the DKG DB state for beacon `%s` located at `%s`.\n", beaconID, baseFolder)
 	fmt.Println("For it to be successful, your node should be switched off.")
 	fmt.Println()

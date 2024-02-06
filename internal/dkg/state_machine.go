@@ -711,18 +711,16 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
 		err = validateReshareContinuity(currentState, terms)
-		if err != nil {
-			return err
-		}
 	}
 
-	return nil
+	return err
 }
 
 func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error {
 	if terms == nil {
 		return ErrMissingTerms
 	}
+
 	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
 	if currentState.BeaconID != terms.BeaconID {
 		return ErrInvalidBeaconID
@@ -746,11 +744,7 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrThresholdHigherThanNodeCount
 	}
 
-	if err := validateEpoch(currentState, terms); err != nil {
-		return err
-	}
-
-	return nil
+	return validateEpoch(currentState, terms)
 }
 
 func validateJoinerSignatures(terms *drand.ProposalTerms, targetSch *crypto.Scheme) error {
@@ -781,6 +775,7 @@ func validateEpoch(currentState *DBState, terms *drand.ProposalTerms) error {
 	if terms.Epoch > currentState.Epoch+1 && (currentState.State != Left && currentState.State != Fresh) {
 		return ErrInvalidEpoch
 	}
+
 	return nil
 }
 
@@ -788,9 +783,11 @@ func validateFirstEpoch(terms *drand.ProposalTerms) error {
 	if len(terms.GenesisSeed) != 0 {
 		return ErrNoGenesisSeedForFirstEpoch
 	}
+
 	if terms.Remaining != nil || terms.Leaving != nil {
 		return ErrOnlyJoinersAllowedForFirstEpoch
 	}
+
 	if !util.Contains(terms.Joining, terms.Leader) {
 		return ErrLeaderNotJoining
 	}
