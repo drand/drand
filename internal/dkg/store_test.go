@@ -13,12 +13,12 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Executing,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the DKG details
@@ -51,12 +51,12 @@ func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Executing,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the DKG details under one beaconId
@@ -91,12 +91,12 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Complete,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the finished DKG details
@@ -121,12 +121,12 @@ func TestDeletingStateDeletesCurrentAndFinished(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Complete,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the DKG details
