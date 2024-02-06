@@ -18,7 +18,6 @@ import (
 )
 
 type BoltStore struct {
-	lock          sync.RWMutex
 	db            *bolt.DB
 	log           log.Logger
 	migrationLock sync.Mutex
@@ -114,19 +113,39 @@ func (s *BoltStore) SaveCurrent(beaconID string, state *DBState) error {
 }
 
 func (s *BoltStore) SaveFinished(beaconID string, state *DBState) error {
-	// we want the two writes to be transactional
-	// so users don't try and e.g. abort mid-completion
-	// it should happen rarely, so we don't care about lock contention
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	// we save to both buckets at once transactionally
+	return s.db.Update(func(tx *bolt.Tx) error {
+		finishedBucket := tx.Bucket(finishedStateBucket)
+		currentBucket := tx.Bucket(stagedStateBucket)
 
-	// we save it to both buckets as it's the most up to date
-	err := s.save(finishedStateBucket, beaconID, state)
+		if finishedBucket == nil {
+			return errors.Errorf("%s bucket was nil - this should never happen", finishedStateBucket)
+		}
+		if currentBucket == nil {
+			return errors.Errorf("%s bucket was nil - this should never happen", stagedStateBucket)
+		}
+
+		bytesID := []byte(beaconID)
+		b, err := encodeState(state)
+		if err != nil {
+			return err
+		}
+
+		err = finishedBucket.Put(bytesID, b)
+		if err != nil {
+			return err
+		}
+		return currentBucket.Put(bytesID, b)
+	})
+}
+func encodeState(state *DBState) ([]byte, error) {
+	var bytes []byte
+	b := bytes2.NewBuffer(bytes)
+	err := toml.NewEncoder(b).Encode(state.TOML())
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return s.save(stagedStateBucket, beaconID, state)
+	return b.Bytes(), err
 }
 
 func (s *BoltStore) save(bucketName []byte, beaconID string, state *DBState) error {
@@ -137,13 +156,13 @@ func (s *BoltStore) save(bucketName []byte, beaconID string, state *DBState) err
 			return errors.Errorf("%s bucket was nil - this should never happen", bucketName)
 		}
 
-		var bytes []byte
-		b := bytes2.NewBuffer(bytes)
-		err := toml.NewEncoder(b).Encode(state.TOML())
+		bytesID := []byte(beaconID)
+		b, err := encodeState(state)
 		if err != nil {
 			return err
 		}
-		return bucket.Put([]byte(beaconID), b.Bytes())
+
+		return bucket.Put(bytesID, b)
 	})
 }
 
