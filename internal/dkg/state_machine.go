@@ -15,6 +15,7 @@ import (
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+	"github.com/drand/kyber/share/dkg"
 )
 
 type Status uint32
@@ -630,6 +631,8 @@ var ErrNoNodesRemaining = errors.New("cannot propose a network without nodes rem
 var ErrMissingNodesInProposal = errors.New("some node(s) in the current epoch are missing from the proposal - they should be remaining or leaving")
 var ErrCannotProposeAsNonLeader = errors.New("cannot make a proposal where you are not the leader")
 var ErrThresholdHigherThanNodeCount = errors.New("the threshold cannot be higher than the count of remaining + joining nodes")
+var ErrNodeCountTooLow = errors.New("the new node count cannot be lower than the prior threshold")
+var ErrThresholdTooLow = errors.New("the threshold is below the minimum required to allow effective secret recovery given the node count")
 var ErrRemainingAndLeavingNodesMustExistInCurrentEpoch = errors.New("remaining and leaving nodes contained a node that does not exist in the current epoch - they must be added as joiners")
 var ErrCannotAcceptProposalWhereLeaving = errors.New("you cannot accept a proposal where your node is leaving")
 var ErrCannotAcceptProposalWhereJoining = errors.New("you cannot accept a proposal where your node is joining - run the join command instead")
@@ -740,8 +743,17 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrTimeoutReached
 	}
 
-	if int(terms.Threshold) > len(terms.Joining)+len(terms.Remaining) {
+	nodeCount := len(terms.Joining) + len(terms.Remaining)
+	if int(terms.Threshold) > nodeCount {
 		return ErrThresholdHigherThanNodeCount
+	}
+
+	if nodeCount < int(currentState.Threshold) {
+		return ErrNodeCountTooLow
+	}
+
+	if int(terms.Threshold) < dkg.MinimumT(nodeCount) {
+		return ErrThresholdTooLow
 	}
 
 	return validateEpoch(currentState, terms)

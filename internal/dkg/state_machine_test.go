@@ -158,7 +158,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrLeaderNotRemaining,
 		},
 		{
-			name:  "threshold lower than the number of remaining + joining nodes returns an error",
+			name:  "threshold higher than the number of remaining + joining nodes returns an error",
 			state: current,
 			terms: func() *drand.ProposalTerms {
 				invalidProposal := NewValidProposal(beaconID, 2, alice)
@@ -167,6 +167,38 @@ func TestProposalValidation(t *testing.T) {
 				return invalidProposal
 			}(),
 			expected: ErrThresholdHigherThanNodeCount,
+		},
+		{
+			name: "node count too low returns an error",
+			state: func() *DBState {
+				state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+				state.Threshold = 3
+				return state
+			}(),
+			terms: func() *drand.ProposalTerms {
+				invalidProposal := NewValidProposal(beaconID, 2, alice)
+				invalidProposal.Threshold = 1
+				invalidProposal.Remaining = []*drand.Participant{alice, bob}
+				invalidProposal.Leaving = []*drand.Participant{carol}
+				return invalidProposal
+			}(),
+			expected: ErrNodeCountTooLow,
+		},
+		{
+			name: "threshold too low to recover secret returns error",
+			state: func() *DBState {
+				state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+				state.Threshold = 2
+				return state
+			}(),
+			terms: func() *drand.ProposalTerms {
+				invalidProposal := NewValidProposal(beaconID, 2, alice)
+				invalidProposal.Threshold = 1
+				invalidProposal.Remaining = []*drand.Participant{alice, bob}
+				invalidProposal.Leaving = []*drand.Participant{carol}
+				return invalidProposal
+			}(),
+			expected: ErrThresholdTooLow,
 		},
 		{
 			name:  "participants remaining who weren't in the previous epoch returns an error",
