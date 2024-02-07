@@ -309,7 +309,8 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	newGroup, err := dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*beaconPeriod), currentNodes, newNodes, hooks)
+	dt.thr = 3
+	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -367,7 +368,8 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	newGroup, err := dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*beaconPeriod), currentNodes, newNodes, hooks)
+	dt.thr = 3
+	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -522,7 +524,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	}
 
 	// naturally, we want the reshare to have errored!
-	_, err = dt.RunReshareWithHooks(t, dt.clock.Now().Add(3*expectedBeaconPeriod), dt.nodes, nil, hooks)
+	_, err = dt.RunReshareWithHooks(t, dt.nodes, nil, hooks)
 	require.Error(t, err)
 
 	// we must advance the clock or the proposal will be the exact same, and be filtered out by the duplicate packet filter
