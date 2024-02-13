@@ -706,14 +706,14 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return validateFirstEpoch(terms)
 	}
 
-	if err := validateReshareTerms(terms); err != nil {
+	if err := validateReshareTerms(currentState, terms); err != nil {
 		return err
 	}
 
 	// nodes joining after the first epoch accept some things at face value
 	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
-		err = validateReshareContinuity(currentState, terms)
+		err = validateReshareForRemainers(currentState, terms)
 	}
 
 	return err
@@ -803,10 +803,14 @@ func validateFirstEpoch(terms *drand.ProposalTerms) error {
 	if !util.Contains(terms.Joining, terms.Leader) {
 		return ErrLeaderNotJoining
 	}
+
+	if len(terms.Joining) < int(terms.Threshold) {
+		return ErrThresholdHigherThanNodeCount
+	}
 	return nil
 }
 
-func validateReshareTerms(terms *drand.ProposalTerms) error {
+func validateReshareTerms(currentState *DBState, terms *drand.ProposalTerms) error {
 	if len(terms.Remaining) == 0 {
 		return ErrNoNodesRemaining
 	}
@@ -821,10 +825,14 @@ func validateReshareTerms(terms *drand.ProposalTerms) error {
 		return ErrLeaderNotRemaining
 	}
 
+	if len(terms.Remaining) < int(currentState.Threshold) {
+		return ErrNodeCountTooLow
+	}
+
 	return nil
 }
 
-func validateReshareContinuity(currentState *DBState, terms *drand.ProposalTerms) error {
+func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTerms) error {
 	if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
 		return ErrGenesisTimeNotEqual
 	}

@@ -309,8 +309,7 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	dt.thr = 3
-	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
+	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, 3, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -368,8 +367,7 @@ func TestRunDKGReshareAbsentNodeForExecutionStart(t *testing.T) {
 			t.Logf("Node %d stopped \n", nodeIndexToStop)
 		},
 	}
-	dt.thr = 3
-	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, hooks)
+	newGroup, err := dt.RunReshareWithHooks(t, currentNodes, newNodes, 3, hooks)
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 
@@ -482,7 +480,8 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
+	threshold := key.DefaultThreshold(n)
+	dt := NewDrandTestScenario(t, n, threshold, expectedBeaconPeriod, beaconID, clockwork.NewFakeClockAt(time.Now()))
 
 	// first lets run a successful initial DKG
 	group, err := dt.RunDKG(t)
@@ -524,7 +523,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	}
 
 	// naturally, we want the reshare to have errored!
-	_, err = dt.RunReshareWithHooks(t, dt.nodes, nil, hooks)
+	_, err = dt.RunReshareWithHooks(t, dt.nodes, nil, threshold, hooks)
 	require.Error(t, err)
 
 	// we must advance the clock or the proposal will be the exact same, and be filtered out by the duplicate packet filter
