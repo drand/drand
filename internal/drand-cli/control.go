@@ -131,17 +131,17 @@ func statusCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	listIds := c.IsSet(listIdsFlag.Name)
-	allIds := c.IsSet(allBeaconsFlag.Name)
+	listIDs := c.IsSet(listIDsFlag.Name)
+	allIDs := c.IsSet(allBeaconsFlag.Name)
 	beaconID := c.IsSet(beaconIDFlag.Name)
 
-	if beaconID && (allIds || listIds) {
+	if beaconID && (allIDs || listIDs) {
 		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time",
-			beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
+			beaconIDFlag.Name, allBeaconsFlag.Name, listIDsFlag.Name)
 	}
 
 	beaconIDsList := &control.ListBeaconIDsResponse{}
-	if allIds || listIds {
+	if allIDs || listIDs {
 		beaconIDsList, err = client.ListBeaconIDs()
 		if err != nil {
 			return fmt.Errorf("drand: can't get the list of running beacon ids on the daemon ... %w", err)
@@ -150,7 +150,7 @@ func statusCmd(c *cli.Context, l log.Logger) error {
 		beaconIDsList.Ids = append(beaconIDsList.Ids, getBeaconID(c))
 	}
 
-	if listIds {
+	if listIDs {
 		if c.IsSet(jsonFlag.Name) {
 			str, err := json.Marshal(beaconIDsList)
 			if err != nil {

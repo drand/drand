@@ -152,11 +152,9 @@ func (c *ControlClient) LoadBeacon(beaconID string) (*proto.LoadBeaconResponse, 
 
 // ListBeaconIDs returns a list of all beacon ids
 func (c *ControlClient) ListBeaconIDs() (*proto.ListBeaconIDsResponse, error) {
-	metadata := proto.Metadata{
-		NodeVersion: c.version.ToProto(),
-	}
+	publicClient := proto.NewPublicClient(c.conn)
 
-	return c.client.ListBeaconIDs(context.Background(), &proto.ListBeaconIDsRequest{Metadata: &metadata})
+	return publicClient.ListBeaconIDs(context.Background(), &proto.ListBeaconIDsRequest{})
 }
 
 // Status gets the current daemon status
@@ -170,9 +168,7 @@ func (c *ControlClient) Status(beaconID string) (*proto.StatusResponse, error) {
 
 // ListSchemes responds with the list of ids for the available schemes
 func (c *ControlClient) ListSchemes() (*proto.ListSchemesResponse, error) {
-	metadata := proto.NewMetadata(c.version.ToProto())
-
-	return c.client.ListSchemes(context.Background(), &proto.ListSchemesRequest{Metadata: metadata})
+	return c.client.ListSchemes(context.Background(), &proto.ListSchemesRequest{})
 }
 
 // PublicKey returns the public key of the remote node
@@ -337,45 +333,4 @@ func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := proto.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(context.Background(), &proto.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
-}
-
-// DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
-type DefaultControlServer struct {
-	C proto.ControlServer
-}
-
-// PingPong sends a ping to the server
-func (s *DefaultControlServer) PingPong(_ context.Context, _ *proto.Ping) (*proto.Pong, error) {
-	return &proto.Pong{}, nil
-}
-
-// Status initiates a status request
-func (s *DefaultControlServer) Status(c context.Context, in *proto.StatusRequest) (*proto.StatusResponse, error) {
-	if s.C == nil {
-		return &proto.StatusResponse{}, nil
-	}
-	return s.C.Status(c, in)
-}
-
-func (s *DefaultControlServer) RemoteStatus(c context.Context, in *proto.RemoteStatusRequest) (*proto.RemoteStatusResponse, error) {
-	if s.C == nil {
-		return &proto.RemoteStatusResponse{}, nil
-	}
-	return s.C.RemoteStatus(c, in)
-}
-
-// PublicKey gets the node's public key
-func (s *DefaultControlServer) PublicKey(c context.Context, in *proto.PublicKeyRequest) (*proto.PublicKeyResponse, error) {
-	if s.C == nil {
-		return &proto.PublicKeyResponse{}, nil
-	}
-	return s.C.PublicKey(c, in)
-}
-
-// ChainInfo gets the current chain information from the ndoe
-func (s *DefaultControlServer) ChainInfo(c context.Context, in *proto.ChainInfoRequest) (*proto.ChainInfoPacket, error) {
-	if s.C == nil {
-		return &proto.ChainInfoPacket{}, nil
-	}
-	return s.C.ChainInfo(c, in)
 }

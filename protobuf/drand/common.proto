@@ -20,7 +20,6 @@ message Metadata {
     bytes chain_hash = 3;
 }
 
-
 message DkgStatus{
     uint32 status = 1;
 }
@@ -44,7 +43,6 @@ message Address {
     bool tls = 2 [deprecated = true];;
 }
 
-
 message StatusRequest {
     // the check_conn contains the list of addresses to check connectivity to,
     // i.e. calls Home() on it.
@@ -52,7 +50,6 @@ message StatusRequest {
     repeated Address check_conn = 1;
     Metadata metadata = 2;
 }
-
 
 // StatusResponse contains different indicators of the status of the local drand
 // node process and as well some view on the connectivity with other nodes if
@@ -65,12 +62,11 @@ message StatusResponse {
     map<string,bool> connections = 5;
 }
 
-
 message Empty {
     Metadata metadata = 1;
 }
 
-// REMINDER: This fields should be kept in sync with IdentityResponse message
+// REMINDER: This fields should be kept in sync with IdentityResponse message, but for the beaconID and schemeID
 message Identity {
     string address = 1;
     bytes key = 2;

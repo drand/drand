@@ -394,7 +394,7 @@ func Start(logger log.Logger, metricsBind string, pprof http.Handler, cli Client
 		mux.Handle("/debug/pprof/", pprof)
 	}
 
-	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {
+	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, _ *http.Request) {
 		runtime.GC()
 		fmt.Fprintf(w, "GC run complete")
 	})

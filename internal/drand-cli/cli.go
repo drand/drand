@@ -242,7 +242,7 @@ var beaconIDFlag = &cli.StringFlag{
 	Value:   "",
 	EnvVars: []string{"DRAND_ID"},
 }
-var listIdsFlag = &cli.BoolFlag{
+var listIDsFlag = &cli.BoolFlag{
 	Name:    "list-ids",
 	Usage:   "Indicates if it only have to list the running beacon ids instead of the statuses.",
 	Value:   false,
@@ -452,7 +452,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:  "status",
 				Usage: "Get the status of many modules of running the daemon\n",
-				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag, allBeaconsFlag, listIdsFlag),
+				Flags: toArray(controlFlag, jsonFlag, beaconIDFlag, allBeaconsFlag, listIDsFlag),
 				Action: func(c *cli.Context) error {
 					l := log.New(nil, logLevel(c), logJSON(c)).
 						Named("statusCmd")
@@ -507,10 +507,8 @@ var appCommands = []*cli.Command{
 		Name: "show",
 		Usage: "local information retrieval about the node's cryptographic " +
 			"material. Show prints the information about the collective " +
-			"public key (drand.cokey), the group details (group.toml)," +
-			"the long-term public key " +
-			"(drand.public), or the private key share (drand.share), " +
-			"respectively.\n",
+			"public key, the group details (group.toml)," +
+			"the long-term public key (drand.public), respectively.\n",
 		Flags: toArray(folderFlag, controlFlag),
 		Subcommands: []*cli.Command{
 			{
@@ -564,7 +562,7 @@ func CLI() *cli.App {
 		}
 	})
 
-	app.ExitErrHandler = func(context *cli.Context, err error) {
+	app.ExitErrHandler = func(_ *cli.Context, _ error) {
 		// override to prevent default behavior of calling OS.exit(1),
 		// when tests expect to be able to run multiple commands.
 	}
@@ -789,7 +787,7 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 	isVerbose := c.IsSet(verboseFlag.Name)
 	allGood := true
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
-	invalidIds := make([]string, 0)
+	invalidIDs := make([]string, 0)
 
 	for _, address := range names {
 		var err error
@@ -806,13 +804,13 @@ func checkConnection(c *cli.Context, lg log.Logger) error {
 				fmt.Fprintf(c.App.Writer, "drand: error checking id %s\n", address)
 			}
 			allGood = false
-			invalidIds = append(invalidIds, address)
+			invalidIDs = append(invalidIDs, address)
 			continue
 		}
 		fmt.Fprintf(c.App.Writer, "drand: id %s answers correctly\n", address)
 	}
 	if !allGood {
-		return fmt.Errorf("following nodes don't answer: %s", strings.Join(invalidIds, ","))
+		return fmt.Errorf("following nodes don't answer: %s", strings.Join(invalidIDs, ","))
 	}
 	return nil
 }
