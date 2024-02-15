@@ -25,9 +25,10 @@ import (
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
+// ensure we implement all required interfaces
 var _ Client = (*grpcClient)(nil)
 
-// grpcClient implements both Protocol and Control functionalities
+// grpcClient implements Protocol, DKG, Metric and Public client functionalities
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
@@ -322,4 +323,15 @@ func (g *grpcClient) GetMetrics(ctx context.Context, addr string) (string, error
 	// we try to use compression since it's requesting a large string
 	resp, err = client.Metrics(ctx, in, grpc.UseCompressor(gzip.Name))
 	return string(resp.GetMetrics()), err
+}
+
+// ListBeaconIDs returns a list of all beacon ids
+func (g *grpcClient) ListBeaconIDs(ctx context.Context, p Peer) (*drand.ListBeaconIDsResponse, error) {
+	c, err := g.conn(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
+	client := drand.NewPublicClient(c)
+	return client.ListBeaconIDs(context.Background(), &drand.ListBeaconIDsRequest{})
 }

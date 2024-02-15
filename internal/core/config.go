@@ -38,7 +38,7 @@ type Config struct {
 	pgDSN                 string
 	pgConn                *sqlx.DB
 	memDBSize             int
-	dkgCallback           func(context.Context, *key.Share, *key.Group)
+	dkgCallback           func(context.Context, *key.Group)
 	logger                log.Logger
 	clock                 clock.Clock
 	tracesEndpoint        string

@@ -17,15 +17,14 @@ service Control {
   rpc Status(StatusRequest) returns (StatusResponse) {}
   // ListSchemes responds with the list of ids for the available schemes
   rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) {}
-  // ListBeaconIDs responds with the list of ids for the running networks on the node
-  rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
+
   // PublicKey returns the longterm public key of the drand node
   rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) {}
-  // CollectiveKey returns the distributed public key used by the node
+
+  // ChainInfo returns the chain info for the chain hash or beacon id requested in the metadata
   rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) {}
-  // GroupFile returns the TOML-encoded group file
-  // similar to public.Group method but needed for ease of use of the
-  // control functionalities
+
+  // GroupFile returns the TOML-encoded group file, containing the group public key and coefficients
   rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) {}
 
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
@@ -75,7 +74,6 @@ message RemoteStatusResponse {
 }
 
 message ListSchemesRequest {
-  Metadata metadata = 1;
 }
 
 message ListSchemesResponse {
@@ -83,16 +81,9 @@ message ListSchemesResponse {
   Metadata metadata = 2;
 }
 
-message ListBeaconIDsRequest {
-  Metadata metadata = 1;
-}
 
-message ListBeaconIDsResponse {
-  repeated string ids = 1;
-  Metadata metadata = 2;
-}
 
-// PublicKeyRequest requests the public key of a drand node
+// PublicKeyRequest requests the public key of a drand node for a given Beacon ID
 message PublicKeyRequest {
   Metadata metadata = 1;
 }
@@ -105,23 +96,6 @@ message PublicKeyResponse {
   bytes signature = 4;
   Metadata metadata = 5;
   string schemeName = 6;
-}
-
-// CokeyRequest requests the collective key of a drand node
-message CokeyRequest {
-  Metadata metadata = 1;
-}
-
-// CokeyResponse holds the collective key of a drand node
-message CokeyResponse {
-  bytes coKey = 2;
-  Metadata metadata = 3;
-}
-
-message GroupTOMLResponse {
-  // TOML-encoded group file
-  string group_toml = 1;
-  Metadata metadata = 2;
 }
 
 message ShutdownRequest {

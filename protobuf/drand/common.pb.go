@@ -590,7 +590,7 @@ func (x *Empty) GetMetadata() *Metadata {
 	return nil
 }
 
-// REMINDER: This fields should be kept in sync with IdentityResponse message
+// REMINDER: This fields should be kept in sync with IdentityResponse message, but for the beaconID and schemeID
 type Identity struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

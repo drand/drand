@@ -46,6 +46,7 @@ type PublicClient interface {
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
+	ListBeaconIDs(ctx context.Context, p Peer) (*drand.ListBeaconIDsResponse, error)
 }
 
 type MetricsClient interface {

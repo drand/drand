@@ -13,8 +13,8 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
 		chainHash := fmt.Sprintf("%x", chainHashHex)
 
-		dd.state.Lock()
-		defer dd.state.Unlock()
+		dd.state.RLock()
+		defer dd.state.RUnlock()
 		beaconIDByHash, isChainHashFound := dd.chainHashes[chainHash]
 		if isChainHashFound {
 			// check if rcv beacon id on request points to a different id obtained from chain hash

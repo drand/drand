@@ -250,11 +250,11 @@ func (bp *BeaconProcess) ListSchemes(ctx context.Context, _ *drand.ListSchemesRe
 	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
-func (bp *BeaconProcess) ListBeaconIDs(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+func (bp *BeaconProcess) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
 	_, span := tracer.NewSpan(ctx, "bp.ListBeaconIDs")
 	defer span.End()
 
-	return nil, fmt.Errorf("method not implemented")
+	return nil, fmt.Errorf("method bp.ListBeaconIDs not implemented")
 }
 
 // StartFollowChain syncs up with a chain from other nodes

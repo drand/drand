@@ -277,7 +277,7 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 		return err
 	}
 
-	bp.opts.dkgCallback(ctx, share, group)
+	bp.opts.dkgCallback(ctx, group)
 
 	return nil
 }
