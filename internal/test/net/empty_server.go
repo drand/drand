@@ -87,11 +87,6 @@ func (s *EmptyServer) PublicKey(context.Context, *drand.PublicKeyRequest) (*dran
 	return nil, nil
 }
 
-// CollectiveKey is an empty implementation
-func (s *EmptyServer) CollectiveKey(context.Context, *drand.CokeyRequest) (*drand.CokeyResponse, error) {
-	return nil, nil
-}
-
 // GroupFile is an empty implementation
 func (s *EmptyServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil

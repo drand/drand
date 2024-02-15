@@ -24,6 +24,9 @@ service Public {
 
     // Home is a simple endpoint
     rpc Home(HomeRequest) returns (HomeResponse);
+
+    // ListBeaconIDs responds with the list of Beacon IDs running on that node
+    rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
 }
 
 // PublicRandRequest requests a public random value that has been generated in a
@@ -55,5 +58,13 @@ message HomeRequest {
 
 message HomeResponse {
     string status = 1;
+    Metadata metadata = 2;
+}
+
+message ListBeaconIDsRequest {
+}
+
+message ListBeaconIDsResponse {
+    repeated string ids = 1;
     Metadata metadata = 2;
 }

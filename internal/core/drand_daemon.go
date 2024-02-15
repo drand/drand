@@ -11,7 +11,7 @@ import (
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
-	common2 "github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
@@ -43,12 +43,12 @@ type DrandDaemon struct {
 	log  log.Logger
 
 	// global state lock
-	state         sync.Mutex
+	state         sync.RWMutex
 	completedDKGs *util.FanOutChan[dkg.SharingOutput]
 	exitCh        chan bool
 
 	// version indicates the base code variant
-	version common2.Version
+	version common.Version
 }
 
 type DKGProcess interface {
@@ -72,14 +72,14 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 		log:             logger,
 		exitCh:          make(chan bool, 1),
 		completedDKGs:   util.NewFanOutChan[dkg.SharingOutput](),
-		version:         common2.GetAppVersion(),
+		version:         common.GetAppVersion(),
 		beaconProcesses: make(map[string]*BeaconProcess),
 		chainHashes:     make(map[string]string),
 	}
 
 	// Add callback to register a new handler for http server after finishing DKG successfully
-	c.dkgCallback = func(ctx context.Context, share *key.Share, group *key.Group) {
-		beaconID := common2.GetCanonicalBeaconID(group.ID)
+	c.dkgCallback = func(ctx context.Context, group *key.Group) {
+		beaconID := common.GetCanonicalBeaconID(group.ID)
 
 		drandDaemon.state.Lock()
 		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
@@ -208,7 +208,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 	ctx, span := tracer.NewSpan(ctx, "dd.InstantiateBeaconProcess")
 	defer span.End()
 
-	beaconID = common2.GetCanonicalBeaconID(beaconID)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
 	bp, err := NewBeaconProcess(ctx, logger, store, dd.completedDKGs, beaconID, dd.opts, dd.privGateway)
@@ -235,7 +235,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(ctx context.Context, beaconID string,
 	_, span := tracer.NewSpan(ctx, "dd.RemoveBeaconProcess")
 	defer span.End()
 
-	beaconID = common2.GetCanonicalBeaconID(beaconID)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	chainHash := ""
 	if bp.group != nil {
@@ -247,8 +247,8 @@ func (dd *DrandDaemon) RemoveBeaconProcess(ctx context.Context, beaconID string,
 
 	delete(dd.beaconProcesses, beaconID)
 	delete(dd.chainHashes, chainHash)
-	if common2.IsDefaultBeaconID(beaconID) {
-		delete(dd.chainHashes, common2.DefaultChainHash)
+	if common.IsDefaultBeaconID(beaconID) {
+		delete(dd.chainHashes, common.DefaultChainHash)
 	}
 
 	dd.log.Debugw("BeaconProcess removed", "beacon_id", beaconID, "chain_hash", chainHash)
@@ -275,11 +275,11 @@ func (dd *DrandDaemon) AddBeaconHandler(ctx context.Context, beaconID string, bp
 	dd.chainHashes[chainHash] = beaconID
 	dd.state.Unlock()
 
-	if common2.IsDefaultBeaconID(beaconID) {
+	if common.IsDefaultBeaconID(beaconID) {
 		dd.handler.RegisterDefaultBeaconHandler(bh)
 
 		dd.state.Lock()
-		dd.chainHashes[common2.DefaultChainHash] = beaconID
+		dd.chainHashes[common.DefaultChainHash] = beaconID
 		dd.state.Unlock()
 	}
 }
@@ -296,8 +296,8 @@ func (dd *DrandDaemon) RemoveBeaconHandler(ctx context.Context, beaconID string,
 
 	info := chain2.NewChainInfo(bp.group)
 	dd.handler.RemoveBeaconHandler(info.HashString())
-	if common2.IsDefaultBeaconID(beaconID) {
-		dd.handler.RemoveBeaconHandler(common2.DefaultChainHash)
+	if common.IsDefaultBeaconID(beaconID) {
+		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
 	}
 }
 
