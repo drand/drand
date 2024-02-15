@@ -26,7 +26,6 @@ const (
 	Control_PingPong_FullMethodName         = "/drand.Control/PingPong"
 	Control_Status_FullMethodName           = "/drand.Control/Status"
 	Control_ListSchemes_FullMethodName      = "/drand.Control/ListSchemes"
-	Control_ListBeaconIDs_FullMethodName    = "/drand.Control/ListBeaconIDs"
 	Control_PublicKey_FullMethodName        = "/drand.Control/PublicKey"
 	Control_ChainInfo_FullMethodName        = "/drand.Control/ChainInfo"
 	Control_GroupFile_FullMethodName        = "/drand.Control/GroupFile"
@@ -48,15 +47,11 @@ type ControlClient interface {
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error)
-	// ListBeaconIDs responds with the list of ids for the running networks on the node
-	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
-	// CollectiveKey returns the distributed public key used by the node
+	// ChainInfo returns the chain info for the chain hash or beacon id requested in the metadata
 	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
-	// GroupFile returns the TOML-encoded group file
-	// similar to public.Group method but needed for ease of use of the
-	// control functionalities
+	// GroupFile returns the TOML-encoded group file, containing the group public key and coefficients
 	GroupFile(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	LoadBeacon(ctx context.Context, in *LoadBeaconRequest, opts ...grpc.CallOption) (*LoadBeaconResponse, error)
@@ -96,15 +91,6 @@ func (c *controlClient) Status(ctx context.Context, in *StatusRequest, opts ...g
 func (c *controlClient) ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error) {
 	out := new(ListSchemesResponse)
 	err := c.cc.Invoke(ctx, Control_ListSchemes_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error) {
-	out := new(ListBeaconIDsResponse)
-	err := c.cc.Invoke(ctx, Control_ListBeaconIDs_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -248,15 +234,11 @@ type ControlServer interface {
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error)
-	// ListBeaconIDs responds with the list of ids for the running networks on the node
-	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
 	// PublicKey returns the longterm public key of the drand node
 	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)
-	// CollectiveKey returns the distributed public key used by the node
+	// ChainInfo returns the chain info for the chain hash or beacon id requested in the metadata
 	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
-	// GroupFile returns the TOML-encoded group file
-	// similar to public.Group method but needed for ease of use of the
-	// control functionalities
+	// GroupFile returns the TOML-encoded group file, containing the group public key and coefficients
 	GroupFile(context.Context, *GroupRequest) (*GroupPacket, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error)
@@ -279,9 +261,6 @@ func (UnimplementedControlServer) Status(context.Context, *StatusRequest) (*Stat
 }
 func (UnimplementedControlServer) ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSchemes not implemented")
-}
-func (UnimplementedControlServer) ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBeaconIDs not implemented")
 }
 func (UnimplementedControlServer) PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublicKey not implemented")
@@ -372,24 +351,6 @@ func _Control_ListSchemes_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).ListSchemes(ctx, req.(*ListSchemesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_ListBeaconIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListBeaconIDsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).ListBeaconIDs(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Control_ListBeaconIDs_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).ListBeaconIDs(ctx, req.(*ListBeaconIDsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -580,10 +541,6 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListSchemes",
 			Handler:    _Control_ListSchemes_Handler,
-		},
-		{
-			MethodName: "ListBeaconIDs",
-			Handler:    _Control_ListBeaconIDs_Handler,
 		},
 		{
 			MethodName: "PublicKey",

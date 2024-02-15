@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/v2/common/tracer"
-
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/chain/beacon"
 	"github.com/drand/drand/v2/internal/net"
@@ -116,16 +115,10 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 
 // Home provides the address the local node is listening
 func (bp *BeaconProcess) Home(ctx context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	ctx, span := tracer.NewSpan(ctx, "bp.Home")
+	_, span := tracer.NewSpan(ctx, "bp.Home")
 	defer span.End()
 
-	bp.log.With("module", "public").Infow("", "home", net.RemoteAddress(ctx))
-
-	return &drand.HomeResponse{
-		Status: fmt.Sprintf("drand up and running on %s",
-			bp.priv.Public.Address()),
-		Metadata: bp.newMetadata(),
-	}, nil
+	return nil, fmt.Errorf("method bp.Home not implemented")
 }
 
 // ChainInfo replies with the chain information this node participates to

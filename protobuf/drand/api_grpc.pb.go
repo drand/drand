@@ -28,6 +28,7 @@ const (
 	Public_PublicRandStream_FullMethodName = "/drand.Public/PublicRandStream"
 	Public_ChainInfo_FullMethodName        = "/drand.Public/ChainInfo"
 	Public_Home_FullMethodName             = "/drand.Public/Home"
+	Public_ListBeaconIDs_FullMethodName    = "/drand.Public/ListBeaconIDs"
 )
 
 // PublicClient is the client API for Public service.
@@ -43,6 +44,8 @@ type PublicClient interface {
 	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
 	// Home is a simple endpoint
 	Home(ctx context.Context, in *HomeRequest, opts ...grpc.CallOption) (*HomeResponse, error)
+	// ListBeaconIDs responds with the list of Beacon IDs running on that node
+	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
 }
 
 type publicClient struct {
@@ -112,6 +115,15 @@ func (c *publicClient) Home(ctx context.Context, in *HomeRequest, opts ...grpc.C
 	return out, nil
 }
 
+func (c *publicClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error) {
+	out := new(ListBeaconIDsResponse)
+	err := c.cc.Invoke(ctx, Public_ListBeaconIDs_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PublicServer is the server API for Public service.
 // All implementations should embed UnimplementedPublicServer
 // for forward compatibility
@@ -125,6 +137,8 @@ type PublicServer interface {
 	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
 	// Home is a simple endpoint
 	Home(context.Context, *HomeRequest) (*HomeResponse, error)
+	// ListBeaconIDs responds with the list of Beacon IDs running on that node
+	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
 }
 
 // UnimplementedPublicServer should be embedded to have forward compatible implementations.
@@ -142,6 +156,9 @@ func (UnimplementedPublicServer) ChainInfo(context.Context, *ChainInfoRequest) (
 }
 func (UnimplementedPublicServer) Home(context.Context, *HomeRequest) (*HomeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Home not implemented")
+}
+func (UnimplementedPublicServer) ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBeaconIDs not implemented")
 }
 
 // UnsafePublicServer may be embedded to opt out of forward compatibility for this service.
@@ -230,6 +247,24 @@ func _Public_Home_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Public_ListBeaconIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBeaconIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicServer).ListBeaconIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Public_ListBeaconIDs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicServer).ListBeaconIDs(ctx, req.(*ListBeaconIDsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Public_ServiceDesc is the grpc.ServiceDesc for Public service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -248,6 +283,10 @@ var Public_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Home",
 			Handler:    _Public_Home_Handler,
+		},
+		{
+			MethodName: "ListBeaconIDs",
+			Handler:    _Public_ListBeaconIDs_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
