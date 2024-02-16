@@ -488,17 +488,11 @@ func (d *DrandTestScenario) RunReshare(
 	remainingNodes []*MockNode,
 	joiningNodes []*MockNode,
 ) (*key.Group, error) {
-	return d.RunReshareWithHooks(t, transitionTime, remainingNodes, joiningNodes, lifecycleHooks{})
+	return d.RunReshareWithHooks(t, remainingNodes, joiningNodes, d.thr, lifecycleHooks{})
 }
 
-//nolint:funlen
-func (d *DrandTestScenario) RunReshareWithHooks(
-	t *testing.T,
-	transitionTime time.Time,
-	remainingNodes []*MockNode,
-	joiningNodes []*MockNode,
-	hooks lifecycleHooks,
-) (*key.Group, error) {
+//nolint:lll
+func (d *DrandTestScenario) RunReshareWithHooks(t *testing.T, remainingNodes, joiningNodes []*MockNode, threshold int, hooks lifecycleHooks) (*key.Group, error) {
 	if len(remainingNodes) == 0 {
 		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")
 	}
@@ -537,7 +531,7 @@ func (d *DrandTestScenario) RunReshareWithHooks(
 		}
 	}
 
-	err := leader.dkgRunner.StartReshare(d.thr, int(d.catchupPeriod.Seconds()), joiners, remainers, []*drand.Participant{})
+	err := leader.dkgRunner.StartReshare(threshold, int(d.catchupPeriod.Seconds()), joiners, remainers, []*drand.Participant{})
 	if err != nil {
 		return nil, err
 	}
