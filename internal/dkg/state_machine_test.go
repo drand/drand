@@ -109,7 +109,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrLeaderNotJoining,
 		},
 		{
-			name:  "if epoch is > 1, no nodes are remaining returns an error",
+			name:  "if epoch is > 1, no nodes remaining returns an error",
 			state: current,
 			terms: func() *drand.ProposalTerms {
 				proposal := NewValidProposal(beaconID, 2, alice, bob)
@@ -121,7 +121,7 @@ func TestProposalValidation(t *testing.T) {
 				proposal.Remaining = nil
 				return proposal
 			}(),
-			expected: ErrNoNodesRemaining,
+			expected: ErrNodeCountTooLow,
 		},
 		{
 			name:  "if epoch is > 1, alice joining returns an error",
