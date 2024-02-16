@@ -50,7 +50,7 @@ func (k *KeyStore) LoadDistPublic() (*key.DistPublic, error) {
 	return k.dist, nil
 }
 
-func (k *KeyStore) Reset(_ ...key.ResetOption) error {
+func (k *KeyStore) Reset() error {
 	k.group = nil
 	k.dist = nil
 	k.share = nil

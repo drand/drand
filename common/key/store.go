@@ -26,7 +26,7 @@ type Store interface {
 	LoadShare() (*Share, error)
 	SaveGroup(*Group) error
 	LoadGroup() (*Group, error)
-	Reset(...ResetOption) error
+	Reset() error
 }
 
 // FolderName is the name of the folder where drand keeps its keys
@@ -148,7 +148,7 @@ func (f *fileStore) LoadShare() (*Share, error) {
 	return s, Load(f.shareFile, s)
 }
 
-func (f *fileStore) Reset(_ ...ResetOption) error {
+func (f *fileStore) Reset() error {
 	if err := Delete(f.distKeyFile); err != nil {
 		return fmt.Errorf("drand: err deleting dist. key file: %w", err)
 	}
@@ -195,8 +195,3 @@ func Load(filePath string, t Tomler) error {
 func Delete(filePath string) error {
 	return os.RemoveAll(filePath)
 }
-
-// ResetOption is an option to allow for fine-grained reset
-// operations
-// TODO - unclear what needs to be done here.
-type ResetOption int
