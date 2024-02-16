@@ -748,7 +748,7 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrThresholdHigherThanNodeCount
 	}
 
-	if nodeCount < int(currentState.Threshold) {
+	if len(terms.Remaining) < int(currentState.Threshold) {
 		return ErrNodeCountTooLow
 	}
 
