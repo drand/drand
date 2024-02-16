@@ -317,7 +317,8 @@ func (l *LocalNode) GetBeacon(_ string, round uint64) (ret *drand.PublicRandResp
 	r := common2.Beacon{}
 	err = json.Unmarshal(roundData, &r)
 	if err != nil {
-		panic(err)
+		l.log.Errorw("error unmarshalling beacon")
+		return
 	}
 
 	ret = &drand.PublicRandResponse{
