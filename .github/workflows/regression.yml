@@ -10,10 +10,6 @@ concurrency:
 
 env:
   DISABLE_VERSION_CHECK: 1
-  # TODO Remove after https://github.com/drand/drand/pull/956 is merged, this is to get around the regression test failure
-  MAJOR: 1
-  MINOR: 4
-  PATCH: 0
 
 jobs:
   regression:
@@ -28,39 +24,25 @@ jobs:
     steps:
       # Deps
       - name: Install Go
-        uses: actions/setup-go@v3.5.0
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
+
       - name: Dir Setup
         run: mkdir -p ~/go/bin
 
       # Master branch
       - name: Checkout master branch
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
         with:
           ref: 'master'
-      - name: Check cache for master
-        uses: actions/cache@v3.2.3
-        id: cache_master
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+
       - name: Build Master
         run: make build && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
-        uses: actions/checkout@v3.3.0
-      - name: Check cache for candidate
-        uses: actions/cache@v3.2.3
-        id: cache_candidate
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+        uses: actions/checkout@v4
       - name: Build Candidate
         run: make build && cp drand ~/go/bin/drand-candidate
 
