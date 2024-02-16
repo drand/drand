@@ -133,6 +133,14 @@ var dkgCommand = &cli.Command{
 				return generateProposalCmd(c, l)
 			},
 		},
+		{
+			Name: "nuke",
+			Flags: toArray(
+				beaconIDFlag,
+				folderFlag,
+			),
+			Action: NukeDKGStateCmd,
+		},
 	},
 }
 
