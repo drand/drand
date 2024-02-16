@@ -18,18 +18,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
       - name: Install Go
-        uses: actions/setup-go@v3.5.0
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - name: Build
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
@@ -48,17 +41,10 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - run: go get -v -t -d -tags ${{ matrix.db_type }} ./...
       - name: Unit tests
         env:
@@ -78,17 +64,10 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
       - name: Integration tests
         env:
@@ -108,17 +87,10 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - run: go get -v -t -d -tags integration,${{ matrix.db_type }} ./...
       - name: Integration tests
         env:
@@ -140,17 +112,10 @@ jobs:
       CI: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
-      - uses: actions/setup-go@v3.5.0
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.20.5'
-      - uses: actions/cache@v3.2.3
-        id: cache
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - run: make coverage-${{ matrix.db_type }}
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
