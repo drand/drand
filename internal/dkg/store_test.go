@@ -13,12 +13,12 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Executing,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the DKG details
@@ -51,12 +51,12 @@ func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Executing,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the DKG details under one beaconId
@@ -91,12 +91,12 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := NewParticipant("somebody")
 	dkg := NewCompleteDKGEntry(
 		t,
 		beaconID,
 		Complete,
-		leader,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
 	)
 
 	// store the finished DKG details
@@ -112,4 +112,37 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 	finishedResult, err := store.GetFinished(beaconID)
 	require.NoError(t, err)
 	require.True(t, dkg.Equals(finishedResult))
+}
+
+func TestDeletingStateDeletesCurrentAndFinished(t *testing.T) {
+	// create a DKG store
+	store, err := NewDKGStore(t.TempDir(), nil)
+	require.NoError(t, err)
+
+	// create some DKG details
+	beaconID := "myBeaconId"
+	dkg := NewCompleteDKGEntry(
+		t,
+		beaconID,
+		Complete,
+		NewParticipant("somebody"),
+		NewParticipant("somebody else"),
+	)
+
+	// store the DKG details
+	err = store.SaveCurrent(beaconID, dkg)
+	require.NoError(t, err)
+	err = store.SaveFinished(beaconID, dkg)
+	require.NoError(t, err)
+
+	err = store.NukeState(beaconID)
+	require.NoError(t, err)
+
+	current, err := store.GetCurrent(beaconID)
+	require.NoError(t, err)
+	require.Equal(t, current, NewFreshState(beaconID))
+
+	finished, err := store.GetFinished(beaconID)
+	require.NoError(t, err)
+	require.Nil(t, finished)
 }

@@ -17,8 +17,7 @@ import (
 	"github.com/drand/drand/v2/common/log"
 )
 
-type boltStore struct {
-	sync.RWMutex
+type BoltStore struct {
 	db            *bolt.DB
 	log           log.Logger
 	migrationLock sync.Mutex
@@ -31,7 +30,7 @@ const DirPerm = 0755
 var stagedStateBucket = []byte("dkg")
 var finishedStateBucket = []byte("dkg_finished")
 
-func NewDKGStore(baseFolder string, options *bolt.Options) (Store, error) {
+func NewDKGStore(baseFolder string, options *bolt.Options) (*BoltStore, error) {
 	err := os.MkdirAll(baseFolder, DirPerm)
 	if err != nil {
 		return nil, err
@@ -55,7 +54,7 @@ func NewDKGStore(baseFolder string, options *bolt.Options) (Store, error) {
 		return nil, err
 	}
 
-	store := boltStore{
+	store := BoltStore{
 		db:  db,
 		log: log.New(nil, log.DebugLevel, true),
 	}
@@ -63,7 +62,7 @@ func NewDKGStore(baseFolder string, options *bolt.Options) (Store, error) {
 	return &store, nil
 }
 
-func (s *boltStore) GetCurrent(beaconID string) (*DBState, error) {
+func (s *BoltStore) GetCurrent(beaconID string) (*DBState, error) {
 	dkg, err := s.get(beaconID, stagedStateBucket)
 
 	if err != nil {
@@ -76,11 +75,11 @@ func (s *boltStore) GetCurrent(beaconID string) (*DBState, error) {
 	return dkg, nil
 }
 
-func (s *boltStore) GetFinished(beaconID string) (*DBState, error) {
+func (s *BoltStore) GetFinished(beaconID string) (*DBState, error) {
 	return s.get(beaconID, finishedStateBucket)
 }
 
-func (s *boltStore) get(beaconID string, bucketName []byte) (*DBState, error) {
+func (s *BoltStore) get(beaconID string, bucketName []byte) (*DBState, error) {
 	var dkg *DBState
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -109,27 +108,47 @@ func (s *boltStore) get(beaconID string, bucketName []byte) (*DBState, error) {
 	return dkg, err
 }
 
-func (s *boltStore) SaveCurrent(beaconID string, state *DBState) error {
+func (s *BoltStore) SaveCurrent(beaconID string, state *DBState) error {
 	return s.save(stagedStateBucket, beaconID, state)
 }
 
-func (s *boltStore) SaveFinished(beaconID string, state *DBState) error {
-	// we want the two writes to be transactional
-	// so users don't try and e.g. abort mid-completion
-	// it should happen rarely, so we don't care about lock contention
-	s.Lock()
-	defer s.Unlock()
+func (s *BoltStore) SaveFinished(beaconID string, state *DBState) error {
+	// we save to both buckets at once transactionally
+	return s.db.Update(func(tx *bolt.Tx) error {
+		finishedBucket := tx.Bucket(finishedStateBucket)
+		currentBucket := tx.Bucket(stagedStateBucket)
 
-	// we save it to both buckets as it's the most up to date
-	err := s.save(finishedStateBucket, beaconID, state)
+		if finishedBucket == nil {
+			return errors.Errorf("%s bucket was nil - this should never happen", finishedStateBucket)
+		}
+		if currentBucket == nil {
+			return errors.Errorf("%s bucket was nil - this should never happen", stagedStateBucket)
+		}
+
+		bytesID := []byte(beaconID)
+		b, err := encodeState(state)
+		if err != nil {
+			return err
+		}
+
+		err = finishedBucket.Put(bytesID, b)
+		if err != nil {
+			return err
+		}
+		return currentBucket.Put(bytesID, b)
+	})
+}
+func encodeState(state *DBState) ([]byte, error) {
+	var bytes []byte
+	b := bytes2.NewBuffer(bytes)
+	err := toml.NewEncoder(b).Encode(state.TOML())
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return s.save(stagedStateBucket, beaconID, state)
+	return b.Bytes(), err
 }
 
-func (s *boltStore) save(bucketName []byte, beaconID string, state *DBState) error {
+func (s *BoltStore) save(bucketName []byte, beaconID string, state *DBState) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 
@@ -137,17 +156,17 @@ func (s *boltStore) save(bucketName []byte, beaconID string, state *DBState) err
 			return errors.Errorf("%s bucket was nil - this should never happen", bucketName)
 		}
 
-		var bytes []byte
-		b := bytes2.NewBuffer(bytes)
-		err := toml.NewEncoder(b).Encode(state.TOML())
+		bytesID := []byte(beaconID)
+		b, err := encodeState(state)
 		if err != nil {
 			return err
 		}
-		return bucket.Put([]byte(beaconID), b.Bytes())
+
+		return bucket.Put(bytesID, b)
 	})
 }
 
-func (s *boltStore) Close() error {
+func (s *BoltStore) Close() error {
 	if err := s.db.Close(); err != nil {
 		s.log.Errorw("", "boltdb", "close", "err", err)
 		return err
@@ -156,7 +175,7 @@ func (s *boltStore) Close() error {
 	return nil
 }
 
-func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
+func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
 	if beaconID == "" {
 		return errors.New("you must pass a beacon ID")
 	}
@@ -224,4 +243,15 @@ func (s *boltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	}
 
 	return s.SaveFinished(beaconID, &state)
+}
+
+func (s *BoltStore) NukeState(beaconID string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		err := tx.Bucket(stagedStateBucket).Delete([]byte(beaconID))
+		if err != nil {
+			return err
+		}
+
+		return tx.Bucket(finishedStateBucket).Delete([]byte(beaconID))
+	})
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+	"github.com/drand/kyber/share/dkg"
 )
 
 type Status uint32
@@ -626,10 +627,12 @@ var ErrLeaderCantJoinAfterFirstEpoch = errors.New("you cannot lead a DKG and joi
 var ErrLeaderNotRemaining = errors.New("you cannot lead a DKG and leave at the same time")
 var ErrLeaderNotJoining = errors.New("the leader must join in the first epoch")
 var ErrOnlyJoinersAllowedForFirstEpoch = errors.New("participants can only be joiners for the first epoch")
-var ErrNoNodesRemaining = errors.New("cannot propose a network common.Without nodes remaining")
+var ErrNoNodesRemaining = errors.New("cannot propose a network without nodes remaining")
 var ErrMissingNodesInProposal = errors.New("some node(s) in the current epoch are missing from the proposal - they should be remaining or leaving")
 var ErrCannotProposeAsNonLeader = errors.New("cannot make a proposal where you are not the leader")
 var ErrThresholdHigherThanNodeCount = errors.New("the threshold cannot be higher than the count of remaining + joining nodes")
+var ErrNodeCountTooLow = errors.New("the new node count cannot be lower than the prior threshold")
+var ErrThresholdTooLow = errors.New("the threshold is below the minimum required to allow effective secret recovery given the node count")
 var ErrRemainingAndLeavingNodesMustExistInCurrentEpoch = errors.New("remaining and leaving nodes contained a node that does not exist in the current epoch - they must be added as joiners")
 var ErrCannotAcceptProposalWhereLeaving = errors.New("you cannot accept a proposal where your node is leaving")
 var ErrCannotAcceptProposalWhereJoining = errors.New("you cannot accept a proposal where your node is joining - run the join command instead")
@@ -679,7 +682,9 @@ func isValidStateChange(current, next Status) bool {
 	case TimedOut:
 		return next == Proposing || next == Proposed || next == Aborted
 	case Failed:
-		return next == Proposing || next == Proposed || next == Joined || next == Left || next == Aborted
+		// a node can be `Failed` but still be included in the group file under some (magical) circumstances.
+		// In such a case, it should be added as a remainer on the next DKG rather than a joiner.
+		return next == Proposing || next == Proposed || next == Left || next == Aborted
 	}
 	return false
 }
@@ -689,40 +694,9 @@ func hasTimedOut(details *DBState) bool {
 	return details.Timeout.Before(now) || details.Timeout.Equal(now)
 }
 
-//nolint:gocyclo
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
-	if terms == nil {
-		return ErrMissingTerms
-	}
-	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
-	if currentState.BeaconID != terms.BeaconID {
-		return ErrInvalidBeaconID
-	}
-
-	targetSch, err := crypto.SchemeFromName(terms.SchemeID)
+	err := validateForAllDKGs(currentState, terms)
 	if err != nil {
-		return ErrInvalidScheme
-	}
-
-	for _, participant := range terms.Joining {
-		id, err := key.IdentityFromProto(participant, targetSch)
-		if err != nil {
-			return fmt.Errorf("%w, participant error: %s, expected: %s", key.ErrInvalidKeyScheme, err.Error(), targetSch.Name)
-		}
-		if err := id.ValidSignature(); err != nil {
-			return key.ErrInvalidKeyScheme
-		}
-	}
-
-	if terms.Timeout.AsTime().Before(time.Now()) {
-		return ErrTimeoutReached
-	}
-
-	if int(terms.Threshold) > len(terms.Joining)+len(terms.Remaining) {
-		return ErrThresholdHigherThanNodeCount
-	}
-
-	if err := validateEpoch(currentState, terms); err != nil {
 		return err
 	}
 
@@ -732,26 +706,65 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 		return validateFirstEpoch(terms)
 	}
 
-	if util.Contains(terms.Joining, terms.Leader) {
-		return ErrLeaderCantJoinAfterFirstEpoch
-	}
-
-	if len(terms.Remaining) == 0 {
-		return ErrNoNodesRemaining
-	}
-
-	// there's no theoretical reason the leader can't be leaving, but from a practical perspective
-	// it makes sense in case e.g. the DKG fails or aborts
-	if util.Contains(terms.Leaving, terms.Leader) || !util.Contains(terms.Remaining, terms.Leader) {
-		return ErrLeaderNotRemaining
+	if err := validateReshareTerms(currentState, terms); err != nil {
+		return err
 	}
 
 	// nodes joining after the first epoch accept some things at face value
 	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
-		return validateReshare(currentState, terms)
+		err = validateReshareForRemainers(currentState, terms)
 	}
 
+	return err
+}
+
+func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error {
+	if terms == nil {
+		return ErrMissingTerms
+	}
+
+	// it shouldn't really be possible for the wrong beaconID to make its way here, but better safe than sorry :)
+	if currentState.BeaconID != terms.BeaconID {
+		return ErrInvalidBeaconID
+	}
+
+	sch, err := crypto.SchemeFromName(terms.SchemeID)
+	if err != nil {
+		return ErrInvalidScheme
+	}
+
+	err = validateJoinerSignatures(terms, sch)
+	if err != nil {
+		return err
+	}
+
+	if terms.Timeout.AsTime().Before(time.Now()) {
+		return ErrTimeoutReached
+	}
+
+	nodeCount := len(terms.Joining) + len(terms.Remaining)
+	if int(terms.Threshold) > nodeCount {
+		return ErrThresholdHigherThanNodeCount
+	}
+
+	if int(terms.Threshold) < dkg.MinimumT(nodeCount) {
+		return ErrThresholdTooLow
+	}
+
+	return validateEpoch(currentState, terms)
+}
+
+func validateJoinerSignatures(terms *drand.ProposalTerms, targetSch *crypto.Scheme) error {
+	for _, participant := range terms.Joining {
+		id, err := key.IdentityFromProto(participant, targetSch)
+		if err != nil {
+			return fmt.Errorf("%w, participant error: %s, expected: %s", key.ErrInvalidKeyScheme, err.Error(), targetSch.Name)
+		}
+		if err := id.ValidSignature(); err != nil {
+			return key.ErrInvalidKeyScheme
+		}
+	}
 	return nil
 }
 
@@ -770,6 +783,7 @@ func validateEpoch(currentState *DBState, terms *drand.ProposalTerms) error {
 	if terms.Epoch > currentState.Epoch+1 && (currentState.State != Left && currentState.State != Fresh) {
 		return ErrInvalidEpoch
 	}
+
 	return nil
 }
 
@@ -777,16 +791,44 @@ func validateFirstEpoch(terms *drand.ProposalTerms) error {
 	if len(terms.GenesisSeed) != 0 {
 		return ErrNoGenesisSeedForFirstEpoch
 	}
+
 	if terms.Remaining != nil || terms.Leaving != nil {
 		return ErrOnlyJoinersAllowedForFirstEpoch
 	}
+
 	if !util.Contains(terms.Joining, terms.Leader) {
 		return ErrLeaderNotJoining
+	}
+
+	if len(terms.Joining) < int(terms.Threshold) {
+		return ErrThresholdHigherThanNodeCount
 	}
 	return nil
 }
 
-func validateReshare(currentState *DBState, terms *drand.ProposalTerms) error {
+func validateReshareTerms(currentState *DBState, terms *drand.ProposalTerms) error {
+	if len(terms.Remaining) == 0 {
+		return ErrNoNodesRemaining
+	}
+
+	if util.Contains(terms.Joining, terms.Leader) {
+		return ErrLeaderCantJoinAfterFirstEpoch
+	}
+
+	// there's no theoretical reason the leader can't be leaving, but from a practical perspective
+	// it makes sense in case e.g. the DKG fails or aborts
+	if util.Contains(terms.Leaving, terms.Leader) || !util.Contains(terms.Remaining, terms.Leader) {
+		return ErrLeaderNotRemaining
+	}
+
+	if len(terms.Remaining) < int(currentState.Threshold) {
+		return ErrNodeCountTooLow
+	}
+
+	return nil
+}
+
+func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTerms) error {
 	if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
 		return ErrGenesisTimeNotEqual
 	}
@@ -801,6 +843,10 @@ func validateReshare(currentState *DBState, terms *drand.ProposalTerms) error {
 
 	if !util.ContainsAll(append(terms.Remaining, terms.Leaving...), append(currentState.Remaining, currentState.Joining...)) {
 		return ErrMissingNodesInProposal
+	}
+
+	if len(terms.Remaining) < int(currentState.Threshold) {
+		return ErrNodeCountTooLow
 	}
 
 	return nil

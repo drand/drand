@@ -45,7 +45,7 @@ func TestInitialDKG(t *testing.T) {
 			name: "valid proposal with successful gossip sends to all parties except leader",
 			proposal: &drand.FirstProposalOptions{
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
+				Threshold:            2,
 				PeriodSeconds:        10,
 				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
@@ -64,7 +64,7 @@ func TestInitialDKG(t *testing.T) {
 			name: "database get failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
+				Threshold:            2,
 				PeriodSeconds:        10,
 				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
@@ -81,7 +81,7 @@ func TestInitialDKG(t *testing.T) {
 			name: "database store failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            1,
+				Threshold:            2,
 				PeriodSeconds:        10,
 				Scheme:               sch.Name,
 				CatchupPeriodSeconds: 10,
@@ -145,7 +145,7 @@ func TestReshare(t *testing.T) {
 	currentState := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
 	validProposal := drand.ProposalOptions{
 		Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-		Threshold:            1,
+		Threshold:            2,
 		CatchupPeriodSeconds: 10,
 		Joining:              []*drand.Participant{carol},
 		Remaining:            []*drand.Participant{alice, bob},
