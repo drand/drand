@@ -33,7 +33,8 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 
 				// we only accept to proceed with an unknown chain hash if one beacon process hasn't run DKG yet
 				if id == rcvBeaconID && group == nil {
-					// we make sure that the beacon id is not empty
+					// we make sure that the beacon id is not empty, note the metadata is necessarily instantiated
+					// if the outer IF close is true
 					metadata.BeaconID = rcvBeaconID
 					return id, nil
 				}
@@ -45,7 +46,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 
 	// if we didn't match on a chain hash, and have the empty string, then it's the default beacon
 	rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
-	// make sure the metadata use a correct beacon id
+	// make sure the metadata use a correct beacon id, we might need to instantiate it first
 	if metadata == nil {
 		metadata = &drand.Metadata{}
 	}

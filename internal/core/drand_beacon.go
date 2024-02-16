@@ -583,9 +583,9 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 			r, err := bp.privGateway.PublicRand(ctxFind, peer, &prr)
 			if err == nil && r != nil {
 				b = common.Beacon{
-					PreviousSig: r.PreviousSignature,
-					Round:       r.Round,
-					Signature:   r.Signature,
+					PreviousSig: r.GetPreviousSignature(),
+					Round:       r.GetRound(),
+					Signature:   r.GetSignature(),
 				}
 			}
 			answers <- answer{peer, b, err}
