@@ -121,7 +121,7 @@ func TestProposalValidation(t *testing.T) {
 				proposal.Remaining = nil
 				return proposal
 			}(),
-			expected: ErrNodeCountTooLow,
+			expected: ErrNoNodesRemaining,
 		},
 		{
 			name:  "if epoch is > 1, alice joining returns an error",
@@ -173,7 +173,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrThresholdHigherThanNodeCount,
 		},
 		{
-			name: "node count too low returns an error",
+			name: "threshold too low returns an error",
 			state: func() *DBState {
 				state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
 				state.Threshold = 3
@@ -186,7 +186,7 @@ func TestProposalValidation(t *testing.T) {
 				invalidProposal.Leaving = []*drand.Participant{carol}
 				return invalidProposal
 			}(),
-			expected: ErrNodeCountTooLow,
+			expected: ErrThresholdTooLow,
 		},
 		{
 			name: "threshold too low to recover secret returns error",

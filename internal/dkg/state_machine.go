@@ -748,10 +748,6 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrThresholdHigherThanNodeCount
 	}
 
-	if len(terms.Remaining) < int(currentState.Threshold) {
-		return ErrNodeCountTooLow
-	}
-
 	if int(terms.Threshold) < dkg.MinimumT(nodeCount) {
 		return ErrThresholdTooLow
 	}
@@ -847,6 +843,10 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 
 	if !util.ContainsAll(append(terms.Remaining, terms.Leaving...), append(currentState.Remaining, currentState.Joining...)) {
 		return ErrMissingNodesInProposal
+	}
+
+	if len(terms.Remaining) < int(currentState.Threshold) {
+		return ErrNodeCountTooLow
 	}
 
 	return nil
