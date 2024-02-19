@@ -132,7 +132,7 @@ demo-postgres:
 ############################################ Build ############################################
 
 build_proto:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.32.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 	cd protobuf && sh ./compile_proto.sh
 
@@ -154,7 +154,7 @@ build_docker_dev:
 	docker build -f internal/test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
-PROTOC_VERSION=3.20.3
+PROTOC_VERSION=25.3
 PROTOC_ZIP_LINUX=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 PROTOC_ZIP_DARWIN=protoc-$(PROTOC_VERSION)-osx-x86_64.zip
 PROTOC_ZIP_DARWIN_M=protoc-$(PROTOC_VERSION)-osx-aarch_64.zip

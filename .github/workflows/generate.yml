@@ -15,7 +15,7 @@ jobs:
 
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.20.5'
+        go-version: '1.20.13'
 
     - name: Fetch Dependencies
       run: go get ./...
@@ -24,10 +24,10 @@ jobs:
       uses: arduino/setup-protoc@v3
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        version: '3.20.3'
+        version: '25.3'
     - name: Install Protoc-gen-go
       run: |
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.32.0
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
     - name: Generate
