@@ -10,35 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # pin@v3.3.0
+        uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.20.5'
+          go-version: '1.20.13'
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@149f6c87b92550901b26acd1632e11c3662e381f # pin@v1.3.0
+        uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          version: '3.20.3'
+          version: '25.3'
 
       - name: Install Protoc-gen-go
         run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.32.0
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
           go mod tidy
-
-      - name: Get latest release version number
-        id: get_version
-        uses: battila7/get-version-action@d681662789c541f0777208c1f0e82f255f70b28d # pin@latest-16.01.2023
-
-      - name: Parse semver string
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@7784200024d6b3fc01253e617ec0168daf603de3 # pin@v1.4.7
-        with:
-          input_string: ${{ steps.get_version.outputs.version }}
-          version_extractor_regex: 'v(.*)$'
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
@@ -48,6 +37,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAJOR: ${{ steps.semver_parser.outputs.major }}
-          MINOR: ${{ steps.semver_parser.outputs.minor }}
-          PATCH: ${{ steps.semver_parser.outputs.patch }}
