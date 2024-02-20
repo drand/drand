@@ -263,7 +263,13 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 		if err == nil {
 			// we do a health check to check the connection can be properly established
 			client := grpc_health_v1.NewHealthClient(c)
-			_, err = client.Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+			_, err = client.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+			// migration path from v1.5.9 to v2
+			// TODO: remove in 2.1.0
+			if err != nil {
+				client := drand.NewPublicClient(c)
+				_, err = client.Home(ctx, &drand.HomeRequest{})
+			}
 		}
 		// we are relying on the same err
 		if err != nil {
