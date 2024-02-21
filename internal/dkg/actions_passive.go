@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/metrics"
 
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
@@ -77,6 +78,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return nil, err
 	}
 
+	metrics.DKGStateChange(nextState.BeaconID, nextState.Epoch, nextState.Leader == me, uint32(nextState.State))
 	recipients := util.Concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
 	// we ignore the errors here because it's a best effort gossip
 	// however we can continue with execution

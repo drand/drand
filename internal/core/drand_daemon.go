@@ -222,8 +222,6 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
-	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 	metrics.IsDrandNode.Set(1)
 	metrics.DrandStartTimestamp.SetToCurrentTime()
 
@@ -253,8 +251,6 @@ func (dd *DrandDaemon) RemoveBeaconProcess(ctx context.Context, beaconID string,
 
 	dd.log.Debugw("BeaconProcess removed", "beacon_id", beaconID, "chain_hash", chainHash)
 
-	metrics.DKGStateChange(metrics.DKGShutdown, beaconID, false)
-	metrics.ReshareStateChange(metrics.ReshareShutdown, beaconID, false)
 	metrics.IsDrandNode.Set(1)
 	metrics.DrandStartTimestamp.SetToCurrentTime()
 
@@ -374,6 +370,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		span.RecordError(err)
 		return nil, err
 	}
+	metrics.DKGStateChange(status.Current.BeaconID, status.Current.Epoch, false, status.Current.State)
 
 	freshRun := status.Complete == nil
 	if freshRun {

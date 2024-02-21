@@ -18,28 +18,6 @@ import (
 	"github.com/drand/drand/v2/common/log"
 )
 
-type DKGState int
-type ReshareState int
-
-// If you change any of these constants, be sure to change them in the appropriate metric help
-// message below, and in the dashboards!
-const (
-	DKGNotStarted   DKGState = 0
-	DKGWaiting      DKGState = 1
-	DKGInProgress   DKGState = 2
-	DKGDone         DKGState = 3
-	DKGUnknownState DKGState = 4
-	DKGShutdown     DKGState = 5
-)
-
-const (
-	ReshareIdle         ReshareState = 0
-	ReshareWaiting      ReshareState = 1
-	ReshareInProgess    ReshareState = 2
-	ReshareUnknownState ReshareState = 3
-	ReshareShutdown     ReshareState = 4
-)
-
 var (
 	// PrivateMetrics about the internal world (go process, private stuff)
 	PrivateMetrics = prometheus.NewRegistry()
@@ -180,6 +158,14 @@ var (
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"url"},
+	)
+
+	dkgEpoch = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dkg_epoch",
+			Help: "The epoch of any currently in progress or completed DKGs",
+		},
+		[]string{"beacon_id"},
 	)
 
 	// dkgState (Group) tracks DKG status changes
@@ -456,25 +442,15 @@ func getBuildTimestamp(buildDate string) int64 {
 }
 
 // DKGStateChange emits appropriate dkgState, dkgStateTimestamp and dkgLeader metrics
-func DKGStateChange(s DKGState, beaconID string, leader bool) {
-	value := 0.0
+func DKGStateChange(beaconID string, epoch uint32, leader bool, state uint32) {
+	leading := 0.0
 	if leader {
-		value = 1.0
+		leading = 1.0
 	}
-	dkgState.WithLabelValues(beaconID).Set(float64(s))
+	dkgEpoch.WithLabelValues(beaconID).Set(float64(epoch))
+	dkgState.WithLabelValues(beaconID).Set(float64(state))
 	dkgStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
-	dkgLeader.WithLabelValues(beaconID).Set(value)
-}
-
-// ReshareStateChange emits appropriate reshareState, reshareStateTimestamp and reshareLeader metrics
-func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
-	value := 0.0
-	if leader {
-		value = 1.0
-	}
-	reshareState.WithLabelValues(beaconID).Set(float64(s))
-	reshareStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
-	reshareLeader.WithLabelValues(beaconID).Set(value)
+	dkgLeader.WithLabelValues(beaconID).Set(leading)
 }
 
 func ErrorSendingPartial(beaconID, address string) {
