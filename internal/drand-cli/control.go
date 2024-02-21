@@ -324,13 +324,23 @@ func selfSign(c *cli.Context, l log.Logger) error {
 
 	for beaconID, fs := range stores {
 		pair, err := fs.LoadKeyPair()
-
 		if err != nil {
 			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
 		}
 		if pair.Public.ValidSignature() == nil {
 			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
 			continue
+		}
+
+		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
+		// but the group will.
+		group, err := fs.LoadGroup()
+		if err != nil {
+			l.Warnw("beacon id [%s] - could not load group, please report this: %w", beaconID, err)
+		}
+		// the actual migration path
+		if group != nil && group.Scheme != nil {
+			pair.Public.Scheme = group.Scheme
 		}
 
 		if err := pair.SelfSign(); err != nil {
