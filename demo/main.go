@@ -22,7 +22,7 @@ func installDrand() {
 	curr, err := os.Getwd()
 	checkErr(err)
 	checkErr(os.Chdir("../"))
-	install := exec.Command("go", "install", "./cmd/drand")
+	install := exec.Command("go", "install", "-tags=test", "./cmd/drand")
 	runCommand(install)
 	checkErr(os.Chdir(curr))
 }
