@@ -21,7 +21,6 @@ import (
 	"github.com/drand/drand/v2/internal/chain/postgresdb/pgdb"
 	"github.com/drand/drand/v2/internal/dkg"
 	"github.com/drand/drand/v2/internal/fs"
-	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/util"
 	"github.com/drand/drand/v2/protobuf/drand"
@@ -110,10 +109,8 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 
 	var err error
 
-	beaconID := bp.getBeaconID()
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil || bp.group == nil {
-		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 		span.RecordError(err)
 		return ErrDKGNotStarted
 	}
@@ -149,7 +146,6 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	bp.state.Unlock()
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
-	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/net"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
@@ -73,6 +74,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		return nil, fmt.Errorf("error running command %s: %w", commandName, err)
 	}
 
+	metrics.DKGStateChange(afterState.BeaconID, afterState.Epoch, afterState.Leader == me, uint32(afterState.State))
 	// if there is an output packet to gossip (i.e. if the user isn't joining)
 	// then we sign the packet and gossip it to the network
 	if packetToGossip != nil {
