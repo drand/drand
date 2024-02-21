@@ -59,75 +59,75 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	go test -failfast $(SHORTTEST) -race -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags test ./...
 
 test-unit-boltdb: test-unit
 
 test-unit-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
+	go test -failfast $(SHORTTEST) -race -v -tags test,memdb ./...
 
 test-unit-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
+	go test -failfast $(SHORTTEST) -race -v -tags test,postgres ./...
 
 test-unit-cover:
-	go test -failfast $(SHORTTEST) -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -tags test -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-boltdb-cover: test-unit-cover
 
 test-unit-memdb-cover:
-	go test -failfast $(SHORTTEST) -v -tags memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags test,memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-postgres-cover:
-	go test -failfast $(SHORTTEST) -v -tags postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags test,postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -failfast $(SHORTTEST) -race -v -tags integration ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags test,integration ./demo/
 
 test-integration-boltdb: test-integration
 
 test-integration-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,memdb ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags test,integration,memdb ./demo/
 
 test-integration-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,postgres ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags test,integration,postgres ./demo/
 
 test-integration-run-demo:
-	cd demo && go build && ./demo -build -test -debug
+	cd demo && go build -tags test && ./demo -build -test -debug
 
 test-integration-run-demo-boltdb: test-integration-run-demo
 
 test-integration-run-demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+	cd demo && go build  -tags test && ./demo -dbtype=memdb -build -test -debug
 
 test-integration-run-demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
+	cd demo && go build  -tags test && ./demo -dbtype=postgres -build -test -debug
 
 
 coverage:
 	go get -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -failfast $(SHORTTEST) -v  -tags test -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 coverage-boltdb: coverage
 
 coverage-memdb:
 	go get -tags=memdb -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=test,memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
 
 coverage-postgres:
 	go get -tags=postgres -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=test,postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
-	cd demo && go build && ./demo -build
+	cd demo && go build -tags test && ./demo -build
 	#cd demo && sudo ./run.sh
 
 demo-boltdb: demo
 
 demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build
+	cd demo && go build -tags test && ./demo -dbtype=memdb -build
 
 demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build
+	cd demo && go build -tags test && ./demo -dbtype=postgres -build
 
 ############################################ Build ############################################
 
