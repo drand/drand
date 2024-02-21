@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/kyber"
@@ -122,6 +123,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		}
 
 		err = d.store.SaveCurrent(beaconID, next)
+		metrics.DKGStateChange(next.BeaconID, next.Epoch, false, uint32(next.State))
 		return errors.Join(dkgErr, err)
 	}
 
@@ -141,7 +143,9 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		New:      *finalState,
 	}
 
+	metrics.DKGStateChange(finalState.BeaconID, finalState.Epoch, false, uint32(finalState.State))
 	d.log.Infow("DKG completed successfully!", "beaconID", beaconID, "epoch", finalState.Epoch)
+
 	return nil
 }
 
