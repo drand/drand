@@ -327,10 +327,6 @@ func selfSign(c *cli.Context, l log.Logger) error {
 		if err != nil {
 			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
 		}
-		if pair.Public.ValidSignature() == nil {
-			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
-			continue
-		}
 
 		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
 		// but the group will.
@@ -341,6 +337,12 @@ func selfSign(c *cli.Context, l log.Logger) error {
 		// the actual migration path
 		if group != nil && group.Scheme != nil {
 			pair.Public.Scheme = group.Scheme
+		}
+
+		// we validate signature after switching schemes
+		if pair.Public.ValidSignature() == nil {
+			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
+			continue
 		}
 
 		if err := pair.SelfSign(); err != nil {
