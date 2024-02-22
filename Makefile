@@ -59,75 +59,74 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	go test -failfast $(SHORTTEST) -race -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure ./...
 
 test-unit-boltdb: test-unit
 
 test-unit-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,memdb ./...
 
 test-unit-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,postgres ./...
 
 test-unit-cover:
-	go test -failfast $(SHORTTEST) -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -tags conn_insecure -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-boltdb-cover: test-unit-cover
 
 test-unit-memdb-cover:
-	go test -failfast $(SHORTTEST) -v -tags memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags conn_insecure,memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-postgres-cover:
-	go test -failfast $(SHORTTEST) -v -tags postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags conn_insecure,postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -failfast $(SHORTTEST) -race -v -tags integration ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration ./demo/
 
 test-integration-boltdb: test-integration
 
 test-integration-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,memdb ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration,memdb ./demo/
 
 test-integration-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,postgres ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration,postgres ./demo/
 
 test-integration-run-demo:
-	cd demo && go build && ./demo -build -test -debug
+	cd demo && go build -tags conn_insecure && ./demo -build -test -debug
 
 test-integration-run-demo-boltdb: test-integration-run-demo
 
 test-integration-run-demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+	cd demo && go build  -tags conn_insecure && ./demo -dbtype=memdb -build -test -debug
 
 test-integration-run-demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
+	cd demo && go build  -tags conn_insecure && ./demo -dbtype=postgres -build -test -debug
 
 
 coverage:
 	go get -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -failfast $(SHORTTEST) -v  -tags conn_insecure -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 coverage-boltdb: coverage
 
 coverage-memdb:
 	go get -tags=memdb -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=conn_insecure,memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
 
 coverage-postgres:
 	go get -tags=postgres -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=conn_insecure,postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
-	cd demo && go build && ./demo -build
-	#cd demo && sudo ./run.sh
+	cd demo && go build -tags conn_insecure && ./demo -build
 
 demo-boltdb: demo
 
 demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build
+	cd demo && go build -tags conn_insecure && ./demo -dbtype=memdb -build
 
 demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build
+	cd demo && go build -tags conn_insecure && ./demo -dbtype=postgres -build
 
 ############################################ Build ############################################
 
@@ -138,11 +137,19 @@ build_proto:
 
 # create the "drand" binary and install it in $GOBIN
 install:
+	$(info This is installing drand with TLS enabled.)
+	$(info  )
 	go install -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
 # create the "drand" binary in the current folder
 build:
+	$(info This is building drand with TLS enabled, use 'make build_insecure' to do local tests without TLS.)
+	$(info  )
 	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
+
+# create the "drand" binary in the current folder without TLS connections, useful for tests.
+build_insecure:
+	go build -tags conn_insecure -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
 build_all: drand
 
