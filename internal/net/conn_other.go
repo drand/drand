@@ -5,11 +5,12 @@ package net
 import (
 	"context"
 
-	"github.com/drand/drand/v2/internal/metrics"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	insecure "google.golang.org/grpc/credentials/insecure"
+
+	"github.com/drand/drand/v2/internal/metrics"
 )
 
 // conn retrieve an already existing conn to the given peer or create a new one.
