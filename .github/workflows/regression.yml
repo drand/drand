@@ -38,13 +38,13 @@ jobs:
           ref: 'master'
 
       - name: Build Master
-        run: make build && cp drand ~/go/bin/drand-existing
+        run: make build_insecure && cp drand ~/go/bin/drand-existing
 
       # Candidate branch
       - name: Checkout candidate branch
         uses: actions/checkout@v4
       - name: Build Candidate
-        run: make build && cp drand ~/go/bin/drand-candidate
+        run: make build_insecure && cp drand ~/go/bin/drand-candidate
 
       # Regression test
       - name: Run regression with ${{ matrix.db_type }} database
