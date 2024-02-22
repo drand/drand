@@ -1,4 +1,4 @@
-//go:build !test
+//go:build !conn_insecure
 
 package net
 
@@ -16,6 +16,9 @@ import (
 
 // conn retrieve an already existing conn to the given peer or create a new one
 func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error) {
+	// This is the TLS version!
+	// If you change anything here, don't forget to also change it in the non-TLS one in conn_other.go
+
 	g.Lock()
 	defer g.Unlock()
 	var err error

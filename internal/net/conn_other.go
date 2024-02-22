@@ -1,4 +1,4 @@
-//go:build test
+//go:build conn_insecure
 
 package net
 
@@ -12,8 +12,12 @@ import (
 	insecure "google.golang.org/grpc/credentials/insecure"
 )
 
-// conn retrieve an already existing conn to the given peer or create a new one
+// conn retrieve an already existing conn to the given peer or create a new one.
+// This version is the NON-TLS CONNECTION FOR TEST PURPOSES, it's behind a build tag that we use in our tests.
 func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error) {
+	// This is the NON-TLS version!
+	// If you change anything here, don't forget to also change it in the TLS one in conn_tls.go
+
 	g.Lock()
 	defer g.Unlock()
 	var err error
