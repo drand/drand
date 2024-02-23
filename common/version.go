@@ -13,7 +13,7 @@ import (
 var version = Version{
 	Major:      2,
 	Minor:      0,
-	Patch:      4,
+	Patch:      5,
 	Prerelease: "testnet",
 }
 
