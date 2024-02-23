@@ -22,6 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const oldBinaryPath = "./drand-1.5.7"
+
 // node is a convenience wrapper around some state to avoid rebinding ports
 type node struct {
 	private string
@@ -52,7 +54,7 @@ func TestMigrateOldGroupFile(t *testing.T) {
 		folderFlag := fmt.Sprintf("--folder=%s", node.dir)
 		controlFlag := fmt.Sprintf("--control=%s", node.control)
 		require.NoError(t, runCommand(
-			"./drand-1.5.7",
+			oldBinaryPath,
 			"generate-keypair",
 			"--id=default",
 			"--scheme=pedersen-bls-chained",
@@ -64,7 +66,7 @@ func TestMigrateOldGroupFile(t *testing.T) {
 		)
 		go func() {
 			require.NoError(t, runCommand(
-				"./drand-1.5.7",
+				oldBinaryPath,
 				"start",
 				"--insecure",
 				fmt.Sprintf("--private-listen=%s", node.private),
@@ -83,7 +85,8 @@ func TestMigrateOldGroupFile(t *testing.T) {
 
 	// we run a DKG on them
 	go func() {
-		_ = runCommand("./drand-1.5.7",
+		_ = runCommand(
+			oldBinaryPath,
 			"share",
 			"--leader",
 			"--threshold=2",
@@ -103,7 +106,7 @@ func TestMigrateOldGroupFile(t *testing.T) {
 		n := n
 		go func() {
 			_ = runCommand(
-				"./drand-1.5.7",
+				oldBinaryPath,
 				"share",
 				fmt.Sprintf("--connect=%s", nodes[0].private),
 				fmt.Sprintf("--control=%s", n.control),
@@ -120,7 +123,7 @@ func TestMigrateOldGroupFile(t *testing.T) {
 	daemons := make([]*core.DrandDaemon, n)
 	for i := 0; i < n; i++ {
 		// stopping the existing daemon actually returns an error, so we ignore it fuuu
-		_ = runCommand("./drand-1.5.7", "stop", fmt.Sprintf("--control=%s", nodes[i].control))
+		_ = runCommand(oldBinaryPath, "stop", fmt.Sprintf("--control=%s", nodes[i].control))
 
 		// we have to self sign the keys, as the CLI normally does this for us
 		_, _, err := core.SelfSignKeys(log.DefaultLogger(), fmt.Sprintf("%s/multibeacon", nodes[i].dir))
@@ -188,7 +191,7 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 		folderFlag := fmt.Sprintf("--folder=%s", node.dir)
 		controlFlag := fmt.Sprintf("--control=%s", node.control)
 		require.NoError(t, runCommand(
-			"./drand-1.5.7",
+			oldBinaryPath,
 			"generate-keypair",
 			"--id=default",
 			"--scheme=pedersen-bls-chained",
@@ -200,7 +203,7 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 		)
 		go func() {
 			require.NoError(t, runCommand(
-				"./drand-1.5.7",
+				oldBinaryPath,
 				"start",
 				"--insecure",
 				fmt.Sprintf("--private-listen=%s", node.private),
@@ -219,7 +222,8 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 
 	// we run a DKG on them
 	go func() {
-		_ = runCommand("./drand-1.5.7",
+		_ = runCommand(
+			oldBinaryPath,
 			"share",
 			"--leader",
 			"--threshold=2",
@@ -239,7 +243,7 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 		n := n
 		go func() {
 			_ = runCommand(
-				"./drand-1.5.7",
+				oldBinaryPath,
 				"share",
 				fmt.Sprintf("--connect=%s", nodes[0].private),
 				fmt.Sprintf("--control=%s", n.control),
@@ -255,7 +259,7 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 	// now we only run two nodes for the reshare, and the third node becomes a leaver
 	for i := 0; i < n; i++ {
 		// stopping the existing daemon actually returns an error, so we ignore it fuuu
-		_ = runCommand("./drand-1.5.7", "stop", fmt.Sprintf("--control=%s", nodes[i].control))
+		_ = runCommand(oldBinaryPath, "stop", fmt.Sprintf("--control=%s", nodes[i].control))
 	}
 
 	newN := 2
@@ -354,7 +358,7 @@ func waitForDKGComplete(controlPort string, seconds int) error {
 	var err error
 	remaining := seconds
 	for remaining > 0 {
-		err = runCommand("./drand-1.5.7", "show", "group", fmt.Sprintf("--control=%s", controlPort), "--id=default")
+		err = runCommand(oldBinaryPath, "show", "group", fmt.Sprintf("--control=%s", controlPort), "--id=default")
 		if err == nil {
 			break
 		}
