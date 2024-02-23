@@ -275,8 +275,8 @@ func SelfSignKeys(l log.Logger, multibeaconFolder string) ([]string, []*key.Pair
 
 	l.Infow("Detected stores", "amount", len(stores))
 
-	var keys []*key.Pair
-	var beaconIDs []string
+	keys := make([]*key.Pair, 0)
+	beaconIDs := make([]string, 0)
 	for beaconID, fs := range stores {
 		pair, err := fs.LoadKeyPair()
 		if err != nil {

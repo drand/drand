@@ -22,7 +22,7 @@ import (
 // actions_active contains all the DKG actions that require user interaction: creating a network,
 // accepting or rejecting a DKG, getting the status, etc. Both leader and follower interactions are contained herein.
 
-//nolint:gocyclo //
+//nolint:gocyclo,funlen
 func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*drand.EmptyDKGResponse, error) {
 	if command == nil {
 		return nil, errors.New("command cannot be nil")
