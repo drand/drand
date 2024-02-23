@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"testing"
 	"time"
 
@@ -22,7 +23,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const oldBinaryPath = "./drand-1.5.7"
+var oldBinaryPath string
+
+func init() {
+	switch runtime.GOOS {
+	case "linux":
+		oldBinaryPath = "./drand-1.5.7-linux"
+	case "darwin":
+		oldBinaryPath = "./drand-1.5.7-mac"
+	default:
+		oldBinaryPath = ""
+	}
+}
 
 // node is a convenience wrapper around some state to avoid rebinding ports
 type node struct {
