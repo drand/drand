@@ -27,6 +27,8 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
+		// we need to close the connection before deleting it to avoid goroutine leaks
+		c.Close()
 		delete(g.conns, p.Address())
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
