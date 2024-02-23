@@ -13,10 +13,11 @@ func WithProfile() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", pprof.Index)
-	mux.HandleFunc("/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/profile", pprof.Profile)
-	mux.HandleFunc("/symbol", pprof.Symbol)
-	mux.HandleFunc("/trace", pprof.Trace)
+	// sub-path need to handle the whole path for the matching to work
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	return mux
 }
