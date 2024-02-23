@@ -193,13 +193,22 @@ func (d *Process) StartProposal(
 
 		// migration from v1 -> v2 makes all parties in the v1 group file 'joiners'
 		// the DKGProcess migration path will set old signatures to `nil`, hence we check it here
-		for i, r := range currentState.Joining {
-			if r.Signature != nil {
+	LOOP:
+		for i, j := range currentState.Joining {
+			// leavers may not be online, so we don't want to block the proposal by trying to get their new keys
+			for _, l := range options.Leaving {
+				if j.Address == l.Address {
+					continue LOOP
+				}
+			}
+			// the migration path sets the signature in the database to nil; if we have a signature, we can assume that
+			// the reshare is in fact a new network, and not migrated from v1
+			if j.Signature != nil {
 				d.log.Debugw("proposal migration - signature not nil, skipping")
 				continue
 			}
 			// fetch their public key via gRPC
-			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(r.Address), &proto.IdentityRequest{Metadata: &proto.Metadata{
+			response, err := d.protocolClient.GetIdentity(ctx, net.CreatePeer(j.Address), &proto.IdentityRequest{Metadata: &proto.Metadata{
 				BeaconID:  beaconID,
 				ChainHash: nil,
 			}})
@@ -218,16 +227,16 @@ func (d *Process) StartProposal(
 				return nil, nil, err
 			}
 
-			// update the key mapping
+			// update the signature mapping
 			updatedParticipant := drand.Participant{
-				Address:   r.Address,
+				Address:   j.Address,
 				Key:       response.Key,
 				Signature: response.Signature,
 			}
 
 			currentState.Joining[i] = &updatedParticipant
 			// if they were the last leader, update their key also
-			if currentState.Leader.Address == r.Address {
+			if currentState.Leader.Address == j.Address {
 				currentState.Leader = &updatedParticipant
 			}
 

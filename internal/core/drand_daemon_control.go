@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/v2/common/log"
+
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
@@ -263,4 +265,49 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 // WaitExit returns a channel that signals when drand stops its operations
 func (dd *DrandDaemon) WaitExit() chan bool {
 	return dd.exitCh
+}
+
+func SelfSignKeys(l log.Logger, multibeaconFolder string) ([]string, []*key.Pair, error) {
+	stores, err := key.NewFileStores(multibeaconFolder)
+	if err != nil {
+		return nil, nil, fmt.Errorf("drand: err reading beacons database: %w", err)
+	}
+
+	l.Infow("Detected stores", "amount", len(stores))
+
+	var keys []*key.Pair
+	var beaconIDs []string
+	for beaconID, fs := range stores {
+		pair, err := fs.LoadKeyPair()
+		if err != nil {
+			return nil, nil, fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
+		}
+
+		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
+		// but the group will.
+		group, err := fs.LoadGroup()
+		if err != nil {
+			l.Warnw("beacon id [%s] - could not load group, please report this: %w", beaconID, err)
+		}
+		// the actual migration path
+		if group != nil && group.Scheme != nil {
+			pair.Public.Scheme = group.Scheme
+		}
+
+		// we validate signature after switching schemes
+		if pair.Public.ValidSignature() == nil {
+			l.Infow("beacon id [%s] - public identity already self signed.\n", beaconID)
+			continue
+		}
+
+		if err := pair.SelfSign(); err != nil {
+			return nil, nil, fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
+		}
+		if err := fs.SaveKeyPair(pair); err != nil {
+			return nil, nil, fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
+		}
+		keys = append(keys, pair)
+		beaconIDs = append(beaconIDs, beaconID)
+	}
+	return beaconIDs, keys, nil
 }
