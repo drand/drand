@@ -28,6 +28,7 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
 		delete(g.conns, p.Address())
+		g.log.Debugw("grpc conn in Shutdown state", "to", p.Address())
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(connectivity.Shutdown))
 	}
 
