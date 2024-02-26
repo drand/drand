@@ -193,13 +193,10 @@ func (d *Process) StartProposal(
 
 		// migration from v1 -> v2 makes all parties in the v1 group file 'joiners'
 		// the DKGProcess migration path will set old signatures to `nil`, hence we check it here
-	LOOP:
 		for i, j := range currentState.Joining {
 			// leavers may not be online, so we don't want to block the proposal by trying to get their new keys
-			for _, l := range options.Leaving {
-				if j.Address == l.Address {
-					continue LOOP
-				}
+			if util.Contains(options.Leaving, j) {
+				continue
 			}
 			// the migration path sets the signature in the database to nil; if we have a signature, we can assume that
 			// the reshare is in fact a new network, and not migrated from v1

@@ -130,7 +130,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress("")
 	pubAddr := c.PublicListenAddress("")
-
+	dd.log.Debugw("drand daemon initialization", "public-listen", pubAddr, "private-listen", privAddr)
 	if privAddr == "" {
 		return fmt.Errorf("private listen address cannot be empty")
 	}
@@ -143,9 +143,6 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 	// do not actually use it, so we are passing a background context to be safe.
 	lg := dd.log.With("server", "http")
 	ctx = log.ToContext(ctx, lg)
-
-	var err error
-	dd.log.Infow("", "network", "init")
 
 	handler, err := dhttp.New(ctx, c.Version())
 	if err != nil {

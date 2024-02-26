@@ -7,8 +7,8 @@ import (
 	"reflect"
 
 	"github.com/BurntSushi/toml"
-
 	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/internal/fs"
 )
 
@@ -194,4 +194,49 @@ func Load(filePath string, t Tomler) error {
 // the file; if it is a folder it delete the folder and all its content.
 func Delete(filePath string) error {
 	return os.RemoveAll(filePath)
+}
+
+// SelfSignKeys will go through all the stores in the multibeaconFolder and self-sign the keys unless they are
+// already correctly self-signed.
+func SelfSignKeys(l log.Logger, multibeaconFolder string) error {
+	stores, err := NewFileStores(multibeaconFolder)
+	if err != nil {
+		return fmt.Errorf("drand: err reading beacons database: %w", err)
+	}
+
+	l.Infow("Detected stores", "folder", multibeaconFolder, "amount", len(stores))
+
+	for beaconID, fs := range stores {
+		pair, err := fs.LoadKeyPair()
+		if err != nil {
+			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
+		}
+
+		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
+		// but the group will.
+		group, err := fs.LoadGroup()
+		if err != nil {
+			l.Warnw("could not load group, please report this: %w", "beaconID", beaconID, "err", err)
+		}
+		// the actual migration path
+		if group != nil && group.Scheme != nil {
+			pair.Public.Scheme = group.Scheme
+		}
+
+		// we validate signature after switching schemes
+		if pair.Public.ValidSignature() == nil {
+			l.Debugw("public identity already self signed", "beaconID", beaconID)
+			continue
+		}
+
+		if err := pair.SelfSign(); err != nil {
+			return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
+		}
+		if err := fs.SaveKeyPair(pair); err != nil {
+			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
+		}
+		l.Infow("migration: self signed key for scheme %q.\n", "beaconID", beaconID, "scheme", pair.Scheme().Name)
+	}
+
+	return nil
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/internal/chain"
 	"github.com/drand/drand/v2/internal/core"
@@ -138,7 +139,7 @@ func TestMigrateOldGroupFile(t *testing.T) {
 		_ = runCommand(oldBinaryPath, "stop", fmt.Sprintf("--control=%s", nodes[i].control))
 
 		// we have to self sign the keys, as the CLI normally does this for us
-		_, _, err := core.SelfSignKeys(log.DefaultLogger(), fmt.Sprintf("%s/multibeacon", nodes[i].dir))
+		err := key.SelfSignKeys(log.DefaultLogger(), fmt.Sprintf("%s/multibeacon", nodes[i].dir))
 		require.NoError(t, err)
 
 		opts := []core.ConfigOption{
@@ -279,7 +280,7 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 	daemons := make([]*core.DrandDaemon, n)
 	for i := 0; i < newN; i++ {
 		// we have to self sign the keys, as the CLI normally does this for us
-		_, _, err := core.SelfSignKeys(log.DefaultLogger(), fmt.Sprintf("%s/multibeacon", nodes[i].dir))
+		err := key.SelfSignKeys(log.DefaultLogger(), fmt.Sprintf("%s/multibeacon", nodes[i].dir))
 		require.NoError(t, err)
 
 		opts := []core.ConfigOption{

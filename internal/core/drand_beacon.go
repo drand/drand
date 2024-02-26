@@ -80,7 +80,7 @@ func NewBeaconProcess(ctx context.Context,
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		err := fmt.Errorf("INVALID SELF SIGNATURE %w. Action: run `drand util self-sign`", err)
+		err := fmt.Errorf("INVALID SELF SIGNATURE %w for scheme '%s'", err, priv.Scheme())
 		span.RecordError(err)
 		return nil, err
 	}

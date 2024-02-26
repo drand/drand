@@ -316,20 +316,7 @@ func printJSON(w io.Writer, j interface{}) error {
 func selfSign(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
 
-	beaconIDs, keys, err := core.SelfSignKeys(l, conf.ConfigFolderMB())
-	if err != nil {
-		return err
-	}
-
-	for i, pair := range keys {
-		beaconID := beaconIDs[i]
-		_, _ = fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s:\n", beaconID, pair.Scheme().Name)
-		err = printJSON(c.App.Writer, pair.Public.TOML())
-		if err != nil {
-			fmt.Printf("beacon id [%s] - non-fatal error while printing: %v\n", beaconID, err)
-		}
-	}
-	return nil
+	return key.SelfSignKeys(l, conf.ConfigFolderMB())
 }
 
 const refreshRate = 500 * time.Millisecond
