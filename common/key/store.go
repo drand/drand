@@ -196,9 +196,9 @@ func Delete(filePath string) error {
 	return os.RemoveAll(filePath)
 }
 
-// SelfSignKeys will go through all the stores in the multibeaconFolder and self-sign the keys unless they are
+// SelfSignAll will go through all the stores in the multibeaconFolder and self-sign the keys unless they are
 // already correctly self-signed.
-func SelfSignKeys(l log.Logger, multibeaconFolder string) error {
+func SelfSignAll(l log.Logger, multibeaconFolder string) error {
 	stores, err := NewFileStores(multibeaconFolder)
 	if err != nil {
 		return fmt.Errorf("drand: err reading beacons database: %w", err)

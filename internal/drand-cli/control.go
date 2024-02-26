@@ -316,7 +316,7 @@ func printJSON(w io.Writer, j interface{}) error {
 func selfSign(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
 
-	return key.SelfSignKeys(l, conf.ConfigFolderMB())
+	return key.SelfSignAll(l, conf.ConfigFolderMB())
 }
 
 const refreshRate = 500 * time.Millisecond
