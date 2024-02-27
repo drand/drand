@@ -61,6 +61,12 @@ const (
 	Failed
 )
 
+var terminalStates = []Status{
+	Aborted,
+	TimedOut,
+	Failed,
+}
+
 func (s Status) String() string {
 	switch s {
 	case Fresh:
@@ -301,7 +307,6 @@ func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBSt
 	}
 
 	d.State = Joined
-	d.FinalGroup = previousGroup
 	return d, nil
 }
 
