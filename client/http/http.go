@@ -52,7 +52,7 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 		done:   make(chan struct{}),
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	chainInfo, err := c.FetchChainInfo(ctx, chainHash)
