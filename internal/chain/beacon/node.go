@@ -113,7 +113,7 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 		ctxCancel:        ctxCancel,
 		l:                l,
 		version:          version,
-		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Threshold),
+		thresholdMonitor: metrics.NewThresholdMonitor(conf.Group.ID, l, conf.Group.Len(), conf.Group.Threshold),
 	}
 	return handler, nil
 }
