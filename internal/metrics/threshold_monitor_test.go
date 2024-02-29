@@ -15,12 +15,14 @@ func TestLogsErrorsWhenThresholdReached(t *testing.T) {
 	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 6
 	threshold := 3
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -48,12 +50,14 @@ func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
 	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 6
 	threshold := 3
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -80,12 +84,14 @@ func TestLogsWarningsWhenThresholdAndAHalfReached(t *testing.T) {
 func TestLogsDebugWhenAllGood(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 6
 	threshold := 3
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -111,12 +117,14 @@ func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 6
 	threshold := 3
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -146,12 +154,14 @@ func TestDuplicateFailuresAreOnlyCountedOnce(t *testing.T) {
 	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 8
 	threshold := 4
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -182,12 +192,14 @@ func TestStateIsResetEveryPeriod(t *testing.T) {
 	beaconID := "some-beacon"
 	ctx, cancel := context.WithCancel(context.Background())
 	l := &mockLogger{}
+	groupSize := 6
 	threshold := 3
 	period := 1 * time.Second
 	monitor := ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          "default",
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -210,6 +222,42 @@ func TestStateIsResetEveryPeriod(t *testing.T) {
 
 	l.AssertCalled(t, "Warnw", mock.Anything)
 	l.AssertNotCalled(t, "Errorw", mock.Anything)
+}
+
+func TestThresholdCrossedWhenGroupSizeReduced(t *testing.T) {
+	beaconID := "some-beacon"
+	ctx, cancel := context.WithCancel(context.Background())
+	l := &mockLogger{}
+	groupSize := 4
+	threshold := 3
+	period := 1 * time.Second
+	monitor := ThresholdMonitor{
+		lock:              sync.RWMutex{},
+		log:               l,
+		beaconID:          "default",
+		groupSize:         groupSize,
+		threshold:         threshold,
+		failedConnections: make(map[string]bool),
+		ctx:               ctx,
+		cancel:            cancel,
+		period:            period,
+	}
+
+	l.On("Infow").Return()
+	l.On("Errorw").Return()
+	l.On("Debugw").Return()
+	l.On("Warnw").Return()
+
+	// starting monitor afterwards to avoid any flakiness on CI
+	monitor.ReportFailure(beaconID, "a")
+	monitor.Start()
+	time.Sleep(period)
+	monitor.ReportFailure(beaconID, "b")
+	time.Sleep(period)
+	monitor.Stop()
+
+	l.AssertCalled(t, "Errorw", mock.Anything)
+	//l.AssertNotCalled(t, "Warnw", mock.Anything)
 }
 
 type mockLogger struct {
