@@ -315,7 +315,7 @@ func (h *Handler) TransitionNewGroup(ctx context.Context, newShare *key.Share, n
 			return
 		}
 		h.crypto.SetInfo(newGroup, newShare)
-		h.thresholdMonitor.UpdateThreshold(newGroup.Threshold)
+		h.thresholdMonitor.Update(newGroup.Threshold, newGroup.Len())
 		h.chain.RemoveCallback("transition")
 	})
 }

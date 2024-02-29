@@ -105,8 +105,9 @@ func (t *ThresholdMonitor) ReportFailure(beaconID, addr string) {
 	t.lock.Unlock()
 }
 
-func (t *ThresholdMonitor) UpdateThreshold(newThreshold int) {
+func (t *ThresholdMonitor) Update(newThreshold, groupSize int) {
 	t.lock.Lock()
 	t.threshold = newThreshold
+	t.groupSize = groupSize
 	t.lock.Unlock()
 }
