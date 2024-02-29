@@ -13,6 +13,7 @@ type ThresholdMonitor struct {
 	lock              sync.RWMutex
 	log               log.Logger
 	beaconID          string
+	groupSize         int
 	threshold         int
 	failedConnections map[string]bool
 	ctx               context.Context
@@ -20,12 +21,13 @@ type ThresholdMonitor struct {
 	period            time.Duration
 }
 
-func NewThresholdMonitor(beaconID string, l log.Logger, threshold int) *ThresholdMonitor {
+func NewThresholdMonitor(beaconID string, l log.Logger, groupSize, threshold int) *ThresholdMonitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ThresholdMonitor{
 		lock:              sync.RWMutex{},
 		log:               l,
 		beaconID:          beaconID,
+		groupSize:         groupSize,
 		threshold:         threshold,
 		failedConnections: make(map[string]bool),
 		ctx:               ctx,
@@ -36,6 +38,8 @@ func NewThresholdMonitor(beaconID string, l log.Logger, threshold int) *Threshol
 
 func (t *ThresholdMonitor) Start() {
 	t.log.Infow("starting threshold monitor", "beaconID", t.beaconID)
+
+	maxFailures := t.groupSize - t.threshold
 
 	go func() {
 		for {
@@ -50,18 +54,20 @@ func (t *ThresholdMonitor) Start() {
 					failingNodes = append(failingNodes, address)
 				}
 
-				if len(failingNodes) >= t.threshold {
+				if len(failingNodes) >= maxFailures {
 					t.log.Errorw(
 						"failed connections crossed threshold in the last minute",
 						"beaconID", t.beaconID,
+						"groupSize", t.groupSize,
 						"threshold", t.threshold,
 						"failures", len(failingNodes),
 						"nodes", strings.Join(failingNodes, ","),
 					)
-				} else if len(failingNodes) >= t.threshold/2 {
+				} else if len(failingNodes) >= maxFailures/2 {
 					t.log.Warnw(
 						"failed connections crossed half threshold in the last minute",
 						"beaconID", t.beaconID,
+						"groupSize", t.groupSize,
 						"threshold", t.threshold,
 						"failures", len(failingNodes),
 						"nodes", strings.Join(failingNodes, ","),
@@ -69,6 +75,7 @@ func (t *ThresholdMonitor) Start() {
 				} else {
 					t.log.Debugw(
 						"threshold monitor healthy",
+						"groupSize", t.groupSize,
 						"threshold", t.threshold,
 						"beaconID", t.beaconID,
 						"failures", len(failingNodes),
@@ -98,8 +105,9 @@ func (t *ThresholdMonitor) ReportFailure(beaconID, addr string) {
 	t.lock.Unlock()
 }
 
-func (t *ThresholdMonitor) UpdateThreshold(newThreshold int) {
+func (t *ThresholdMonitor) Update(newThreshold, groupSize int) {
 	t.lock.Lock()
 	t.threshold = newThreshold
+	t.groupSize = groupSize
 	t.lock.Unlock()
 }
