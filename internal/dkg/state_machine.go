@@ -307,6 +307,7 @@ func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBSt
 	}
 
 	d.State = Joined
+	d.FinalGroup = previousGroup
 	return d, nil
 }
 
