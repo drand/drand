@@ -32,7 +32,6 @@ func TestBLS12381Compatv112(t *testing.T) {
 	require.Equal(t, sig, sigExp)
 }
 
-//nolint:lll
 func TestBLS12381CompatMockData(t *testing.T) {
 	scheme := NewPedersenBLSChained()
 

@@ -203,7 +203,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
-	for i := uint64(1); i <= uint64(upTo); i++ {
+	for i := uint64(1); i <= upTo; i++ {
 		select {
 		case <-ctx.Done():
 			logger.Debugw("Context done, returning")

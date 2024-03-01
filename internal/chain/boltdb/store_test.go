@@ -227,11 +227,12 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		sourceBeaconPath string
 		want             bool
 	}{
-		"with context set and new db":          {IsATest(context.Background()), "./testdata/trimmed.db", false},
-		"with context set and old db":          {IsATest(context.Background()), "./testdata/untrimmed.db", false},
-		"with context unset and new db":        {context.Background(), "./testdata/trimmed.db", true},
-		"with context unset and old db":        {context.Background(), "./testdata/untrimmed.db", false},
-		"with context unset and db is missing": {context.Background(), "./testdata/missing.db", true},
+		"with context set and new db":                         {IsATest(context.Background()), "./testdata/trimmed.db", false},
+		"with context set and old db":                         {IsATest(context.Background()), "./testdata/untrimmed.db", false},
+		"with context unset and new db":                       {context.Background(), "./testdata/trimmed.db", true},
+		"with context unset and old db":                       {context.Background(), "./testdata/untrimmed.db", false},
+		"with context unset and db is missing":                {context.Background(), "./testdata/missing.db", true},
+		"with context unset and db is very old but unchained": {context.Background(), "./testdata/db-untrimmed-141.db", false},
 	}
 	for name, tt := range tests {
 		name := name
