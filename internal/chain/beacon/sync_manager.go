@@ -203,11 +203,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
-	storeLen, err := s.store.Len(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error while retrieving store size: %w", err)
-	}
-	for i := uint64(1); i < uint64(storeLen); i++ {
+	for i := uint64(1); i <= uint64(upTo); i++ {
 		select {
 		case <-ctx.Done():
 			logger.Debugw("Context done, returning")
