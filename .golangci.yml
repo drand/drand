@@ -17,6 +17,7 @@ issues:
         - noctx
         - revive
         - depguard
+        - lll # signatures are long lines
     - path: _test\.go
       text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go

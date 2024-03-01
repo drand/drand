@@ -1,4 +1,4 @@
-//nolint:lll,dupl,funlen
+//nolint:dupl,funlen
 package dkg
 
 import (

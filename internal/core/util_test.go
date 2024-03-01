@@ -147,7 +147,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period.
 //
-//nolint:lll // The names of parameters are clear and long.
+
 func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clk clock.FakeClock, opts ...ConfigOption) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -491,7 +491,6 @@ func (d *DrandTestScenario) RunReshare(
 	return d.RunReshareWithHooks(t, remainingNodes, joiningNodes, d.thr, lifecycleHooks{})
 }
 
-//nolint:lll
 func (d *DrandTestScenario) RunReshareWithHooks(t *testing.T, remainingNodes, joiningNodes []*MockNode, threshold int, hooks lifecycleHooks) (*key.Group, error) {
 	if len(remainingNodes) == 0 {
 		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")

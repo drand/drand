@@ -193,7 +193,7 @@ func TestConvertGroup(t *testing.T) {
 	require.True(t, received.Equal(group))
 }
 
-func TestLenReturnsNonMissingNodes(t *testing.T) {
+func TestLenIgnoresMissingNodes(t *testing.T) {
 	groupFile := `Threshold = 7
 Period = "25s"
 CatchupPeriod = "15s"
@@ -226,22 +226,6 @@ ID = "default"
   Signature = "b6f9579b5a627cdd36cc6e7e34d32de7b5bbebdc169c7036bf740e98cdbc2d95ce38fbc125a04a243cd4a7409949be7a025505a507ec0e562aeca3ee7ab722c110a3cc19ffb1a375bc5a6077cbee598725c6bad562b0d6219e71e5ecb9f389ad"
   SchemeName = "pedersen-bls-chained"
   Index = 3
-
-[[Nodes]]
-  Address = "testnet-1.drand.theqrl.org:4321"
-  Key = "95deda10079d8d95c7a37c119242ea583ad6b6be6a7e6b0fa648c20c381c086ebda54410e0ba0016eea9cd31b1d00c71"
-  TLS = true
-  Signature = "95e6285653d2984a28084494bb9e9cb95d57d8ca326884e48a7c1b3e1c7afec24f23e0ab5e36de2f9fea58453faffe0e027c33d0bcc6264efeb0eab2b1b7ec08a639632e0a9e1eaf0582e9df6e5c7562668a4fdb8852c496562a6c642e7436f2"
-  SchemeName = "pedersen-bls-chained"
-  Index = 4
-
-[[Nodes]]
-  Address = "drandtest.ata.network:443"
-  Key = "96e824230b70dfb1282fc7788caad55d0ee82a9fc909d6752a18c56b70a797cd14ec880e93916cb7eb96725bc1010717"
-  TLS = true
-  Signature = "932603278c8acdbca9f0832a7670311ee2edab5595d076fd9be330eae900407c8a83ee35696bdf654e9da364552a482d020c4875e2b0b9b88af7f157791b133d67d47aedd99c38fa726347e2a269dcea6810d1bd3114abc8c8b7dc7802efdd05"
-  SchemeName = "pedersen-bls-chained"
-  Index = 5
 
 [[Nodes]]
   Address = "testnet.drand.storswift.com:8269"
@@ -295,5 +279,5 @@ ID = "default"
 
 	require.NoError(t, err)
 	// even though there are 12 indexes, we expect the len to be 10 as some are missing
-	require.Equal(t, 10, g.Len())
+	require.Equal(t, 8, g.Len())
 }
