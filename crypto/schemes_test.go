@@ -98,7 +98,6 @@ func BenchmarkSignBeacon(b *testing.B) {
 	require.NoError(b, err)
 }
 
-//nolint:lll
 func TestVerifyBeacon(t *testing.T) {
 	t.Parallel()
 	testBeacons := []struct {

@@ -252,7 +252,7 @@ func TestHTTPHealth(t *testing.T) {
 	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
 	buf, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	//nolint:lll // This is correct
+
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf), resp.StatusCode)
 	resp.Body.Close()
 }

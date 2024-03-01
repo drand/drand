@@ -257,7 +257,6 @@ func TestThresholdCrossedWhenGroupSizeReduced(t *testing.T) {
 	monitor.Stop()
 
 	l.AssertCalled(t, "Errorw", mock.Anything)
-	//l.AssertNotCalled(t, "Warnw", mock.Anything)
 }
 
 type mockLogger struct {
