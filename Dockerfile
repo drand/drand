@@ -34,10 +34,19 @@ RUN \
   go install \
   -mod=readonly \
   -ldflags \
-  "-X github.com/drand/drand/common.COMMIT=${gitCommit} \
-  -X github.com/drand/drand/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
+  "-X github.com/drand/drand/common.COMMIT=$(git rev-parse HEAD) \
+  -X github.com/drand/drand/common.BUILDDATE=$(date -u +%d/%m/%Y@%H:%M:%S) \
+  -X github.com/drand/drand/cmd/drand-cli.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) \
+  -X github.com/drand/drand/cmd/drand-cli.gitCommit=$(git rev-parse HEAD)" \
+  ./cmd/... \
+  && \
+  go install \
+  -mod=readonly \
+  -ldflags \
+  "-X github.com/drand/drand/common.COMMIT=$(git rev-parse HEAD) \
+  -X github.com/drand/drand/common.BUILDDATE=$(date -u +%d/%m/%Y@%H:%M:%S) \
+  -X github.com/drand/drand/cmd/drand-cli.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) \
+  -X github.com/drand/drand/cmd/drand-cli.gitCommit=$(git rev-parse HEAD)"
 
 FROM --platform=linux/amd64 busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -50,7 +59,14 @@ ENV DRAND_PUBLIC_ADDRESS   ""
 EXPOSE 8888
 EXPOSE 4444
 
-COPY --from=builder $GOPATH/bin/drand /usr/local/bin/drand
+COPY --from=builder \
+  $GOPATH/bin/drand \
+  $GOPATH/bin/relay \
+  $GOPATH/bin/client \
+  $GOPATH/bin/relay-s3 \
+  $GOPATH/bin/relay-gossip \
+  /usr/local/bin/
+
 COPY --from=builder $SRC_PATH/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
