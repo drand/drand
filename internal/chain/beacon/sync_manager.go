@@ -168,13 +168,20 @@ func (s *SyncManager) Run() {
 			// must have gotten some data.
 			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
 			if upperBound < int(s.clock.Now().Unix()) {
+				s.log.Infow("cancelling old sync as it took long")
+
 				span.End()
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
 				ctx, cancel = context.WithCancel(s.ctx)
-				//nolint:errcheck // TODO: Handle this
-				go s.Sync(ctx, request)
+				go func() {
+					if err := s.Sync(ctx, request); err != nil {
+						s.log.Errorw("sync was unsuccessful", "from", request.from, "to", request.upTo, "err", err)
+					} else {
+						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
+					}
+				}()
 			}
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
