@@ -281,6 +281,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
+		c.Close()
 		delete(g.conns, p.Address())
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
