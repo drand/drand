@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.20.1-buster AS builder
+FROM --platform=linux/amd64 golang:1.22.1-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG major=0
