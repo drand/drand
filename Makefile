@@ -168,7 +168,7 @@ build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
 
 build_docker_all: build_docker build_docker_dev
 build_docker:
-	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .;
+	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-all-in-one:latest .;
 
 build_docker_dev:
 	docker build -f test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
