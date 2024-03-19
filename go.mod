@@ -2,8 +2,6 @@ module github.com/drand/drand/v2
 
 go 1.21
 
-replace github.com/drand/kyber v1.2.0 => github.com/kevincharm/kyber v1.2.0-bn254.ea10cf74
-
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/ardanlabs/darwin/v2 v2.0.0
