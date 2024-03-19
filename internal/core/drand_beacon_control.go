@@ -220,8 +220,8 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 			// Simply try to ping him see if he replies
 			tc, cancel := context.WithTimeout(ctx, callMaxTimeout)
 			defer cancel()
-			bp.log.Debugw("Sending Home request", "for_node", remoteAddress)
-			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{Metadata: bp.newMetadata()})
+			bp.log.Debugw("Sending Check request", "for_node", remoteAddress)
+			err := bp.privGateway.Check(tc, p)
 			if err != nil {
 				bp.log.Debugw("Status request failed", "remote", addr, "error", err)
 				resp[remoteAddress] = false

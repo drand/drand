@@ -116,12 +116,7 @@ func remotePingToNode(l log.Logger, addr string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := client.Home(ctx, peer, &control.HomeRequest{})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return client.Check(ctx, peer)
 }
 
 //nolint:gocyclo

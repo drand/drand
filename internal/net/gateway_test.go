@@ -36,9 +36,6 @@ func (t *testRandomnessServer) PublicRand(context.Context, *proto.PublicRandRequ
 func (t *testRandomnessServer) Group(_ context.Context, _ *proto.GroupRequest) (*proto.GroupPacket, error) {
 	return nil, nil
 }
-func (t *testRandomnessServer) Home(context.Context, *proto.HomeRequest) (*proto.HomeResponse, error) {
-	return nil, nil
-}
 
 func (t *testRandomnessServer) Packet(context.Context, *drand.GossipPacket) (*drand.EmptyDKGResponse, error) {
 	return &drand.EmptyDKGResponse{}, nil

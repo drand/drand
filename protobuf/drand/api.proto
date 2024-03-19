@@ -22,9 +22,6 @@ service Public {
     // participates to
     rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
 
-    // Home is a simple endpoint
-    rpc Home(HomeRequest) returns (HomeResponse);
-
     // ListBeaconIDs responds with the list of Beacon IDs running on that node
     rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
 }
@@ -52,19 +49,10 @@ message PublicRandResponse {
     Metadata metadata = 5;
 }
 
-message HomeRequest {
-    Metadata metadata = 1;
-}
-
-message HomeResponse {
-    string status = 1;
-    Metadata metadata = 2;
-}
-
 message ListBeaconIDsRequest {
 }
 
 message ListBeaconIDsResponse {
     repeated string ids = 1;
-    Metadata metadata = 2;
+    repeated Metadata metadatas = 2;
 }

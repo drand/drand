@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -166,8 +167,6 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 	_, span := tracer.NewSpan(ctx, "dd.ListBeaconIDs")
 	defer span.End()
 
-	metadata := drand.NewMetadata(dd.version.ToProto())
-
 	dd.state.Lock()
 	defer dd.state.Unlock()
 
@@ -176,7 +175,20 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 		ids = append(ids, id)
 	}
 
-	return &drand.ListBeaconIDsResponse{Ids: ids, Metadata: metadata}, nil
+	metas := make([]*drand.Metadata, 0, len(dd.chainHashes))
+	for chainHex, id := range dd.chainHashes {
+		chain, err := hex.DecodeString(chainHex)
+		if err != nil {
+			return nil, err
+		}
+		metas = append(metas, &drand.Metadata{
+			NodeVersion: dd.version.ToProto(),
+			BeaconID:    id,
+			ChainHash:   chain,
+		})
+	}
+
+	return &drand.ListBeaconIDsResponse{Ids: ids, Metadatas: metas}, nil
 }
 
 func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
