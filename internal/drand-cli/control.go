@@ -315,50 +315,8 @@ func printJSON(w io.Writer, j interface{}) error {
 
 func selfSign(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
-	stores, err := key.NewFileStores(conf.ConfigFolderMB())
-	if err != nil {
-		return fmt.Errorf("drand: err reading beacons database: %w", err)
-	}
 
-	l.Infow("Detected stores", "amount", len(stores))
-
-	for beaconID, fs := range stores {
-		pair, err := fs.LoadKeyPair()
-		if err != nil {
-			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
-		}
-
-		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
-		// but the group will.
-		group, err := fs.LoadGroup()
-		if err != nil {
-			l.Warnw("beacon id [%s] - could not load group, please report this: %w", beaconID, err)
-		}
-		// the actual migration path
-		if group != nil && group.Scheme != nil {
-			pair.Public.Scheme = group.Scheme
-		}
-
-		// we validate signature after switching schemes
-		if pair.Public.ValidSignature() == nil {
-			fmt.Fprintf(c.App.Writer, "beacon id [%s] - public identity already self signed.\n", beaconID)
-			continue
-		}
-
-		if err := pair.SelfSign(); err != nil {
-			return fmt.Errorf("failed to self-sign keypair for beacon id [%s]: %w", beaconID, err)
-		}
-		if err := fs.SaveKeyPair(pair); err != nil {
-			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
-		}
-
-		fmt.Fprintf(c.App.Writer, "beacon id [%s] - Public identity self signed for scheme %s:\n", beaconID, pair.Scheme().Name)
-		err = printJSON(c.App.Writer, pair.Public.TOML())
-		if err != nil {
-			fmt.Printf("beacon id [%s] - non-fatal error while printing: %v\n", beaconID, err)
-		}
-	}
-	return nil
+	return key.SelfSignAll(l, conf.ConfigFolderMB())
 }
 
 const refreshRate = 500 * time.Millisecond
