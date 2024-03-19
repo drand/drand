@@ -200,6 +200,7 @@ func TestReshare(t *testing.T) {
 				abortedState := NewCompleteDKGEntry(t, beaconID, Aborted, alice, bob)
 				abortedState.Epoch = uint32(2)
 				store.On("GetCurrent", beaconID).Return(abortedState, nil)
+				store.On("GetFinished", beaconID).Return(NewCompleteDKGEntry(t, beaconID, Complete, alice, bob), nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
@@ -217,6 +218,7 @@ func TestReshare(t *testing.T) {
 				timedOutState := NewCompleteDKGEntry(t, beaconID, TimedOut, alice, bob)
 				timedOutState.Epoch = uint32(2)
 				store.On("GetCurrent", beaconID).Return(timedOutState, nil)
+				store.On("GetFinished", beaconID).Return(NewCompleteDKGEntry(t, beaconID, Complete, alice, bob), nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
@@ -234,6 +236,7 @@ func TestReshare(t *testing.T) {
 				failedState := NewCompleteDKGEntry(t, beaconID, Failed, alice, bob)
 				failedState.Epoch = uint32(2)
 				store.On("GetCurrent", beaconID).Return(failedState, nil)
+				store.On("GetFinished", beaconID).Return(NewCompleteDKGEntry(t, beaconID, Complete, alice, bob), nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
