@@ -398,6 +398,7 @@ func (s stubbedBeacon) KeypairFor(_ string) (*key.Pair, error) {
 
 // messageBus manages messaging between DKG processes without having to actually use gRPC
 type messageBus struct {
+	lock      sync.Mutex
 	listeners map[string]dkg.DKGControlClient
 }
 
@@ -408,6 +409,8 @@ func newMessageBus() *messageBus {
 }
 
 func (m *messageBus) Add(address string, process dkg.DKGControlClient) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.listeners[address] = process
 }
 
@@ -417,7 +420,9 @@ func (m *messageBus) Packet(
 	packet *dkg.GossipPacket,
 	_ ...grpc.CallOption,
 ) (*dkg.EmptyDKGResponse, error) {
+	m.lock.Lock()
 	listener := m.listeners[p.Address()]
+	m.lock.Unlock()
 	if listener == nil {
 		return nil, errors.New("no such address")
 	}
@@ -430,7 +435,9 @@ func (m *messageBus) BroadcastDKG(
 	in *dkg.DKGPacket,
 	_ ...grpc.CallOption,
 ) (*dkg.EmptyDKGResponse, error) {
+	m.lock.Lock()
 	listener := m.listeners[p.Address()]
+	m.lock.Unlock()
 	if listener == nil {
 		return nil, errors.New("no such address")
 	}
