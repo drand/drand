@@ -22,7 +22,7 @@ RUN set -x \
   && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini \
   && chmod +x tini
 
-# Get the TLS CA certificates, they're not provided by busybox.
+# Get the TLS CA certificates, they"re not provided by busybox.
 RUN apt-get update && apt-get install -y ca-certificates
 
 COPY go.* $SRC_PATH
@@ -39,7 +39,8 @@ RUN \
   -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
   -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
 
-FROM busybox:1-glibc
+# FROM --platform=linux/amd64 busybox:1-glibc
+FROM --platform=linux/amd64 debian
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ENV GOPATH                 /go
@@ -57,12 +58,15 @@ COPY --from=builder /tmp/tini /sbin/tini
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 RUN mkdir -p $DRAND_HOME && \
-  addgroup -g 994 drand && \
-  adduser -D -h $DRAND_HOME -u 996 -G drand drand && \
+  addgroup --gid 994 drand && \
+  adduser --disabled-password --home $DRAND_HOME --uid 996 --ingroup drand drand && \
   chown drand:drand $DRAND_HOME
 
+RUN apt-get update && apt-get install -y iproute2
 VOLUME $DRAND_HOME
-ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+# ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh"]
+# CMD ["tc", "qdisc", "add", "dev", "eth0", "root", "netem", "delay", "100ms"]
 
 # Defaults for drand go here
-CMD ["start", "--tls-disable", "--control 8888", "--private-listen 0.0.0.0:4444"]
+# CMD ["start", "--tls-disable", "--control 8888", "--private-listen 0.0.0.0:4444"]

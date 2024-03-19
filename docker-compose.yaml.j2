@@ -1,0 +1,18 @@
+version: '3'
+services:
+  {% for node in hosts -%}
+  {{ node['name'] }}:
+    image: drandorg/go-drand:latest
+    volumes:
+    - {{ node['volume_name'] }}:/data
+
+    command: "start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080"
+    cap_add:
+      - NET_ADMIN
+    entrypoint: /bin/sh -c "tc qdisc add dev eth0 root netem delay {{node['latency']}} && /usr/local/bin/drand start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080"
+          
+  {% endfor %}
+volumes:
+  {% for node in hosts -%}
+  {{ node['volume_name'] }}:
+  {% endfor %}
