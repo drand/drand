@@ -61,6 +61,12 @@ const (
 	Failed
 )
 
+var terminalStates = []Status{
+	Aborted,
+	TimedOut,
+	Failed,
+}
+
 func (s Status) String() string {
 	switch s {
 	case Fresh:

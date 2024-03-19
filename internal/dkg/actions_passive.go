@@ -62,6 +62,20 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return nil, err
 	}
 
+	// if we have aborted or timed out, we actually want to apply the proposal to the last successful state
+	if util.Cont(terminalStates, current.State) {
+		finished, err := d.store.GetFinished(beaconID)
+		if err != nil {
+			return nil, err
+		}
+
+		if finished == nil {
+			current = NewFreshState(beaconID)
+		} else {
+			current = finished
+		}
+	}
+
 	nextState, err := current.Apply(me, packet)
 	if err != nil {
 		return nil, err

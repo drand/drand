@@ -47,6 +47,19 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		return nil, err
 	}
 
+	// if we have aborted or timed out, we actually want to apply the proposal to the last successful state
+	if util.Cont(terminalStates, currentState.State) {
+		finalState, err := d.store.GetFinished(beaconID)
+		if err != nil {
+			return nil, err
+		}
+		if finalState == nil {
+			currentState = NewFreshState(beaconID)
+		} else {
+			currentState = finalState
+		}
+	}
+
 	d.log.Infow("running DKG command", "command", commandName, "beaconID", beaconID)
 	// map the current state to the latest state, depending on the type of packet
 	var packetToGossip *drand.GossipPacket
@@ -254,17 +267,10 @@ func (d *Process) StartProposal(
 		}
 	}
 
-	var newEpoch uint32
-	if currentState.State == Aborted || currentState.State == TimedOut || currentState.State == Failed {
-		newEpoch = currentState.Epoch
-	} else {
-		newEpoch = currentState.Epoch + 1
-	}
-
 	terms := drand.ProposalTerms{
 		BeaconID:             beaconID,
 		Threshold:            options.Threshold,
-		Epoch:                newEpoch,
+		Epoch:                currentState.Epoch + 1,
 		SchemeID:             currentState.SchemeID,
 		BeaconPeriodSeconds:  uint32(currentState.BeaconPeriod.Seconds()),
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
@@ -276,7 +282,6 @@ func (d *Process) StartProposal(
 		Remaining:            options.Remaining,
 		Leaving:              options.Leaving,
 	}
-
 	nextState, err := currentState.Proposing(me, &terms)
 	if err != nil {
 		return nil, nil, err
