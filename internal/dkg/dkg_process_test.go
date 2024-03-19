@@ -258,6 +258,135 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 	wg.Wait()
 }
 
+func TestAbortedDKGCanRestart(t *testing.T) {
+	// first we do a DKG with all joiners
+	// then we change some participants around, start a DKG but abort it
+	// then we try again but with some newer participants again and let the DKG finish
+
+	beaconID := "default"
+	nodeCount := 3
+	mb := newMessageBus()
+
+	// first we create some nodes
+	nodes := make([]*stubbedDKGProcess, nodeCount)
+	identities := make([]*dkg.Participant, nodeCount)
+	for i := 0; i < nodeCount; i++ {
+		stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", i), mb, beaconID)
+		require.NoError(t, err)
+		identity, err := util.PublicKeyAsParticipant(stub.key.Public)
+		require.NoError(t, err)
+
+		nodes[i] = stub
+		identities[i] = identity
+	}
+
+	// then we run the initial DKG
+	leader, err := nodes[0].RunnerFor(beaconID)
+	require.NoError(t, err)
+	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	require.NoError(t, err)
+	for _, node := range nodes[1:] {
+		r, err := node.RunnerFor(beaconID)
+		require.NoError(t, err)
+		require.NoError(t, r.JoinDKG())
+	}
+	require.NoError(t, leader.StartExecution())
+
+	// we do some magic to get the group file for the new joiner in the next epoch
+	dkgResult := <-nodes[0].delegate.completedDKGs.Listen()
+	firstEpochGroup := dkgResult.New.FinalGroup
+	require.NoError(t, leader.WaitForDKG(log.DefaultLogger(), 1, 60))
+
+	// we create a new joiner
+	newJoiner, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", 3), mb, beaconID)
+	require.NoError(t, err)
+	newKey, err := util.PublicKeyAsParticipant(newJoiner.key.Public)
+	require.NoError(t, err)
+
+	// then start a resharing
+	err = leader.StartReshare(3, 1, []*dkg.Participant{newKey}, identities, nil)
+	require.NoError(t, err)
+	// but quickly abort it
+	err = leader.Abort()
+	require.NoError(t, err)
+
+	// now we try the same ceremony again
+	err = leader.StartReshare(3, 1, []*dkg.Participant{newKey}, identities, nil)
+	require.NoError(t, err)
+
+	for _, node := range nodes[1:] {
+		r, err := node.RunnerFor(beaconID)
+		require.NoError(t, err)
+		require.NoError(t, r.Accept())
+	}
+
+	// the new joiner passes the old group file to join
+	r, err := newJoiner.RunnerFor(beaconID)
+	require.NoError(t, err)
+	require.NoError(t, r.JoinReshare(firstEpochGroup))
+
+	// we complete the DKG successfully
+	require.NoError(t, leader.StartExecution())
+	require.NoError(t, leader.WaitForDKG(log.DefaultLogger(), 2, 60))
+}
+
+func TestFailedFirstEpochCanRecover(t *testing.T) {
+	// we do an initial DKG, but abort
+	// then retry (still at epoch 1) but with a different node group
+
+	beaconID := "default"
+	nodeCount := 3
+	mb := newMessageBus()
+
+	// first we create some nodes
+	nodes := make([]*stubbedDKGProcess, nodeCount)
+	identities := make([]*dkg.Participant, nodeCount)
+	for i := 0; i < nodeCount; i++ {
+		stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", i), mb, beaconID)
+		require.NoError(t, err)
+		identity, err := util.PublicKeyAsParticipant(stub.key.Public)
+		require.NoError(t, err)
+
+		nodes[i] = stub
+		identities[i] = identity
+	}
+
+	// then we run the DKG
+	leader, err := nodes[0].RunnerFor(beaconID)
+	require.NoError(t, err)
+	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	require.NoError(t, err)
+	for _, node := range nodes[1:] {
+		r, err := node.RunnerFor(beaconID)
+		require.NoError(t, err)
+		require.NoError(t, r.JoinDKG())
+	}
+
+	require.NoError(t, leader.Abort())
+
+	// we replace the last node with a new one
+	stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", nodeCount+1), mb, beaconID)
+	require.NoError(t, err)
+	identity, err := util.PublicKeyAsParticipant(stub.key.Public)
+	require.NoError(t, err)
+
+	nodes[nodeCount-1] = stub
+	identities[nodeCount-1] = identity
+
+	// then we run the DKG again
+	require.NoError(t, err)
+	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	require.NoError(t, err)
+	for _, node := range nodes[1:] {
+		r, err := node.RunnerFor(beaconID)
+		require.NoError(t, err)
+		require.NoError(t, r.JoinDKG())
+	}
+
+	require.NoError(t, leader.StartExecution())
+	require.NoError(t, leader.WaitForDKG(log.DefaultLogger(), 1, 60))
+}
+
 // stubbedBeacon wraps the keypair used by the `BeaconProcess`
 type stubbedBeacon struct {
 	kp *key.Pair
@@ -269,6 +398,7 @@ func (s stubbedBeacon) KeypairFor(_ string) (*key.Pair, error) {
 
 // messageBus manages messaging between DKG processes without having to actually use gRPC
 type messageBus struct {
+	lock      sync.Mutex
 	listeners map[string]dkg.DKGControlClient
 }
 
@@ -279,6 +409,8 @@ func newMessageBus() *messageBus {
 }
 
 func (m *messageBus) Add(address string, process dkg.DKGControlClient) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	m.listeners[address] = process
 }
 
@@ -288,7 +420,9 @@ func (m *messageBus) Packet(
 	packet *dkg.GossipPacket,
 	_ ...grpc.CallOption,
 ) (*dkg.EmptyDKGResponse, error) {
+	m.lock.Lock()
 	listener := m.listeners[p.Address()]
+	m.lock.Unlock()
 	if listener == nil {
 		return nil, errors.New("no such address")
 	}
@@ -301,7 +435,9 @@ func (m *messageBus) BroadcastDKG(
 	in *dkg.DKGPacket,
 	_ ...grpc.CallOption,
 ) (*dkg.EmptyDKGResponse, error) {
+	m.lock.Lock()
 	listener := m.listeners[p.Address()]
+	m.lock.Unlock()
 	if listener == nil {
 		return nil, errors.New("no such address")
 	}
@@ -407,7 +543,7 @@ func (p *stubbedDKGProcess) Packet(ctx context.Context, packet *dkg.GossipPacket
 }
 
 func (p *stubbedDKGProcess) Migrate(beaconID string, group *key.Group, share *key.Share) error {
-	return errors.New("unimplemented")
+	return p.delegate.Migrate(beaconID, group, share)
 }
 
 func (p *stubbedDKGProcess) BroadcastDKG(
