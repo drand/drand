@@ -62,10 +62,10 @@ EXPOSE 4444
 
 COPY --from=builder \
   $GOPATH/bin/drand \
-  $GOPATH/bin/relay \
-  $GOPATH/bin/client \
-  $GOPATH/bin/relay-s3 \
-  $GOPATH/bin/relay-gossip \
+  # $GOPATH/bin/relay \
+  # $GOPATH/bin/client \
+  # $GOPATH/bin/relay-s3 \
+  # $GOPATH/bin/relay-gossip \
   /usr/local/bin/
 
 COPY --from=builder $SRC_PATH/docker/entrypoint.sh /usr/local/bin/entrypoint.sh
