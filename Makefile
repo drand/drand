@@ -10,8 +10,8 @@
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
 
-GIT_REVISION := $(shell git rev-parse --short HEAD)
-BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
+GIT_REVISION := $(shell git rev-parse --short HEAD;)
+BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S;)
 
 ifneq ($(CI),)
 SHORTTEST :=
@@ -168,7 +168,7 @@ build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
 
 build_docker_all: build_docker build_docker_dev
 build_docker:
-	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .
+	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .;
 
 build_docker_dev:
 	docker build -f test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
