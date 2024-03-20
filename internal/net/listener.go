@@ -34,7 +34,8 @@ func registerGRPCMetrics(l log.Logger) error {
 	return nil
 }
 
-// NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC.
+// NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC. Note that this is
+// using a regular, non-TLS listener, this is assuming the node is behind a reverse proxy doing TLS termination.
 func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {

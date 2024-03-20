@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/encoding/gzip"
+	healthgrpc "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
@@ -24,23 +25,26 @@ var _ Client = (*grpcClient)(nil)
 // grpcClient implements Protocol, DKG, Metric and Public client functionalities
 // using gRPC as its underlying mechanism
 type grpcClient struct {
-	sync.Mutex
-	conns   map[string]*grpc.ClientConn
-	opts    []grpc.DialOption
-	timeout time.Duration
-	log     log.Logger
+	sync.RWMutex
+	conns         map[string]*grpc.ClientConn
+	opts          []grpc.DialOption
+	timeout       time.Duration
+	healthTimeout time.Duration
+	log           log.Logger
 }
 
-var defaultTimeout = 1 * time.Minute
+var defaultConnTimeout = 1 * time.Minute
+var defaultHealthTimeout = 3 * time.Second
 
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
 func NewGrpcClient(l log.Logger, opts ...grpc.DialOption) Client {
 	client := grpcClient{
-		opts:    opts,
-		conns:   make(map[string]*grpc.ClientConn),
-		timeout: defaultTimeout,
-		log:     l,
+		opts:          opts,
+		conns:         make(map[string]*grpc.ClientConn),
+		timeout:       defaultConnTimeout,
+		healthTimeout: defaultHealthTimeout,
+		log:           l,
 	}
 	client.loadEnvironment()
 	return &client
@@ -54,10 +58,9 @@ func (g *grpcClient) loadEnvironment() {
 }
 
 func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	g.Lock()
-	defer g.Unlock()
-	clientDeadline := time.Now().Add(g.timeout)
-	return context.WithDeadline(ctx, clientDeadline)
+	g.RLock()
+	defer g.RUnlock()
+	return context.WithTimeout(ctx, g.timeout)
 }
 
 func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
@@ -199,19 +202,6 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 	return resp, nil
 }
 
-func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	var resp *drand.HomeResponse
-	c, err := g.conn(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-	client := drand.NewPublicClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
-	resp, err = client.Home(ctx, in)
-	return resp, err
-}
-
 func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest, opts ...grpc.CallOption) (*drand.StatusResponse, error) {
 	var resp *drand.StatusResponse
 	c, err := g.conn(ctx, p)
@@ -261,4 +251,26 @@ func (g *grpcClient) ListBeaconIDs(ctx context.Context, p Peer) (*drand.ListBeac
 
 	client := drand.NewPublicClient(c)
 	return client.ListBeaconIDs(context.Background(), &drand.ListBeaconIDsRequest{})
+}
+
+func (g *grpcClient) Check(ctx context.Context, p Peer) error {
+	c, err := g.conn(ctx, p)
+	if err != nil {
+		return err
+	}
+
+	client := healthgrpc.NewHealthClient(c)
+
+	tctx, cancel := context.WithTimeout(ctx, g.healthTimeout)
+	defer cancel()
+	resp, err := client.Check(tctx, &healthgrpc.HealthCheckRequest{})
+	if err != nil {
+		return err
+	}
+
+	if resp.GetStatus() != healthgrpc.HealthCheckResponse_SERVING {
+		return fmt.Errorf("health: %q not serving", p.Address())
+	}
+
+	return nil
 }

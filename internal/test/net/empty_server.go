@@ -32,11 +32,6 @@ func (s *EmptyServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*dran
 	return nil, nil
 }
 
-// Home is an empty implementation
-func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error) {
-	return nil, nil
-}
-
 // BroadcastDKG is an empty implementation
 func (s *EmptyServer) BroadcastDKG(context.Context, *pdkg.DKGPacket) (*pdkg.EmptyDKGResponse, error) {
 	return nil, nil

@@ -7,9 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	pdkg "github.com/drand/drand/v2/protobuf/dkg"
-
 	"github.com/drand/drand/v2/common/log"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
@@ -61,18 +60,22 @@ type Service interface {
 func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
 	lg := log.FromContextOrDefault(ctx)
 
-	l, err := NewGRPCListenerForPrivate(ctx, listen, s, grpc.ConnectionTimeout(time.Second))
+	//nolint:gomnd // we set the timeout to something smallish but not too small
+	l, err := NewGRPCListenerForPrivate(ctx, listen, s, grpc.ConnectionTimeout(7*time.Second))
 	if err != nil {
 		return nil, err
 	}
 	pg := &PrivateGateway{Listener: l}
-	pg.ProtocolClient = NewGrpcClient(lg, opts...)
-	pg.DKGClient = NewGrpcClient(lg, opts...)
-	pg.MetricsClient = NewGrpcClient(lg, opts...)
 
-	// duplication since client implements both...
-	// TODO Find a better fix
-	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
+	// we re-use the same client for all protocol-related connections
+	client := NewGrpcClient(lg, opts...)
+	pg.ProtocolClient = client
+	pg.PublicClient = client
+	// we create new clients for DKG and metrics to ensure that lock contention or slowdown there won't affect
+	// randomness production
+	pg.DKGClient = NewGrpcClient(lg.Named("dkg"), opts...)
+	pg.MetricsClient = NewGrpcClient(lg.Named("metrics"), opts...)
+
 	return pg, nil
 }
 
