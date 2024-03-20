@@ -25,7 +25,7 @@ func (dd *DrandDaemon) Metrics(ctx context.Context, _ *drand.MetricsRequest) (*d
 	}
 
 	buf := new(bytes.Buffer)
-	enc := expfmt.NewEncoder(buf, expfmt.FmtText)
+	enc := expfmt.NewEncoder(buf, expfmt.NewFormat(expfmt.TypeTextPlain))
 
 	for _, mf := range mfs {
 		err = enc.Encode(mf)

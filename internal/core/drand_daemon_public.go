@@ -2,11 +2,8 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/drand/drand/v2/common/tracer"
-	"github.com/drand/drand/v2/internal/net"
-
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
@@ -50,20 +47,6 @@ func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream dran
 	}
 
 	return bp.PublicRandStream(in, stream)
-}
-
-// Home provides the address the local node is listening
-func (dd *DrandDaemon) Home(c context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	_, span := tracer.NewSpan(c, "dd.Home")
-	defer span.End()
-
-	dd.log.Infow("home request", "from", net.RemoteAddress(c))
-
-	return &drand.HomeResponse{
-		Status: fmt.Sprintf("drand up and running on %s",
-			dd.opts.privateListenAddr),
-		Metadata: drand.NewMetadata(dd.version.ToProto()),
-	}, nil
 }
 
 // ChainInfo replies with the chain information this node participates to

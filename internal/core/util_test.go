@@ -146,8 +146,6 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period.
-//
-
 func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clk clock.FakeClock, opts ...ConfigOption) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)

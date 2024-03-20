@@ -45,7 +45,7 @@ message Address {
 
 message StatusRequest {
     // the check_conn contains the list of addresses to check connectivity to,
-    // i.e. calls Home() on it.
+    // i.e. does a GRPC health check on it.
     // If the field is absent or empty, then all nodes in the group file are tested.
     repeated Address check_conn = 1;
     Metadata metadata = 2;

@@ -409,7 +409,7 @@ type StatusRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// the check_conn contains the list of addresses to check connectivity to,
-	// i.e. calls Home() on it.
+	// i.e. does a GRPC health check on it.
 	// If the field is absent or empty, then all nodes in the group file are tested.
 	CheckConn []*Address `protobuf:"bytes,1,rep,name=check_conn,json=checkConn,proto3" json:"check_conn,omitempty"`
 	Metadata  *Metadata  `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
