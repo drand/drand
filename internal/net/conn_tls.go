@@ -19,17 +19,19 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	// This is the TLS version!
 	// If you change anything here, don't forget to also change it in the non-TLS one in conn_other.go
 
-	g.Lock()
-	defer g.Unlock()
 	var err error
 
 	// we try to retrieve an existing connection if available
+	g.RLock()
 	c, ok := g.conns[p.Address()]
+	g.RUnlock()
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
 		// we need to close the connection before deleting it to avoid goroutine leaks
 		c.Close()
+		g.Lock()
 		delete(g.conns, p.Address())
+		g.Unlock()
 		g.log.Debugw("grpc conn in Shutdown state", "to", p.Address())
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(connectivity.Shutdown))
 	}
@@ -55,7 +57,9 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 		} else {
 			g.log.Debugw("new grpc conn established", "state", c.GetState(), "to", p.Address())
+			g.Lock()
 			g.conns[p.Address()] = c
+			g.Unlock()
 			metrics.OutgoingConnections.Set(float64(len(g.conns)))
 		}
 	}

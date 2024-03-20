@@ -66,13 +66,16 @@ func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts .
 		return nil, err
 	}
 	pg := &PrivateGateway{Listener: l}
-	pg.ProtocolClient = NewGrpcClient(lg, opts...)
-	pg.DKGClient = NewGrpcClient(lg, opts...)
-	pg.MetricsClient = NewGrpcClient(lg, opts...)
 
-	// duplication since client implements both...
-	// TODO Find a better fix
-	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
+	// we re-use the same client for all protocol-related connections
+	client := NewGrpcClient(lg, opts...)
+	pg.ProtocolClient = client
+	pg.PublicClient = client
+	// we create new clients for DKG and metrics to ensure that lock contention or slowdown there won't affect
+	// randomness production
+	pg.DKGClient = NewGrpcClient(lg.Named("dkg"), opts...)
+	pg.MetricsClient = NewGrpcClient(lg.Named("metrics"), opts...)
+
 	return pg, nil
 }
 
