@@ -19,26 +19,24 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	// This is the TLS version!
 	// If you change anything here, don't forget to also change it in the non-TLS one in conn_other.go
 
+	g.Lock()
+	defer g.Unlock()
 	var err error
 
 	// we try to retrieve an existing connection if available
-	g.RLock()
 	c, ok := g.conns[p.Address()]
-	g.RUnlock()
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
-		// we need to close the connection before deleting it to avoid goroutine leaks
-		c.Close()
-		g.Lock()
+		// we need to close the connection before deleting it to avoid goroutine leaks, done async
+		go c.Close()
 		delete(g.conns, p.Address())
-		g.Unlock()
-		g.log.Debugw("grpc conn in Shutdown state", "to", p.Address())
+		g.log.Warnw("TLS grpc conn in Shutdown state", "to", p.Address())
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(connectivity.Shutdown))
 	}
 
 	// otherwise we try to re-dial it
 	if !ok {
-		g.log.Debugw("initiating new grpc conn using TLS", "to", p.Address())
+		g.log.Debugw("initiating new TLS grpc conn", "to", p.Address())
 
 		config := &tls.Config{MinVersion: tls.VersionTLS12}
 
@@ -52,14 +50,12 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 
 		c, err = grpc.DialContext(ctx, p.Address(), opts...)
 		if err != nil {
-			g.log.Errorw("error initiating a new grpc conn using TLS", "to", p.Address(), "err", err)
+			g.log.Errorw("error initiating a new TLS grpc conn", "to", p.Address(), "err", err)
 			// We increase the GroupDialFailures counter when both failed
 			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 		} else {
-			g.log.Debugw("new grpc conn established", "state", c.GetState(), "to", p.Address())
-			g.Lock()
+			g.log.Debugw("new TLS grpc conn established", "state", c.GetState(), "to", p.Address())
 			g.conns[p.Address()] = c
-			g.Unlock()
 			metrics.OutgoingConnections.Set(float64(len(g.conns)))
 		}
 	}

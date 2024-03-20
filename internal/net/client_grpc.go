@@ -60,8 +60,7 @@ func (g *grpcClient) loadEnvironment() {
 func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	g.RLock()
 	defer g.RUnlock()
-	clientDeadline := time.Now().Add(g.timeout)
-	return context.WithDeadline(ctx, clientDeadline)
+	return context.WithTimeout(ctx, g.timeout)
 }
 
 func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
