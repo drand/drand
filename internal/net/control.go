@@ -27,7 +27,7 @@ type ControlListener struct {
 }
 
 // NewGRPCListener registers the pairing between a ControlServer and a grpc server. Note that this is using a
-// regular, non-TLS listener, this is assuming the node is behind a reverse proxy doing TLS termination.
+// regular, non-TLS listener, this is assuming local connection from control client to control server.
 func NewGRPCListener(l log.Logger, s Service, controlAddr string) (ControlListener, error) {
 	grpcServer := grpc.NewServer()
 	lis, err := newListener(controlAddr)

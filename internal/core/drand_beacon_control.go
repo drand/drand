@@ -10,7 +10,7 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"go.opentelemetry.io/otel/attribute"
 
-	common2 "github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common"
 	public "github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
@@ -183,7 +183,7 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 		if err == nil && lastBeacon != nil {
 			chainStore.IsEmpty = false
 			chainStore.LastStored = lastBeacon.GetRound()
-			chainStore.ExpectedLast = common2.CurrentRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
+			chainStore.ExpectedLast = common.CurrentRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
 		}
 	}
 
@@ -317,7 +317,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 
 	logger.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GenesisSeed))
 
-	if !common2.CompareBeaconIDs(bp.getBeaconID(), info.ID) {
+	if !common.CompareBeaconIDs(bp.getBeaconID(), info.ID) {
 		return errors.New("invalid beacon id on chain info")
 	}
 
@@ -539,14 +539,14 @@ func (bp *BeaconProcess) sendProgressCallback(
 	ctx, span := tracer.NewSpan(ctx, "bp.StartCheckChain")
 	defer span.End()
 
-	targ := common2.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+	targ := common.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
 		targ = upTo
 	}
 
 	var plainProgressCb func(a, b uint64)
 	plainProgressCb, done = bp.sendPlainProgressCallback(ctx, stream, upTo == 0)
-	cb = func(b *common2.Beacon, closed bool) {
+	cb = func(b *common.Beacon, closed bool) {
 		if closed {
 			return
 		}
@@ -575,7 +575,7 @@ func (bp *BeaconProcess) sendPlainProgressCallback(ctx context.Context,
 			targ = curr
 		}
 		// let us do some rate limiting on the amount of Send we do
-		if targ > common2.LogsToSkip && targ-curr > common2.LogsToSkip && curr%common2.LogsToSkip != 0 {
+		if targ > common.LogsToSkip && targ-curr > common.LogsToSkip && curr%common.LogsToSkip != 0 {
 			return
 		}
 
@@ -615,7 +615,7 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 		return errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
-	if !common2.CompareBeaconIDs(oldGroup.ID, newGroup.ID) {
+	if !common.CompareBeaconIDs(oldGroup.ID, newGroup.ID) {
 		bp.log.Errorw("", "setup_reshare", "invalid ID in received group")
 		return errors.New("control: old and new group have different ID - unsupported feature at the moment")
 	}

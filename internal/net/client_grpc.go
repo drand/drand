@@ -34,7 +34,7 @@ type grpcClient struct {
 }
 
 var defaultConnTimeout = 1 * time.Minute
-var defaultHealthTimeout = 2 * time.Second
+var defaultHealthTimeout = 3 * time.Second
 
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
@@ -260,7 +260,7 @@ func (g *grpcClient) Check(ctx context.Context, p Peer) error {
 	}
 
 	client := healthgrpc.NewHealthClient(c)
-	//nolint:gomnd
+
 	tctx, cancel := context.WithTimeout(ctx, g.healthTimeout)
 	defer cancel()
 	resp, err := client.Check(tctx, &healthgrpc.HealthCheckRequest{})
