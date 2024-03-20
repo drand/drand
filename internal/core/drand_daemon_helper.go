@@ -10,8 +10,8 @@ import (
 func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 	rcvBeaconID := metadata.GetBeaconID()
 
-	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
-		chainHash := fmt.Sprintf("%x", chainHashHex)
+	if chainHashBytes := metadata.GetChainHash(); len(chainHashBytes) != 0 {
+		chainHash := fmt.Sprintf("%x", chainHashBytes)
 
 		dd.state.RLock()
 		defer dd.state.RUnlock()

@@ -27,7 +27,6 @@ const (
 	Public_PublicRand_FullMethodName       = "/drand.Public/PublicRand"
 	Public_PublicRandStream_FullMethodName = "/drand.Public/PublicRandStream"
 	Public_ChainInfo_FullMethodName        = "/drand.Public/ChainInfo"
-	Public_Home_FullMethodName             = "/drand.Public/Home"
 	Public_ListBeaconIDs_FullMethodName    = "/drand.Public/ListBeaconIDs"
 )
 
@@ -42,8 +41,6 @@ type PublicClient interface {
 	// ChainInfo returns the information related to the chain this node
 	// participates to
 	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
-	// Home is a simple endpoint
-	Home(ctx context.Context, in *HomeRequest, opts ...grpc.CallOption) (*HomeResponse, error)
 	// ListBeaconIDs responds with the list of Beacon IDs running on that node
 	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
 }
@@ -106,15 +103,6 @@ func (c *publicClient) ChainInfo(ctx context.Context, in *ChainInfoRequest, opts
 	return out, nil
 }
 
-func (c *publicClient) Home(ctx context.Context, in *HomeRequest, opts ...grpc.CallOption) (*HomeResponse, error) {
-	out := new(HomeResponse)
-	err := c.cc.Invoke(ctx, Public_Home_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *publicClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error) {
 	out := new(ListBeaconIDsResponse)
 	err := c.cc.Invoke(ctx, Public_ListBeaconIDs_FullMethodName, in, out, opts...)
@@ -135,8 +123,6 @@ type PublicServer interface {
 	// ChainInfo returns the information related to the chain this node
 	// participates to
 	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
-	// Home is a simple endpoint
-	Home(context.Context, *HomeRequest) (*HomeResponse, error)
 	// ListBeaconIDs responds with the list of Beacon IDs running on that node
 	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
 }
@@ -153,9 +139,6 @@ func (UnimplementedPublicServer) PublicRandStream(*PublicRandRequest, Public_Pub
 }
 func (UnimplementedPublicServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
-}
-func (UnimplementedPublicServer) Home(context.Context, *HomeRequest) (*HomeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Home not implemented")
 }
 func (UnimplementedPublicServer) ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListBeaconIDs not implemented")
@@ -229,24 +212,6 @@ func _Public_ChainInfo_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Public_Home_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HomeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PublicServer).Home(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Public_Home_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PublicServer).Home(ctx, req.(*HomeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Public_ListBeaconIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListBeaconIDsRequest)
 	if err := dec(in); err != nil {
@@ -279,10 +244,6 @@ var Public_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChainInfo",
 			Handler:    _Public_ChainInfo_Handler,
-		},
-		{
-			MethodName: "Home",
-			Handler:    _Public_Home_Handler,
 		},
 		{
 			MethodName: "ListBeaconIDs",

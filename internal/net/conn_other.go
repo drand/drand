@@ -27,15 +27,16 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
-		// we need to close the connection before deleting it to avoid goroutine leaks
-		c.Close()
+		// we need to close the connection before deleting it to avoid goroutine leaks, done async
+		go c.Close()
 		delete(g.conns, p.Address())
-		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
+		g.log.Warnw("non-TLS grpc conn in Shutdown state", "to", p.Address())
+		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(connectivity.Shutdown))
 	}
 
 	// otherwise we try to re-dial it
 	if !ok {
-		g.log.Debugw("initiating new grpc conn without TLS", "to", p.Address())
+		g.log.Debugw("initiating new non-TLS grpc conn", "to", p.Address())
 
 		opts := append(
 			[]grpc.DialOption{
@@ -47,11 +48,11 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 
 		c, err = grpc.DialContext(ctx, p.Address(), opts...)
 		if err != nil {
+			g.log.Errorw("error initiating a new non-TLS grpc conn", "to", p.Address(), "err", err)
 			// We increase the GroupDialFailures counter when both failed
 			metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
-			g.log.Errorw("error initiating a new grpc non-TLS conn", "to", p.Address(), "err", err)
 		} else {
-			g.log.Debugw("new grpc conn established", "state", c.GetState(), "to", p.Address())
+			g.log.Debugw("new non-TLS grpc conn established", "state", c.GetState(), "to", p.Address())
 			g.conns[p.Address()] = c
 			metrics.OutgoingConnections.Set(float64(len(g.conns)))
 		}

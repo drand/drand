@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
@@ -166,8 +168,6 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 	_, span := tracer.NewSpan(ctx, "dd.ListBeaconIDs")
 	defer span.End()
 
-	metadata := drand.NewMetadata(dd.version.ToProto())
-
 	dd.state.Lock()
 	defer dd.state.Unlock()
 
@@ -176,7 +176,24 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 		ids = append(ids, id)
 	}
 
-	return &drand.ListBeaconIDsResponse{Ids: ids, Metadata: metadata}, nil
+	metas := make([]*drand.Metadata, 0, len(dd.chainHashes))
+	for chainHex, id := range dd.chainHashes {
+		if chainHex == common.DefaultChainHash {
+			continue
+		}
+		chain, err := hex.DecodeString(chainHex)
+		if err != nil {
+			dd.log.Error("invalid chainhash in map", "err", err, "map", dd.chainHashes)
+			return nil, err
+		}
+		metas = append(metas, &drand.Metadata{
+			NodeVersion: dd.version.ToProto(),
+			BeaconID:    id,
+			ChainHash:   chain,
+		})
+	}
+
+	return &drand.ListBeaconIDsResponse{Ids: ids, Metadatas: metas}, nil
 }
 
 func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {

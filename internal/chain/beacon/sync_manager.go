@@ -168,7 +168,7 @@ func (s *SyncManager) Run() {
 			// must have gotten some data.
 			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
 			if upperBound < int(s.clock.Now().Unix()) {
-				s.log.Infow("cancelling old sync as it took long")
+				s.log.Infow("canceling old sync as it took long")
 
 				span.End()
 				// we haven't received a new block in a while

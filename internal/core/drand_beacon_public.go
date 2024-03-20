@@ -113,14 +113,6 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	return beacon.SyncChain(bp.log.Named("PublicRand"), store, proxyReq, proxyStr)
 }
 
-// Home provides the address the local node is listening
-func (bp *BeaconProcess) Home(ctx context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
-	_, span := tracer.NewSpan(ctx, "bp.Home")
-	defer span.End()
-
-	return nil, fmt.Errorf("method bp.Home not implemented")
-}
-
 // ChainInfo replies with the chain information this node participates to
 func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	_, span := tracer.NewSpan(ctx, "bp.ChainInfo")

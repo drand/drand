@@ -37,6 +37,7 @@ type ProtocolClient interface {
 	SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error)
 	PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error
 	Status(context.Context, Peer, *drand.StatusRequest, ...grpc.CallOption) (*drand.StatusResponse, error)
+	Check(ctx context.Context, p Peer) error
 }
 
 // PublicClient holds all the methods of the public API . See
@@ -45,7 +46,6 @@ type PublicClient interface {
 	PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error)
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
-	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 	ListBeaconIDs(ctx context.Context, p Peer) (*drand.ListBeaconIDsResponse, error)
 }
 
