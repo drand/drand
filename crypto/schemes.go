@@ -9,9 +9,11 @@ import (
 	"os"
 
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
+	bn254 "github.com/drand/kyber/pairing/bn254"
 	"github.com/drand/kyber/sign"
 
 	// The package github.com/drand/kyber/sign/bls is deprecated because it is vulnerable to
@@ -248,6 +250,44 @@ func NewPedersenBLSUnchainedG1() (cs *Scheme) {
 	}
 }
 
+// BN254UnchainedOnG1SchemeID is the scheme id used to set unchained randomness on beacons with signatures on G1,
+// on the BN254 curve.
+const BN254UnchainedOnG1SchemeID = "bls-bn254-unchained-on-g1"
+
+// NewPedersenBLSBN254UnchainedOnG1Scheme instantiates a scheme of type "bls-bn254-unchained-on-g1" which is also
+// unchained, only hashing the round number as the message being signed in beacons. This scheme is configured to
+// be optimally compatible with the EVM.
+func NewPedersenBLSBN254UnchainedOnG1Scheme() (cs *Scheme) {
+	var Pairing = bn254.NewSuite()
+	Pairing.SetDomainG1([]byte("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_"))
+
+	var KeyGroup = Pairing.G2()
+	var SigGroup = Pairing.G1()
+	// using G1 for the ThresholdScheme since it allows beacons to have shorter signatures, reducing the size of any
+	// database storing all existing beacons by half compared to using G2.
+	var ThresholdScheme = tbls.NewThresholdSchemeOnG1(Pairing)
+	var AuthScheme = signBls.NewSchemeOnG1(Pairing)
+	var DKGAuthScheme = schnorr.NewScheme(&schnorrSuite{KeyGroup})
+	var IdentityHashFunc = func() hash.Hash { h, _ := blake2b.New256(nil); return h }
+	// Unchained means we're only hashing the round number
+	var DigestFunc = func(b hashableBeacon) []byte {
+		h := sha3.NewLegacyKeccak256()
+		_ = binary.Write(h, binary.BigEndian, b.GetRound())
+		return h.Sum(nil)
+	}
+
+	return &Scheme{
+		Name:            BN254UnchainedOnG1SchemeID,
+		SigGroup:        SigGroup,
+		KeyGroup:        KeyGroup,
+		ThresholdScheme: ThresholdScheme,
+		AuthScheme:      AuthScheme,
+		DKGAuthScheme:   DKGAuthScheme,
+		IdentityHash:    IdentityHashFunc,
+		DigestBeacon:    DigestFunc,
+	}
+}
+
 func SchemeFromName(schemeName string) (*Scheme, error) {
 	switch schemeName {
 	case DefaultSchemeID:
@@ -258,12 +298,14 @@ func SchemeFromName(schemeName string) (*Scheme, error) {
 		return NewPedersenBLSUnchainedG1(), nil
 	case ShortSigSchemeID:
 		return NewPedersenBLSUnchainedSwapped(), nil
+	case BN254UnchainedOnG1SchemeID:
+		return NewPedersenBLSBN254UnchainedOnG1Scheme(), nil
 	default:
 		return nil, fmt.Errorf("invalid scheme name '%s'", schemeName)
 	}
 }
 
-var schemeIDs = []string{DefaultSchemeID, UnchainedSchemeID, SigsOnG1ID, ShortSigSchemeID}
+var schemeIDs = []string{DefaultSchemeID, UnchainedSchemeID, SigsOnG1ID, ShortSigSchemeID, BN254UnchainedOnG1SchemeID}
 
 // ListSchemes will return a slice of valid scheme ids
 func ListSchemes() []string {

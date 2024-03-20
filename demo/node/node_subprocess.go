@@ -123,7 +123,7 @@ func (n *NodeProc) setup() {
 		panic(err)
 	}
 
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
 
 	if !n.tls {
 		args = append(args, "--tls-disable")

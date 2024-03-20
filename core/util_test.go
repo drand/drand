@@ -222,7 +222,8 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt.beaconID = beaconID
 	dt.thr = thr
 	dt.period = period
-	dt.clock = clock.NewFakeClock()
+	// See: https://github.com/jonboulle/clockwork/commit/276013b7b35d157f1a3e88c12ba6cf7480f8669f
+	dt.clock = clock.NewFakeClockAt(time.Date(1984, time.April, 4, 0, 0, 0, 0, time.UTC))
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
