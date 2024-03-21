@@ -3,12 +3,17 @@ services:
   {% for node in hosts -%}
   {{ node['name'] }}:
     image: drandorg/go-drand:latest
+    container_name: {{ node['name'] }}
     volumes:
     - {{ node['volume_name'] }}:/data
-    command: "start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888"
+    environment:
+      - DRAND_PUBLIC_ADDRESS={{ node['name'] }}:8080
     cap_add:
       - NET_ADMIN
-    entrypoint: /bin/sh -c "tc qdisc add dev eth0 root netem delay {{node['latency']}} && /usr/local/bin/drand start --verbose --tls-disable --private-listen 0.0.0.0:8080 --control 8888"
+    command: -c "tc qdisc add dev eth0 root netem delay {{node['latency']}} && /usr/local/bin/entrypoint.sh"
+    expose:
+      - 8888
+      - 8080
           
   {% endfor %}
 volumes:
