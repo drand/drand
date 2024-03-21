@@ -72,7 +72,7 @@ type BeaconProcess struct {
 
 	// only used for testing currently
 	// XXX need boundaries between gRPC and control plane such that we can give
-	// a list of paramteres at each DKG (inluding this callback)
+	// a list of parameters at each DKG (including this callback)
 	setupCB func(*key.Group)
 
 	// only used for testing at the moment - may be useful later

@@ -40,7 +40,7 @@ type Result interface {
 	Signature() []byte
 }
 
-// LoggingClient sets the logger for use by clients that suppport it
+// LoggingClient sets the logger for use by clients that support it
 type LoggingClient interface {
 	SetLog(log.Logger)
 }

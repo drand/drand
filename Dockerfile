@@ -48,7 +48,6 @@ RUN \
   -X github.com/drand/drand/cmd/drand-cli.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) \
   -X github.com/drand/drand/cmd/drand-cli.gitCommit=$(git rev-parse HEAD)"
 
-# FROM --platform=linux/amd64 busybox:1-glibc
 FROM --platform=linux/amd64 debian
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 

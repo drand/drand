@@ -4,12 +4,13 @@ template = jinja2.Environment(
     loader=jinja2.FileSystemLoader(searchpath="./")
 ).get_template("docker-compose.yaml.j2")
 
+
 def make_container_list(latency, count):
     return [
         {
             "name": "drand_container_%s_%d" % (latency, i),
             "latency": latency,
-            "volume_name": "drand_volume_%s_%d" % (latency, i)
+            "volume_name": "drand_volume_%s_%d" % (latency, i),
         }
         for i in range(count)
     ]

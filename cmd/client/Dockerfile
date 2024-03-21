@@ -1,5 +1,5 @@
 # build this dockerfile with context pointed at the root of the drand repo
-FROM golang:1.19.2-buster AS builder
+FROM --platform=linux/amd64 golang:1.20.1-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG version=unknown
@@ -30,7 +30,7 @@ RUN go mod download
 COPY . $SRC_PATH
 RUN set -x && make build-client
 
-FROM busybox:1-glibc
+FROM --platform=linux/amd64 busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ENV GOPATH                 /go

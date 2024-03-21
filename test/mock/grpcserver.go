@@ -289,7 +289,7 @@ func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch
 	return listener, server
 }
 
-// NewMockServer creates a server interface not bound to a newtork port
+// NewMockServer creates a server interface not bound to a network port
 func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme) net.Service {
 	d := generateMockData(sch)
 	testValid(d)

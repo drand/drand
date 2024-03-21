@@ -86,7 +86,7 @@ func newDKGSetup(c *setupConfig) (*setupManager, error) {
 	}
 	secret := hashSecret(c.info.GetSecret())
 	verifyKeys := func(keys []*key.Identity) bool {
-		// XXX Later we can add specific name list of DNS, or prexisting
+		// XXX Later we can add specific name list of DNS, or preexisting
 		// keys..
 		return true
 	}

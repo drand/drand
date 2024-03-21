@@ -128,7 +128,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 // UnsubFunc is a cancel function for pubsub subscription
 type UnsubFunc func()
 
-// Sub subscribes to notfications about new randomness.
+// Sub subscribes to notifications about new randomness.
 // Client instance owns the channel after it is passed to Sub function,
 // thus the channel should not be closed by library user
 //

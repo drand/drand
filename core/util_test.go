@@ -597,7 +597,7 @@ func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID st
 
 	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
 	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, d.scheme, beaconID, opts...)
-	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
+	//nolint:prealloc // We don't preallocate this as it's not going to be big enough to warrant such an operation
 	var result []*MockNode
 	for i, drandInstance := range drands {
 		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
@@ -858,7 +858,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	if c.stateCh != nil {
 		c.stateCh <- ReshareUnlock
 		if c.onlyLeader {
-			// no need to continue since only the leader wont do
+			// no need to continue since only the leader won't do
 			// we only use this for DKgReshareForce
 			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted
