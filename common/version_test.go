@@ -54,9 +54,44 @@ var (
 		Prerelease: "",
 	}
 
+	version159 = Version{
+		Major:      1,
+		Minor:      5,
+		Patch:      9,
+		Prerelease: "",
+	}
+
 	version200 = Version{
 		Major:      2,
 		Minor:      0,
+		Patch:      0,
+		Prerelease: "",
+	}
+
+	version200pre = Version{
+		Major:      2,
+		Minor:      0,
+		Patch:      0,
+		Prerelease: "pre",
+	}
+
+	version205 = Version{
+		Major:      2,
+		Minor:      0,
+		Patch:      5,
+		Prerelease: "",
+	}
+
+	version210 = Version{
+		Major:      2,
+		Minor:      1,
+		Patch:      0,
+		Prerelease: "",
+	}
+
+	version220 = Version{
+		Major:      2,
+		Minor:      2,
 		Patch:      0,
 		Prerelease: "",
 	}
@@ -104,16 +139,30 @@ func TestVersionCompatible(tm *testing.T) {
 	}{
 		{version123, version123pre, true},
 		{version123, version124, true},
-		{version157, version158, true},
-		{version158, version158, true},
-		{version158, version200, true},
-		{version123, version157, false},
 		{version123, version130pre, true},
+		{version123, version157, false},
 		{version123, version200, false},
-		{version157, version200, false},
-		{version123pre, version130pre, true},
 		{version123pre, version130, true},
+		{version123pre, version130pre, true},
 		{version123pre, version157, false},
+		{version130pre, version157, false},
+		{version157, version158, true},
+		{version157, version159, true},
+		{version157, version200, false},
+		{version157, version205, false},
+		{version157, version210, false},
+		{version158, version158, true},
+		{version158, version159, true},
+		{version158, version200, true},
+		{version158, version205, true},
+		{version158, version210, false},
+		{version158, version200pre, true},
+		{version159, version200, true},
+		{version200, version200, true},
+		{version200, version205, true},
+		{version200, version210, true},
+		{version200, version220, false},
+		{version210, version220, true},
 	} {
 		compat := tt.isCompat
 		a := tt.a

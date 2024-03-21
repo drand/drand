@@ -1,8 +1,8 @@
 package cfg
 
 import (
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/chain"
 )
 
 // Config stores configuration for the orchestrator.
@@ -11,7 +11,6 @@ type Config struct {
 	N            int
 	Thr          int
 	Period       string
-	WithTLS      bool
 	Binary       string
 	WithCurl     bool
 	Scheme       *crypto.Scheme
@@ -22,5 +21,4 @@ type Config struct {
 	MemDBSize    int
 	Offset       int
 	BasePath     string
-	CertFolder   string
 }

@@ -32,7 +32,7 @@ type hashableBeacon interface {
 	GetRound() uint64
 }
 
-type signedBeacon interface {
+type SignedBeacon interface {
 	hashableBeacon
 	GetSignature() []byte
 }
@@ -64,7 +64,7 @@ type Scheme struct {
 }
 
 // VerifyBeacon is verifying the aggregated beacon against the provided group public key
-func (s *Scheme) VerifyBeacon(b signedBeacon, pubkey kyber.Point) error {
+func (s *Scheme) VerifyBeacon(b SignedBeacon, pubkey kyber.Point) error {
 	return s.ThresholdScheme.VerifyRecovered(pubkey, s.DigestBeacon(b), b.GetSignature())
 }
 
@@ -259,7 +259,7 @@ func SchemeFromName(schemeName string) (*Scheme, error) {
 	case ShortSigSchemeID:
 		return NewPedersenBLSUnchainedSwapped(), nil
 	default:
-		return nil, fmt.Errorf("invalid scheme name '%s'", schemeName)
+		return nil, fmt.Errorf("invalid scheme name %q", schemeName)
 	}
 }
 
@@ -270,10 +270,10 @@ func ListSchemes() []string {
 	return schemeIDs
 }
 
-// GetSchemeByIDWithDefault allows the user to retrieve the scheme configuration looking by its ID. It will return a boolean which indicates
+// GetSchemeByID allows the user to retrieve the scheme configuration looking by its ID. It will return a boolean which indicates
 // if the scheme was found or not. In addition to it, if the received ID is an empty string,
 // it will return the default defined scheme
-func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
+func GetSchemeByID(id string) (*Scheme, error) {
 	if id == "" {
 		id = DefaultSchemeID
 	}
@@ -286,7 +286,7 @@ func GetSchemeByIDWithDefault(id string) (*Scheme, error) {
 func GetSchemeFromEnv() (*Scheme, error) {
 	id := os.Getenv("SCHEME_ID")
 
-	return GetSchemeByIDWithDefault(id)
+	return GetSchemeByID(id)
 }
 
 // RandomnessFromSignature derives the round randomness from its signature. We are using sha256 currently

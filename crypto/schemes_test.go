@@ -6,11 +6,36 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber/util/random"
 )
+
+func TestNamesInList(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"", false},
+		{crypto.DefaultSchemeID, true},
+		{crypto.ShortSigSchemeID, true},
+		{crypto.SigsOnG1ID, true},
+		{crypto.UnchainedSchemeID, true},
+		{"nonexistentschemename", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+"IsInList", func(t *testing.T) {
+			for _, v := range crypto.ListSchemes() {
+				if tt.name == v {
+					return
+				}
+			}
+			require.False(t, tt.expected)
+		})
+	}
+}
 
 func BenchmarkVerifyBeacon(b *testing.B) {
 	sch, err := crypto.GetSchemeFromEnv()
@@ -23,7 +48,7 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -31,16 +56,14 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 	sig, _ := sch.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		beacon := &chain.Beacon{
+		beacon := &common.Beacon{
 			PreviousSig: prevSig,
 			Round:       16,
 			Signature:   sig,
 		}
 
 		err := sch.VerifyBeacon(beacon, public)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(b, err)
 	}
 }
 
@@ -54,7 +77,7 @@ func BenchmarkSignBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -66,18 +89,15 @@ func BenchmarkSignBeacon(b *testing.B) {
 	}
 	b.StopTimer()
 
-	beacon := &chain.Beacon{
+	beacon := &common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 		Signature:   sig,
 	}
 	err = sch.VerifyBeacon(beacon, public)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(b, err)
 }
 
-//nolint:lll
 func TestVerifyBeacon(t *testing.T) {
 	t.Parallel()
 	testBeacons := []struct {
@@ -129,7 +149,40 @@ func TestVerifyBeacon(t *testing.T) {
 		require.NoError(t, err)
 		prev, err := hex.DecodeString(beacon.PrevSig)
 		require.NoError(t, err)
-		err = sch.VerifyBeacon(&chain.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
+		err = sch.VerifyBeacon(&common.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
 		require.NoError(t, err)
+	}
+}
+
+func TestGetSchemeByID(t *testing.T) {
+	tests := []struct {
+		name      string
+		isDefault bool
+		want      bool
+	}{
+		{"", true, true},
+		{crypto.DefaultSchemeID, true, true},
+		{crypto.ShortSigSchemeID, false, true},
+		{crypto.SigsOnG1ID, false, true},
+		{crypto.UnchainedSchemeID, false, true},
+		{"nonexistentschemename", false, false},
+		{crypto.DefaultSchemeID + "wrong", false, false},
+		{"wrong" + crypto.ShortSigSchemeID, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+"byID", func(t *testing.T) {
+			got, err := crypto.GetSchemeByID(tt.name)
+			gotBool := err == nil
+			// special case "" is considered to be the default beacon
+			if gotBool && got.Name != tt.name && tt.name != "" {
+				t.Errorf("GetSchemeByID() got = %v, want %v", got, tt.name)
+			}
+			if tt.isDefault && got.Name != crypto.DefaultSchemeID {
+				t.Errorf("UnexpectedDefaultName got = %v", got.Name)
+			}
+			if gotBool != tt.want {
+				t.Errorf("GetSchemeByID() gotBool = %v, want %v", gotBool, tt.want)
+			}
+		})
 	}
 }

@@ -3,9 +3,10 @@ package vault
 import (
 	"sync"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/v2/common/chain"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber/share"
 )
 
@@ -19,20 +20,22 @@ type CryptoSafe interface {
 // beacons and to sign new partial beacons (it implements CryptoSafe interface).
 // Vault is thread safe when using the methods.
 type Vault struct {
-	mu sync.RWMutex
+	log log.Logger
+	mu  sync.RWMutex
 	*crypto.Scheme
 	// current share of the node
 	share *key.Share
 	// public polynomial to verify a partial beacon
 	pub *share.PubPoly
-	// chian info to verify final random beacon
+	// chain info to verify final random beacon
 	chain *chain.Info
 	// to know the threshold, transition time etc
 	group *key.Group
 }
 
-func NewVault(currentGroup *key.Group, ks *key.Share, sch *crypto.Scheme) *Vault {
+func NewVault(l log.Logger, currentGroup *key.Group, ks *key.Share, sch *crypto.Scheme) *Vault {
 	return &Vault{
+		log:    l,
 		Scheme: sch,
 		chain:  chain.NewChainInfo(currentGroup),
 		share:  ks,
@@ -81,5 +84,5 @@ func (v *Vault) SetInfo(newGroup *key.Group, ks *key.Share) {
 	v.group = newGroup
 	v.pub = newGroup.PublicKey.PubPoly(v.Scheme)
 	// v.chain info is constant
-	// Scheme cannot change either
+	// v.Scheme cannot change either
 }

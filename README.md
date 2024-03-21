@@ -48,6 +48,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
 - [Development](#development)
 - [Acknowledgments](#acknowledgments)
 - [Coverage](#coverage)
+- [Tracing](#tracing)
 - [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -164,9 +165,8 @@ For more information, look at the demo [README](https://github.com/drand/drand/t
 A drand beacon provides several public services to clients. A drand node
 exposes its public services on a gRPC endpoint as well as a REST JSON endpoint,
 on the same port. The latter is especially useful if one wishes to retrieve
-randomness from a JavaScript application.  Communication is protected through
-TLS by default. If the contacted node is using a self-signed certificate, the
-client can use the `--tls-cert` flag to specify the server's certificate.
+randomness from a JavaScript application.  Communication is meant to be protected
+through TLS by using a reverse-proxy to perform TLS termination.
 
 ### Create a Drand deployment
 
@@ -239,7 +239,7 @@ refer to the
 
 Here is a list of all documentation related to drand:
 
-- To learn more about the protocol, the motivation and its backgronund
+- To learn more about the protocol, the motivation and its background
   - For a high level presentation of motivations and background, here are some public
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
   about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).
@@ -291,7 +291,7 @@ Feel free to submit feature requests or, even better, pull requests ;)
 
 ## Development
 
-If you want to contribute to Drand, head over to our [Development documentation](DEVELOPMENT.md). 
+If you want to contribute to Drand, head over to our [Development documentation](DEVELOPMENT.md).
 
 ## Acknowledgments
 
@@ -327,6 +327,11 @@ for letting me work on this project and helping me grow it.
 - [Liftr](https://liftrinsights.com/liftr-cloud-look-ahead-cloudflare-introduces-the-league-of-entropy-googles-solution-to-keep-data-sets-private-and-more/)
 - (French)
   [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
+
+## Tracing
+
+In the [./docker](./docker) folder, you can use the [docker-compose.tracing.yaml](./docker/docker-compose.tracing.yaml) to spin up the necessary components for monitoring a drand binary in-depth.
+To run tracing, you will need to pass the `--traces` command line flag with the endpoint of the tool running in the docker-compose file (or another OpenTelemetry endpoint). You can optionally pass the `--traces-probability` flag to configure how many calls you wish to sample for telemetry.
 
 ## License
 

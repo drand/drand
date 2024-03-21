@@ -1,30 +1,34 @@
 package mock
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
-	testnet "github.com/drand/drand/test/net"
+	pdkg "github.com/drand/drand/v2/protobuf/dkg"
+	clock "github.com/jonboulle/clockwork"
+
+	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/net"
+	testnet "github.com/drand/drand/v2/internal/test/net"
+	"github.com/drand/drand/v2/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
 )
 
-// MockService provides a way for clients getting the service to be able to call
+// Service provides a way for clients getting the service to be able to call
 // the EmitRand method on the mock server
-type MockService interface {
+type Service interface {
 	EmitRand(bool)
 }
 
@@ -47,10 +51,11 @@ type Server struct {
 	streamDone chan error
 	d          *Data
 	t          logger
+	clk        clock.Clock
 	chainInfo  *drand.ChainInfoPacket
 }
 
-func newMockServer(t logger, d *Data) *Server {
+func newMockServer(t logger, d *Data, clk clock.Clock) *Server {
 	if t == nil {
 		t = fmtLogger{}
 	}
@@ -59,6 +64,7 @@ func newMockServer(t logger, d *Data) *Server {
 		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
 		t:           t,
+		clk:         clk,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
 			GenesisTime: d.Genesis,
@@ -74,15 +80,18 @@ func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.Cha
 }
 
 // PublicRand implements net.Service
-func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (s *Server) PublicRand(_ context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	s.l.Lock()
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
+	if s.chainInfo.SchemeID != crypto.DefaultSchemeID {
+		prev = nil
+	}
 	signature := decodeHex(s.d.Signature)
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
-	randomness := sha256Hash(signature)
+	randomness := sha256Hash(signature, 0)
 	resp := drand.PublicRandResponse{
 		Round:             uint64(s.d.Round),
 		PreviousSignature: prev,
@@ -94,7 +103,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 }
 
 // PublicRandStream is part of the public drand service.
-func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+func (s *Server) PublicRandStream(_ *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	streamDone := make(chan error, 1)
 	s.l.Lock()
 	s.streamDone = streamDone
@@ -137,12 +146,14 @@ func (s *Server) EmitRand(closeStream bool) {
 		s.t.Log("MOCK SERVER: context error ", err)
 		return
 	}
+	s.clk.(clock.FakeClock).Advance(time.Duration(s.chainInfo.Period) * time.Second)
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err
 		s.t.Log("MOCK SERVER: public rand err:", err)
 		return
 	}
+	s.t.Log(fmt.Sprintf("MOCK SERVER: sending round: %d time.Now: %d", resp.Round, s.clk.Now().Unix()))
 	if err = stream.Send(resp); err != nil {
 		done <- err
 		s.t.Log("MOCK SERVER: stream send error:", err)
@@ -162,11 +173,11 @@ func testValid(d *Data) {
 	var msg, invMsg []byte
 	if d.Scheme.Name == crypto.DefaultSchemeID { // we're in chained mode
 		prev := decodeHex(d.PreviousSignature)
-		msg = sha256Hash(append(prev[:], roundToBytes(d.Round)...))
-		invMsg = sha256Hash(append(prev[:], roundToBytes(d.Round-1)...))
+		msg = sha256Hash(prev[:], d.Round)
+		invMsg = sha256Hash(prev[:], d.Round-1)
 	} else { // we are in unchained mode
-		msg = sha256Hash(roundToBytes(d.Round))
-		invMsg = sha256Hash(roundToBytes(d.Round - 1))
+		msg = sha256Hash(nil, d.Round)
+		invMsg = sha256Hash(nil, d.Round-1)
 	}
 
 	if err := d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
@@ -199,7 +210,7 @@ type Data struct {
 	Scheme            *crypto.Scheme
 }
 
-func generateMockData(sch *crypto.Scheme) *Data {
+func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 	secret := sch.KeyGroup.Scalar().Pick(random.New())
 	public := sch.KeyGroup.Point().Mul(secret, nil)
 	var previous [32]byte
@@ -211,9 +222,9 @@ func generateMockData(sch *crypto.Scheme) *Data {
 
 	var msg []byte
 	if sch.Name == crypto.DefaultSchemeID { // we're in chained mode
-		msg = sha256Hash(append(previous[:], roundToBytes(round)...))
+		msg = sha256Hash(previous[:], round)
 	} else { // we're in unchained mode
-		msg = sha256Hash(roundToBytes(round))
+		msg = sha256Hash(nil, round)
 	}
 
 	sshare := share.PriShare{I: 0, V: secret}
@@ -232,7 +243,7 @@ func generateMockData(sch *crypto.Scheme) *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
+		Genesis:           clk.Now().Add(period * 1969 * -1).Unix(),
 		Period:            period,
 		BadSecondRound:    true,
 		Scheme:            sch,
@@ -246,9 +257,9 @@ func nextMockData(d *Data) *Data {
 
 	var msg []byte
 	if d.Scheme.Name == crypto.DefaultSchemeID { // we're in chained mode
-		msg = sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+		msg = sha256Hash(previous, d.Round+1)
 	} else { // we're in unchained mode
-		msg = sha256Hash(roundToBytes(d.Round + 1))
+		msg = sha256Hash(nil, d.Round+1)
 	}
 
 	sshare := share.PriShare{I: 0, V: d.secret}
@@ -273,15 +284,16 @@ func nextMockData(d *Data) *Data {
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch *crypto.Scheme) (net.Listener, net.Service) {
-	d := generateMockData(sch)
+func NewMockGRPCPublicServer(t *testing.T, l log.Logger, bind string, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (net.Listener, net.Service) {
+	d := generateMockData(sch, clk)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(t, d)
-	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
+	server := newMockServer(t, d, clk)
+	ctx := log.ToContext(context.Background(), l)
+	listener, err := net.NewGRPCListenerForPrivate(ctx, bind, server)
 	if err != nil {
 		panic(err)
 	}
@@ -290,38 +302,50 @@ func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch
 }
 
 // NewMockServer creates a server interface not bound to a network port
-func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme) net.Service {
-	d := generateMockData(sch)
+func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) net.Service {
+	d := generateMockData(sch, clk)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(t, d)
+	server := newMockServer(t, d, clk)
 	return server
 }
 
-func sha256Hash(in []byte) []byte {
+func sha256Hash(prev []byte, round int) []byte {
 	h := sha256.New()
-	h.Write(in)
+	if prev != nil {
+		_, _ = h.Write(prev)
+	}
+	if round > 0 {
+		_ = binary.Write(h, binary.BigEndian, uint64(round))
+	}
 	return h.Sum(nil)
 }
 
-func roundToBytes(r int) []byte {
-	var buff bytes.Buffer
-	err := binary.Write(&buff, binary.BigEndian, uint64(r))
-	if err != nil {
-		return nil
-	}
-	return buff.Bytes()
-}
-
 // NewMockBeacon provides a random beacon and the chain it validates against
-func NewMockBeacon(t *testing.T, sch *crypto.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
-	d := generateMockData(sch)
-	s := newMockServer(t, d)
+func NewMockBeacon(t *testing.T, sch *crypto.Scheme, clk clock.Clock) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData(sch, clk)
+	s := newMockServer(t, d, clk)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
 
 	return c, r
+}
+
+func (s *Server) Command(_ context.Context, _ *pdkg.DKGCommand) (*pdkg.EmptyDKGResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Packet(_ context.Context, _ *pdkg.GossipPacket) (*pdkg.EmptyDKGResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) DKGStatus(_ context.Context, _ *pdkg.DKGStatusRequest) (*pdkg.DKGStatusResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Metrics(_ context.Context, _ *drand.MetricsRequest) (*drand.MetricsResponse, error) {
+	return nil, errors.New("unimplemented for mock server")
 }

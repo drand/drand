@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/postgresdb/database"
-	"github.com/drand/drand/chain/postgresdb/schema"
-	"github.com/drand/drand/test"
+	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/database"
+	"github.com/drand/drand/v2/internal/chain/postgresdb/schema"
+	"github.com/drand/drand/v2/internal/test"
 )
 
 // To be used when dbEngineType is postgres.

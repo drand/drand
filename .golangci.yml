@@ -16,6 +16,8 @@ issues:
         - nilnil
         - noctx
         - revive
+        - depguard
+        - lll # signatures are long lines
     - path: _test\.go
       text: "SA1019" # we still want to test deprecated functions
     - path: protobuf/gen.go
@@ -25,18 +27,19 @@ issues:
     - path: cmd
       linters:
         - forbidigo # we use Println in our UX
-    - path: lib
+    - path: internal/lib
       linters:
         - forbidigo # we use Println in our UX
-    - path: drand-cli
+    - path: internal/drand-cli
       linters:
         - forbidigo # we use Println in our UX
+        - goconst # we re-use some strings in our flags
+    - path: internal/metrics/threshold_monitor_test.go
+      linters:
+        - revive # we use named parameters as an example for implementer
     - path: crypto/schemes.go
       linters:
         - dupl # we have explicit scheme instantiations
-#    - path: core/broadcast.go
-#      linters:
-#        - interfacer # Deprecated
 run:
   skip-dirs:
     - demo
@@ -53,7 +56,7 @@ linters:
     #- cyclop
     #- deadcode # Deprecated
     - decorder
-    - depguard
+    # - depguard
     - dogsled
     - dupl
     - dupword
@@ -120,7 +123,7 @@ linters:
     - predeclared
     # -promlinter #TODO could be enabled
     - reassign
-    # - revive #TODO make sure it's enabled on develop
+    - revive
     - rowserrcheck
     # - scopelint # Deprecated
     - sqlclosecheck
@@ -154,8 +157,8 @@ linters-settings:
     lines: 100
     statements: 50
   goconst:
-    min-len: 2
-    min-occurrences: 2
+    min-len: 3
+    min-occurrences: 3
   gocritic:
     enabled-tags:
       - diagnostic

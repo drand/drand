@@ -16,7 +16,7 @@ if [ `id -u` -eq 0 ]; then
 fi
 
 if [ ! -d "${DRAND_HOME}/.drand" -a -n "${DRAND_PUBLIC_ADDRESS}" ]; then
-    drand generate-keypair --tls-disable "${DRAND_PUBLIC_ADDRESS}"
+    drand generate-keypair "${DRAND_PUBLIC_ADDRESS}"
 fi
 
 exec drand $@

@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"os"
 
-	pbcommon "github.com/drand/drand/protobuf/common"
+	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Must be manually updated!
 // Before releasing: Verify the version number and set Prerelease to ""
 // After releasing: Increase the Patch number and set Prerelease to "-pre"
 var version = Version{
-	Major:      1,
-	Minor:      5,
-	Patch:      11,
-	Prerelease: "",
+	Major:      2,
+	Minor:      0,
+	Patch:      6,
+	Prerelease: "testnet",
 }
 
 // Set via -ldflags. Example:
