@@ -39,9 +39,8 @@ func NewPeer(addr string) net.Peer {
 // port= start.
 func Addresses(n int) []string {
 	addrs := make([]string, 0, n)
-	ports := Ports(n)
 	for i := 0; i < n; i++ {
-		addrs = append(addrs, "127.0.0.1:"+ports[i])
+		addrs = append(addrs, FreeBind("127.0.0.1"))
 	}
 	return addrs
 }
