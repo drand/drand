@@ -28,6 +28,8 @@ const defaultClientExec = "unknown"
 const defaultHTTTPTimeout = 60 * time.Second
 
 const httpWaitMaxCounter = 20
+
+// i tried twiddling these also, but it made no difference
 const httpWaitInterval = 2 * time.Second
 const maxTimeoutHTTPRequest = 5 * time.Second
 

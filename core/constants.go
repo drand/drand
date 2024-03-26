@@ -32,6 +32,9 @@ const DefaultControlPort = "8888"
 // that by default, DKG uses the "fast sync" mode that shorten the first phase
 // and the second phase, "as fast as possible" when the protocol runs smoothly
 // (there is no malicious party).
+// twiddling this didn't make any difference locally, but perhaps could be a source of drama on mainnet
+// I identified that with latency some nodes were finishing a phase before another had started it,
+// causing complaints in the DKG
 const DefaultDKGTimeout = 10 * time.Second
 
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group

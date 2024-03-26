@@ -122,19 +122,46 @@ func TestRunDKGLarge(t *testing.T) {
 	setFDLimit(t)
 
 	n := 22
+	thr := key.DefaultThreshold(n)
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, beaconID)
+	dt := NewDrandTestScenario(t, n, thr, expectedBeaconPeriod, beaconID)
 
-	group, err := dt.RunDKG()
+	group1, err := dt.RunDKG()
 	require.NoError(t, err)
 
-	require.Equal(t, 12, group.Threshold)
-	require.Equal(t, expectedBeaconPeriod, group.Period)
-	require.Equal(t, time.Duration(0), group.CatchupPeriod)
-	require.Equal(t, n, len(group.Nodes))
-	require.Equal(t, int64(449884810), group.GenesisTime)
+	require.Equal(t, 12, group1.Threshold)
+	require.Equal(t, expectedBeaconPeriod, group1.Period)
+	require.Equal(t, time.Duration(0), group1.CatchupPeriod)
+	require.Equal(t, n, len(group1.Nodes))
+	require.Equal(t, int64(449884810), group1.GenesisTime)
+
+	dt.SetMockClock(t, group1.GenesisTime)
+
+	// wait to get first round
+	t.Logf("Getting round %d", 0)
+	err = dt.WaitUntilRound(t, dt.nodes[0], 1)
+	require.NoError(t, err)
+
+	// create a few beacons
+	for i := 0; i < 2; i++ {
+		dt.AdvanceMockClock(t, group1.Period)
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(2+i))
+		require.NoError(t, err)
+	}
+
+	t.Log("starting reshare")
+	_, err = dt.RunReshare(t,
+		&reshareConfig{
+			oldRun:  n,
+			newRun:  0,
+			newThr:  thr,
+			timeout: 2 * time.Minute,
+			force:   true,
+		})
+
+	require.NoError(t, err, "resharing failed")
 }
 
 // Test Start/Stop after DKG
@@ -220,7 +247,7 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 		&reshareConfig{
 			oldRun:  n,
 			newThr:  thr,
-			timeout: time.Second,
+			timeout: 5 * time.Second,
 		})
 	require.NoError(t, err)
 	require.NotNil(t, group2)

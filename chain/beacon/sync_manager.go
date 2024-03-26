@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	cl "github.com/jonboulle/clockwork"
-
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	commonutils "github.com/drand/drand/common"
@@ -20,6 +18,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
+	cl "github.com/jonboulle/clockwork"
 )
 
 // SyncManager manages all the sync requests to other peers. It performs a
@@ -475,7 +474,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	logger := l.Named("SyncChain")
 	logger.Infow("Starting SyncChain", "for", addr)
-	defer l.Info("Stopping SyncChain", "for", id)
+	defer logger.Info("Stopping SyncChain", "for", id)
 
 	beaconID := beaconIDToSync(l, req, addr)
 

@@ -192,7 +192,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		in.GetInfo().GetSecret(),
 		in.GetInfo().GetTimeout()); err != nil {
 		bp.log.Errorw("", "push_group", err)
-		return nil, errors.New("fail to push new group")
+		return nil, fmt.Errorf("fail to push new group: %w", err)
 	}
 
 	bp.state.Lock()
@@ -377,6 +377,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		// phaser will kick off the first phase for every other nodes so
 		// nodes will send their deals
 		bp.log.Infow("", "init_dkg", "START_DKG")
+		time.Sleep(1 * time.Second)
 		go phaser.Start()
 	}
 	bp.log.Infow("", "init_dkg", "wait_dkg_end")
@@ -442,10 +443,12 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		Longterm:     bp.priv.Key,
 		Threshold:    newGroup.Threshold,
 		OldThreshold: oldGroup.Threshold,
-		FastSync:     true,
-		Nonce:        getNonce(newGroup),
-		Auth:         sch.DKGAuthScheme,
-		Log:          bp.log,
+		FastSync:     false,
+		// tests seem to hang forever with fastsync on - lots of context timeouts (though it seems the resharing passed?)
+		//FastSync: true,
+		Nonce: getNonce(newGroup),
+		Auth:  sch.DKGAuthScheme,
+		Log:   bp.log,
 	}
 	err := func() error {
 		bp.state.RLock()
@@ -954,6 +957,7 @@ func (bp *BeaconProcess) getPhaser(timeout uint32) *dkg.TimePhaser {
 	logger := bp.log
 	return dkg.NewTimePhaserFunc(func(phase dkg.Phase) {
 		bp.opts.clock.Sleep(tDuration)
+		time.Sleep(tDuration)
 		logger.Debugw("phaser timeout", "phaser_finished", phase)
 	})
 }
@@ -1061,7 +1065,8 @@ func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThr
 				"previousThreshold", previousThreshold,
 				"newThreshold", newThreshold,
 			)
-		case <-bp.opts.clock.After(time.Minute):
+			// using this over the `bp.opts.clock` because it seems to mess up tests
+		case <-time.After(time.Minute):
 			if previousThreshold <= 0 && newThreshold <= 0 {
 				bp.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
 				return nil

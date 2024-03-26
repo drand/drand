@@ -38,11 +38,22 @@ type grpcClient struct {
 
 var defaultTimeout = 1 * time.Minute
 
+func latencyInjector(latency time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		// Inject latency
+		time.Sleep(latency)
+
+		// Proceed with the actual RPC call
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) Client {
 	client := grpcClient{
-		opts:    opts,
+		opts: append(opts, grpc.WithUnaryInterceptor(latencyInjector(500*time.Millisecond))),
+		//opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
 		timeout: defaultTimeout,
 	}
