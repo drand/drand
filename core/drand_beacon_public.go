@@ -37,7 +37,6 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		bp.log.Infow("", "init_dkg", "START DKG",
 			"signal from leader", addr, "group", hex.EncodeToString(bp.dkgInfo.target.Hash()))
 		bp.dkgInfo.started = true
-		time.Sleep(1 * time.Second)
 		go bp.dkgInfo.phaser.Start()
 	}
 	if err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {

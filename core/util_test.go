@@ -641,7 +641,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
-		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound == round {
+		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound >= round {
 			t.Logf("node %s is on expected round (%d)", node.addr, status.ChainStore.LastRound)
 			return nil
 		}

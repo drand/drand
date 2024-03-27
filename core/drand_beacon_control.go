@@ -377,7 +377,6 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		// phaser will kick off the first phase for every other nodes so
 		// nodes will send their deals
 		bp.log.Infow("", "init_dkg", "START_DKG")
-		time.Sleep(1 * time.Second)
 		go phaser.Start()
 	}
 	bp.log.Infow("", "init_dkg", "wait_dkg_end")
