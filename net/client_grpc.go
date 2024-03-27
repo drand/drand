@@ -52,7 +52,7 @@ func latencyInjector(latency time.Duration) grpc.UnaryClientInterceptor {
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) Client {
 	client := grpcClient{
-		opts: append(opts, grpc.WithUnaryInterceptor(latencyInjector(500*time.Millisecond))),
+		opts: append(opts, grpc.WithUnaryInterceptor(latencyInjector(0*time.Millisecond))),
 		//opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
 		timeout: defaultTimeout,
