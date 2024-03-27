@@ -923,11 +923,11 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			}
 			if howManyDeals == expDeals {
 				howManyDeals++ // make sure we dont do that again
-				d.AdvanceMockClock(t, d.period)
+				d.AdvanceMockClock(t, DefaultDKGTimeout)
 				t.Logf("[reshare] All deals RECEIVED -> Advance clock: %d", d.Now().Unix())
 			} else if howManyResps == expResps {
 				howManyResps++
-				d.AdvanceMockClock(t, d.period)
+				d.AdvanceMockClock(t, DefaultDKGTimeout)
 				t.Logf("[reshare] All responses RECEIVED -> Advance clock: %d", d.Now().Unix())
 				relyOnTimeout = true
 			}
