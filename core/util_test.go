@@ -199,10 +199,29 @@ func getSleepDuration() time.Duration {
 	return time.Duration(500) * time.Millisecond
 }
 
+type DummyClock struct {
+	clock.Clock
+}
+
+func (fc *DummyClock) BlockUntil(n int) {
+	//time.Sleep(time.Until(time.Unix(int64(n), 0)))
+}
+
+func (fc *DummyClock) Advance(d time.Duration) {
+	time.Sleep(d)
+}
+
+func NewDrandTestScenarioRealClock(t *testing.T, n, thr int, period time.Duration, beaconID string) *DrandTestScenario {
+	return newDrandTestScenario(t, n, thr, period, beaconID, &DummyClock{Clock: clock.NewRealClock()})
+}
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string) *DrandTestScenario {
+	return newDrandTestScenario(t, n, thr, period, beaconID, clock.NewFakeClock())
+}
+
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string) *DrandTestScenario {
+func newDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clock clock.FakeClock) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		panic(err)
@@ -222,7 +241,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt.beaconID = beaconID
 	dt.thr = thr
 	dt.period = period
-	dt.clock = clock.NewFakeClock()
+	dt.clock = clock
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
@@ -641,7 +660,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
-		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound == round {
+		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound >= round {
 			t.Logf("node %s is on expected round (%d)", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
@@ -903,6 +922,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			// XXX: check if this is really intended
 			d.AdvanceMockClock(t, c.timeout)
 			t.Logf("[reshare] Advance clock: %d", d.Now().Unix())
+		case <-time.After(2 * time.Minute):
+			return nil, errors.New("DKG failed after timing out")
 		case <-outgoingChan:
 			continue
 		case p := <-incomingChan:
@@ -986,8 +1007,9 @@ func unixSetLimit(soft, max uint64) error {
 // newNode creates a node struct from a drand and sets the clock according to the drand test clock.
 func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProcess) *MockNode {
 	id := dr.priv.Public.Address()
-	c := clock.NewFakeClockAt(now)
+	//c := clock.NewFakeClockAt(now)
 
+	c := &DummyClock{Clock: clock.NewRealClock()}
 	// Note: not pure
 	dr.opts.clock = c
 

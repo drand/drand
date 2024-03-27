@@ -1061,6 +1061,10 @@ func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThr
 				"previousThreshold", previousThreshold,
 				"newThreshold", newThreshold,
 			)
+			if previousThreshold <= 0 && newThreshold <= 0 {
+				bp.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
+				return nil
+			}
 		case <-bp.opts.clock.After(time.Minute):
 			if previousThreshold <= 0 && newThreshold <= 0 {
 				bp.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)

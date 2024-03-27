@@ -137,6 +137,43 @@ func TestRunDKGLarge(t *testing.T) {
 	require.Equal(t, int64(449884810), group.GenesisTime)
 }
 
+func TestDKGLotsOfChange(t *testing.T) {
+	setFDLimit(t)
+
+	n := 12
+	thr := key.DefaultThreshold(n)
+	expectedBeaconPeriod := 5 * time.Second
+	beaconID := test.GetBeaconIDFromEnv()
+	dt := NewDrandTestScenarioRealClock(t, n, thr, expectedBeaconPeriod, beaconID)
+
+	group, err := dt.RunDKG()
+	require.NoError(t, err)
+	require.Equal(t, n, len(group.Nodes))
+
+	time.Sleep(2 * expectedBeaconPeriod)
+
+	err = dt.WaitUntilRound(t, dt.nodes[0], 2)
+	require.NoError(t, err)
+
+	newN := 25
+	newThr := key.DefaultThreshold(newN)
+	dt.SetupNewNodes(t, newN-n)
+	// let the nodes all wake up
+	time.Sleep(2 * time.Second)
+
+	conf := reshareConfig{
+		oldRun:  n,
+		newRun:  newN - n,
+		newThr:  newThr,
+		timeout: 10 * time.Second,
+	}
+
+	g, err := dt.RunReshare(t, &conf)
+	require.NoError(t, err)
+	require.NotNil(t, g)
+	require.Equal(t, newN, len(g.Nodes))
+}
+
 // Test Start/Stop after DKG
 // Run DKG
 // Stop last node
