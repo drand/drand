@@ -73,9 +73,6 @@ func TestChainInfo(t *testing.T) {
 	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
-	if !c1.Equal(c13) {
-		t.Errorf("Unmarshalled chain info does not match original")
-	}
 
 	require.True(t, c1.Equal(c13))
 
