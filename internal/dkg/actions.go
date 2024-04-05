@@ -19,23 +19,28 @@ func (d *Process) gossip(
 	me *drand.Participant,
 	recipients []*drand.Participant,
 	packet *drand.GossipPacket,
-) (chan bool, chan error) {
-	done := make(chan bool, 1)
-	errChan := make(chan error, 1)
-
+) chan error {
 	// we first filter the recipients to avoid a malicious broadcaster sending `nil`
 	recipients = util.Filter(recipients, func(p *drand.Participant) bool {
 		return p != nil && p.Address != ""
 	})
+	// we don't want to gossip to our own node
+	recipients = util.Without(recipients, me)
+	// we need +1 in case it's 0
+	errChan := make(chan error, len(recipients)+1)
 
 	if len(recipients) == 0 {
-		done <- true
-		return done, errChan
+		d.log.Warnw("gossip had no recipients")
+		errChan <- errors.New("gossip recipients was empty")
+		close(errChan)
+		return errChan
 	}
 
 	if packet.Metadata == nil {
+		d.log.Errorw("packet.Metadata was nil, aborting gossip")
 		errChan <- errors.New("cannot process a packet without metadata")
-		return done, errChan
+		close(errChan)
+		return errChan
 	}
 
 	// add the packet to the SeenPackets set,
@@ -44,16 +49,13 @@ func (d *Process) gossip(
 	d.SeenPackets[packetSig] = true
 
 	wg := sync.WaitGroup{}
+	wg.Add(len(recipients))
 
-	// we don't want to gossip to our own node
-	if util.Contains(recipients, me) {
-		wg.Add(len(recipients) - 1)
-	} else {
-		wg.Add(len(recipients))
-	}
 	for _, participant := range recipients {
 		p := participant
 		if p.Address == me.Address {
+			d.log.Errorw("gossip recipient was containing ourselves, please report this")
+			wg.Done()
 			continue
 		}
 
@@ -71,16 +73,18 @@ func (d *Process) gossip(
 	// signal the done channel when all the gossips + retries have been completed
 	go func() {
 		wg.Wait()
-		done <- true
+		d.log.Debugw("dkg gossip completed")
+		close(errChan)
 	}()
 
-	return done, errChan
+	return errChan
 }
 
-func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
-	retries := 8
-	backoff := 250 * time.Millisecond
+// (7*8/2)*200=5.6s max
+var retries = 7
+var backoff = 200 * time.Millisecond
 
+func sendToPeer(client net.DKGClient, p *drand.Participant, packet *drand.GossipPacket) error {
 	peer := net.CreatePeer(p.Address)
 	var err error
 	for i := 0; i < retries; i++ {

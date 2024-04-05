@@ -70,6 +70,7 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 	case *drand.DKGCommand_Resharing:
 		afterState, packetToGossip, err = d.StartProposal(ctx, beaconID, me, currentState, c.Resharing)
 	case *drand.DKGCommand_Join:
+		// packetToGossip will be always be nil for StartJoin
 		afterState, packetToGossip, err = d.StartJoin(ctx, beaconID, me, currentState, c.Join)
 	case *drand.DKGCommand_Accept:
 		afterState, packetToGossip, err = d.StartAccept(ctx, beaconID, me, currentState, c.Accept)
@@ -100,21 +101,23 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 		}
 
 		packetToGossip.Metadata = metadata
-		done, errs := d.gossip(me, recipients, packetToGossip)
-		// if it's a proposal, let's block until it finishes or a timeout,
+		errs := d.gossip(me, recipients, packetToGossip)
+		// we gossip the leavers separately - if it fails, no big deal
+		_ = d.gossip(me, afterState.Leaving, packetToGossip)
+
+		// if it's a proposal, let's block until it finishes gossiping or a timeout,
 		// because we want to be sure everybody received it
 		// QUESTION: do we _really_ want to fail on errors? we will probably have to abort if that's the case
 		if command.GetInitial() != nil || command.GetResharing() != nil {
-			select {
-			case err = <-errs:
-				return nil, err
-			case <-done:
-				break
+			allErrs := make([]error, 0, len(recipients))
+			// for will block on errs until errs is closed
+			for e := range errs {
+				allErrs = append(allErrs, e)
+			}
+			if len(allErrs) > 0 {
+				return nil, errors.Join(allErrs...)
 			}
 		}
-
-		// we gossip the leavers separately - if it fails, no big deal
-		_, _ = d.gossip(me, afterState.Leaving, packetToGossip)
 	}
 
 	return &drand.EmptyDKGResponse{}, nil
@@ -188,7 +191,7 @@ func asIdentity(response *proto.IdentityResponse) (key.Identity, error) {
 	}, nil
 }
 
-//nolint:gocyclo,funlen
+//nolint:funlen
 func (d *Process) StartProposal(
 	ctx context.Context,
 	beaconID string,
@@ -218,7 +221,7 @@ func (d *Process) StartProposal(
 			// the migration path sets the signature in the database to nil; if we have a signature, we can assume that
 			// the reshare is in fact a new network, and not migrated from v1
 			if j.Signature != nil {
-				d.log.Debugw("proposal migration - signature not nil, skipping")
+				d.log.Debugw("proposal migration - signature not nil, skipping", "sig len", len(j.Signature))
 				continue
 			}
 			// fetch their public key via gRPC
