@@ -68,12 +68,10 @@ func Without(haystack []*drand.Participant, needle *drand.Participant) []*drand.
 }
 
 func EqualParticipant(p1, p2 *drand.Participant) bool {
-	if p1 == nil || p2 == nil {
-		return false
-	}
-	return p1.Address == p2.Address &&
-		bytes.Equal(p1.Key, p2.Key) &&
-		bytes.Equal(p1.Signature, p2.Signature)
+	// we use the Getters sibce tgey handle the nil cases
+	return p1.GetAddress() == p2.GetAddress() &&
+		bytes.Equal(p1.GetKey(), p2.GetKey()) &&
+		bytes.Equal(p1.GetSignature(), p2.GetSignature())
 }
 
 func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {
