@@ -42,8 +42,9 @@ type BeaconProcess struct {
 	dbStore     chain.Store
 	privGateway *net.PrivateGateway
 
-	beacon        *beacon.Handler
-	completedDKGs *util.FanOutChan[dkg.SharingOutput]
+	beacon          *beacon.Handler
+	completedDKGs   chan dkg.SharingOutput
+	closeDKGChannel func()
 
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
@@ -85,6 +86,7 @@ func NewBeaconProcess(ctx context.Context,
 		return nil, err
 	}
 
+	dkgCh := completedDKGs.Listen()
 	bp := &BeaconProcess{
 		beaconID:      common.GetCanonicalBeaconID(beaconID),
 		store:         store,
@@ -93,8 +95,11 @@ func NewBeaconProcess(ctx context.Context,
 		version:       common.GetAppVersion(),
 		opts:          opts,
 		privGateway:   privGateway,
-		completedDKGs: completedDKGs,
-		exitCh:        make(chan bool, 1),
+		completedDKGs: dkgCh,
+		closeDKGChannel: func() {
+			completedDKGs.StopListening(dkgCh)
+		},
+		exitCh: make(chan bool, 1),
 	}
 	return bp, nil
 }
@@ -182,8 +187,7 @@ func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
 func (bp *BeaconProcess) StartListeningForDKGUpdates(ctx context.Context) {
 	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "bp.StartListeningForDKGUpdates")
 	defer span.End()
-	ch := bp.completedDKGs.Listen()
-	for dkgOutput := range ch {
+	for dkgOutput := range bp.completedDKGs {
 		if err := bp.onDKGCompleted(ctx, &dkgOutput); err != nil {
 			bp.log.Errorw("Error performing DKG key transition", "err", err)
 		}
@@ -456,6 +460,8 @@ func (bp *BeaconProcess) StopBeacon(ctx context.Context) {
 
 	bp.state.Lock()
 	defer bp.state.Unlock()
+
+	bp.closeDKGChannel()
 	if bp.beacon == nil {
 		return
 	}
