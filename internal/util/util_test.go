@@ -32,28 +32,61 @@ func TestWithout(t *testing.T) {
 		needle := &drand.Participant{
 			Address: "test",
 		}
-		list = append(list, needle)
-		list = append(list, &drand.Participant{
-			Address: "yolo",
-		})
-		list = append(list, needle)
+		list = append(list, needle,
+			&drand.Participant{Address: "yolo"},
+			needle)
 		assert.Len(st, list, 3)
 		res := Without(list, needle)
 		assert.Len(st, res, 1)
 		assert.NotContains(st, list, needle)
 	})
-	t.Run("normal usage", func(st *testing.T) {
+	t.Run("normal usage needle in the beginning", func(st *testing.T) {
 		list := make([]*drand.Participant, 0)
 		needle := &drand.Participant{
 			Address: "test",
 		}
-		list = append(list, &drand.Participant{
-			Address: "one",
-		})
-		list = append(list, &drand.Participant{
-			Address: "two",
-		})
-		list = append(list, needle)
+		list = append(list,
+			needle,
+			&drand.Participant{Address: "one"},
+			&drand.Participant{Address: "two"},
+			&drand.Participant{Address: "three"},
+		)
+		assert.Len(st, list, 4)
+		res := Without(list, needle)
+		assert.Len(st, res, 3)
+		assert.NotContains(st, list, needle)
+		// the underlying list got its items zeroized
+		assert.Contains(st, list, (*drand.Participant)(nil))
+		assert.Len(st, list, 4)
+	})
+	t.Run("normal usage needle in the end", func(st *testing.T) {
+		list := make([]*drand.Participant, 0)
+		needle := &drand.Participant{
+			Address: "test",
+		}
+		list = append(list,
+			&drand.Participant{Address: "one"},
+			&drand.Participant{Address: "two"},
+			needle,
+		)
+		assert.Len(st, list, 3)
+		res := Without(list, needle)
+		assert.Len(st, res, 2)
+		assert.NotContains(st, list, needle)
+		// the underlying list got its items zeroized
+		assert.Contains(st, list, (*drand.Participant)(nil))
+		assert.Len(st, list, 3)
+	})
+	t.Run("normal usage needle in the middle", func(st *testing.T) {
+		list := make([]*drand.Participant, 0)
+		needle := &drand.Participant{
+			Address: "test",
+		}
+		list = append(list,
+			&drand.Participant{Address: "one"},
+			needle,
+			&drand.Participant{Address: "two"},
+		)
 		assert.Len(st, list, 3)
 		res := Without(list, needle)
 		assert.Len(st, res, 2)
