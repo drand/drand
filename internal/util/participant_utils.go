@@ -68,7 +68,7 @@ func Without(haystack []*drand.Participant, needle *drand.Participant) []*drand.
 }
 
 func EqualParticipant(p1, p2 *drand.Participant) bool {
-	// we use the Getters sibce tgey handle the nil cases
+	// we use the Getters since they handle the nil cases
 	return p1.GetAddress() == p2.GetAddress() &&
 		bytes.Equal(p1.GetKey(), p2.GetKey()) &&
 		bytes.Equal(p1.GetSignature(), p2.GetSignature())

@@ -17,7 +17,7 @@ func TestWithout(t *testing.T) {
 		assert.Nil(st, res)
 		assert.NotContains(st, res, needle)
 	})
-	t.Run("emptyied haystack", func(st *testing.T) {
+	t.Run("emptied haystack", func(st *testing.T) {
 		list := make([]*drand.Participant, 0)
 		needle := &drand.Participant{
 			Address: "test",
