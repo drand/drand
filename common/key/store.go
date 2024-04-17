@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/BurntSushi/toml"
+
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/internal/fs"
