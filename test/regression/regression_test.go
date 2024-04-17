@@ -193,6 +193,9 @@ func TestMigrateOldGroupFile(t *testing.T) {
 
 //nolint:funlen
 func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
 	n := 3
 
 	// we create a few nodes on v1.5.7

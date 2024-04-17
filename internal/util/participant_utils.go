@@ -1,7 +1,7 @@
 package util
 
 import (
-	"reflect"
+	"bytes"
 	"sort"
 
 	"github.com/drand/drand/v2/common/key"
@@ -40,38 +40,38 @@ func ContainsAll(haystack, needles []*drand.Participant) bool {
 	return true
 }
 
+// Without removes needle from the haystack. Careful: it modifies the input slice but also returns the resulting slice.
+// It removes all instances of needle, and zeros the removed items to allow garbage collection.
 func Without(haystack []*drand.Participant, needle *drand.Participant) []*drand.Participant {
 	if haystack == nil {
 		return nil
 	}
 
-	indexToRemove := -1
-	for i, v := range haystack {
+	// ret will reuse the underlying array of haystack
+	ret := haystack[:0]
+	for _, v := range haystack {
 		if EqualParticipant(v, needle) {
-			indexToRemove = i
+			continue
 		}
+		ret = append(ret, v)
+	}
+	// we let the deleted items get garbage collected
+	for i := len(ret); i < len(haystack); i++ {
+		haystack[i] = nil
 	}
 
-	if indexToRemove == -1 {
-		return haystack
-	}
-
-	if len(haystack) == 1 {
+	if len(ret) == 0 {
 		return nil
 	}
 
-	var ret []*drand.Participant
-	ret = append(ret, haystack[:indexToRemove]...)
-	return append(ret, haystack[indexToRemove+1:]...)
+	return ret
 }
 
 func EqualParticipant(p1, p2 *drand.Participant) bool {
-	if p1 == nil || p2 == nil {
-		return false
-	}
-	return p1.Address == p2.Address &&
-		reflect.DeepEqual(p1.Key, p2.Key) &&
-		reflect.DeepEqual(p1.Signature, p2.Signature)
+	// we use the Getters since they handle the nil cases
+	return p1.GetAddress() == p2.GetAddress() &&
+		bytes.Equal(p1.GetKey(), p2.GetKey()) &&
+		bytes.Equal(p1.GetSignature(), p2.GetSignature())
 }
 
 func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {

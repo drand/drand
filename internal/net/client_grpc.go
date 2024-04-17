@@ -33,7 +33,7 @@ type grpcClient struct {
 	log           log.Logger
 }
 
-var defaultConnTimeout = 1 * time.Minute
+var defaultConnTimeout = 5 * time.Second
 var defaultHealthTimeout = 3 * time.Second
 
 // NewGrpcClient returns an implementation of an InternalClient  and
