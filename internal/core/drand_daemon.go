@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -166,7 +167,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		span.RecordError(err)
 		return err
 	}
-	dkgStore, err := dkg.NewDKGStore(c.configFolder, c.boltOpts)
+	dkgStore, err := dkg.NewDKGStore(path.Join(c.configFolder, common.MultiBeaconFolder))
 	if err != nil {
 		span.RecordError(err)
 		return err

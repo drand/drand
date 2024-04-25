@@ -10,7 +10,7 @@
 VER_PACKAGE=github.com/drand/drand/v2/common
 CLI_PACKAGE=github.com/drand/drand/v2/internal/drand-cli
 
-GIT_REVISION := $(shell git rev-parse --short HEAD)
+GIT_REVISION := $(shell git rev-parse --short HEAD ;)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
 ifneq ($(CI),)
