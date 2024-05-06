@@ -166,7 +166,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		span.RecordError(err)
 		return err
 	}
-	dkgStore, err := dkg.NewDKGStore(c.configFolder, c.boltOpts)
+	dkgStore, err := dkg.NewDKGStore(c.configFolder)
 	if err != nil {
 		span.RecordError(err)
 		return err

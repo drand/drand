@@ -24,13 +24,76 @@ type BoltStore struct {
 }
 
 const BoltFileName = "dkg.db"
+const dkgFileName = "dkg.toml"
+const dkgStagedFileName = "dkg.staged.toml"
 const BoltStoreOpenPerm = 0660
 const DirPerm = 0755
 
 var stagedStateBucket = []byte("dkg")
 var finishedStateBucket = []byte("dkg_finished")
 
-func NewDKGStore(baseFolder string, options *bolt.Options) (*BoltStore, error) {
+type FileStore struct {
+	baseFolder string
+}
+
+func NewDKGStore(baseFolder string) (*FileStore, error) {
+	err := os.MkdirAll(baseFolder, 0770)
+	if err != nil {
+		return nil, err
+	}
+	return &FileStore{baseFolder: baseFolder}, nil
+}
+
+func getFromFilePath(path string) (*DBStateTOML, error) {
+	t := DBStateTOML{}
+	_, err := toml.DecodeFile(path, &t)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (fs FileStore) GetCurrent(beaconID string) (*DBStateTOML, error) {
+	return getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName))
+}
+
+func (fs FileStore) GetFinished(beaconID string) (*DBStateTOML, error) {
+	return getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName))
+}
+
+func saveToFilePath(filepath string, state *DBStateTOML) error {
+	w, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	err = toml.NewEncoder(w).Encode(state)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// SaveCurrent stores a DKG packet for an ongoing DKG
+func (fs FileStore) SaveCurrent(beaconID string, state *DBStateTOML) error {
+	return saveToFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName), state)
+}
+
+// SaveFinished stores a completed, successful DKG and overwrites the current packet
+func (fs FileStore) SaveFinished(beaconID string, state *DBStateTOML) error {
+	return saveToFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName), state)
+}
+
+// Close closes and cleans up any database handles
+func (fs FileStore) Close() error {
+	return nil
+}
+func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
+	return saveToFilePath(fs.baseFolder())
+
+	return nil
+}
+
+func OldNewDKGStore(baseFolder string, options *bolt.Options) (*BoltStore, error) {
 	err := os.MkdirAll(baseFolder, DirPerm)
 	if err != nil {
 		return nil, err
@@ -176,14 +239,22 @@ func (s *BoltStore) Close() error {
 }
 
 func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
+	state, err := GroupFileToDBState(beaconID, groupFile, share)
+	if err != nil {
+		return err
+	}
+	return s.SaveFinished(beaconID, state)
+}
+
+func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share) (*DBState, error) {
 	if beaconID == "" {
-		return errors.New("you must pass a beacon ID")
+		return errors.New("you must pass a beacon ID"), nil
 	}
 	if groupFile == nil {
-		return errors.New("you cannot migrate without passing a previous group file")
+		return errors.New("you cannot migrate without passing a previous group file"), nil
 	}
 	if share == nil {
-		return errors.New("you cannot migrate without a previous distributed key share")
+		return errors.New("you cannot migrate without a previous distributed key share"), nil
 	}
 	// we use a separate lock here to avoid reentrancy when calling `.SaveFinished()`
 	s.migrationLock.Lock()
@@ -191,24 +262,24 @@ func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 
 	current, err := s.GetFinished(beaconID)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	// if there has previously been a DKG in the database, abort!
 	if current != nil {
-		return errors.New("cannot migrate from groupfile if DKG state exists for beacon")
+		return errors.New("cannot migrate from groupfile if DKG state exists for beacon"), nil
 	}
 
 	// map all the nodes from the group file into `drand.Participant`s
 	participants := make([]*pdkg.Participant, len(groupFile.Nodes))
 
 	if len(groupFile.Nodes) == 0 {
-		return errors.New("you cannot migrate from a group file that doesn't contain node info")
+		return errors.New("you cannot migrate from a group file that doesn't contain node info"), nil
 	}
 	for i, node := range groupFile.Nodes {
 		pk, err := node.Key.MarshalBinary()
 		if err != nil {
-			return err
+			return err, nil
 		}
 
 		// MIGRATION PATH: the signature is `nil` here due to an incompatibility between v1 and v2 sigs over pub keys
@@ -221,7 +292,7 @@ func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	}
 
 	// create an epoch 1 state with the 0th node as the leader
-	state := DBState{
+	return &DBState{
 		BeaconID:      beaconID,
 		Epoch:         1,
 		State:         Complete,
@@ -240,9 +311,8 @@ func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		Rejectors:     nil,
 		FinalGroup:    groupFile,
 		KeyShare:      share,
-	}
+	}, nil
 
-	return s.SaveFinished(beaconID, &state)
 }
 
 func (s *BoltStore) NukeState(beaconID string) error {

@@ -13,6 +13,14 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
+func TestDKGMigrationToTOML(t *testing.T) {
+	store, err := NewDKGStore(t.TempDir(), nil)
+	require.NoError(t, err)
+
+	err = store.MigrateFromGroupfile("some-beacon", nil, fakeShare())
+	require.Error(t, err)
+}
+
 func TestNilGroupFails(t *testing.T) {
 	store, err := NewDKGStore(t.TempDir(), nil)
 	require.NoError(t, err)

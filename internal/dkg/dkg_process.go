@@ -56,19 +56,16 @@ type SharingOutput struct {
 type Store interface {
 	// GetCurrent returns the current DKG information, finished DKG information or fresh DKG information,
 	// depending on the state of the world
-	GetCurrent(beaconID string) (*DBState, error)
+	GetCurrent(beaconID string) (*DBStateTOML, error)
 
 	// GetFinished returns the last completed DKG state (i.e. completed or aborted), or nil if one has not been finished
-	GetFinished(beaconID string) (*DBState, error)
+	GetFinished(beaconID string) (*DBStateTOML, error)
 
 	// SaveCurrent stores a DKG packet for an ongoing DKG
-	SaveCurrent(beaconID string, state *DBState) error
+	SaveCurrent(beaconID string, state *DBStateTOML) error
 
 	// SaveFinished stores a completed, successful DKG and overwrites the current packet
-	SaveFinished(beaconID string, state *DBState) error
-
-	// Close closes and cleans up any database handles
-	Close() error
+	SaveFinished(beaconID string, state *DBStateTOML) error
 
 	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 	// It will fail if DKG state already exists for the given beaconID
