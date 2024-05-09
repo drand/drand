@@ -46,27 +46,42 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return &drand.EmptyDKGResponse{}, nil
 	}
 
-	// if we're in the DKG protocol phase, we automatically broadcast it
+	// if we're in the DKG protocol phase, we automatically broadcast it as it shouldn't update state
 	if packet.GetDkg() != nil {
 		return d.BroadcastDKG(ctx, packet.GetDkg())
 	}
 
 	beaconID := packet.Metadata.BeaconID
-	me, err := d.identityForBeacon(beaconID)
+	err := d.applyPacketToState(beaconID, packet)
 	if err != nil {
 		return nil, err
 	}
 
+	if packet.GetExecute() != nil {
+		if err := d.executeDKG(ctx, beaconID, packet.GetExecute().Time.AsTime()); err != nil {
+			return nil, err
+		}
+	}
+
+	return &drand.EmptyDKGResponse{}, nil
+}
+
+func (d *Process) applyPacketToState(beaconID string, packet *drand.GossipPacket) error {
+	me, err := d.identityForBeacon(beaconID)
+	if err != nil {
+		return err
+	}
+
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// if we have aborted or timed out, we actually want to apply the proposal to the last successful state
 	if util.Cont(terminalStates, current.State) {
 		current, err = d.store.GetFinished(beaconID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if current == nil {
@@ -76,18 +91,18 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 
 	nextState, err := current.Apply(me, packet)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// we must verify the message against the next state, as the current state upon first proposal will be empty
 	err = d.verifyMessage(packet, packet.Metadata, termsFromState(nextState))
 	if err != nil {
-		return nil, fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
+		return fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
 	}
 
 	err = d.store.SaveCurrent(beaconID, nextState)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	metrics.DKGStateChange(nextState.BeaconID, nextState.Epoch, nextState.Leader == me, uint32(nextState.State))
@@ -97,14 +112,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	_ = d.gossip(me, recipients, packet)
 	// we could theoretically ignore when the gossip ends, but due to the mutex we're holding it _could_ lead to a race
 	// condition with future requests
-
-	if packet.GetExecute() != nil {
-		if err := d.executeDKG(ctx, beaconID, packet.GetExecute().Time.AsTime()); err != nil {
-			return nil, err
-		}
-	}
-
-	return &drand.EmptyDKGResponse{}, nil
+	return nil
 }
 
 func commandType(command *drand.DKGCommand) string {

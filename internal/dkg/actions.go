@@ -13,8 +13,6 @@ import (
 )
 
 // gossip marks a DKG packet as seen and sends it to the other parties in the network (that are passed in)
-//
-//nolint:gocritic // ewww the linter wants me to use named parameters
 func (d *Process) gossip(
 	me *drand.Participant,
 	recipients []*drand.Participant,
