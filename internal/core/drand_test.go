@@ -34,7 +34,6 @@ import (
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
-//nolint:gocritic // this isn't a test, so its name is fine
 func setFDLimit(t *testing.T) {
 	fdOpen := uint64(3000)
 	curr, max, err := unixGetLimit()
