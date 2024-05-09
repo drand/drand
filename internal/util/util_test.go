@@ -98,7 +98,8 @@ func TestWithout(t *testing.T) {
 		assert.Len(st, list, 3)
 	})
 	t.Run("nil needle with nil entries", func(st *testing.T) {
-		list := make([]*drand.Participant, 0, 3)
+		list := make([]*drand.Participant, 3)
+		//nolint:makezero // this is intentional and trying to set it to 3,3 also makes the linter complain :)
 		list = append(list, &drand.Participant{
 			Address: "one",
 		}, &drand.Participant{
