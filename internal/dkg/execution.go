@@ -115,7 +115,12 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	output, err := d.startDKGExecution(ctx, beaconID, current, config)
 	if err != nil {
 		dkgErr := err
-		d.log.Errorw("DKG failed as too many nodes were evicted. Storing failed state")
+		d.log.Errorw("DKG failed. Storing failed state")
+		// we need to refetch the current state here, as `startDKGExecution` may have changed it
+		current, err := d.store.GetCurrent(beaconID)
+		if err != nil {
+			return errors.Join(dkgErr, err)
+		}
 
 		next, err := current.Failed()
 		if err != nil {
