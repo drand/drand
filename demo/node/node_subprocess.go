@@ -414,7 +414,7 @@ func (n *NodeProc) Stop() {
 		killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
 		killPid.Run()
 	}
-	fmt.Printf(" -- trying to ping %s, expecting it to fail.", n.ctrl)
+	fmt.Printf(" -- trying to ping %s, expecting it to fail.\n", n.ctrl)
 	for i := 0; i < 3; i++ {
 		if n.Ping() {
 			time.Sleep(500 * time.Millisecond)
@@ -452,7 +452,7 @@ func pair(k, v string) []string {
 func runCommand(c *exec.Cmd, add ...string) []byte {
 	out, err := c.CombinedOutput()
 	if err != nil {
-		fmt.Printf("[-] Error: %v", err)
+		fmt.Printf("[-] Error: %v\n", err)
 		if len(add) > 0 {
 			fmt.Printf("[-] Msg failed command: %s\n", add[0])
 		}

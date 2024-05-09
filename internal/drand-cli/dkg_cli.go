@@ -743,7 +743,7 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	fmt.Printf("Proposal created successfully at path %s", filepath)
+	fmt.Printf("Proposal created successfully at path %s\n", filepath)
 	return nil
 }
 
