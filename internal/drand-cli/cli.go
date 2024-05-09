@@ -133,18 +133,6 @@ var thresholdFlag = &cli.IntFlag{
 	EnvVars: []string{"DRAND_THRESHOLD"},
 }
 
-// secretFlag is the "manual" security when the "leader"/coordinator creates the
-// group: every participant must know this secret. It is not a consensus, not
-// perfect, but since all members are known after the protocol, and members can
-// decide to redo the setup, it works in practice well enough.
-// TODO Add a manual check when the group is created so the user manually ACK.
-var secretFlag = &cli.StringFlag{
-	Name: "secret-file",
-	Usage: "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant." +
-		" must be at least 32 characters.",
-	EnvVars: []string{"DRAND_SECRET_FILE"},
-}
-
 var oldGroupFlag = &cli.StringFlag{
 	Name: "from",
 	Usage: "Old group.toml path to specify when a new node wishes to participate " +
