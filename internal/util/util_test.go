@@ -4,9 +4,11 @@ import (
 	"testing"
 
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+
 	"github.com/stretchr/testify/assert"
 )
 
+//nolint:funlen // it's a test
 func TestWithout(t *testing.T) {
 	t.Run("empty haystack", func(st *testing.T) {
 		empty := make([]*drand.Participant, 0)
@@ -96,11 +98,10 @@ func TestWithout(t *testing.T) {
 		assert.Len(st, list, 3)
 	})
 	t.Run("nil needle with nil entries", func(st *testing.T) {
-		list := make([]*drand.Participant, 3)
+		list := make([]*drand.Participant, 0, 3)
 		list = append(list, &drand.Participant{
 			Address: "one",
-		})
-		list = append(list, &drand.Participant{
+		}, &drand.Participant{
 			Address: "two",
 		})
 		assert.Contains(st, list, (*drand.Participant)(nil))
@@ -111,11 +112,10 @@ func TestWithout(t *testing.T) {
 		assert.NotContains(st, res, (*drand.Participant)(nil))
 	})
 	t.Run("nil needle", func(st *testing.T) {
-		list := make([]*drand.Participant, 0)
+		list := make([]*drand.Participant, 0, 2)
 		list = append(list, &drand.Participant{
 			Address: "one",
-		})
-		list = append(list, &drand.Participant{
+		}, &drand.Participant{
 			Address: "two",
 		})
 		assert.Len(st, list, 2)
@@ -131,11 +131,9 @@ func TestWithout(t *testing.T) {
 		}
 		list = append(list, &drand.Participant{
 			Address: "one",
-		})
-		list = append(list, &drand.Participant{
+		}, &drand.Participant{
 			Address: "two",
-		})
-		list = append(list, needle)
+		}, needle)
 		assert.Len(st, list, 3)
 		res := Without(list, needle)
 		assert.Len(st, res, 2)
@@ -150,11 +148,9 @@ func TestWithout(t *testing.T) {
 		list = append(list, &drand.Participant{
 			Address: "one",
 			Key:     []byte("another different address"),
-		})
-		list = append(list, &drand.Participant{
+		}, &drand.Participant{
 			Address: "two",
-		})
-		list = append(list, needle)
+		}, needle)
 		assert.Len(st, list, 3)
 		res := Without(list, needle)
 		assert.Len(st, res, 2)
