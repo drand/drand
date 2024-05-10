@@ -17,7 +17,6 @@ import (
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
 	dhttp "github.com/drand/drand/v2/handler/http"
-	"github.com/drand/drand/v2/internal/chain"
 	"github.com/drand/drand/v2/internal/dkg"
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/metrics/pprof"
@@ -93,10 +92,6 @@ func NewDrandDaemon(ctx context.Context, c *Config) (*DrandDaemon, error) {
 	if err := drandDaemon.init(ctx); err != nil {
 		return nil, err
 	}
-
-	metrics.DrandStorageBackend.
-		WithLabelValues(string(c.dbStorageEngine)).
-		Set(float64(chain.MetricsStorageType(c.dbStorageEngine)))
 
 	return drandDaemon, nil
 }

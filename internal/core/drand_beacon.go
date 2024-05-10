@@ -21,6 +21,7 @@ import (
 	"github.com/drand/drand/v2/internal/chain/postgresdb/pgdb"
 	"github.com/drand/drand/v2/internal/dkg"
 	"github.com/drand/drand/v2/internal/fs"
+	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/util"
 	"github.com/drand/drand/v2/protobuf/drand"
@@ -362,12 +363,21 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 	case chain.BoltDB:
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
+		// metrics are set in the NewBoltStore since there are two types, trimmed and untrimmed
 		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath, bp.opts.boltOpts)
 
 	case chain.MemDB:
+		metrics.DrandStorageBackend.
+			WithLabelValues("memdb").
+			Set(float64(chain.MemDBMetrics))
+
 		dbStore, err = memdb.NewStore(bp.opts.memDBSize), nil
 
 	case chain.PostgreSQL:
+		metrics.DrandStorageBackend.
+			WithLabelValues("postgres").
+			Set(float64(chain.PostgreSQLMetrics))
+
 		dbStore, err = pgdb.NewStore(ctx, bp.log, bp.opts.pgConn, beaconName)
 
 	default:
