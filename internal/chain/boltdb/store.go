@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/drand/drand/v2/common/tracer"
+	"github.com/drand/drand/v2/internal/metrics"
 
 	json "github.com/nikkolasg/hexjson"
 	bolt "go.etcd.io/bbolt"
@@ -66,10 +67,18 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	dbPath := path.Join(folder, BoltFileName)
 
 	if shouldUseTrimmedBolt(ctx, l, dbPath, opts) {
+		metrics.DrandStorageBackend.
+			WithLabelValues("bolt-trimmed").
+			Set(float64(chain.BoltTrimmedMetrics))
+
 		return newTrimmedStore(ctx, l, folder, opts)
 	}
 
 	l.Infow("Starting boltdb", "mode", "untrimmed")
+
+	metrics.DrandStorageBackend.
+		WithLabelValues("bolt-untrimmed").
+		Set(float64(chain.BoltUntrimmedMetrics))
 
 	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
 	if err != nil {
