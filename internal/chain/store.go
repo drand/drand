@@ -3,7 +3,6 @@ package chain
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 
 	"github.com/drand/drand/v2/common"
@@ -60,25 +59,11 @@ const (
 // Metrics values for reporting storage type used. Only append new values.
 // Also, add new values to the DrandStorageBackend metric Help.
 const (
-	boltDBMetrics = iota + 1
-	postgreSQLMetrics
-	memDBMetrics
+	BoltTrimmedMetrics = iota + 1
+	PostgreSQLMetrics
+	MemDBMetrics
+	BoltUntrimmedMetrics
 )
-
-func MetricsStorageType(st StorageType) int {
-	switch st {
-	case BoltDB:
-		return boltDBMetrics
-	case PostgreSQL:
-		return postgreSQLMetrics
-	case MemDB:
-		return memDBMetrics
-	default:
-		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
-		// Please add the storage type to the Metrics values list above and to the DrandStorageBackend metric Help
-		panic(err)
-	}
-}
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
