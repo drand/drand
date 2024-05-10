@@ -27,6 +27,12 @@ import (
 	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
+var dkgGroupFlag = &cli.StringFlag{
+	Name:    "group",
+	Usage:   "The group file of the previous epoch",
+	EnvVars: []string{"DRAND_DKG_GROUP"},
+}
+
 var dkgCommand = &cli.Command{
 	Name:  "dkg",
 	Usage: "Commands for interacting with the DKG",
@@ -71,8 +77,7 @@ var dkgCommand = &cli.Command{
 			Flags: toArray(
 				beaconIDFlag,
 				controlFlag,
-				secretFlag,
-				groupFlag,
+				dkgGroupFlag,
 			),
 			Action: joinNetwork,
 		},
@@ -354,8 +359,8 @@ func joinNetwork(c *cli.Context) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
 
 	var groupFile []byte
-	if c.IsSet(groupFlag.Name) {
-		fileContents, err := os.ReadFile(c.String(groupFlag.Name))
+	if c.IsSet(dkgGroupFlag.Name) {
+		fileContents, err := os.ReadFile(c.String(dkgGroupFlag.Name))
 		if err != nil {
 			return err
 		}
