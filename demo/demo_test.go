@@ -44,7 +44,7 @@ func testLocalOrchestration(t *testing.T) {
 	c := cfg.Config{
 		N:            3,
 		Thr:          2,
-		Period:       "4s",
+		Period:       "1s",
 		Binary:       "",
 		WithCurl:     false,
 		Scheme:       sch,
@@ -103,7 +103,7 @@ func TestRunShitloadsOfDKGs(t *testing.T) {
 	c := cfg.Config{
 		N:            3,
 		Thr:          2,
-		Period:       "4s",
+		Period:       "1s",
 		Binary:       "",
 		WithCurl:     false,
 		Scheme:       sch,
