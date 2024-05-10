@@ -136,11 +136,6 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 		t.Cleanup(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			select {
-			case <-daemon.exitCh:
-			case <-ctx.Done():
-				t.Log("timeout waiting for beacon process to exit")
-			}
 			daemon.Stop(ctx)
 		})
 	}
