@@ -113,6 +113,7 @@ func (d *Process) Close() {
 	if err != nil {
 		d.log.Errorw("error closing the database", "err", err)
 	}
+	close(d.completedDKGs.Chan())
 }
 
 // Migrate takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
