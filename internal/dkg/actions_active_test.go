@@ -247,6 +247,24 @@ func TestReshare(t *testing.T) {
 			expectedError:            nil,
 			expectedNetworkCallCount: 2,
 		},
+		{
+			name:     "valid proposal after abort does not change epoch",
+			proposal: &validProposal,
+			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.ProposalOptions, expectedError error) {
+				failedState := NewCompleteDKGEntry(t, beaconID, Aborted, alice, bob)
+				failedState.Epoch = uint32(2)
+				store.On("GetCurrent", beaconID).Return(failedState, nil)
+				store.On("GetFinished", beaconID).Return(NewCompleteDKGEntry(t, beaconID, Complete, alice, bob), nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
+			},
+			validateOutput: func(output *DBState) {
+				require.Equal(t, Proposing, output.State)
+				require.Equal(t, uint32(2), output.Epoch)
+			},
+			expectedError:            nil,
+			expectedNetworkCallCount: 2,
+		},
 	}
 
 	for _, test := range tests {

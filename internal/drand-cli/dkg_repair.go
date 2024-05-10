@@ -8,12 +8,15 @@ import (
 	"strings"
 
 	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/internal/core"
 	"github.com/drand/drand/v2/internal/dkg"
 
 	"github.com/urfave/cli/v2"
 )
 
+// NukeDKGStateCmd is for removing your DKG database and group details for a given beacon.
+// the node must be switched off for it to be run.
 func NukeDKGStateCmd(c *cli.Context) error {
 	baseFolder := c.String(folderFlag.Name)
 	beaconID := c.String(beaconIDFlag.Name)
@@ -34,6 +37,11 @@ func NukeDKGStateCmd(c *cli.Context) error {
 	}
 
 	if err := store.NukeState(beaconID); err != nil {
+		return err
+	}
+
+	fileStore := key.NewFileStore(baseFolder, beaconID)
+	if err := fileStore.Reset(); err != nil {
 		return err
 	}
 
