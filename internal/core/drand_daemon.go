@@ -182,7 +182,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		KickoffGracePeriod:   c.dkgKickoffGracePeriod,
 		SkipKeyVerification:  false,
 	}
-	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway.DKGClient, dd.privGateway.ProtocolClient, dkgConfig, dd.log)
+	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dd.privGateway.DKGClient, dd.privGateway.ProtocolClient, dkgConfig, dd.log.Named("dkg"))
 
 	go dd.control.Start()
 
