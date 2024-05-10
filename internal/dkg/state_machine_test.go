@@ -859,6 +859,34 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			},
 			expectedError: InvalidStateChange(Rejected, Proposing),
 		},
+		{
+			name: "proposing a DKG without accepted nodes from prior epoch who didn't make the final group file succeeds",
+			startingState: func() *DBState {
+				// here we create a complete dkg entry with alice, bob and carol
+				entry := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+				g := entry.FinalGroup
+				// but we remove carol from the final group file, as if she failed the DKG
+				var missingCarol []*key.Node
+				for _, n := range g.Nodes {
+					if n.Identity.Address() != carol.Address {
+						missingCarol = append(missingCarol, n)
+					}
+				}
+				g.Nodes = missingCarol
+				entry.FinalGroup = g
+				return entry
+			}(),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Proposing(alice, NewValidProposal(beaconID, 2, alice, bob))
+			},
+			expectedResult: func() *DBState {
+				e := NewCompleteDKGEntry(t, beaconID, Proposing, alice, bob)
+				e.Epoch = 2
+				// final group should be wiped in the updated state
+				e.FinalGroup = nil
+				return e
+			}(),
+		},
 	}
 
 	RunStateChangeTest(t, tests)
@@ -1732,7 +1760,7 @@ func NewValidProposal(beaconID string, epoch uint32, leader *drand.Participant, 
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
 		SchemeID:             sch.Name,
-		Remaining:            append([]*drand.Participant{leader}, others...),
+		Remaining:            append(others, leader),
 	}
 }
 

@@ -843,11 +843,23 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 		return ErrGenesisSeedCannotChange
 	}
 
-	if !util.ContainsAll(append(currentState.Remaining, currentState.Joining...), append(terms.Remaining, terms.Leaving...)) {
+	lastEpochParticipants := make([]*drand.Participant, len(currentState.FinalGroup.Nodes))
+	for i, node := range currentState.FinalGroup.Nodes {
+		k, err := node.Key.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		lastEpochParticipants[i] = &drand.Participant{
+			Address:   node.Address(),
+			Key:       k,
+			Signature: node.Signature,
+		}
+	}
+	if !util.ContainsAll(lastEpochParticipants, append(terms.Remaining, terms.Leaving...)) {
 		return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
 	}
 
-	if !util.ContainsAll(append(terms.Remaining, terms.Leaving...), append(currentState.Remaining, currentState.Joining...)) {
+	if !util.ContainsAll(append(terms.Remaining, terms.Leaving...), lastEpochParticipants) {
 		return ErrMissingNodesInProposal
 	}
 
