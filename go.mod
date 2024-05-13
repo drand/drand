@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/ardanlabs/darwin/v2 v2.0.0
 	github.com/briandowns/spinner v1.23.0
-	github.com/drand/kyber v1.3.0
+	github.com/drand/kyber v1.3.1-0.20240510082449-94dae51d79b4
 	github.com/drand/kyber-bls12381 v0.3.1
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
