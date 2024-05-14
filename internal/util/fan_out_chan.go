@@ -67,4 +67,5 @@ func (f *FanOutChan[T]) Close() {
 		close(l)
 	}
 	f.listeners = make([]chan T, 0)
+	close(f.delegate)
 }
