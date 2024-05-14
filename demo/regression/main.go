@@ -70,7 +70,10 @@ func testReshare(orch *lib.Orchestrator) (err error) {
 	if err != nil {
 		panic(err)
 	}
-	orch.RunResharing(resharingGroup, 60*time.Second)
+	_, err = orch.RunResharing(resharingGroup, 60*time.Second)
+	if err != nil {
+		panic(err)
+	}
 	orch.WaitTransition()
 	// look if beacon is still up even with the nodeToExclude being offline
 	orch.WaitPeriod()

@@ -137,7 +137,10 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("[+] Starting resharing")
-	orch.RunResharing(resharingGroup, 1*time.Minute)
+	_, err = orch.RunResharing(resharingGroup, 1*time.Minute)
+	if err != nil {
+		panic(err)
+	}
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {

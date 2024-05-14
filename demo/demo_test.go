@@ -4,6 +4,7 @@ package main_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -43,7 +44,7 @@ func testLocalOrchestration(t *testing.T) {
 	c := cfg.Config{
 		N:            3,
 		Thr:          2,
-		Period:       "4s",
+		Period:       "1s",
 		Binary:       "",
 		WithCurl:     false,
 		Scheme:       sch,
@@ -92,4 +93,41 @@ func testLocalOrchestration(t *testing.T) {
 	o.CheckCurrentBeacon()
 
 	t.Log("[DEBUG]", "[+] LocalOrchestration test finished, initiating shutdown")
+}
+
+func TestRunShitloadsOfDKGs(t *testing.T) {
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	c := cfg.Config{
+		N:            3,
+		Thr:          2,
+		Period:       "1s",
+		Binary:       "",
+		WithCurl:     false,
+		Scheme:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  true,
+		DBEngineType: withTestDB(),
+		PgDSN:        withPgDSN(t),
+		MemDBSize:    10,
+	}
+	o := lib.NewOrchestrator(c)
+	defer o.Shutdown()
+	t.Log("[DEBUG]", "[+] StartCurrentNodes")
+	err = o.StartCurrentNodes()
+	require.NoError(t, err)
+
+	err = o.RunDKG(20 * time.Second)
+	require.NoError(t, err)
+
+	for i := 0; i < 20; i++ {
+		fmt.Printf("[+] Running reshare %d\n", i+1)
+		resharingGroup, err := o.CreateResharingGroup(0, c.Thr)
+		require.NoError(t, err)
+		_, err = o.RunResharingForEpoch(resharingGroup, 20*time.Second, uint32(i+2))
+		require.NoError(t, err)
+		time.Sleep(1 * time.Second)
+	}
 }
