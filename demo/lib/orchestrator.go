@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -478,8 +479,11 @@ func (e *Orchestrator) isNew(n node.Node) bool {
 	}
 	return false
 }
+func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time.Duration) (*key.Group, error) {
+	return e.RunResharingForEpoch(resharingGroup, timeout, uint32(2))
+}
 
-func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time.Duration) {
+func (e *Orchestrator) RunResharingForEpoch(resharingGroup *ResharingGroup, timeout time.Duration, epoch uint32) (*key.Group, error) {
 	fmt.Println("[+] Running DKG for resharing nodes")
 	leader := e.reshareNodes[0]
 
@@ -487,7 +491,7 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	catchupPeriod := 0
 	err := leader.StartLeaderReshare(e.newThr, catchupPeriod, resharingGroup.joining, resharingGroup.remaining, resharingGroup.leaving)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	oldGroup := *leader.GetGroup()
@@ -496,29 +500,34 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 		fmt.Printf("\t- Joining DKG for node %s\n", n.PrivateAddr())
 		err = n.JoinReshare(oldGroup)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		fmt.Printf("\t- Joined DKG for node %s\n", n.PrivateAddr())
 	}
 
+	done := make(map[string]bool)
 	for _, n := range except(e.reshareNodes[1:], e.newNodes) {
 		n := n
+		if n.Index() == leader.Index() || done[n.PublicAddr()] {
+			continue
+		}
 		fmt.Printf("\t- Accepting DKG for node %s\n", n.PrivateAddr())
 		err = n.AcceptReshare()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
+		done[n.PublicAddr()] = true
 		fmt.Printf("\t- Accepted DKG for node %s\n", n.PrivateAddr())
 	}
 
 	err = leader.ExecuteLeaderReshare()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	_, err = leader.WaitDKGComplete(2, timeout)
+	_, err = leader.WaitDKGComplete(epoch, timeout)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
 
@@ -538,7 +547,9 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	checkErr(key.Load(e.newGroupPath, newgroup))
 	if !oldgroup.PublicKey.Key().Equal(newgroup.PublicKey.Key()) {
 		fmt.Printf("[-] Invalid distributed key !\n")
+		return nil, errors.New("invalid distributed key")
 	}
+	return newgroup, nil
 }
 
 func createNodes(cfg cfg.Config) ([]node.Node, []string) {
