@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -62,7 +63,7 @@ func (d *Process) gossip(
 			err := sendToPeer(d.internalClient, p, packet)
 			if err != nil {
 				d.log.Warnw("tried gossiping a packet but failed", "addr", p.Address, "packet", packetSig[0:8], "err", err)
-				errChan <- err
+				errChan <- fmt.Errorf("error sending packet to %s: %w", p.Address, err)
 			}
 			wg.Done()
 		}()
