@@ -385,12 +385,8 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 		dbStore, err = pgdb.NewStore(ctx, bp.log, bp.opts.pgConn, beaconName)
 
 	default:
-		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
-
-		dbPath := bp.opts.DBFolder(beaconName)
-		fs.CreateSecureFolder(dbPath)
-
-		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath, bp.opts.boltOpts)
+		// we default to "bolt" in the storageTypeFlag, so we return an error to alert users trying to use invalid DB
+		return nil, fmt.Errorf("unknown database storage engine type %q", bp.opts.dbStorageEngine)
 	}
 
 	bp.dbStore = dbStore
