@@ -329,8 +329,8 @@ var appCommands = []*cli.Command{
 				return fmt.Errorf("unable to self-sign using new format for keys, check your installation. Err: %w", err)
 			}
 
+			// everything seems fine, we can start
 			banner(c.App.Writer)
-			// l := log.New(nil, logLevel(c), logJSON(c))
 			return startCmd(c, l)
 		},
 	},
