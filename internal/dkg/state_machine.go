@@ -462,6 +462,9 @@ func (d *DBState) Rejected(me *drand.Participant) (*DBState, error) {
 		return nil, ErrCannotRejectProposalWhereLeaving
 	}
 
+	d.Rejectors = append(d.Rejectors, me)
+	d.Acceptors = util.Without(d.Acceptors, me)
+
 	d.State = Rejected
 	return d, nil
 }

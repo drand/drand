@@ -299,13 +299,17 @@ func TestJoin(t *testing.T) {
 	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
 
-	var groupFile bytes.Buffer
 	pub, err := myKeypair.Public.Key.MarshalBinary()
 	require.NoError(t, err)
-	err = toml.NewEncoder(&groupFile).Encode(&key.GroupTOML{
-		Threshold:     2,
-		Period:        "5s",
-		CatchupPeriod: "5s",
+
+	sample := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
+	require.NoError(t, err)
+	groupFileToml := key.GroupTOML{
+		Threshold:     int(sample.Threshold),
+		Period:        sample.BeaconPeriod.String(),
+		CatchupPeriod: sample.CatchupPeriod.String(),
+		GenesisTime:   sample.GenesisTime.Unix(),
+		GenesisSeed:   hex.EncodeToString(sample.GenesisSeed),
 		Nodes: []*key.NodeTOML{
 			{
 				PublicTOML: &key.PublicTOML{
@@ -335,7 +339,14 @@ func TestJoin(t *testing.T) {
 				Index: 3,
 			},
 		},
-	})
+	}
+
+	groupFile := &key.Group{}
+	err = groupFile.FromTOML(&groupFileToml)
+	require.NoError(t, err)
+
+	var groupFileBytes bytes.Buffer
+	err = toml.NewEncoder(&groupFileBytes).Encode(&groupFileToml)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -364,10 +375,11 @@ func TestJoin(t *testing.T) {
 		},
 		{
 			name:        "join on second epoch succeeds with group file but does not gossip anything",
-			joinOptions: &drand.JoinOptions{GroupFile: groupFile.Bytes()},
+			joinOptions: &drand.JoinOptions{GroupFile: groupFileBytes.Bytes()},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
 				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob, carol)
 				current.Epoch = 2
+				current.FinalGroup = groupFile
 				current.Joining = []*drand.Participant{alice}
 				store.On("GetCurrent", beaconID).Return(current, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
