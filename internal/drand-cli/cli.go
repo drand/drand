@@ -59,16 +59,13 @@ var folderFlag = &cli.StringFlag{
 		l.Infow("Using non-default path", "folder", path)
 
 		// tries to write a temp file to the path to check write permission.
-		tempFile, err := os.CreateTemp(path, "drandtestwrite-")
-		if err != nil {
-			return fmt.Errorf("unable to write to specified folder: %w", err)
+		if err := fs.TestWrite(path); err != nil {
+			return err
 		}
-		tempFile.Close()
-		os.Remove(tempFile.Name()) // Clean up after test
 
 		// tries to read from the directory to check read permission,
 		// because yes, it is possible to have write but not read permissions
-		_, err = os.ReadDir(path)
+		_, err := os.ReadDir(path)
 		return err
 	},
 	EnvVars: []string{"DRAND_FOLDER"},
