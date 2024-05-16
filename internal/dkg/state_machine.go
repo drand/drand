@@ -438,6 +438,9 @@ func (d *DBState) Accepted(me *drand.Participant) (*DBState, error) {
 		return nil, ErrCannotAcceptProposalWhereJoining
 	}
 
+	d.Acceptors = append(d.Acceptors, me)
+	d.Rejectors = util.Without(d.Rejectors, me)
+
 	d.State = Accepted
 	return d, nil
 }

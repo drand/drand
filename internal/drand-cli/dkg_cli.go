@@ -707,6 +707,9 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		if err != nil {
 			return err
 		}
+		if p.Address != joiner {
+			return fmt.Errorf("node %s returned a public key signed for %s", joiner, p.Address)
+		}
 		proposalFile.Joining = append(proposalFile.Joining, p)
 	}
 
@@ -716,6 +719,9 @@ func generateProposalCmd(c *cli.Context, l log.Logger) error {
 		p, err := fetchPublicKey(beaconID, l, remainer, sch)
 		if err != nil {
 			return err
+		}
+		if p.Address != remainer {
+			return fmt.Errorf("node %s returned a public key signed for %s", remainer, p.Address)
 		}
 		proposalFile.Remaining = append(proposalFile.Remaining, p)
 	}
