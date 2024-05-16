@@ -875,7 +875,10 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 func validatePreviousGroupForJoiners(d *DBState, previousGroup *key.Group) error {
 	// joiners after the first epoch must pass a group file in order to determine
 	// that the proposal is valid (e.g. the `GenesisTime` and `Remaining` group are correct)
-	if d.Epoch != 1 && previousGroup == nil {
+	if previousGroup == nil {
+		if d.Epoch == 1 {
+			return nil
+		}
 		return ErrJoiningAfterFirstEpochNeedsGroupFile
 	}
 
