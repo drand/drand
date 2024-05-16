@@ -296,14 +296,12 @@ func (d *DBState) Joined(me *drand.Participant, previousGroup *key.Group) (*DBSt
 		return nil, ErrTimeoutReached
 	}
 
-	// joiners after the first epoch must pass a group file in order to determine
-	// that the proposal is valid (e.g. the `GenesisTime` and `Remaining` group are correct)
-	if d.Epoch != 1 && previousGroup == nil {
-		return nil, ErrJoiningAfterFirstEpochNeedsGroupFile
-	}
-
 	if !util.Contains(d.Joining, me) {
 		return nil, ErrCannotJoinIfNotInJoining
+	}
+
+	if err := validatePreviousGroupForJoiners(d, previousGroup); err != nil {
+		return nil, err
 	}
 
 	d.State = Joined
@@ -627,6 +625,7 @@ var ErrInvalidBeaconID = errors.New("BeaconID was invalid")
 var ErrInvalidScheme = errors.New("the scheme proposed does not exist")
 var ErrGenesisTimeNotEqual = errors.New("genesis time cannot be changed after the initial DKG")
 var ErrNoGenesisSeedForFirstEpoch = errors.New("the genesis seed is created during the first epoch, so you can't provide it in the proposal")
+var ErrGenesisTimeNotConsistentWithProposal = errors.New("the genesis time in the group file provided did not match the one from the proposal")
 var ErrGenesisSeedCannotChange = errors.New("genesis seed cannot change after the first epoch")
 var ErrSelfMissingFromProposal = errors.New("you must include yourself in a proposal")
 var ErrCannotJoinIfNotInJoining = errors.New("you cannot join a proposal in which you are not a joiner")
@@ -868,6 +867,24 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 
 	if len(terms.Remaining) < int(currentState.Threshold) {
 		return ErrNodeCountTooLow
+	}
+
+	return nil
+}
+
+func validatePreviousGroupForJoiners(d *DBState, previousGroup *key.Group) error {
+	// joiners after the first epoch must pass a group file in order to determine
+	// that the proposal is valid (e.g. the `GenesisTime` and `Remaining` group are correct)
+	if d.Epoch != 1 && previousGroup == nil {
+		return ErrJoiningAfterFirstEpochNeedsGroupFile
+	}
+
+	if previousGroup.GenesisTime != d.GenesisTime.Unix() {
+		return ErrGenesisTimeNotConsistentWithProposal
+	}
+
+	if !bytes.Equal(previousGroup.GenesisSeed, d.GenesisSeed) {
+		return ErrGenesisSeedCannotChange
 	}
 
 	return nil
