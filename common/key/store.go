@@ -106,7 +106,7 @@ func NewFileStore(baseFolder, beaconID string) Store {
 }
 
 // TestWrite attempts to write temp files to the key and group folders to make sure a node is able to go through DKG
-// without loosing its results
+// without losing its results
 func (f *fileStore) TestWrite() error {
 	shareDir, _ := path.Split(f.shareFile)
 	if err := fs.TestWrite(shareDir); err != nil {
