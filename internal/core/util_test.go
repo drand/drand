@@ -654,16 +654,16 @@ func (bp *BeaconProcess) DenyBroadcastTo(t *testing.T, addresses ...string) {
 	}
 }
 
-func unixGetLimit() (curr, max uint64, err error) {
+func unixGetLimit() (curr, maxi uint64, err error) {
 	rlimit := unix.Rlimit{}
 	err = unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
 	return rlimit.Cur, rlimit.Max, err
 }
 
-func unixSetLimit(soft, max uint64) error {
+func unixSetLimit(soft, maxi uint64) error {
 	rlimit := unix.Rlimit{
 		Cur: soft,
-		Max: max,
+		Max: maxi,
 	}
 	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rlimit)
 }

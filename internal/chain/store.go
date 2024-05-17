@@ -67,7 +67,7 @@ const (
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
-	//nolint:gomnd // a uint64 to bytes is 8 bytes long
+	//nolint:mnd // a uint64 to bytes is 8 bytes long
 	key := make([]byte, 8)
 	binary.BigEndian.PutUint64(key, r)
 	return key
