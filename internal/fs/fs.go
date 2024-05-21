@@ -211,3 +211,13 @@ func CopyFolder(origFolderPath, destFolderPath string) error {
 
 	return nil
 }
+
+func TestWrite(dir string) error {
+	tempFile, err := os.CreateTemp(dir, "drandtestwrite-")
+	if err != nil {
+		return fmt.Errorf("unable to write to folder %q: %w", dir, err)
+	}
+	tempFile.Close()
+	os.Remove(tempFile.Name())
+	return nil
+}
