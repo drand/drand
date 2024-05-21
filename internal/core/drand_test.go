@@ -36,14 +36,14 @@ import (
 
 func setFDLimit(t *testing.T) {
 	fdOpen := uint64(3000)
-	curr, max, err := unixGetLimit()
+	curr, maxi, err := unixGetLimit()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if fdOpen <= curr {
 		t.Logf("Current limit is larger (%d) than ours (%d); not changing it.\n", curr, fdOpen)
 		return
-	} else if err := unixSetLimit(fdOpen, max); err != nil {
+	} else if err := unixSetLimit(fdOpen, maxi); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -638,8 +638,8 @@ func TestDrandPublicRand(t *testing.T) {
 
 	// get next rounds
 	initRound := resp.Round + 1
-	max := initRound + 4
-	for i := initRound; i < max; i++ {
+	maxi := initRound + 4
+	for i := initRound; i < maxi; i++ {
 		t.Logf("Move clock to generate a new round %d \n", i)
 		dt.AdvanceMockClock(t, group.Period)
 

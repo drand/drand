@@ -118,11 +118,11 @@ func shortSigStr(sig []byte) string {
 		return ""
 	}
 
-	max := 3
-	if len(sig) < max {
-		max = len(sig)
+	maxi := 3
+	if len(sig) < maxi {
+		maxi = len(sig)
 	}
-	return hex.EncodeToString(sig[0:max])
+	return hex.EncodeToString(sig[0:maxi])
 }
 
 // HexBytes ensures that JSON marshallers marshal to hex rather than base64 to keep compatibility

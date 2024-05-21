@@ -285,7 +285,7 @@ func senderQueueSize(nodes int) int {
 		return maxQueueSize
 	}
 	// we have 3 steps
-	return nodes * 3 //nolint:gomnd
+	return nodes * 3 //nolint:mnd
 }
 
 // dispatcher maintains a list of worker assigned one destination and pushes the
