@@ -73,8 +73,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 
 	cfg.MaxIdleConns = 2
 	if query.Has("max-idle") {
-		max := query.Get("max-idle")
-		m, err := strconv.Atoi(max)
+		maxi := query.Get("max-idle")
+		m, err := strconv.Atoi(maxi)
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-idle, got err: %w", err)
 		}
@@ -142,7 +142,7 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 
 	var pingError error
 
-	//nolint:gomnd // We want to have a reasonable retry period
+	//nolint:mnd // We want to have a reasonable retry period
 	t := time.NewTicker(100 * time.Millisecond)
 	defer t.Stop()
 

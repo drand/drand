@@ -11,7 +11,7 @@ issues:
         - forbidigo
         - goconst
         - gocyclo
-        - gomnd
+        - mnd
         - gosec
         - nilnil
         - noctx
@@ -65,88 +65,89 @@ linters:
     - errchkjson
     - errname
     - errorlint
-    - execinquery
+    # - execinquery # deprecated
     - exhaustive
-    # -exhaustivestruct
-    # -exhaustruct
+    # - exhaustivestruct
+    # - exhaustruct
     - exportloopref
     - forbidigo
-    # -forcetypeassert #TODO could be enabled
+    # - forcetypeassert #TODO could be enabled
     - funlen
-    #- gci
-    # -gochecknoglobals
+    # - gci
+    # - gochecknoglobals
     - gochecknoinits
-    #- gocognit
+    # - gocognit
     - goconst
     - gocritic
     - gocyclo
-    #- godot
-    # -godox #TODO could be enabled
-    # -goerr113
+    # - godot
+    # - godox #TODO could be enabled
+    # - goerr113
     - gofmt
-    # -gofumpt
+    # - gofumpt
     - goheader
     - goimports
-    # -golint # Deprecated
-    - gomnd
-    #- gomoddirectives
+    # - golint # Deprecated
+    # - gomnd # deprecated, replaced by mnd
+    # - gomoddirectives
     - gomodguard
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - grouper
-    # -ifshort
+    # - ifshort
     - importas
     - ineffassign
     - interfacebloat
-    # -interfacer # Deprecated
-    # -ireturn
+    # - interfacer # Deprecated
+    # - ireturn
     - lll
     - loggercheck
     - maintidx
     - makezero
-    # -maligned #Deprecated
+    # - maligned #Deprecated
+    - mnd
     - misspell
     - nakedret
-    # -nestif
+    # - nestif
     - nilerr
     - nilnil
-    # -nlreturn
+    # - nlreturn
     - noctx
     - nolintlint
-    # -nonamedreturns
-    # -nosnakecase
+    # - nonamedreturns
+    # - nosnakecase
     - nosprintfhostport
-    # -paralleltest #TODO could be enabled
+    # - paralleltest #TODO could be enabled
     - prealloc
     - predeclared
-    # -promlinter #TODO could be enabled
+    # - promlinter #TODO could be enabled
     - reassign
     - revive
     - rowserrcheck
     # - scopelint # Deprecated
     - sqlclosecheck
     - staticcheck
-    # -structcheck # Deprecated
+    # - structcheck # Deprecated
     - stylecheck
-    # -tagliatelle
+    # - tagliatelle
     - tenv
     - testableexamples
-    # -testpackage
-    # -thelper #TODO could be enabled
+    # - testpackage
+    # - thelper #TODO could be enabled
     - tparallel
     - typecheck
     - unconvert
     - unparam
     - unused
     - usestdlibvars
-    # -varcheck # Deprecated
-    # -varnamelen
+    # - varcheck # Deprecated
+    # - varnamelen
     - wastedassign
     - whitespace
-    # -wrapcheck
-    # -wsl
+    # - wrapcheck
+    # - wsl
 
 linters-settings:
   dupl:
@@ -178,11 +179,13 @@ linters-settings:
     local-prefixes: github.com/drand
   golint:
     min-confidence: 0
-  gomnd:
-    settings:
-      mnd:
-        # don't include the "operation" and "assign"
-        checks: argument,case,condition,return
+  mnd:
+    # don't include the "operation" and "assign"
+    checks:
+      - argument
+      - case
+      - condition
+      - return
   lll:
     line-length: 140
 #  maligned: # Deprecated

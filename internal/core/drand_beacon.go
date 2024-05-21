@@ -511,7 +511,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	targetRound := common.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
 	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
-	//nolint:gomnd // We cannot sync the initial round.
+	//nolint:mnd // We cannot sync the initial round.
 	if targetRound < 2 {
 		// Assume this is a fresh start
 		return nil
@@ -576,7 +576,7 @@ func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound ui
 
 	answers := make(chan answer, len(peers))
 
-	//nolint:gomnd //We should search for the beacon for at most 10 seconds.
+	//nolint:mnd //We should search for the beacon for at most 10 seconds.
 	ctxFind, cancelFind := context.WithTimeout(ctx, 10*time.Second)
 	defer cancelFind()
 

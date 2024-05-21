@@ -968,7 +968,7 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	if c.IsSet(tracesProbabilityFlag.Name) {
 		opts = append(opts, core.WithTracesProbability(c.Float64(tracesProbabilityFlag.Name)))
 	} else {
-		//nolint:gomnd // Reset the trace probability to 5%
+		//nolint:mnd // Reset the trace probability to 5%
 		opts = append(opts, core.WithTracesProbability(0.05))
 	}
 

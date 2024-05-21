@@ -60,7 +60,7 @@ type Service interface {
 func NewGRPCPrivateGateway(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
 	lg := log.FromContextOrDefault(ctx)
 
-	//nolint:gomnd // we set the timeout to something smallish but not too small
+	//nolint:mnd // we set the timeout to something smallish but not too small
 	l, err := NewGRPCListenerForPrivate(ctx, listen, s, grpc.ConnectionTimeout(7*time.Second))
 	if err != nil {
 		return nil, err
