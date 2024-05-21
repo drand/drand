@@ -202,7 +202,7 @@ func (p *Store) BatchPut(ctx context.Context, bs []common.Beacon) error {
 
 	j := 1
 	for i := 0; i < len(bs)-1; i++ {
-		//nolint:gomnd // This is in the format: 1, round, signature
+		//nolint:mnd // This is in the format: 1, round, signature
 		qry.WriteString(fmt.Sprintf(" ($1, $%d, $%d),\n", j+1, j+2))
 		j += 2
 
@@ -213,7 +213,7 @@ func (p *Store) BatchPut(ctx context.Context, bs []common.Beacon) error {
 	}
 
 	i := len(bs) - 1
-	//nolint:gomnd // This is in the format: 1, round, signature
+	//nolint:mnd // This is in the format: 1, round, signature
 	qry.WriteString(fmt.Sprintf(" ($1, $%d, $%d)\n", j+1, j+2))
 	data = append(data,
 		bs[i].Round,

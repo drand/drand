@@ -51,9 +51,23 @@ func banner(w io.Writer) {
 }
 
 var folderFlag = &cli.StringFlag{
-	Name:    "folder",
-	Value:   core.DefaultConfigFolder(),
-	Usage:   "Folder to keep all drand cryptographic information, with absolute path.",
+	Name:  "folder",
+	Value: core.DefaultConfigFolder(),
+	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
+	Action: func(c *cli.Context, path string) error {
+		l := log.New(nil, logLevel(c), logJSON(c))
+		l.Infow("Using non-default path", "folder", path)
+
+		// tries to write a temp file to the path to check write permission.
+		if err := fs.TestWrite(path); err != nil {
+			return err
+		}
+
+		// tries to read from the directory to check read permission,
+		// because yes, it is possible to have write but not read permissions
+		_, err := os.ReadDir(path)
+		return err
+	},
 	EnvVars: []string{"DRAND_FOLDER"},
 }
 
@@ -300,19 +314,21 @@ var appCommands = []*cli.Command{
 			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag, hiddenInsecureFlag),
 		Action: func(c *cli.Context) error {
-			banner(c.App.Writer)
 			l := log.New(nil, logLevel(c), logJSON(c))
-			return startCmd(c, l)
-		},
-		Before: func(c *cli.Context) error {
-			l := log.New(nil, logLevel(c), logJSON(c))
+
+			// check multibeacon and complain migration wasn't done in v1 if not
+			if err := checkMigration(c, l); err != nil {
+				return err
+			}
 
 			// v1.5.7 -> v2.0.0 migration path
 			if err := selfSign(c, l); err != nil {
 				return fmt.Errorf("unable to self-sign using new format for keys, check your installation. Err: %w", err)
 			}
 
-			return checkMigration(c, l)
+			// everything seems fine, we can start
+			banner(c.App.Writer)
+			return startCmd(c, l)
 		},
 	},
 	{
@@ -952,7 +968,7 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	if c.IsSet(tracesProbabilityFlag.Name) {
 		opts = append(opts, core.WithTracesProbability(c.Float64(tracesProbabilityFlag.Name)))
 	} else {
-		//nolint:gomnd // Reset the trace probability to 5%
+		//nolint:mnd // Reset the trace probability to 5%
 		opts = append(opts, core.WithTracesProbability(0.05))
 	}
 
@@ -972,7 +988,7 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 			core.WithMemDBSize(c.Int(memDBSizeFlag.Name)),
 		)
 	default:
-		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+		// we have a default to "bolt" in storageTypeFlag, we don't set it if it's invalid so that users are alerted
 	}
 
 	conf := core.NewConfig(l, opts...)

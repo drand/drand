@@ -28,6 +28,7 @@ type Store interface {
 	SaveGroup(*Group) error
 	LoadGroup() (*Group, error)
 	Reset() error
+	TestWrite() error
 }
 
 // FolderName is the name of the folder where drand keeps its keys
@@ -40,7 +41,6 @@ const privateExtension = ".private"
 const publicExtension = ".public"
 const groupFileName = "drand_group.toml"
 const shareFileName = "dist_key.private"
-const distKeyFileName = "dist_key.public"
 
 // Tomler represents any struct that can be (un)marshaled into/from toml format
 type Tomler interface {
@@ -56,7 +56,6 @@ type fileStore struct {
 	privateKeyFile string
 	publicKeyFile  string
 	shareFile      string
-	distKeyFile    string
 	groupFile      string
 }
 
@@ -79,6 +78,12 @@ func NewFileStores(baseFolder string) (map[string]Store, error) {
 		fileStores[common.DefaultBeaconID] = NewFileStore(baseFolder, common.DefaultBeaconID)
 	}
 
+	for _, store := range fileStores {
+		if err := store.TestWrite(); err != nil {
+			return nil, fmt.Errorf("cannot write to filestore: %w", err)
+		}
+	}
+
 	return fileStores, nil
 }
 
@@ -96,9 +101,22 @@ func NewFileStore(baseFolder, beaconID string) Store {
 	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
 	store.groupFile = path.Join(groupFolder, groupFileName)
 	store.shareFile = path.Join(groupFolder, shareFileName)
-	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
 
 	return store
+}
+
+// TestWrite attempts to write temp files to the key and group folders to make sure a node is able to go through DKG
+// without losing its results
+func (f *fileStore) TestWrite() error {
+	shareDir, _ := path.Split(f.shareFile)
+	if err := fs.TestWrite(shareDir); err != nil {
+		return fmt.Errorf("cannot write to share directory: %w", err)
+	}
+	groupFolder, _ := path.Split(f.groupFile)
+	if err := fs.TestWrite(groupFolder); err != nil {
+		return fmt.Errorf("cannot write to group directory: %w", err)
+	}
+	return nil
 }
 
 // SaveKeyPair first saves the private key in a file with tight permissions and then
@@ -150,9 +168,6 @@ func (f *fileStore) LoadShare() (*Share, error) {
 }
 
 func (f *fileStore) Reset() error {
-	if err := Delete(f.distKeyFile); err != nil {
-		return fmt.Errorf("drand: err deleting dist. key file: %w", err)
-	}
 	if err := Delete(f.shareFile); err != nil {
 		return fmt.Errorf("drand: err deleting share file: %w", err)
 	}

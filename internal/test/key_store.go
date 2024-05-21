@@ -15,6 +15,10 @@ func NewKeyStore() key.Store {
 	return &KeyStore{}
 }
 
+func (f *KeyStore) TestWrite() error {
+	return nil
+}
+
 func (k *KeyStore) SaveKeyPair(p *key.Pair) error {
 	k.priv = p
 	return nil

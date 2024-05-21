@@ -3,6 +3,7 @@ package chain
 import (
 	"bytes"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -72,7 +73,6 @@ func TestChainInfo(t *testing.T) {
 	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
-	require.Equal(t, c1, c13)
 
 	require.True(t, c1.Equal(c13))
 
@@ -96,7 +96,9 @@ func TestChainInfo(t *testing.T) {
 	data[22] = 0x41
 	data[23] = 0x41
 	_, err = InfoFromJSON(bytes.NewReader(data))
-	require.ErrorContains(t, err, "point is not on")
+	if !strings.Contains(err.Error(), "point is not on") && !strings.Contains(err.Error(), "malformed point") {
+		t.Error("Invalid public key interpreted as valid")
+	}
 
 	// testing ToProto
 	packet := c1.ToProto(&drand.Metadata{
