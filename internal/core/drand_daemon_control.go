@@ -231,7 +231,7 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	for _, bp := range dd.beaconProcesses {
 		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
 
-		//nolint:gomnd // We want to wait for 5 seconds before sending a timeout for the beacon shutdown
+		//nolint:mnd // We want to wait for 5 seconds before sending a timeout for the beacon shutdown
 		t := time.NewTimer(5 * time.Second)
 		select {
 		case <-bp.WaitExit():

@@ -61,7 +61,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 		),
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		// this limits the number of concurrent streams to each ServerTransport to prevent potential remote DoS
-		//nolint:gomnd
+		//nolint:mnd
 		grpc.MaxConcurrentStreams(256),
 	)
 
