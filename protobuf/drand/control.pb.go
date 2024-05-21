@@ -725,7 +725,7 @@ type StartSyncRequest struct {
 	// Deprecated: Marked as deprecated in drand/control.proto.
 	IsTls bool `protobuf:"varint,3,opt,name=is_tls,json=isTls,proto3" json:"is_tls,omitempty"`
 	// up_to tells the drand daemon to not sync up after the given round.
-	// if up_to is 0, the sync operation continues until it is cancelled.
+	// if up_to is 0, the sync operation continues until it is canceled.
 	UpTo     uint64    `protobuf:"varint,4,opt,name=up_to,json=upTo,proto3" json:"up_to,omitempty"`
 	Metadata *Metadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }

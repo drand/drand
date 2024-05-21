@@ -171,7 +171,7 @@ func (s *SyncManager) Run() {
 				s.log.Infow("canceling old sync as it took long")
 
 				span.End()
-				// either we are already cancelled or we haven't received a new block in a while
+				// either we are already canceled or we haven't received a new block in a while
 				// -> time to start a new sync in both cases
 				cancel()
 				ctx, cancel = context.WithCancel(s.ctx)

@@ -26,7 +26,7 @@ func grpcConnection(l log.Logger, addr string) (*grpc.ClientConn, error) {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
 
-	conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		l.Errorw("", "DKG client", "connect failure", "err", err)
 		return nil, err

@@ -138,7 +138,7 @@ func (c *chainStore) Stop() {
 // we store partials that are up to this amount of rounds more than the last
 // beacon we have - it is useful to store partials that may come in advance,
 // especially in case of a quick catchup.
-var partialCacheStoreLimit = uint64(3)
+const partialCacheStoreLimit = uint64(3)
 
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can.
