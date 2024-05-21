@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/drand/drand/v2/common/tracer"
 
@@ -137,7 +138,7 @@ func (c *chainStore) Stop() {
 // we store partials that are up to this amount of rounds more than the last
 // beacon we have - it is useful to store partials that may come in advance,
 // especially in case of a quick catchup.
-var partialCacheStoreLimit = 3
+var partialCacheStoreLimit = uint64(3)
 
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can.
@@ -177,7 +178,7 @@ func (c *chainStore) runAggregator() {
 						span.End()
 						return
 					}
-					if err.Error() == "sql: database is closed" {
+					if strings.Contains(err.Error(), "sql: database is closed") {
 						c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
 						span.End()
 						return
@@ -191,7 +192,7 @@ func (c *chainStore) runAggregator() {
 			pRound := partial.p.GetRound()
 			// look if we want to store ths partial anyway
 			isNotInPast := pRound > lastBeacon.Round
-			isNotTooFar := pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
+			isNotTooFar := pRound <= lastBeacon.Round+partialCacheStoreLimit+1
 			shouldStore := isNotInPast && isNotTooFar
 			// check if we can reconstruct
 			if !shouldStore {

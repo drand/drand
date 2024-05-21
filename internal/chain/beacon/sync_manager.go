@@ -46,7 +46,7 @@ type SyncManager struct {
 	// receives new requests of sync
 	newReq chan RequestInfo
 	// updated with each new beacon we receive from sync
-	newSync chan *commonutils.Beacon
+	newSyncedBeacon chan *commonutils.Beacon
 	// we need to know our current daemon address
 	nodeAddr string
 }
@@ -81,20 +81,20 @@ func NewSyncManager(ctx context.Context, c *SyncConfig) (*SyncManager, error) {
 	ctx, ctxCancel := context.WithCancel(ctx)
 
 	return &SyncManager{
-		ctx:           ctx,
-		ctxCancel:     ctxCancel,
-		log:           c.Log.Named("SyncManager"),
-		clock:         c.Clock,
-		store:         c.Store,
-		insecureStore: c.BoltdbStore,
-		info:          c.Info,
-		client:        c.Client,
-		period:        c.Info.Period,
-		scheme:        sch,
-		nodeAddr:      c.NodeAddr,
-		factor:        syncExpiryFactor,
-		newReq:        make(chan RequestInfo, syncQueueRequest),
-		newSync:       make(chan *commonutils.Beacon, 1),
+		ctx:             ctx,
+		ctxCancel:       ctxCancel,
+		log:             c.Log.Named("SyncManager"),
+		clock:           c.Clock,
+		store:           c.Store,
+		insecureStore:   c.BoltdbStore,
+		info:            c.Info,
+		client:          c.Client,
+		period:          c.Info.Period,
+		scheme:          sch,
+		nodeAddr:        c.NodeAddr,
+		factor:          syncExpiryFactor,
+		newReq:          make(chan RequestInfo, syncQueueRequest),
+		newSyncedBeacon: make(chan *commonutils.Beacon, 1),
 	}, nil
 }
 
@@ -167,12 +167,12 @@ func (s *SyncManager) Run() {
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
 			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
-			if upperBound < int(s.clock.Now().Unix()) {
+			if _, ok := <-ctx.Done(); ok || upperBound < int(s.clock.Now().Unix()) {
 				s.log.Infow("canceling old sync as it took long")
 
 				span.End()
-				// we haven't received a new block in a while
-				// -> time to start a new sync
+				// either we are already cancelled or we haven't received a new block in a while
+				// -> time to start a new sync in both cases
 				cancel()
 				ctx, cancel = context.WithCancel(s.ctx)
 				go func() {
@@ -180,10 +180,12 @@ func (s *SyncManager) Run() {
 						s.log.Errorw("sync was unsuccessful", "from", request.from, "to", request.upTo, "err", err)
 					} else {
 						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
+						// cancel is safe to call concurrently
+						cancel()
 					}
 				}()
 			}
-		case <-s.newSync:
+		case <-s.newSyncedBeacon:
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
 		}
@@ -490,7 +492,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			}
 
 			// we let know the sync manager that we received a beacon
-			s.newSync <- beacon
+			s.newSyncedBeacon <- beacon
 
 			last = beacon
 			if last.Round == upTo {
