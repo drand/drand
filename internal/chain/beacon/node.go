@@ -342,8 +342,6 @@ func (h *Handler) IsStopped() bool {
 }
 
 // run will wait until it is supposed to start
-//
-//nolint:funlen // this is a big function
 func (h *Handler) run(startTime int64) {
 	// we cannot re-start a stopped handler
 	if h.IsStopped() {

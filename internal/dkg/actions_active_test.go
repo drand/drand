@@ -109,6 +109,7 @@ func TestInitialDKG(t *testing.T) {
 				log:              log.New(nil, log.DebugLevel, true),
 				SeenPackets:      make(map[string]bool),
 				config:           Config{},
+				close:            make(chan struct{}, 1),
 			}
 
 			test.prepareMocks(&store, &client, test.proposal, test.expectedError)
@@ -261,6 +262,7 @@ func TestReshare(t *testing.T) {
 				log:              log.New(nil, log.DebugLevel, true),
 				SeenPackets:      make(map[string]bool),
 				config:           Config{},
+				close:            make(chan struct{}, 1),
 			}
 
 			test.prepareMocks(&store, &client, test.proposal, test.expectedError)
@@ -409,6 +411,7 @@ func TestJoin(t *testing.T) {
 				log:              log.New(nil, log.DebugLevel, true),
 				SeenPackets:      make(map[string]bool),
 				config:           Config{},
+				close:            make(chan struct{}, 1),
 			}
 
 			test.prepareMocks(&store, &client, test.expectedError)
