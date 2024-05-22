@@ -145,7 +145,7 @@ func (s *SyncManager) Run() {
 			cancel()
 			return
 		case request := <-s.newReq:
-			cctx, span := tracer.NewSpanFromSpanContext(ctx, request.spanContext, "syncManager.AddCallback")
+			cctx, span := tracer.NewSpanFromSpanContext(s.ctx, request.spanContext, "syncManager.AddCallback")
 
 			// check if the request is still valid
 			last, err := s.store.Last(cctx)
@@ -167,7 +167,7 @@ func (s *SyncManager) Run() {
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
 			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
-			if _, ok := <-ctx.Done(); ok || upperBound < int(s.clock.Now().Unix()) {
+			if ctx.Err() != nil || upperBound < int(s.clock.Now().Unix()) {
 				s.log.Infow("canceling old sync as it took long")
 
 				span.End()
@@ -369,7 +369,7 @@ func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
 //
 //nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
-	global, span := tracer.NewSpan(global, "dd.LoadBeaconFromStore")
+	global, span := tracer.NewSpan(global, "syncManager.tryNode")
 	defer span.End()
 
 	span.SetAttributes(
@@ -429,7 +429,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	for {
 		select {
 		case beaconPacket, ok := <-beaconCh:
-			cnode, span := tracer.NewSpan(cnode, "dd.LoadBeaconFromStore")
+			cnode, span := tracer.NewSpan(cnode, "syncManager.tryNode.loop")
 
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -537,8 +537,9 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	defer span.End()
 
 	fromRound := req.GetFromRound()
-	addr := net.RemoteAddress(ctx)
-	id := addr + "SyncChain"
+	// we need the stream context to get the right remote address
+	addr := net.RemoteAddress(stream.Context())
+	id := "SyncChain-" + addr
 
 	logger := l.Named("SyncChain")
 	logger.Infow("Starting SyncChain", "for", addr, "from", fromRound)
