@@ -127,38 +127,6 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	return saveTOMLToFilePath(dkgFilePath, dbState)
 }
 
-func OldNewDKGStore(baseFolder string, options *bolt.Options) (*BoltStore, error) {
-	err := os.MkdirAll(baseFolder, DirPerm)
-	if err != nil {
-		return nil, err
-	}
-	dbPath := path.Join(baseFolder, BoltFileName)
-	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, options)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(stagedStateBucket)
-		if err != nil {
-			return err
-		}
-
-		_, err = tx.CreateBucketIfNotExists(finishedStateBucket)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	store := BoltStore{
-		db:  db,
-		log: log.New(nil, log.DebugLevel, true),
-	}
-
-	return &store, nil
-}
-
 func (s *BoltStore) GetCurrent(beaconID string) (*DBState, error) {
 	dkg, err := s.get(beaconID, stagedStateBucket)
 
