@@ -24,6 +24,7 @@ type Process struct {
 	// a set of the packets that have been seen already for easy deduping
 	SeenPackets   map[string]bool
 	completedDKGs *util.FanOutChan[SharingOutput]
+	close         chan struct{}
 }
 
 type Config struct {
@@ -100,6 +101,7 @@ func NewDKGProcess(
 		SeenPackets:      make(map[string]bool),
 		config:           config,
 		completedDKGs:    completedDKGs,
+		close:            make(chan struct{}, 1),
 	}
 }
 
@@ -109,6 +111,7 @@ func (d *Process) Close() {
 	for _, e := range d.Executions {
 		e.Stop()
 	}
+	close(d.close)
 	err := d.store.Close()
 	if err != nil {
 		d.log.Errorw("error closing the database", "err", err)

@@ -126,7 +126,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 
 	addr := net.RemoteAddress(ctx)
 	pRound := p.GetRound()
-	h.l.Debugw("", "received", "request", "from", addr, "round", pRound)
+	h.l.Debugw("Processing PartialBeacon", "from", addr, "round", pRound)
 
 	nextRound, _ := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -342,8 +342,6 @@ func (h *Handler) IsStopped() bool {
 }
 
 // run will wait until it is supposed to start
-//
-//nolint:funlen // this is a big function
 func (h *Handler) run(startTime int64) {
 	// we cannot re-start a stopped handler
 	if h.IsStopped() {
@@ -437,13 +435,8 @@ func (h *Handler) run(startTime int64) {
 						"last_is", latest.Round)
 					h.broadcastNextPartial(ctx, c, &latest)
 				}(current, *b)
-			} else if b.Round > current.round {
+			} else {
 				span.End()
-				h.l.Warnw(
-					"tried catching up, but catchup beacons were newer than the current round",
-					"catchup round", b.Round,
-					"current round", current.round,
-				)
 			}
 		}
 	}

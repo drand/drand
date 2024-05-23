@@ -3,7 +3,6 @@
 package net
 
 import (
-	"context"
 	"crypto/tls"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -15,7 +14,7 @@ import (
 )
 
 // conn retrieve an already existing conn to the given peer or create a new one
-func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error) {
+func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	// This is the TLS version!
 	// If you change anything here, don't forget to also change it in the non-TLS one in conn_other.go
 
@@ -48,7 +47,7 @@ func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error)
 			g.opts...,
 		)
 
-		c, err = grpc.DialContext(ctx, p.Address(), opts...)
+		c, err = grpc.NewClient(p.Address(), opts...)
 		if err != nil {
 			g.log.Errorw("error initiating a new TLS grpc conn", "to", p.Address(), "err", err)
 			// We increase the GroupDialFailures counter when both failed
