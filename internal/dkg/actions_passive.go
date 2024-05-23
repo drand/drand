@@ -58,7 +58,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	}
 
 	if packet.GetExecute() != nil {
-		if err := d.executeDKG(ctx, beaconID, packet.GetExecute().Time.AsTime()); err != nil {
+		if err := d.executeDKG(ctx, beaconID, packet.GetExecute().GetTime().AsTime()); err != nil {
 			return nil, err
 		}
 	}

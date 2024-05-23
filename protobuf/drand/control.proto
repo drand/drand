@@ -124,7 +124,7 @@ message StartSyncRequest {
   // non-tls nodes
   bool is_tls = 3 [deprecated = true];
   // up_to tells the drand daemon to not sync up after the given round.
-  // if up_to is 0, the sync operation continues until it is cancelled.
+  // if up_to is 0, the sync operation continues until it is canceled.
   uint64 up_to = 4;
   Metadata metadata = 5;
 }

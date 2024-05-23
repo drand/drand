@@ -110,7 +110,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	// make sure we have the correct metadata
 	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
-	return beacon.SyncChain(bp.log.Named("PublicRand"), store, proxyReq, proxyStr)
+	return beacon.SyncChain(bp.log.Named("PublicRandStream"), store, proxyReq, proxyStr)
 }
 
 // ChainInfo replies with the chain information this node participates to
