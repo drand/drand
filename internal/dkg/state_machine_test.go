@@ -633,12 +633,13 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 		{
 			name: "joining after first epoch without group file fails",
 			startingState: func() *DBState {
-				entry := NewCompleteDKGEntry(t, beaconID, Proposed, bob)
+				entry := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 				entry.Epoch = 2
+				entry.Joining = []*drand.Participant{bob}
 				return entry
 			}(),
 			transitionFn: func(in *DBState) (*DBState, error) {
-				return in.Joined(alice, nil)
+				return in.Joined(bob, nil)
 			},
 			expectedError: ErrJoiningAfterFirstEpochNeedsGroupFile,
 		},
@@ -1049,8 +1050,12 @@ func TestAcceptingDKG(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Accepted(bob)
 			},
-			expectedResult: NewCompleteDKGEntry(t, beaconID, Accepted, alice, bob),
-			expectedError:  nil,
+			expectedResult: func() *DBState {
+				e := NewCompleteDKGEntry(t, beaconID, Accepted, alice, bob)
+				e.Acceptors = []*drand.Participant{bob}
+				return e
+			}(),
+			expectedError: nil,
 		},
 		{
 			name:          "cannot accept a fresh proposal",
@@ -1124,8 +1129,12 @@ func TestRejectingDKG(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Rejected(alice)
 			},
-			expectedResult: NewCompleteDKGEntry(t, beaconID, Rejected, alice, bob),
-			expectedError:  nil,
+			expectedResult: func() *DBState {
+				e := NewCompleteDKGEntry(t, beaconID, Rejected, alice, bob)
+				e.Rejectors = []*drand.Participant{alice}
+				return e
+			}(),
+			expectedError: nil,
 		},
 		{
 			name:          "cannot reject a fresh proposal",
