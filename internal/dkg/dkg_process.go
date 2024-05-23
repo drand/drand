@@ -67,12 +67,13 @@ type Store interface {
 	// SaveFinished stores a completed, successful DKG and overwrites the current packet
 	SaveFinished(beaconID string, state *DBState) error
 
+	// Close closes and cleans up any database handles
+	Close() error
+
 	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 	// It will fail if DKG state already exists for the given beaconID
 	// Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 	MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error
-
-	Close() error
 }
 
 // BeaconIdentifier is necessary because we need to get our identity on a per-beacon basis from the `DrandDaemon`
