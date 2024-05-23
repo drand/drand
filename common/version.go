@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	pbcommon "github.com/drand/drand/protobuf/common"
+	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Must be manually updated!
