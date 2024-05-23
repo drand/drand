@@ -188,7 +188,7 @@ func (d *Process) startDKGExecution(
 	// wait for the protocol to end and figure out who made it into the final group
 	select {
 	case <-d.close:
-		return nil, errors.New("daemon was closed before DKG execution")
+		return nil, errors.New("daemon was closed before DKG execution completed")
 	case result := <-protocol.WaitEnd():
 		if result.Error != nil {
 			return nil, result.Error
