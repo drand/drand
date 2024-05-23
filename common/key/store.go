@@ -231,7 +231,7 @@ func SelfSignAll(l log.Logger, multibeaconFolder string) error {
 		// but the group will.
 		group, err := fs.LoadGroup()
 		if err != nil {
-			l.Warnw("could not load group, please report this", "beaconID", beaconID, "err", err)
+			l.Warnw("could not load group, please report this unless this is a new node", "beaconID", beaconID, "err", err)
 		}
 		// the actual migration path
 		if group != nil && group.Scheme != nil {
