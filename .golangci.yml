@@ -40,6 +40,9 @@ issues:
     - path: crypto/schemes.go
       linters:
         - dupl # we have explicit scheme instantiations
+    - path: internal/core/drand_proxy.go
+      linters:
+        - nilnil
 run:
   skip-dirs:
     - demo
