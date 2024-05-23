@@ -2,8 +2,9 @@ package common
 
 import (
 	"fmt"
-	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 	"os"
+
+	pbcommon "github.com/drand/drand/protobuf/common"
 )
 
 // Must be manually updated!
