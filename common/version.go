@@ -37,6 +37,16 @@ type Version struct {
 	Prerelease string
 }
 
+func (v Version) Lt(rhs Version) bool {
+	return v.Major < rhs.Major ||
+		v.Major == rhs.Major && v.Minor < rhs.Minor ||
+		v.Major == rhs.Major && v.Minor == rhs.Minor && v.Patch < rhs.Patch
+}
+
+func (v Version) Gt(rhs Version) bool {
+	return rhs.Lt(v)
+}
+
 func (v Version) IsCompatible(verRcv Version) bool {
 	// This is to get around the problem with the regression test - Prerelease versions are compatible with anything
 	if os.Getenv("DISABLE_VERSION_CHECK") == "1" {

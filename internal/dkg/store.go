@@ -62,11 +62,20 @@ func getFromFilePath(path string) (*DBState, error) {
 }
 
 func (fs FileStore) GetCurrent(beaconID string) (*DBState, error) {
-	return getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName))
+	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName))
+	if errors.Is(err, os.ErrNotExist) {
+		fs.log.Debug("No DKG file found, returning new state")
+		return NewFreshState(beaconID), nil
+	}
+	return f, err
 }
 
 func (fs FileStore) GetFinished(beaconID string) (*DBState, error) {
-	return getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName))
+	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	return f, err
 }
 
 func saveTOMLToFilePath(filepath string, state *DBState) error {
