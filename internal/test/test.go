@@ -107,21 +107,10 @@ func FreeBind(a string) string {
 	}
 }
 
-// Ports returns a list of ports starting from the given
-// port= start.
-// TODO: This function is flaky.
-func Ports(n int) []string {
-	ports := make([]string, 0, n)
-	for i := 0; i < n; i++ {
-		ports = append(ports, FreePort())
-	}
-	return ports
-}
-
 var allPorts []string
 var globalLock sync.Mutex
 
-// FreePort returns an free TCP port.
+// FreePort returns a free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() string {
 	addr := FreeBind("127.0.0.1")

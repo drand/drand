@@ -74,7 +74,6 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 
 	privs, group = test.BatchIdentities(t, n, sch, beaconID)
 
-	ports := test.Ports(n)
 	daemons = make([]*DrandDaemon, n)
 	drands = make([]*BeaconProcess, n)
 
@@ -95,7 +94,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 	for i := 0; i < n; i++ {
 		ctx := context.Background()
 
-		tracer := test.TracerWithName(t, ctx, ports[i])
+		tracer := test.TracerWithName(t, ctx, privs[i].Public.Address())
 		ctx, span := tracer.Start(ctx, "TestBatchNewDrand")
 
 		s := test.NewKeyStore()
@@ -112,7 +111,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 			WithDkgKickoffGracePeriod(1*time.Second),
 			WithDkgPhaseTimeout(5*time.Second),
 			WithPrivateListenAddress(privs[i].Public.Address()),
-			WithControlPort(ports[i]),
+			WithControlPort(test.FreePort()),
 			WithNamedLogger(fmt.Sprintf("[node %d]", currentNodeCount+i)),
 			WithMemDBSize(100),
 		)

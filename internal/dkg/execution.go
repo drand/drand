@@ -32,10 +32,14 @@ func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStar
 	go func(config *dkg.Config) {
 		// wait until the time set by the leader for kicking off the DKG to allow other nodes to get
 		// the requisite packets
-		time.Sleep(time.Until(executionStartTime))
-		err := d.executeAndFinishDKG(ctx, beaconID, config)
-		if err != nil {
-			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
+		select {
+		case <-d.close:
+			return
+		case <-time.After(time.Until(executionStartTime)):
+			err := d.executeAndFinishDKG(ctx, beaconID, config)
+			if err != nil {
+				d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
+			}
 		}
 	}(dkgConfig)
 	return nil
@@ -142,10 +146,15 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		return err
 	}
 
-	d.completedDKGs.Chan() <- SharingOutput{
+	select {
+	case <-d.close:
+		return errors.New("daemon was closed before DKG execution")
+	case d.completedDKGs.Chan() <- SharingOutput{
 		BeaconID: beaconID,
 		Old:      lastCompleted,
 		New:      *finalState,
+	}:
+		// we just continue execution after sending
 	}
 
 	metrics.DKGStateChange(finalState.BeaconID, finalState.Epoch, false, uint32(finalState.State))
@@ -178,6 +187,8 @@ func (d *Process) startDKGExecution(
 
 	// wait for the protocol to end and figure out who made it into the final group
 	select {
+	case <-d.close:
+		return nil, errors.New("daemon was closed before DKG execution completed")
 	case result := <-protocol.WaitEnd():
 		if result.Error != nil {
 			return nil, result.Error

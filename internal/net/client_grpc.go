@@ -66,7 +66,7 @@ func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, co
 func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
 	in *drand.IdentityRequest, _ ...CallOption) (*drand.IdentityResponse, error) {
 	var resp *drand.IdentityResponse
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
 }
 
 func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (g *grpcClient) PublicRandStream(
 	in *drand.PublicRandRequest,
 	_ ...CallOption) (chan *drand.PublicRandResponse, error) {
 	var outCh = make(chan *drand.PublicRandResponse, grpcClientRandStreamBacklog)
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (g *grpcClient) PublicRandStream(
 
 func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	var resp *drand.ChainInfoPacket
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 	ctx, span := tracer.NewSpan(ctx, "client.PartialBeacon")
 	defer span.End()
 
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ const MaxSyncBuffer = 500
 
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, _ ...CallOption) (chan *drand.BeaconPacket, error) {
 	resp := make(chan *drand.BeaconPacket, MaxSyncBuffer)
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 
 func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest, opts ...grpc.CallOption) (*drand.StatusResponse, error) {
 	var resp *drand.StatusResponse
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (g *grpcClient) GetMetrics(ctx context.Context, addr string) (string, error
 	var resp *drand.MetricsResponse
 	// remote metrics are not group specific for now.
 	in := &drand.MetricsRequest{}
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return "", err
 	}
@@ -244,17 +244,17 @@ func (g *grpcClient) GetMetrics(ctx context.Context, addr string) (string, error
 
 // ListBeaconIDs returns a list of all beacon ids
 func (g *grpcClient) ListBeaconIDs(ctx context.Context, p Peer) (*drand.ListBeaconIDsResponse, error) {
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 
 	client := drand.NewPublicClient(c)
-	return client.ListBeaconIDs(context.Background(), &drand.ListBeaconIDsRequest{})
+	return client.ListBeaconIDs(ctx, &drand.ListBeaconIDsRequest{})
 }
 
 func (g *grpcClient) Check(ctx context.Context, p Peer) error {
-	c, err := g.conn(ctx, p)
+	c, err := g.conn(p)
 	if err != nil {
 		return err
 	}
