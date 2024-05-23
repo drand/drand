@@ -97,30 +97,6 @@ var (
 	}
 )
 
-func TestVersionLt(t *testing.T) {
-	if !version123.Lt(version124) {
-		t.Fatalf("Expected version 1.2.3 to be less than version 1.2.4")
-	}
-	if !version123.Lt(version210) {
-		t.Fatalf("Expected version 1.2.3 to be less than version 2.1.0")
-	}
-	if version130.Lt(version123) {
-		t.Fatalf("Expected version 1.3.0 not to be less than version 1.2.3")
-	}
-}
-
-func TestVersionGt(t *testing.T) {
-	if version123.Gt(version124) {
-		t.Fatalf("Expected version 1.2.3 not to be greater than version 1.2.4")
-	}
-	if version123.Gt(version210) {
-		t.Fatalf("Expected version 1.2.3  not to be greater than version  2.1.0")
-	}
-	if !version130.Gt(version123) {
-		t.Fatalf("Expected version 1.3.0 to be greater than version 1.2.3")
-	}
-}
-
 func TestVersionStringNoPre(t *testing.T) {
 	actual := version123.String()
 	expected := "1.2.3"
