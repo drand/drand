@@ -171,7 +171,6 @@ func (f *fileStore) Reset() error {
 	if err := Delete(f.shareFile); err != nil {
 		return fmt.Errorf("drand: err deleting share file: %w", err)
 	}
-
 	if err := Delete(f.groupFile); err != nil {
 		return fmt.Errorf("drand: err deleting group file: %w", err)
 	}
@@ -228,11 +227,11 @@ func SelfSignAll(l log.Logger, multibeaconFolder string) error {
 			return fmt.Errorf("beacon id [%s] - error loading private/public: %w", beaconID, err)
 		}
 
-		// migration path: if a group wasn't reshared in a long time, its secret share won't containt the scheme name
+		// migration path: if a group wasn't reshared in a long time, its secret share won't contain the scheme name
 		// but the group will.
 		group, err := fs.LoadGroup()
 		if err != nil {
-			l.Warnw("could not load group, please report this: %w", "beaconID", beaconID, "err", err)
+			l.Warnw("could not load group, please report this unless this is a new node", "beaconID", beaconID, "err", err)
 		}
 		// the actual migration path
 		if group != nil && group.Scheme != nil {
@@ -251,7 +250,7 @@ func SelfSignAll(l log.Logger, multibeaconFolder string) error {
 		if err := fs.SaveKeyPair(pair); err != nil {
 			return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
 		}
-		l.Infow("migration: self signed key for scheme %q.\n", "beaconID", beaconID, "scheme", pair.Scheme().Name)
+		l.Infow("migration: self signed key.", "beaconID", beaconID, "scheme", pair.Scheme().Name)
 	}
 
 	return nil
