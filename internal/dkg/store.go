@@ -15,8 +15,8 @@ import (
 	"github.com/drand/drand/v2/common/log"
 )
 
-const dkgFileName = "dkg.toml"
-const dkgStagedFileName = "dkg.staged.toml"
+const FileName = "dkg.toml"
+const StagedFileName = "dkg.staged.toml"
 
 const DirPerm = 0755
 
@@ -50,7 +50,7 @@ func getFromFilePath(path string) (*DBState, error) {
 }
 
 func (fs FileStore) GetCurrent(beaconID string) (*DBState, error) {
-	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName))
+	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName))
 	if errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug("No DKG file found, returning new state")
 		return NewFreshState(beaconID), nil
@@ -59,7 +59,7 @@ func (fs FileStore) GetCurrent(beaconID string) (*DBState, error) {
 }
 
 func (fs FileStore) GetFinished(beaconID string) (*DBState, error) {
-	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName))
+	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, FileName))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -81,12 +81,12 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
 func (fs FileStore) SaveCurrent(beaconID string, state *DBState) error {
-	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, dkgStagedFileName), state)
+	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName), state)
 }
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs FileStore) SaveFinished(beaconID string, state *DBState) error {
-	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, dkgFileName), state)
+	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, FileName), state)
 }
 
 func (fs FileStore) Close() error {
@@ -101,7 +101,7 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		return err
 	}
 
-	dkgFilePath := path.Join(fs.baseFolder, beaconID, dkgFileName)
+	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
 	fs.log.Debug("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID)
 	return saveTOMLToFilePath(dkgFilePath, dbState)
 }

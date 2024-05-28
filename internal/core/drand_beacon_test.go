@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/common/log"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
@@ -245,9 +246,9 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	// nuke the DKG state for a node and reload
 	// the DKG process to clear any open handles
 	node := ts.nodes[0]
-	err = os.Remove(path.Join(node.daemon.opts.configFolder, dkg.BoltFileName))
+	err = os.Remove(path.Join(node.daemon.opts.configFolder, dkg.FileName))
 	require.NoError(t, err)
-	dkgStore, err := dkg.NewDKGStore(node.daemon.opts.configFolder, node.daemon.opts.boltOpts)
+	dkgStore, err := dkg.NewDKGStore(node.daemon.opts.configFolder, log.DefaultLevel)
 	require.NoError(t, err)
 	node.daemon.dkg = dkg.NewDKGProcess(
 		dkgStore,
