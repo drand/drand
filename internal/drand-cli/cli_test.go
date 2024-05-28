@@ -379,7 +379,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, fileStore.SaveShare(fakeShare))
 
 	// save a fake complete DKG in the store
-	dStore, err := dkg2.NewDKGStore(tmpPath, nil)
+	dStore, err := dkg2.NewDKGStore(tmpPath, log.DebugLevel)
 	require.NoError(t, err)
 	err = dStore.SaveFinished(beaconID, &dkg2.DBState{
 		BeaconID:      beaconID,
