@@ -167,7 +167,7 @@ func (dd *DrandDaemon) init(ctx context.Context) error {
 		span.RecordError(err)
 		return err
 	}
-	dkgStore, err := dkg.NewDKGStore(path.Join(c.configFolder, common.MultiBeaconFolder), dd.log.Level())
+	dkgStore, err := dkg.NewDKGStore(path.Join(c.configFolder, common.MultiBeaconFolder), dd.log.IntLevel())
 	if err != nil {
 		span.RecordError(err)
 		return err
