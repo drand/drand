@@ -23,10 +23,14 @@ type BoltStore struct {
 	migrationLock sync.Mutex
 }
 
+const BoltFileName = "dkg.db"
 const dkgFileName = "dkg.toml"
 const dkgStagedFileName = "dkg.staged.toml"
 const BoltStoreOpenPerm = 0660
 const DirPerm = 0755
+
+var stagedStateBucket = []byte("dkg")
+var finishedStateBucket = []byte("dkg_finished")
 
 type FileStore struct {
 	baseFolder string
