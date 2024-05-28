@@ -4,12 +4,10 @@ import (
 	bytes2 "bytes"
 	"os"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
-	bolt "go.etcd.io/bbolt"
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
@@ -17,20 +15,10 @@ import (
 	"github.com/drand/drand/v2/common/log"
 )
 
-type BoltStore struct {
-	db            *bolt.DB
-	log           log.Logger
-	migrationLock sync.Mutex
-}
-
-const BoltFileName = "dkg.db"
 const dkgFileName = "dkg.toml"
 const dkgStagedFileName = "dkg.staged.toml"
-const BoltStoreOpenPerm = 0660
-const DirPerm = 0755
 
-var stagedStateBucket = []byte("dkg")
-var finishedStateBucket = []byte("dkg_finished")
+const DirPerm = 0755
 
 type FileStore struct {
 	baseFolder string
@@ -118,81 +106,6 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	return saveTOMLToFilePath(dkgFilePath, dbState)
 }
 
-func (s *BoltStore) GetCurrent(beaconID string) (*DBState, error) {
-	dkg, err := s.get(beaconID, stagedStateBucket)
-	if err != nil {
-		return nil, err
-	}
-
-	if dkg == nil {
-		return NewFreshState(beaconID), nil
-	}
-	return dkg, nil
-}
-
-func (s *BoltStore) GetFinished(beaconID string) (*DBState, error) {
-	return s.get(beaconID, finishedStateBucket)
-}
-
-func (s *BoltStore) get(beaconID string, bucketName []byte) (*DBState, error) {
-	var dkg *DBState
-
-	err := s.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(bucketName)
-		if bucket == nil {
-			return errors.Errorf("%s bucket was nil - this should never happen", bucketName)
-		}
-		value := bucket.Get([]byte(beaconID))
-		if value == nil {
-			return nil
-		}
-		t := DBStateTOML{}
-		_, err := toml.NewDecoder(bytes2.NewReader(value)).Decode(&t)
-		if err != nil {
-			return err
-		}
-
-		d, err := t.FromTOML()
-		if err != nil {
-			return err
-		}
-		dkg = d
-		return nil
-	})
-
-	return dkg, err
-}
-
-func (s *BoltStore) SaveCurrent(beaconID string, state *DBState) error {
-	return s.save(stagedStateBucket, beaconID, state)
-}
-
-func (s *BoltStore) SaveFinished(beaconID string, state *DBState) error {
-	// we save to both buckets at once transactionally
-	return s.db.Update(func(tx *bolt.Tx) error {
-		finishedBucket := tx.Bucket(finishedStateBucket)
-		currentBucket := tx.Bucket(stagedStateBucket)
-
-		if finishedBucket == nil {
-			return errors.Errorf("%s bucket was nil - this should never happen", finishedStateBucket)
-		}
-		if currentBucket == nil {
-			return errors.Errorf("%s bucket was nil - this should never happen", stagedStateBucket)
-		}
-
-		bytesID := []byte(beaconID)
-		b, err := encodeState(state)
-		if err != nil {
-			return err
-		}
-
-		err = finishedBucket.Put(bytesID, b)
-		if err != nil {
-			return err
-		}
-		return currentBucket.Put(bytesID, b)
-	})
-}
 func encodeState(state *DBState) ([]byte, error) {
 	var bytes []byte
 	b := bytes2.NewBuffer(bytes)
@@ -201,65 +114,6 @@ func encodeState(state *DBState) ([]byte, error) {
 		return nil, err
 	}
 	return b.Bytes(), err
-}
-
-func (s *BoltStore) save(bucketName []byte, beaconID string, state *DBState) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(bucketName)
-
-		if bucket == nil {
-			return errors.Errorf("%s bucket was nil - this should never happen", bucketName)
-		}
-
-		bytesID := []byte(beaconID)
-		b, err := encodeState(state)
-		if err != nil {
-			return err
-		}
-
-		return bucket.Put(bytesID, b)
-	})
-}
-
-func (s *BoltStore) Close() error {
-	if err := s.db.Close(); err != nil {
-		s.log.Errorw("", "boltdb", "close", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (s *BoltStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
-	if beaconID == "" {
-		return errors.New("you must pass a beacon ID")
-	}
-	if groupFile == nil {
-		return errors.New("you cannot migrate without passing a previous group file")
-	}
-	if share == nil {
-		return errors.New("you cannot migrate without a previous distributed key share")
-	}
-
-	// we use a separate lock here to avoid reentrancy when calling `.SaveFinished()`
-	s.migrationLock.Lock()
-	defer s.migrationLock.Unlock()
-
-	current, err := s.GetFinished(beaconID)
-	if err != nil {
-		return err
-	}
-
-	// if there has previously been a DKG in the database, abort!
-	if current != nil {
-		return errors.New("cannot migrate from groupfile if DKG state exists for beacon")
-	}
-
-	state, err := GroupFileToDBState(beaconID, groupFile, share)
-	if err != nil {
-		return err
-	}
-	return s.SaveFinished(beaconID, state)
 }
 
 func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share) (*DBState, error) {
@@ -311,15 +165,4 @@ func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share)
 // NukeState deletes the directory corresponding to the specified beaconID
 func (fs FileStore) NukeState(beaconID string) error {
 	return os.RemoveAll(path.Join(fs.baseFolder, beaconID))
-}
-
-func (s *BoltStore) NukeState(beaconID string) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
-		err := tx.Bucket(stagedStateBucket).Delete([]byte(beaconID))
-		if err != nil {
-			return err
-		}
-
-		return tx.Bucket(finishedStateBucket).Delete([]byte(beaconID))
-	})
 }
