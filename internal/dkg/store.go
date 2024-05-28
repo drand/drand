@@ -33,7 +33,7 @@ type FileStore struct {
 	log        log.Logger
 }
 
-func NewDKGStore(baseFolder string, logLevel Debug.logLevel) (*FileStore, error) {
+func NewDKGStore(baseFolder string, logLevel int) (*FileStore, error) {
 	err := os.MkdirAll(baseFolder, 0770)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,6 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 
 func (s *BoltStore) GetCurrent(beaconID string) (*DBState, error) {
 	dkg, err := s.get(beaconID, stagedStateBucket)
-
 	if err != nil {
 		return nil, err
 	}

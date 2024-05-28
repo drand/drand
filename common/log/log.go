@@ -33,6 +33,7 @@ type Logger interface {
 	With(args ...interface{}) Logger
 	Named(s string) Logger
 	AddCallerSkip(skip int) Logger
+	Level() int
 }
 
 func (l *log) AddCallerSkip(skip int) Logger {
@@ -127,6 +128,10 @@ func getConsoleEncoder() zapcore.Encoder {
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+func (l *log) Level() int {
+	return int(l.Level())
 }
 
 type ctxLoggerKey string

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/v2/common/log"
 	"os"
 	"strings"
 
@@ -28,7 +29,7 @@ func NukeDKGStateCmd(c *cli.Context) error {
 		return err
 	}
 
-	store, err := dkg.NewDKGStore(baseFolder)
+	store, err := dkg.NewDKGStore(baseFolder, log.InfoLevel)
 	if err != nil {
 		return fmt.Errorf("error opening DKG database: %w", err)
 	}
