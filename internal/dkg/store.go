@@ -23,28 +23,24 @@ type BoltStore struct {
 	migrationLock sync.Mutex
 }
 
-const BoltFileName = "dkg.db"
 const dkgFileName = "dkg.toml"
 const dkgStagedFileName = "dkg.staged.toml"
 const BoltStoreOpenPerm = 0660
 const DirPerm = 0755
-
-var stagedStateBucket = []byte("dkg")
-var finishedStateBucket = []byte("dkg_finished")
 
 type FileStore struct {
 	baseFolder string
 	log        log.Logger
 }
 
-func NewDKGStore(baseFolder string) (*FileStore, error) {
+func NewDKGStore(baseFolder string, logLevel Debug.logLevel) (*FileStore, error) {
 	err := os.MkdirAll(baseFolder, 0770)
 	if err != nil {
 		return nil, err
 	}
 	return &FileStore{
 		baseFolder: baseFolder,
-		log:        log.New(nil, log.DebugLevel, true),
+		log:        log.New(nil, logLevel, true),
 	}, nil
 }
 
@@ -107,15 +103,6 @@ func (fs FileStore) Close() error {
 }
 
 func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
-	beaconDir := path.Join(fs.baseFolder, beaconID)
-	fs.log.Debug(
-		"Attempting to migrate state for beaconID  %q, ensuring directory %s exists...",
-		beaconID, beaconDir)
-	_, err := os.Create(beaconDir)
-	if err != nil {
-		return err
-	}
-
 	fs.log.Debug("Converting group file for beaconID %s ...", beaconID)
 	dbState, err := GroupFileToDBState(beaconID, groupFile, share)
 	if err != nil {
