@@ -76,6 +76,10 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 	if err != nil {
 		return err
 	}
+	err = w.Close()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
