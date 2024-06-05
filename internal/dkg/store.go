@@ -26,7 +26,7 @@ type FileStore struct {
 }
 
 func NewDKGStore(baseFolder string, logLevel int) (*FileStore, error) {
-	err := os.MkdirAll(baseFolder, 0770)
+	err := os.MkdirAll(baseFolder, DirPerm)
 	if err != nil {
 		return nil, err
 	}
