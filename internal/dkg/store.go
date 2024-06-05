@@ -96,6 +96,16 @@ func (fs FileStore) Close() error {
 
 func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
 	fs.log.Debug("Converting group file for beaconID %s ...", beaconID)
+	if beaconID == "" {
+		return errors.New("you must pass a beacon ID")
+	}
+	if groupFile == nil {
+		return errors.New("you cannot migrate without passing a previous group file")
+	}
+	if share == nil {
+		return errors.New("you cannot migrate without a previous distributed key share")
+	}
+
 	dbState, err := GroupFileToDBState(beaconID, groupFile, share)
 	if err != nil {
 		return err
