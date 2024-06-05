@@ -3,6 +3,7 @@ package dkg
 import (
 	"testing"
 
+	"github.com/drand/drand/v2/common/log"
 	"github.com/stretchr/testify/require"
 )
 
