@@ -76,11 +76,7 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 	if err != nil {
 		return err
 	}
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-	return nil
+	return w.Close()
 }
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
