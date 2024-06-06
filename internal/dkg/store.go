@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -22,8 +23,9 @@ const StagedFileName = "dkg.staged.toml"
 const DirPerm = 0755
 
 type FileStore struct {
-	baseFolder string
-	log        log.Logger
+	baseFolder    string
+	log           log.Logger
+	migrationLock sync.Mutex
 }
 
 func NewDKGStore(baseFolder string, logLevel int) (*FileStore, error) {
@@ -50,7 +52,9 @@ func getFromFilePath(path string) (*DBState, error) {
 	return state, nil
 }
 
-func (fs FileStore) GetCurrent(beaconID string) (*DBState, error) {
+func (fs *FileStore) GetCurrent(beaconID string) (*DBState, error) {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName))
 	if errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug("No DKG file found, returning new state")
@@ -59,7 +63,9 @@ func (fs FileStore) GetCurrent(beaconID string) (*DBState, error) {
 	return f, err
 }
 
-func (fs FileStore) GetFinished(beaconID string) (*DBState, error) {
+func (fs *FileStore) GetFinished(beaconID string) (*DBState, error) {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, FileName))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -81,7 +87,9 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 }
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
-func (fs FileStore) SaveCurrent(beaconID string, state *DBState) error {
+func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -90,7 +98,7 @@ func (fs FileStore) SaveCurrent(beaconID string, state *DBState) error {
 }
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
-func (fs FileStore) SaveFinished(beaconID string, state *DBState) error {
+func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
 	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -98,12 +106,12 @@ func (fs FileStore) SaveFinished(beaconID string, state *DBState) error {
 	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, FileName), state)
 }
 
-func (fs FileStore) Close() error {
+func (fs *FileStore) Close() error {
 	// Nothing to do for flat-file management
 	return nil
 }
 
-func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
+func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
 	fs.log.Debug(fmt.Sprintf("Converting group file for beaconID %s ...", beaconID))
 	if beaconID == "" {
 		return errors.New("you must pass a beacon ID")
@@ -115,6 +123,8 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 		return errors.New("you cannot migrate without a previous distributed key share")
 	}
 
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	dbState, err := GroupFileToDBState(beaconID, groupFile, share)
 	if err != nil {
 		return err
@@ -123,15 +133,15 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
 	_, err = os.Stat(dkgFilePath)
 	if err == nil {
-		return errors.Errorf("Found existing DKG at %s, aborting migration", dkgFilePath)
+		return errors.Errorf("Found existing DKG store at %s, aborting migration", dkgFilePath)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
-		fs.log.Debug(fmt.Sprintf("Unexpected error checking for dkg store %s: %q", dkgFilePath, err))
+		fs.log.Debug(fmt.Sprintf("Unexpected error checking for DKG store %s: %q", dkgFilePath, err))
 		return err
 	}
 
+	// Save the DKG into a toml file
 	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID))
-
 	err = os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -139,12 +149,10 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	if err = saveTOMLToFilePath(dkgFilePath, dbState); err != nil {
 		return err
 	}
+
+	// Save the DKG into the StagedDKG toml file too
 	stagedDkgFilePath := path.Join(fs.baseFolder, beaconID, StagedFileName)
 	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID))
-	err = os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
-	if err != nil {
-		return err
-	}
 	return saveTOMLToFilePath(stagedDkgFilePath, dbState)
 }
 
@@ -204,6 +212,6 @@ func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share)
 }
 
 // NukeState deletes the directory corresponding to the specified beaconID
-func (fs FileStore) NukeState(beaconID string) error {
+func (fs *FileStore) NukeState(beaconID string) error {
 	return os.RemoveAll(path.Join(fs.baseFolder, beaconID))
 }
