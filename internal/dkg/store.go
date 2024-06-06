@@ -2,6 +2,7 @@ package dkg
 
 import (
 	bytes2 "bytes"
+	"fmt"
 	"os"
 	"path"
 	"time"
@@ -81,11 +82,19 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
 func (fs FileStore) SaveCurrent(beaconID string, state *DBState) error {
+	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	if err != nil {
+		return err
+	}
 	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName), state)
 }
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs FileStore) SaveFinished(beaconID string, state *DBState) error {
+	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	if err != nil {
+		return err
+	}
 	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, FileName), state)
 }
 
@@ -95,7 +104,7 @@ func (fs FileStore) Close() error {
 }
 
 func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error {
-	fs.log.Debug("Converting group file for beaconID %s ...", beaconID)
+	fs.log.Debug(fmt.Sprintf("Converting group file for beaconID %s ...", beaconID))
 	if beaconID == "" {
 		return errors.New("you must pass a beacon ID")
 	}
@@ -112,12 +121,30 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 	}
 
 	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
-	fs.log.Debug("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID)
+	_, err = os.Stat(dkgFilePath)
+	if err == nil {
+		return errors.Errorf("Found existing DKG at %s, aborting migration", dkgFilePath)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		fs.log.Debug(fmt.Sprintf("Unexpected error checking for dkg store %s: %q", dkgFilePath, err))
+		return err
+	}
+
+	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID))
+
+	err = os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	if err != nil {
+		return err
+	}
 	if err = saveTOMLToFilePath(dkgFilePath, dbState); err != nil {
 		return err
 	}
 	stagedDkgFilePath := path.Join(fs.baseFolder, beaconID, StagedFileName)
-	fs.log.Debug("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID)
+	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID))
+	err = os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	if err != nil {
+		return err
+	}
 	return saveTOMLToFilePath(stagedDkgFilePath, dbState)
 }
 
