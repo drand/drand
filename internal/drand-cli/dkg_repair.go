@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/v2/common/log"
 	"os"
 	"strings"
+
+	"github.com/drand/drand/v2/common/log"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/internal/core"

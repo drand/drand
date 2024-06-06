@@ -174,7 +174,6 @@ func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share)
 		FinalGroup:    groupFile,
 		KeyShare:      share,
 	}, nil
-
 }
 
 // NukeState deletes the directory corresponding to the specified beaconID

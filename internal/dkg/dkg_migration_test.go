@@ -1,9 +1,10 @@
 package dkg
 
 import (
-	"github.com/drand/drand/v2/common/log"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/v2/common/log"
 
 	"github.com/stretchr/testify/require"
 
