@@ -113,7 +113,12 @@ func (fs FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group, 
 
 	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
 	fs.log.Debug("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID)
-	return saveTOMLToFilePath(dkgFilePath, dbState)
+	if err = saveTOMLToFilePath(dkgFilePath, dbState); err != nil {
+		return err
+	}
+	stagedDkgFilePath := path.Join(fs.baseFolder, beaconID, StagedFileName)
+	fs.log.Debug("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID)
+	return saveTOMLToFilePath(stagedDkgFilePath, dbState)
 }
 
 func encodeState(state *DBState) ([]byte, error) {
