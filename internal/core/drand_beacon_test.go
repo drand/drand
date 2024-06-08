@@ -249,7 +249,7 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	beaconDKGStoreDir := path.Join(node.daemon.opts.configFolder, common.MultiBeaconFolder, beaconName, dkg.StoreFolder)
 	err = os.Remove(path.Join(beaconDKGStoreDir, dkg.FileName))
 	require.NoError(t, err)
-	dkgStore, err := dkg.NewDKGStore(beaconDKGStoreDir, log.DefaultLevel)
+	dkgStore, err := dkg.NewDKGStore(path.Join(node.daemon.opts.configFolder, common.MultiBeaconFolder), log.DefaultLevel)
 	require.NoError(t, err)
 	node.daemon.dkg = dkg.NewDKGProcess(
 		dkgStore,
