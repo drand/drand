@@ -21,9 +21,6 @@ const DefaultChainHash = "default"
 // MultiBeaconFolder is the name of the folder where the multi-beacon data is stored
 const MultiBeaconFolder = "multibeacon"
 
-// DKGStoreFolder is the directory where dkg.toml and dkg.toml.staged are written
-const DKGStoreFolder = "dkg"
-
 // LogsToSkip is used to reduce log verbosity when doing bulk processes, issuing logs only every LogsToSkip steps
 // this is currently set so that when processing past beacons it will give a log every ~2 seconds
 const LogsToSkip = 300

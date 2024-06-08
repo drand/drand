@@ -17,6 +17,8 @@ import (
 	"github.com/drand/drand/v2/common/log"
 )
 
+// StoreFolder is the directory where dkg.toml and dkg.staged.toml are written
+const StoreFolder = "dkg"
 const FileName = "dkg.toml"
 const StagedFileName = "dkg.staged.toml"
 
@@ -29,12 +31,13 @@ type FileStore struct {
 }
 
 func NewDKGStore(baseFolder string, logLevel int) (*FileStore, error) {
-	err := os.MkdirAll(baseFolder, DirPerm)
+	dkgStoreFolder := path.Join(baseFolder, StoreFolder)
+	err := os.MkdirAll(dkgStoreFolder, DirPerm)
 	if err != nil {
 		return nil, err
 	}
 	return &FileStore{
-		baseFolder: baseFolder,
+		baseFolder: dkgStoreFolder,
 		log:        log.New(nil, logLevel, true),
 	}, nil
 }
