@@ -103,6 +103,8 @@ func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	err := os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -138,10 +140,10 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 		return err
 	}
 
-	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
+	dkgFilePath := path.Join(fs.getDKGFolder(beaconID), FileName)
 	_, err = os.Stat(dkgFilePath)
 	if err == nil {
-		return fmt.Errorf("Found existing DKG store at %s, aborting migration", dkgFilePath)
+		return fmt.Errorf("found existing DKG store at %s, aborting migration", dkgFilePath)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug(fmt.Sprintf("Unexpected error checking for DKG store %s: %q", dkgFilePath, err))
@@ -150,7 +152,7 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 
 	// Save the DKG into a toml file
 	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", dkgFilePath, beaconID))
-	err = os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	err = os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
 	}
@@ -159,7 +161,7 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 	}
 
 	// Save the DKG into the StagedDKG toml file too
-	stagedDkgFilePath := path.Join(fs.baseFolder, beaconID, StagedFileName)
+	stagedDkgFilePath := path.Join(fs.getDKGFolder(beaconID), StagedFileName)
 	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID))
 	return saveTOMLToFilePath(stagedDkgFilePath, dbState)
 }
@@ -221,5 +223,5 @@ func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share)
 
 // NukeState deletes the directory corresponding to the specified beaconID
 func (fs *FileStore) NukeState(beaconID string) error {
-	return os.RemoveAll(fs.baseFolder)
+	return os.RemoveAll(fs.getDKGFolder(beaconID))
 }
