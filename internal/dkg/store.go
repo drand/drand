@@ -103,7 +103,7 @@ func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
-	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	err := os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
 	}
