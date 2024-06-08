@@ -30,14 +30,17 @@ type FileStore struct {
 	migrationLock sync.Mutex
 }
 
+func (fs *FileStore) getDKGFolder(beaconID string) string {
+	return path.Join(fs.baseFolder, beaconID, StoreFolder)
+}
+
 func NewDKGStore(baseFolder string, logLevel int) (*FileStore, error) {
-	dkgStoreFolder := path.Join(baseFolder, StoreFolder)
-	err := os.MkdirAll(dkgStoreFolder, DirPerm)
+	err := os.MkdirAll(baseFolder, DirPerm)
 	if err != nil {
 		return nil, err
 	}
 	return &FileStore{
-		baseFolder: dkgStoreFolder,
+		baseFolder: baseFolder,
 		log:        log.New(nil, logLevel, true),
 	}, nil
 }
@@ -58,7 +61,7 @@ func getFromFilePath(path string) (*DBState, error) {
 func (fs *FileStore) GetCurrent(beaconID string) (*DBState, error) {
 	fs.migrationLock.Lock()
 	defer fs.migrationLock.Unlock()
-	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName))
+	f, err := getFromFilePath(path.Join(fs.getDKGFolder(beaconID), StagedFileName))
 	if errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug("No DKG file found, returning new state")
 		return NewFreshState(beaconID), nil
@@ -69,7 +72,7 @@ func (fs *FileStore) GetCurrent(beaconID string) (*DBState, error) {
 func (fs *FileStore) GetFinished(beaconID string) (*DBState, error) {
 	fs.migrationLock.Lock()
 	defer fs.migrationLock.Unlock()
-	f, err := getFromFilePath(path.Join(fs.baseFolder, beaconID, FileName))
+	f, err := getFromFilePath(path.Join(fs.getDKGFolder(beaconID), FileName))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -91,11 +94,11 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
 	fs.migrationLock.Lock()
 	defer fs.migrationLock.Unlock()
-	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	err := os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
 	}
-	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName), state)
+	return saveTOMLToFilePath(path.Join(fs.getDKGFolder(beaconID), StagedFileName), state)
 }
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
@@ -104,11 +107,11 @@ func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
 	if err != nil {
 		return err
 	}
-	err = saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName), state)
+	err = saveTOMLToFilePath(path.Join(fs.getDKGFolder(beaconID), StagedFileName), state)
 	if err != nil {
 		return err
 	}
-	return saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, FileName), state)
+	return saveTOMLToFilePath(path.Join(fs.getDKGFolder(beaconID), FileName), state)
 }
 
 func (fs *FileStore) Close() error {
