@@ -215,5 +215,5 @@ func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share)
 
 // NukeState deletes the directory corresponding to the specified beaconID
 func (fs *FileStore) NukeState(beaconID string) error {
-	return os.RemoveAll(path.Join(fs.baseFolder, beaconID))
+	return os.RemoveAll(fs.baseFolder)
 }
