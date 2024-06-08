@@ -246,7 +246,7 @@ func TestMigrateMissingDKGDatabase(t *testing.T) {
 	// nuke the DKG state for a node and reload
 	// the DKG process to clear any open handles
 	node := ts.nodes[0]
-	beaconDKGStoreDir := path.Join(node.daemon.opts.configFolder, common.MultiBeaconFolder, beaconName)
+	beaconDKGStoreDir := path.Join(node.daemon.opts.configFolder, common.MultiBeaconFolder, beaconName, dkg.StoreFolder)
 	err = os.Remove(path.Join(beaconDKGStoreDir, dkg.FileName))
 	require.NoError(t, err)
 	dkgStore, err := dkg.NewDKGStore(beaconDKGStoreDir, log.DefaultLevel)
