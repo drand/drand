@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	bytes2 "bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -152,16 +151,6 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 	stagedDkgFilePath := path.Join(fs.getDKGFolder(beaconID), StagedFileName)
 	fs.log.Debug(fmt.Sprintf("Writing DKG file %s for for beaconID %s ...", stagedDkgFilePath, beaconID))
 	return saveTOMLToFilePath(stagedDkgFilePath, dbState)
-}
-
-func encodeState(state *DBState) ([]byte, error) {
-	var bytes []byte
-	b := bytes2.NewBuffer(bytes)
-	err := toml.NewEncoder(b).Encode(state.TOML())
-	if err != nil {
-		return nil, err
-	}
-	return b.Bytes(), err
 }
 
 func GroupFileToDBState(beaconID string, groupFile *key.Group, share *key.Share) (*DBState, error) {
