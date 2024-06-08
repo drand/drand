@@ -2,6 +2,7 @@ package dkg
 
 import (
 	bytes2 "bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/pkg/errors"
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 
@@ -80,10 +80,8 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 	}
 	t := state.TOML()
 	err = toml.NewEncoder(w).Encode(&t)
-	if err != nil {
-		return err
-	}
-	return w.Close()
+	closeErr := w.Close()
+	return errors.Join(closeErr, err)
 }
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
@@ -100,6 +98,10 @@ func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
 	err := os.MkdirAll(path.Join(fs.baseFolder, beaconID), DirPerm)
+	if err != nil {
+		return err
+	}
+	err = saveTOMLToFilePath(path.Join(fs.baseFolder, beaconID, StagedFileName), state)
 	if err != nil {
 		return err
 	}
@@ -133,7 +135,7 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 	dkgFilePath := path.Join(fs.baseFolder, beaconID, FileName)
 	_, err = os.Stat(dkgFilePath)
 	if err == nil {
-		return errors.Errorf("Found existing DKG store at %s, aborting migration", dkgFilePath)
+		return fmt.Errorf("Found existing DKG store at %s, aborting migration", dkgFilePath)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug(fmt.Sprintf("Unexpected error checking for DKG store %s: %q", dkgFilePath, err))
