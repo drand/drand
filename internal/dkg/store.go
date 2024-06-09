@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -23,8 +24,9 @@ const StagedFileName = "dkg.staged.toml"
 const DirPerm = 0755
 
 type FileStore struct {
-	baseFolder string
-	log        log.Logger
+	baseFolder    string
+	log           log.Logger
+	migrationLock sync.Mutex
 }
 
 func (fs *FileStore) getDKGFolder(beaconID string) string {
@@ -56,6 +58,8 @@ func getFromFilePath(path string) (*DBState, error) {
 }
 
 func (fs *FileStore) GetCurrent(beaconID string) (*DBState, error) {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	f, err := getFromFilePath(path.Join(fs.getDKGFolder(beaconID), StagedFileName))
 	if errors.Is(err, os.ErrNotExist) {
 		fs.log.Debug("No DKG file found, returning new state")
@@ -65,6 +69,8 @@ func (fs *FileStore) GetCurrent(beaconID string) (*DBState, error) {
 }
 
 func (fs *FileStore) GetFinished(beaconID string) (*DBState, error) {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	f, err := getFromFilePath(path.Join(fs.getDKGFolder(beaconID), FileName))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -85,6 +91,8 @@ func saveTOMLToFilePath(filepath string, state *DBState) error {
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
 func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	err := os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -94,6 +102,8 @@ func (fs *FileStore) SaveCurrent(beaconID string, state *DBState) error {
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
 func (fs *FileStore) SaveFinished(beaconID string, state *DBState) error {
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	err := os.MkdirAll(fs.getDKGFolder(beaconID), DirPerm)
 	if err != nil {
 		return err
@@ -122,6 +132,8 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 		return errors.New("you cannot migrate without a previous distributed key share")
 	}
 
+	fs.migrationLock.Lock()
+	defer fs.migrationLock.Unlock()
 	dbState, err := GroupFileToDBState(beaconID, groupFile, share)
 	if err != nil {
 		return err
