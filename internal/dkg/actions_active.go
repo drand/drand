@@ -496,9 +496,9 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 			Current: &currentEntry,
 		}, nil
 	}
-	fmt.Sprintf(">>>>> finished: %s", finished)
-	fmt.Sprintf(">>>>> finished.FinalGroup: %s", finished.FinalGroup)
-	fmt.Sprintf(">>>>> finished.FinalGroup.Nodes: %s", finished.FinalGroup.Nodes)
+	d.log.Debug(fmt.Sprintf(">>>>> finished: %s", finished))
+	d.log.Debug(fmt.Sprintf(">>>>> finished.FinalGroup: %s", finished.FinalGroup))
+	d.log.Debug(fmt.Sprintf(">>>>> finished.FinalGroup.Nodes: %s", finished.FinalGroup.Nodes))
 	finishedFinalGroup := make([]string, len(finished.FinalGroup.Nodes))
 	for i, v := range finished.FinalGroup.Nodes {
 		finishedFinalGroup[i] = v.Addr
