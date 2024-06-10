@@ -545,11 +545,11 @@ type printModel struct {
 	FinalGroup  string
 }
 
-func convert(entry *drand.DKGEntry) printModel {
+func convert(entry *drand.DKGEntry, checks bool) printModel {
 	if entry == nil {
 		return printModel{}
 	}
-	formatAddresses := func(arr []*drand.Participant) string {
+	formatAddresses := func(arr []*drand.Participant, checks bool) string {
 		if len(arr) == 0 {
 			return "[]"
 		}
@@ -559,8 +559,18 @@ func convert(entry *drand.DKGEntry) printModel {
 
 		b := strings.Builder{}
 		b.WriteString("[")
+
+		checkmark := ""
 		for _, a := range arr {
-			b.WriteString(fmt.Sprintf("\n\t%s,", a.Address))
+			if checks && util.Contains(entry.Remaining, a) {
+				checkmark = " ☐ "
+				if util.Contains(entry.Acceptors, a) {
+					checkmark = " ☑ "
+				} else if util.Contains(entry.Rejectors, a) {
+					checkmark = " ☒ "
+				}
+			}
+			b.WriteString(fmt.Sprintf("\n\t%s%s,", a.Address, checkmark))
 		}
 		b.WriteString("\n]")
 
@@ -589,11 +599,11 @@ func convert(entry *drand.DKGEntry) printModel {
 		GenesisTime: entry.GenesisTime.AsTime().Format(time.RFC3339),
 		GenesisSeed: hex.EncodeToString(entry.GenesisSeed),
 		Leader:      entry.Leader.Address,
-		Joining:     formatAddresses(entry.Joining),
-		Remaining:   formatAddresses(entry.Remaining),
-		Leaving:     formatAddresses(entry.Leaving),
-		Accepted:    formatAddresses(entry.Acceptors),
-		Rejected:    formatAddresses(entry.Rejectors),
+		Joining:     formatAddresses(entry.Joining, false),
+		Remaining:   formatAddresses(entry.Remaining, checks),
+		Leaving:     formatAddresses(entry.Leaving, false),
+		Accepted:    formatAddresses(entry.Acceptors, false),
+		Rejected:    formatAddresses(entry.Rejectors, false),
 		FinalGroup:  formatFinalGroup(entry.FinalGroup),
 	}
 }
@@ -608,8 +618,8 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 		return
 	}
 
-	currentModel := convert(status.Current)
-	finishedModel := convert(status.Complete)
+	currentModel := convert(status.Current, true)
+	finishedModel := convert(status.Complete, false)
 
 	tw.AppendRow(table.Row{"Status", currentModel.Status, finishedModel.Status})
 	tw.AppendRow(table.Row{"Epoch", currentModel.Epoch, finishedModel.Epoch})

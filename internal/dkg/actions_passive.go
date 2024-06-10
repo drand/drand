@@ -36,7 +36,7 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return nil, errors.New("packet signature is too short")
 	}
 	shortSig := packetSig[0:ShortSigLength]
-	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig)
+	d.log.Debugw("processing DKG gossip packet", "type", packetName, "sig", shortSig, "allegedly from", packet.Metadata.GetAddress())
 	_, span := tracer.NewSpan(ctx, fmt.Sprintf("packet.%s", packetName))
 	defer span.End()
 

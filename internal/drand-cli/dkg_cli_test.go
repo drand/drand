@@ -34,7 +34,7 @@ func TestDKGPrintModelConversion(t *testing.T) {
 		Rejectors:   nil,
 		FinalGroup:  []string{"alice", "bob", "carol"},
 	}
-	printModel := convert(&entry)
+	printModel := convert(&entry, false)
 
 	require.Equal(t, "banana", printModel.BeaconID)
 	require.Equal(t, "Complete", printModel.Status)
@@ -53,7 +53,7 @@ func TestDKGPrintModelConversion(t *testing.T) {
 }
 
 func TestNilDoesntPanic(t *testing.T) {
-	require.Equal(t, convert(nil), printModel{})
+	require.Equal(t, convert(nil, true), printModel{})
 }
 
 func NewParticipant(name string) *drand.Participant {
