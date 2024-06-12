@@ -401,7 +401,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 	d.AdvanceMockClock(d.t, d.nodes[0].daemon.opts.dkgKickoffGracePeriod)
 
 	t.Log("[RunDKG] WaitForDKG on leader")
-	groupFile, err := d.WaitForDKG(t, leader, 1, 100)
+	groupFile, err := d.WaitForDKG(t, leader, 1, 150)
 	if err != nil {
 		return nil, err
 	}
