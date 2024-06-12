@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-Drand (pronounced "zee-rand") is a distributed randomness beacon daemon
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon
 written in <a href="https://golang.org/">Golang</a>.
 </p>
 
