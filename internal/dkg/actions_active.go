@@ -102,8 +102,10 @@ func (d *Process) Command(ctx context.Context, command *drand.DKGCommand) (*dran
 
 		packetToGossip.Metadata = metadata
 		errs := d.gossip(me, recipients, packetToGossip)
-		// we gossip the leavers separately - if it fails, no big deal
-		_ = d.gossip(me, afterState.Leaving, packetToGossip)
+		if len(afterState.Leaving) != 0 {
+			// we gossip the leavers separately - if it fails, no big deal
+			_ = d.gossip(me, afterState.Leaving, packetToGossip)
+		}
 
 		// if it's a proposal, let's block until it finishes gossiping or a timeout,
 		// because we want to be sure everybody received it
@@ -497,6 +499,10 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 		}, nil
 	}
 
+	if finished.FinalGroup == nil {
+		fmt.Println("FUCK")
+		fmt.Println(finished.TOML())
+	}
 	finishedFinalGroup := make([]string, len(finished.FinalGroup.Nodes))
 	for i, v := range finished.FinalGroup.Nodes {
 		finishedFinalGroup[i] = v.Addr
