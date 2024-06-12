@@ -130,7 +130,7 @@ func TestRunDKGLarge(t *testing.T) {
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
-	dkgTimeout := 3 * time.Minute
+	dkgTimeout := 5 * time.Minute
 
 	// we need to increase some DKG timings for bigger DKGs!
 	dt := NewDrandTestScenario(
