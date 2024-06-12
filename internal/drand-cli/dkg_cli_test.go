@@ -34,7 +34,7 @@ func TestDKGPrintModelConversion(t *testing.T) {
 		Rejectors:   nil,
 		FinalGroup:  []string{"alice", "bob", "carol"},
 	}
-	printModel := convert(&entry, false)
+	printModel := convert(&entry)
 
 	require.Equal(t, "banana", printModel.BeaconID)
 	require.Equal(t, "Complete", printModel.Status)
@@ -44,8 +44,8 @@ func TestDKGPrintModelConversion(t *testing.T) {
 	require.Equal(t, "2023-01-01T01:02:02Z", printModel.GenesisTime)
 	require.Equal(t, "deadbeef", printModel.GenesisSeed)
 	require.Equal(t, "alice", printModel.Leader)
-	require.Equal(t, "[\n\talice,\n\tbob,\n\tcarol,\n]", printModel.Remaining)
-	require.Equal(t, `[david]`, printModel.Joining)
+	require.Equal(t, "[\n\t ☑ alice,\n\t ☑ bob,\n\t ☑ carol,\n]", printModel.Remaining)
+	require.Equal(t, "[\t ☒ david\t]", printModel.Joining)
 	require.Equal(t, "[]", printModel.Leaving)
 	require.Equal(t, "[]", printModel.Accepted)
 	require.Equal(t, "[]", printModel.Rejected)
@@ -53,7 +53,7 @@ func TestDKGPrintModelConversion(t *testing.T) {
 }
 
 func TestNilDoesntPanic(t *testing.T) {
-	require.Equal(t, convert(nil, true), printModel{})
+	require.Equal(t, convert(nil), printModel{})
 }
 
 func NewParticipant(name string) *drand.Participant {

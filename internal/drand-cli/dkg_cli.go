@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -545,49 +546,80 @@ type printModel struct {
 	FinalGroup  string
 }
 
-func convert(entry *drand.DKGEntry, checks bool) printModel {
+func formatAddresses(arr []*drand.Participant) string {
+	if len(arr) == 0 {
+		return "[]"
+	}
+	if len(arr) == 1 {
+		return fmt.Sprintf("[\t%s\t]", arr[0].Address)
+	}
+
+	b := strings.Builder{}
+	b.WriteString("[")
+
+	for _, a := range arr {
+		b.WriteString(fmt.Sprintf("\n\t%s,", a.Address))
+	}
+	b.WriteString("\n]")
+
+	return b.String()
+}
+
+func addCheckmarks(arr []*drand.Participant, entry *drand.DKGEntry) []*drand.Participant {
+	ret := make([]*drand.Participant, 0, len(arr))
+	check := func(a *drand.Participant) bool {
+		return util.Contains(entry.Remaining, a)
+	}
+	valid := func(a *drand.Participant) bool {
+		return util.Contains(entry.Acceptors, a) || a.Address == entry.Leader.Address
+	}
+	invalid := func(a *drand.Participant) bool {
+		return util.Contains(entry.Rejectors, a)
+	}
+
+	if len(entry.FinalGroup) > 0 {
+		check = func(_ *drand.Participant) bool {
+			return true
+		}
+		valid = func(a *drand.Participant) bool {
+			return slices.Contains(entry.FinalGroup, a.Address)
+		}
+		invalid = func(a *drand.Participant) bool {
+			return !slices.Contains(entry.FinalGroup, a.Address)
+		}
+	}
+	for _, a := range arr {
+		if check(a) {
+			checkmark := " ☐ "
+			if valid(a) {
+				checkmark = " ☑ "
+			} else if invalid(a) {
+				checkmark = " ☒ "
+			}
+			a.Address = checkmark + a.Address
+		}
+		ret = append(ret, a)
+	}
+
+	return ret
+}
+
+func formatFinalGroup(group []string) string {
+	if group == nil {
+		return ""
+	}
+	b := strings.Builder{}
+	b.WriteString("[")
+	for _, a := range group {
+		b.WriteString(fmt.Sprintf("\n\t%s,", a))
+	}
+	b.WriteString("\n]")
+	return b.String()
+}
+
+func convert(entry *drand.DKGEntry) printModel {
 	if entry == nil {
 		return printModel{}
-	}
-	formatAddresses := func(arr []*drand.Participant, checks bool) string {
-		if len(arr) == 0 {
-			return "[]"
-		}
-		if len(arr) == 1 {
-			return fmt.Sprintf("[%s]", arr[0].Address)
-		}
-
-		b := strings.Builder{}
-		b.WriteString("[")
-
-		checkmark := ""
-		for _, a := range arr {
-			if checks && util.Contains(entry.Remaining, a) {
-				checkmark = " ☐ "
-				if util.Contains(entry.Acceptors, a) {
-					checkmark = " ☑ "
-				} else if util.Contains(entry.Rejectors, a) {
-					checkmark = " ☒ "
-				}
-			}
-			b.WriteString(fmt.Sprintf("\n\t%s%s,", a.Address, checkmark))
-		}
-		b.WriteString("\n]")
-
-		return b.String()
-	}
-
-	formatFinalGroup := func(group []string) string {
-		if group == nil {
-			return ""
-		}
-		b := strings.Builder{}
-		b.WriteString("[")
-		for _, a := range group {
-			b.WriteString(fmt.Sprintf("\n\t%s,", a))
-		}
-		b.WriteString("\n]")
-		return b.String()
 	}
 
 	return printModel{
@@ -599,11 +631,11 @@ func convert(entry *drand.DKGEntry, checks bool) printModel {
 		GenesisTime: entry.GenesisTime.AsTime().Format(time.RFC3339),
 		GenesisSeed: hex.EncodeToString(entry.GenesisSeed),
 		Leader:      entry.Leader.Address,
-		Joining:     formatAddresses(entry.Joining, false),
-		Remaining:   formatAddresses(entry.Remaining, checks),
-		Leaving:     formatAddresses(entry.Leaving, false),
-		Accepted:    formatAddresses(entry.Acceptors, false),
-		Rejected:    formatAddresses(entry.Rejectors, false),
+		Joining:     formatAddresses(addCheckmarks(entry.Joining, entry)),
+		Remaining:   formatAddresses(addCheckmarks(entry.Remaining, entry)),
+		Leaving:     formatAddresses(entry.Leaving),
+		Accepted:    formatAddresses(entry.Acceptors),
+		Rejected:    formatAddresses(entry.Rejectors),
 		FinalGroup:  formatFinalGroup(entry.FinalGroup),
 	}
 }
@@ -618,8 +650,8 @@ func prettyPrint(status *drand.DKGStatusResponse) {
 		return
 	}
 
-	currentModel := convert(status.Current, true)
-	finishedModel := convert(status.Complete, false)
+	currentModel := convert(status.Current)
+	finishedModel := convert(status.Complete)
 
 	tw.AppendRow(table.Row{"Status", currentModel.Status, finishedModel.Status})
 	tw.AppendRow(table.Row{"Epoch", currentModel.Epoch, finishedModel.Epoch})
