@@ -499,10 +499,6 @@ func (d *Process) DKGStatus(ctx context.Context, request *drand.DKGStatusRequest
 		}, nil
 	}
 
-	if finished.FinalGroup == nil {
-		fmt.Println("FUCK")
-		fmt.Println(finished.TOML())
-	}
 	finishedFinalGroup := make([]string, len(finished.FinalGroup.Nodes))
 	for i, v := range finished.FinalGroup.Nodes {
 		finishedFinalGroup[i] = v.Addr
