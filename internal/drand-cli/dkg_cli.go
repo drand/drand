@@ -589,6 +589,10 @@ func addCheckmarks(arr []*drand.Participant, entry *drand.DKGEntry) []*drand.Par
 		}
 	}
 	for _, a := range arr {
+		// we don't want any side effects, using a new list
+		fresh := &drand.Participant{
+			Address: a.Address,
+		}
 		if check(a) {
 			checkmark := " ☐ "
 			if valid(a) {
@@ -596,9 +600,9 @@ func addCheckmarks(arr []*drand.Participant, entry *drand.DKGEntry) []*drand.Par
 			} else if invalid(a) {
 				checkmark = " ☒ "
 			}
-			a.Address = checkmark + a.Address
+			fresh.Address = checkmark + a.Address
 		}
-		ret = append(ret, a)
+		ret = append(ret, fresh)
 	}
 
 	return ret
