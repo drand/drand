@@ -11,9 +11,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
+          push: false
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          file: ./local.Dockerfile
+          context: .
           push: false
