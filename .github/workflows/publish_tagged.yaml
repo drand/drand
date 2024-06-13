@@ -49,8 +49,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./local.Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:${{ github.ref_name }}
           build-args: |
             gitCommit: ${{ github.sha }}
+            buildTag: conn_insecure
