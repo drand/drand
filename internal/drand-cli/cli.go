@@ -240,7 +240,7 @@ var jsonFlag = &cli.BoolFlag{
 
 var beaconIDFlag = &cli.StringFlag{
 	Name:    "id",
-	Usage:   "Indicates the id for the randomness generation process which will be started",
+	Usage:   "Indicates the id for the randomness generation process which the command applies to.",
 	Value:   "",
 	EnvVars: []string{"DRAND_ID"},
 }
@@ -344,7 +344,7 @@ var appCommands = []*cli.Command{
 	},
 	{
 		Name:  "share",
-		Usage: "Launch a sharing protocol.",
+		Usage: "The old command for running DKGs; this has been removed",
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			return deprecatedShareCommand(c)
@@ -352,7 +352,7 @@ var appCommands = []*cli.Command{
 	},
 	{
 		Name:  "load",
-		Usage: "Launch a sharing protocol from filesystem",
+		Usage: "Load a stopped beacon from the filesystem",
 		Flags: toArray(controlFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
