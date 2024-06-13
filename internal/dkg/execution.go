@@ -156,6 +156,7 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 
 	select {
 	case <-d.close:
+		close(d.completedDKGs.Chan())
 		return errors.New("daemon was closed before DKG execution")
 	case d.completedDKGs.Chan() <- SharingOutput{
 		BeaconID: beaconID,
