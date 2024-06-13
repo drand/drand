@@ -25,7 +25,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: false
           build-args: |
             gitCommit: ${{ github.sha }}
             buildTag: conn_insecure
