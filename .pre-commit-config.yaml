@@ -20,13 +20,13 @@ repos:
   rev: v1.59.1
   hooks:
     - id: golangci-lint
-      stages: [push]
+      stages: [pre-push, manual]
 - repo: local
   hooks:
     - id: go-test-short
+      stages: [pre-push, manual]
       name: go-test-short
       entry: bash -c 'go test -tags conn_insecure -short ./...'
       language: system
       types: [go]
       pass_filenames: false
-      stages: [push]
