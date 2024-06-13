@@ -146,8 +146,17 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 		return err
 	}
 
+	// the `Close()` function of the DKG process could close this channel before we write the results of the DKG to it
+	// so let's recover the panic and return an error; it should only happen when the daemon is shutting down anyway
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("recovered from panic writing to closed channel: %v", r)
+		}
+	}()
+
 	select {
 	case <-d.close:
+		close(d.completedDKGs.Chan())
 		return errors.New("daemon was closed before DKG execution")
 	case d.completedDKGs.Chan() <- SharingOutput{
 		BeaconID: beaconID,
