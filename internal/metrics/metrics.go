@@ -223,8 +223,8 @@ var (
 		Help: "The database type the node is running with. 1=bolt-trimmed, 2=postgres, 3=memdb, 4=bolt-untrimmed",
 	}, []string{"db_type"})
 
-	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
-	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
+	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, using the states from
+	// https://github.com/grpc/grpc-go/blob/8075dd35d2738b352c4355b4b353dc1e9183bea7/connectivity/connectivity.go#L51-L62
 	// Due to the fact that grpc-go doesn't support adding a listener for state tracking, this is
 	// emitted only when getting a connection to the remote host. This means that:
 	// * If a non-PL host is unable to connect to a PL host, the metric will not be sent to InfluxDB

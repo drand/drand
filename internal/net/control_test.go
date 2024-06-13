@@ -1,27 +1,18 @@
 package net
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/drand/drand/v2/common/testlogger"
 	testnet "github.com/drand/drand/v2/internal/test/net"
+	"golang.org/x/net/nettest"
 )
 
 const runtimeGOOSWindows = "windows"
 
-// From https://github.com/golang/net/blob/master/nettest/nettest.go#L91
+// testable reports whether we support unix or not
 func testable() bool {
-	switch runtime.GOOS {
-	case "aix", "android", "fuchsia", "hurd", "js", "nacl", "plan9", runtimeGOOSWindows:
-		return false
-	case "darwin":
-		// iOS does not support unix, unixgram.
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
-			return false
-		}
-	}
-	return true
+	return nettest.TestableNetwork("unix")
 }
 
 func TestControlUnix(t *testing.T) {
