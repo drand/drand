@@ -11,9 +11,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build and push
+
+      - name: Build TLS
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: false
+
+      - name: Build non-TLS
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          build-args: |
+            gitCommit: ${{ github.sha }}
+            buildTag: conn_insecure
