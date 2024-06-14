@@ -136,7 +136,7 @@ func (fs *FileStore) MigrateFromGroupfile(beaconID string, groupFile *key.Group,
 		return fmt.Errorf("found existing DKG store at %s, aborting migration", dkgFilePath)
 	}
 	if !errors.Is(err, os.ErrNotExist) {
-		fs.log.Debug(fmt.Sprintf("Unexpected error checking for DKG store %s: %q", dkgFilePath, err))
+		fs.log.Debugw("Unexpected error checking for DKG store", "path",  dkgFilePath, "error", err)
 		return err
 	}
 
