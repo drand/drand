@@ -25,6 +25,7 @@ var version = Version{
 var (
 	COMMIT    = ""
 	BUILDDATE = ""
+	BUILDTAGS = ""
 )
 
 func GetAppVersion() Version {
@@ -66,6 +67,9 @@ func (v Version) String() string {
 	pre := ""
 	if v.Prerelease != "" {
 		pre = "-"
+	}
+	if BUILDTAGS != "" {
+		pre += "insecure-"
 	}
 	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }
