@@ -343,8 +343,9 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
-		Name:  "share",
-		Usage: "The old command for running DKGs; this has been removed",
+		Name:   "share",
+		Usage:  "The old command for running DKGs; this has been removed",
+		Hidden: true,
 		Action: func(c *cli.Context) error {
 			banner(c.App.Writer)
 			return deprecatedShareCommand(c)
