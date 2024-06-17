@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"strings"
+
+	"github.com/drand/drand/v2/common/log"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/internal/core"
@@ -28,7 +31,7 @@ func NukeDKGStateCmd(c *cli.Context) error {
 		return err
 	}
 
-	store, err := dkg.NewDKGStore(baseFolder, nil)
+	store, err := dkg.NewDKGStore(path.Join(baseFolder, common.MultiBeaconFolder), log.InfoLevel)
 	if err != nil {
 		return fmt.Errorf("error opening DKG database: %w", err)
 	}

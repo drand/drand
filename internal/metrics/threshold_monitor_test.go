@@ -322,3 +322,7 @@ func (m *mockLogger) Named(s string) log.Logger {
 func (m *mockLogger) AddCallerSkip(skip int) log.Logger {
 	panic("implement me")
 }
+
+func (m *mockLogger) IntLevel() int {
+	return 0
+}

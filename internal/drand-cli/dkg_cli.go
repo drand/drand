@@ -25,6 +25,7 @@ import (
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
+	pb "google.golang.org/protobuf/proto"
 )
 
 var dkgGroupFlag = &cli.StringFlag{
@@ -506,7 +507,8 @@ func viewStatus(c *cli.Context) error {
 func csvPrint(c *cli.Context, tag string, entry *drand.DKGEntry) {
 	out := c.App.Writer
 	_, _ = fmt.Fprintf(out, "%s", tag)
-	if entry == nil {
+
+	if entry == nil || pb.Equal(entry, &drand.DKGEntry{}) {
 		_, _ = fmt.Fprintln(out, "nil")
 		return
 	}

@@ -116,6 +116,9 @@ func (d *Process) Close() {
 	if err != nil {
 		d.log.Errorw("error closing the database", "err", err)
 	}
+	// this sleep ensures that any in progress DKG will register the closure of the process
+	// before trying to write on the `completedDKGs` channel
+	time.Sleep(1 * time.Second)
 	d.completedDKGs.Close()
 }
 
