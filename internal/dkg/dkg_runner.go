@@ -148,6 +148,7 @@ func (r *TestRunner) WaitForDKG(lg log.Logger, epoch uint32, numberOfSeconds int
 		time.Sleep(1 * time.Second)
 		res, err := r.Client.DKGStatus(ctx, &drand.DKGStatusRequest{BeaconID: r.BeaconID})
 		if err != nil {
+			lg.Debugw("DKGStatus errored... retrying", "err", err)
 			continue
 		}
 
@@ -160,6 +161,7 @@ func (r *TestRunner) WaitForDKG(lg log.Logger, epoch uint32, numberOfSeconds int
 			return ErrDKGFailed
 		}
 		if res.Complete == nil || res.Complete.Epoch != epoch {
+			lg.Debugw("DKGStatus invalid Complete... retrying", "Complete", res.Complete)
 			continue
 		}
 
