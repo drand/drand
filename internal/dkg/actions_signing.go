@@ -2,6 +2,7 @@ package dkg
 
 import (
 	"errors"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -58,7 +59,7 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 	pubPoint := kp.Scheme().KeyGroup.Point()
 	err = pubPoint.UnmarshalBinary(p.Key)
 	if err != nil {
-		return key.ErrInvalidKeyScheme
+		return fmt.Errorf("unable to verify packet allegedly from %s: %w", packet.GetMetadata().GetAddress(), key.ErrInvalidKeyScheme)
 	}
 
 	// we need to copy here or the GC/compiler does something weird
@@ -71,7 +72,7 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 }
 
 func messageForProto(proposal *drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
-	// we remove the metadata for verification of the packet, as the signer hasn't created the metadta
+	// we remove the metadata for verification of the packet, as the signer hasn't created the metadata
 	// upon signing
 	packetWithoutMetadata := proto.Clone(packet).(*drand.GossipPacket)
 	packetWithoutMetadata.Metadata = nil
