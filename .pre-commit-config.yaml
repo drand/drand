@@ -1,0 +1,33 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_install_hook_types: [pre-commit, pre-push]
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.6.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+    - id: check-yaml
+    - id: check-toml
+    - id: check-json
+    - id: check-case-conflict
+    - id: check-merge-conflict
+    - id: check-vcs-permalinks
+    - id: forbid-submodules
+    - id: mixed-line-ending
+    - id: no-commit-to-branch
+    - id: check-added-large-files
+- repo: https://github.com/golangci/golangci-lint
+  rev: v1.59.1
+  hooks:
+    - id: golangci-lint
+      stages: [pre-push]
+- repo: local
+  hooks:
+    - id: go-test-short
+      stages: [pre-push]
+      name: go-test-short
+      entry: bash -c 'go test -tags conn_insecure -short ./...'
+      language: system
+      types: [go]
+      pass_filenames: false
