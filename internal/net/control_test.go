@@ -3,12 +3,11 @@ package net
 import (
 	"testing"
 
+	"golang.org/x/net/nettest"
+
 	"github.com/drand/drand/v2/common/testlogger"
 	testnet "github.com/drand/drand/v2/internal/test/net"
-	"golang.org/x/net/nettest"
 )
-
-const runtimeGOOSWindows = "windows"
 
 // testable reports whether we support unix or not
 func testable() bool {
