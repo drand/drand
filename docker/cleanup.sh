@@ -8,5 +8,3 @@ volumes=$(docker volume ls  --format '{{.Name}}' | grep -i drand_docker_demo | t
 if [[ -n "$volumes" ]]; then
   docker volume rm $volumes
 fi
-
-
