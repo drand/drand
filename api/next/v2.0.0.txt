@@ -1,0 +1,485 @@
+pkg github.com/drand/drand/v2/common, const DefaultBeaconID = "default"
+pkg github.com/drand/drand/v2/common, const DefaultBeaconID ideal-string
+pkg github.com/drand/drand/v2/common, const DefaultChainHash = "default"
+pkg github.com/drand/drand/v2/common, const DefaultChainHash ideal-string
+pkg github.com/drand/drand/v2/common, const LogsToSkip = 300
+pkg github.com/drand/drand/v2/common, const LogsToSkip ideal-int
+pkg github.com/drand/drand/v2/common, const MultiBeaconFolder = "multibeacon"
+pkg github.com/drand/drand/v2/common, const MultiBeaconFolder ideal-string
+pkg github.com/drand/drand/v2/common, const TimeOfRoundErrorValue = 9223371968135299071
+pkg github.com/drand/drand/v2/common, const TimeOfRoundErrorValue int64
+pkg github.com/drand/drand/v2/common, func CompareBeaconIDs(string, string) bool
+pkg github.com/drand/drand/v2/common, func CurrentRound(int64, time.Duration, int64) uint64
+pkg github.com/drand/drand/v2/common, func GetAppVersion() common.Version
+pkg github.com/drand/drand/v2/common, func GetCanonicalBeaconID(string) string
+pkg github.com/drand/drand/v2/common, func IsDefaultBeaconID(string) bool
+pkg github.com/drand/drand/v2/common, func NextRound(int64, time.Duration, int64) (uint64, int64)
+pkg github.com/drand/drand/v2/common, func TimeOfRound(time.Duration, int64, uint64) int64
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) Equal(*common.Beacon) bool
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) GetPreviousSignature() []uint8
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) GetRandomness() []uint8
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) GetRound() uint64
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) GetSignature() []uint8
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) Marshal() ([]uint8, error)
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) Randomness() []uint8
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) String() string
+pkg github.com/drand/drand/v2/common, method (*common.Beacon) Unmarshal([]uint8) error
+pkg github.com/drand/drand/v2/common, method (*common.HexBytes) MarshalJSON() ([]uint8, error)
+pkg github.com/drand/drand/v2/common, method (*common.HexBytes) UnmarshalJSON([]uint8) error
+pkg github.com/drand/drand/v2/common, method (common.Version) IsCompatible(common.Version) bool
+pkg github.com/drand/drand/v2/common, method (common.Version) String() string
+pkg github.com/drand/drand/v2/common, method (common.Version) ToProto() *drand.NodeVersion
+pkg github.com/drand/drand/v2/common, type Beacon struct
+pkg github.com/drand/drand/v2/common, type Beacon struct, PreviousSig common.HexBytes
+pkg github.com/drand/drand/v2/common, type Beacon struct, Round uint64
+pkg github.com/drand/drand/v2/common, type Beacon struct, Signature common.HexBytes
+pkg github.com/drand/drand/v2/common, type HexBytes []uint8
+pkg github.com/drand/drand/v2/common, type Version struct
+pkg github.com/drand/drand/v2/common, type Version struct, Major uint32
+pkg github.com/drand/drand/v2/common, type Version struct, Minor uint32
+pkg github.com/drand/drand/v2/common, type Version struct, Patch uint32
+pkg github.com/drand/drand/v2/common, type Version struct, Prerelease string
+pkg github.com/drand/drand/v2/common, var BUILDDATE string
+pkg github.com/drand/drand/v2/common, var COMMIT string
+pkg github.com/drand/drand/v2/common, var ErrEmptyClientUnsupportedGet error
+pkg github.com/drand/drand/v2/common, var ErrInvalidChainHash error
+pkg github.com/drand/drand/v2/common, var ErrNotPartOfGroup error
+pkg github.com/drand/drand/v2/common, var ErrPeerNotFound error
+pkg github.com/drand/drand/v2/common/chain, func InfoFromJSON(io.Reader) (*chain.Info, error)
+pkg github.com/drand/drand/v2/common/chain, func InfoFromProto(*drand.ChainInfoPacket) (*chain.Info, error)
+pkg github.com/drand/drand/v2/common/chain, func NewChainInfo(*key.Group) *chain.Info
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) Equal(*chain.Info) bool
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) GetSchemeName() string
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) Hash() []uint8
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) HashString() string
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) ToJSON(io.Writer, *drand.Metadata) error
+pkg github.com/drand/drand/v2/common/chain, method (*chain.Info) ToProto(*drand.Metadata) *drand.ChainInfoPacket
+pkg github.com/drand/drand/v2/common/chain, type Info struct
+pkg github.com/drand/drand/v2/common/chain, type Info struct, GenesisSeed []uint8
+pkg github.com/drand/drand/v2/common/chain, type Info struct, GenesisTime int64
+pkg github.com/drand/drand/v2/common/chain, type Info struct, ID string
+pkg github.com/drand/drand/v2/common/chain, type Info struct, Period time.Duration
+pkg github.com/drand/drand/v2/common/chain, type Info struct, PublicKey kyber.Point
+pkg github.com/drand/drand/v2/common/chain, type Info struct, Scheme string
+pkg github.com/drand/drand/v2/common/client, type Client interface { Close, Get, Info, RoundAt, Watch }
+pkg github.com/drand/drand/v2/common/client, type Client interface, Close() error
+pkg github.com/drand/drand/v2/common/client, type Client interface, Get(context.Context, uint64) (client.Result, error)
+pkg github.com/drand/drand/v2/common/client, type Client interface, Info(context.Context) (*chain.Info, error)
+pkg github.com/drand/drand/v2/common/client, type Client interface, RoundAt(time.Time) uint64
+pkg github.com/drand/drand/v2/common/client, type Client interface, Watch(context.Context) <-chan client.Result
+pkg github.com/drand/drand/v2/common/client, type LoggingClient interface { SetLog }
+pkg github.com/drand/drand/v2/common/client, type LoggingClient interface, SetLog(log.Logger)
+pkg github.com/drand/drand/v2/common/client, type Result interface { GetRandomness, GetRound, GetSignature }
+pkg github.com/drand/drand/v2/common/client, type Result interface, GetRandomness() []uint8
+pkg github.com/drand/drand/v2/common/client, type Result interface, GetRound() uint64
+pkg github.com/drand/drand/v2/common/client, type Result interface, GetSignature() []uint8
+pkg github.com/drand/drand/v2/common/key, const FolderName = "key"
+pkg github.com/drand/drand/v2/common/key, const FolderName ideal-string
+pkg github.com/drand/drand/v2/common/key, const GroupFolderName = "groups"
+pkg github.com/drand/drand/v2/common/key, const GroupFolderName ideal-string
+pkg github.com/drand/drand/v2/common/key, func DefaultThreshold(int) int
+pkg github.com/drand/drand/v2/common/key, func Delete(string) error
+pkg github.com/drand/drand/v2/common/key, func GroupFromProto(*drand.GroupPacket, *crypto.Scheme) (*key.Group, error)
+pkg github.com/drand/drand/v2/common/key, func IdentityFromProto(key.protoIdentity, *crypto.Scheme) (*key.Identity, error)
+pkg github.com/drand/drand/v2/common/key, func Load(string, key.Tomler) error
+pkg github.com/drand/drand/v2/common/key, func LoadGroup([]*key.Node, int64, *key.DistPublic, time.Duration, int64, *crypto.Scheme, string) *key.Group
+pkg github.com/drand/drand/v2/common/key, func MinimumT(int) int
+pkg github.com/drand/drand/v2/common/key, func NewFileStore(string, string) key.Store
+pkg github.com/drand/drand/v2/common/key, func NewFileStores(string) (map[string]key.Store, error)
+pkg github.com/drand/drand/v2/common/key, func NewKeyPair(string, *crypto.Scheme) (*key.Pair, error)
+pkg github.com/drand/drand/v2/common/key, func NodeFromProto(*drand.Node, *crypto.Scheme) (*key.Node, error)
+pkg github.com/drand/drand/v2/common/key, func PointToString(kyber.Point) string
+pkg github.com/drand/drand/v2/common/key, func Save(string, key.Tomler, bool) error
+pkg github.com/drand/drand/v2/common/key, func ScalarToString(kyber.Scalar) string
+pkg github.com/drand/drand/v2/common/key, func SelfSignAll(log.Logger, string) error
+pkg github.com/drand/drand/v2/common/key, func StringToPoint(kyber.Group, string) (kyber.Point, error)
+pkg github.com/drand/drand/v2/common/key, func StringToScalar(kyber.Group, string) (kyber.Scalar, error)
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) Equal(*key.DistPublic) bool
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) FromTOML(*crypto.Scheme, interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) Hash() []uint8
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) Key() kyber.Point
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) PubPoly(*crypto.Scheme) *share.PubPoly
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.DistPublic) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) DKGNodes() []dkg.Node
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Equal(*key.Group) bool
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Find(*key.Identity) *key.Node
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) GetGenesisSeed() []uint8
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Hash() []uint8
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Len() int
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Node(uint32) *key.Node
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) Points() []kyber.Point
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) String() string
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) ToProto(common.Version) *drand.GroupPacket
+pkg github.com/drand/drand/v2/common/key, method (*key.Group) UnsignedIdentities() []*key.Node
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) Address() string
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) Equal(*key.Identity) bool
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) Hash() []uint8
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) String() string
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) ToProto() *drand.Identity
+pkg github.com/drand/drand/v2/common/key, method (*key.Identity) ValidSignature() error
+pkg github.com/drand/drand/v2/common/key, method (*key.Node) Equal(*key.Node) bool
+pkg github.com/drand/drand/v2/common/key, method (*key.Node) FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.Node) Hash() []uint8
+pkg github.com/drand/drand/v2/common/key, method (*key.Node) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Node) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Pair) FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.Pair) Scheme() *crypto.Scheme
+pkg github.com/drand/drand/v2/common/key, method (*key.Pair) SelfSign() error
+pkg github.com/drand/drand/v2/common/key, method (*key.Pair) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Pair) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) Commitments() []kyber.Point
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) PriShare() *share.PriShare
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) PrivateShare() *share.PriShare
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) PubPoly() *share.PubPoly
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) Public() *key.DistPublic
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, method (*key.Share) TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, method (key.ByKey) Len() int
+pkg github.com/drand/drand/v2/common/key, method (key.ByKey) Less(int, int) bool
+pkg github.com/drand/drand/v2/common/key, method (key.ByKey) Swap(int, int)
+pkg github.com/drand/drand/v2/common/key, method (key.Node) Address() string
+pkg github.com/drand/drand/v2/common/key, method (key.Node) String() string
+pkg github.com/drand/drand/v2/common/key, method (key.Node) ToProto() *drand.Identity
+pkg github.com/drand/drand/v2/common/key, method (key.Node) ValidSignature() error
+pkg github.com/drand/drand/v2/common/key, type ByKey []*key.Identity
+pkg github.com/drand/drand/v2/common/key, type DistPublic struct
+pkg github.com/drand/drand/v2/common/key, type DistPublic struct, Coefficients []kyber.Point
+pkg github.com/drand/drand/v2/common/key, type DistPublicTOML struct
+pkg github.com/drand/drand/v2/common/key, type DistPublicTOML struct, Coefficients []string
+pkg github.com/drand/drand/v2/common/key, type Group struct
+pkg github.com/drand/drand/v2/common/key, type Group struct, CatchupPeriod time.Duration
+pkg github.com/drand/drand/v2/common/key, type Group struct, GenesisSeed []uint8
+pkg github.com/drand/drand/v2/common/key, type Group struct, GenesisTime int64
+pkg github.com/drand/drand/v2/common/key, type Group struct, ID string
+pkg github.com/drand/drand/v2/common/key, type Group struct, Nodes []*key.Node
+pkg github.com/drand/drand/v2/common/key, type Group struct, Period time.Duration
+pkg github.com/drand/drand/v2/common/key, type Group struct, PublicKey *key.DistPublic
+pkg github.com/drand/drand/v2/common/key, type Group struct, Scheme *crypto.Scheme
+pkg github.com/drand/drand/v2/common/key, type Group struct, Threshold int
+pkg github.com/drand/drand/v2/common/key, type Group struct, TransitionTime int64
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, CatchupPeriod string
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, GenesisSeed string
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, GenesisTime int64
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, ID string
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, Nodes []*key.NodeTOML
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, Period string
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, PublicKey *key.DistPublicTOML
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, SchemeID string
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, Threshold int
+pkg github.com/drand/drand/v2/common/key, type GroupTOML struct, TransitionTime int64
+pkg github.com/drand/drand/v2/common/key, type Identity struct
+pkg github.com/drand/drand/v2/common/key, type Identity struct, Addr string
+pkg github.com/drand/drand/v2/common/key, type Identity struct, Key kyber.Point
+pkg github.com/drand/drand/v2/common/key, type Identity struct, Scheme *crypto.Scheme
+pkg github.com/drand/drand/v2/common/key, type Identity struct, Signature []uint8
+pkg github.com/drand/drand/v2/common/key, type Index = uint32
+pkg github.com/drand/drand/v2/common/key, type Node struct
+pkg github.com/drand/drand/v2/common/key, type Node struct, Index uint32
+pkg github.com/drand/drand/v2/common/key, type Node struct, embedded *key.Identity
+pkg github.com/drand/drand/v2/common/key, type NodeTOML struct
+pkg github.com/drand/drand/v2/common/key, type NodeTOML struct, Index uint32
+pkg github.com/drand/drand/v2/common/key, type NodeTOML struct, embedded *key.PublicTOML
+pkg github.com/drand/drand/v2/common/key, type Pair struct
+pkg github.com/drand/drand/v2/common/key, type Pair struct, Key kyber.Scalar
+pkg github.com/drand/drand/v2/common/key, type Pair struct, Public *key.Identity
+pkg github.com/drand/drand/v2/common/key, type PairTOML struct
+pkg github.com/drand/drand/v2/common/key, type PairTOML struct, Key string
+pkg github.com/drand/drand/v2/common/key, type PairTOML struct, SchemeName string
+pkg github.com/drand/drand/v2/common/key, type PublicTOML struct
+pkg github.com/drand/drand/v2/common/key, type PublicTOML struct, Address string
+pkg github.com/drand/drand/v2/common/key, type PublicTOML struct, Key string
+pkg github.com/drand/drand/v2/common/key, type PublicTOML struct, SchemeName string
+pkg github.com/drand/drand/v2/common/key, type PublicTOML struct, Signature string
+pkg github.com/drand/drand/v2/common/key, type Share struct
+pkg github.com/drand/drand/v2/common/key, type Share struct, Scheme *crypto.Scheme
+pkg github.com/drand/drand/v2/common/key, type Share struct, embedded dkg.DistKeyShare
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct, Commits []string
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct, Index int
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct, PrivatePoly []string
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct, SchemeName string
+pkg github.com/drand/drand/v2/common/key, type ShareTOML struct, Share string
+pkg github.com/drand/drand/v2/common/key, type Store interface { LoadGroup, LoadKeyPair, LoadShare, Reset, SaveGroup, SaveKeyPair, SaveShare }
+pkg github.com/drand/drand/v2/common/key, type Store interface, LoadGroup() (*key.Group, error)
+pkg github.com/drand/drand/v2/common/key, type Store interface, LoadKeyPair() (*key.Pair, error)
+pkg github.com/drand/drand/v2/common/key, type Store interface, LoadShare() (*key.Share, error)
+pkg github.com/drand/drand/v2/common/key, type Store interface, Reset() error
+pkg github.com/drand/drand/v2/common/key, type Store interface, SaveGroup(*key.Group) error
+pkg github.com/drand/drand/v2/common/key, type Store interface, SaveKeyPair(*key.Pair) error
+pkg github.com/drand/drand/v2/common/key, type Store interface, SaveShare(*key.Share) error
+pkg github.com/drand/drand/v2/common/key, type Tomler interface { FromTOML, TOML, TOMLValue }
+pkg github.com/drand/drand/v2/common/key, type Tomler interface, FromTOML(interface{}) error
+pkg github.com/drand/drand/v2/common/key, type Tomler interface, TOML() interface{}
+pkg github.com/drand/drand/v2/common/key, type Tomler interface, TOMLValue() interface{}
+pkg github.com/drand/drand/v2/common/key, var ErrInvalidKeyScheme error
+pkg github.com/drand/drand/v2/common/log, const DebugLevel = -1
+pkg github.com/drand/drand/v2/common/log, const DebugLevel int
+pkg github.com/drand/drand/v2/common/log, const ErrorLevel = 2
+pkg github.com/drand/drand/v2/common/log, const ErrorLevel int
+pkg github.com/drand/drand/v2/common/log, const FatalLevel = 5
+pkg github.com/drand/drand/v2/common/log, const FatalLevel int
+pkg github.com/drand/drand/v2/common/log, const InfoLevel = 0
+pkg github.com/drand/drand/v2/common/log, const InfoLevel int
+pkg github.com/drand/drand/v2/common/log, const PanicLevel = 4
+pkg github.com/drand/drand/v2/common/log, const PanicLevel int
+pkg github.com/drand/drand/v2/common/log, const WarnLevel = 1
+pkg github.com/drand/drand/v2/common/log, const WarnLevel int
+pkg github.com/drand/drand/v2/common/log, func ConfigureDefaultLogger(zapcore.WriteSyncer, int, bool)
+pkg github.com/drand/drand/v2/common/log, func DefaultLogger() log.Logger
+pkg github.com/drand/drand/v2/common/log, func FromContextOrDefault(context.Context) log.Logger
+pkg github.com/drand/drand/v2/common/log, func New(zapcore.WriteSyncer, int, bool) log.Logger
+pkg github.com/drand/drand/v2/common/log, func ToContext(context.Context, log.Logger) context.Context
+pkg github.com/drand/drand/v2/common/log, type Logger interface { AddCallerSkip, Debug, Debugw, Error, Errorw, Fatal, Fatalw, Info, Infow, Named, Panic, Panicw, Warn, Warnw, With }
+pkg github.com/drand/drand/v2/common/log, type Logger interface, AddCallerSkip(int) log.Logger
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Debug(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Debugw(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Error(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Errorw(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Fatal(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Fatalw(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Info(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Infow(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Named(string) log.Logger
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Panic(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Panicw(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Warn(...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, Warnw(string, ...interface{})
+pkg github.com/drand/drand/v2/common/log, type Logger interface, With(...interface{}) log.Logger
+pkg github.com/drand/drand/v2/common/log, var DefaultLevel int
+pkg github.com/drand/drand/v2/common/testlogger, func Level(testing.TB) int
+pkg github.com/drand/drand/v2/common/testlogger, func New(testing.TB) log.Logger
+pkg github.com/drand/drand/v2/common/tracer, func InitTracer(string, string, float64) (trace.Tracer, func(context.Context))
+pkg github.com/drand/drand/v2/common/tracer, func NewSpan(context.Context, string, ...trace.SpanStartOption) (context.Context, trace.Span)
+pkg github.com/drand/drand/v2/common/tracer, func NewSpanFromContext(context.Context, context.Context, string, ...trace.SpanStartOption) (context.Context, trace.Span)
+pkg github.com/drand/drand/v2/common/tracer, func NewSpanFromSpanContext(context.Context, trace.SpanContext, string, ...trace.SpanStartOption) (context.Context, trace.Span)
+pkg github.com/drand/drand/v2/crypto, const DefaultSchemeID = "pedersen-bls-chained"
+pkg github.com/drand/drand/v2/crypto, const DefaultSchemeID ideal-string
+pkg github.com/drand/drand/v2/crypto, const ShortSigSchemeID = "bls-unchained-on-g1"
+pkg github.com/drand/drand/v2/crypto, const ShortSigSchemeID ideal-string
+pkg github.com/drand/drand/v2/crypto, const SigsOnG1ID = "bls-unchained-g1-rfc9380"
+pkg github.com/drand/drand/v2/crypto, const SigsOnG1ID ideal-string
+pkg github.com/drand/drand/v2/crypto, const UnchainedSchemeID = "pedersen-bls-unchained"
+pkg github.com/drand/drand/v2/crypto, const UnchainedSchemeID ideal-string
+pkg github.com/drand/drand/v2/crypto, func GetSchemeByID(string) (*crypto.Scheme, error)
+pkg github.com/drand/drand/v2/crypto, func GetSchemeFromEnv() (*crypto.Scheme, error)
+pkg github.com/drand/drand/v2/crypto, func ListSchemes() []string
+pkg github.com/drand/drand/v2/crypto, func NewPedersenBLSChained() *crypto.Scheme
+pkg github.com/drand/drand/v2/crypto, func NewPedersenBLSUnchained() *crypto.Scheme
+pkg github.com/drand/drand/v2/crypto, func NewPedersenBLSUnchainedG1() *crypto.Scheme
+pkg github.com/drand/drand/v2/crypto, func NewPedersenBLSUnchainedSwapped() *crypto.Scheme
+pkg github.com/drand/drand/v2/crypto, func RandomnessFromSignature([]uint8) []uint8
+pkg github.com/drand/drand/v2/crypto, func SchemeFromName(string) (*crypto.Scheme, error)
+pkg github.com/drand/drand/v2/crypto, method (*crypto.Scheme) String() string
+pkg github.com/drand/drand/v2/crypto, method (*crypto.Scheme) VerifyBeacon(crypto.SignedBeacon, kyber.Point) error
+pkg github.com/drand/drand/v2/crypto, type Scheme struct
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, AuthScheme sign.Scheme
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, DKGAuthScheme sign.Scheme
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, DigestBeacon func(crypto.hashableBeacon) []uint8
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, IdentityHash func() hash.Hash
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, KeyGroup kyber.Group
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, Name string
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, SigGroup kyber.Group
+pkg github.com/drand/drand/v2/crypto, type Scheme struct, ThresholdScheme sign.ThresholdScheme
+pkg github.com/drand/drand/v2/crypto, type SignedBeacon interface { GetPreviousSignature, GetRound, GetSignature }
+pkg github.com/drand/drand/v2/crypto, type SignedBeacon interface, GetPreviousSignature() []uint8
+pkg github.com/drand/drand/v2/crypto, type SignedBeacon interface, GetRound() uint64
+pkg github.com/drand/drand/v2/crypto, type SignedBeacon interface, GetSignature() []uint8
+pkg github.com/drand/drand/v2/crypto/vault, func NewVault(log.Logger, *key.Group, *key.Share, *crypto.Scheme) *vault.Vault
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) GetGroup() *key.Group
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) GetInfo() *chain.Info
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) GetPub() *share.PubPoly
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) Index() int
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) SetInfo(*key.Group, *key.Share)
+pkg github.com/drand/drand/v2/crypto/vault, method (*vault.Vault) SignPartial([]uint8) ([]uint8, error)
+pkg github.com/drand/drand/v2/crypto/vault, method (vault.Vault) String() string
+pkg github.com/drand/drand/v2/crypto/vault, method (vault.Vault) VerifyBeacon(crypto.SignedBeacon, kyber.Point) error
+pkg github.com/drand/drand/v2/crypto/vault, type CryptoSafe interface { SignPartial }
+pkg github.com/drand/drand/v2/crypto/vault, type CryptoSafe interface, SignPartial([]uint8) ([]uint8, error)
+pkg github.com/drand/drand/v2/crypto/vault, type Vault struct
+pkg github.com/drand/drand/v2/crypto/vault, type Vault struct, embedded *crypto.Scheme
+pkg github.com/drand/drand/v2/demo/cfg, func BootContainer() func()
+pkg github.com/drand/drand/v2/demo/cfg, func ComputePgDSN(chain.StorageType) func() string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, BasePath string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, BeaconID string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, Binary string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, DBEngineType chain.StorageType
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, IsCandidate bool
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, MemDBSize int
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, N int
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, Offset int
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, Period string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, PgDSN func() string
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, Scheme *crypto.Scheme
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, Thr int
+pkg github.com/drand/drand/v2/demo/cfg, type Config struct, WithCurl bool
+pkg github.com/drand/drand/v2/demo/lib, func NewOrchestrator(cfg.Config) *lib.Orchestrator
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) CheckCurrentBeacon(...int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) CheckNewBeacon(...int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) CreateResharingGroup(int, int) (*lib.ResharingGroup, error)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) PrintLogs()
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) RunDKG(time.Duration) error
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) RunResharing(*lib.ResharingGroup, time.Duration)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) SetupNewNodes(int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) Shutdown()
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) StartCurrentNodes(...int) error
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) StartNewNodes() error
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) StartNode(...int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) StopAllNodes(...int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) StopNodes(...int)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) UpdateBinary(string, uint, bool)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) UpdateGlobalBinary(string, bool)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) Wait(time.Duration)
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) WaitGenesis()
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) WaitPeriod()
+pkg github.com/drand/drand/v2/demo/lib, method (*lib.Orchestrator) WaitTransition()
+pkg github.com/drand/drand/v2/demo/lib, type Orchestrator struct
+pkg github.com/drand/drand/v2/demo/lib, type ResharingGroup struct
+pkg github.com/drand/drand/v2/demo/node, func NewLocalNode(int, string, cfg.Config) *node.LocalNode
+pkg github.com/drand/drand/v2/demo/node, func NewNode(int, cfg.Config) *node.NodeProc
+pkg github.com/drand/drand/v2/demo/node, func WriteProposalFile(string, node.ProposalFile) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) AcceptReshare() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) ChainInfo(string) bool
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) CtrlAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) ExecuteLeaderDKG() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) ExecuteLeaderReshare() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) GetBeacon(string, uint64) (*drand.PublicRandResponse, string)
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) GetGroup() *key.Group
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) Identity() (*dkg.Participant, error)
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) Index() int
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) JoinDKG() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) JoinReshare(key.Group) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) Ping() bool
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) PrintLog()
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) PrivateAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) PublicAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) Start(chain.StorageType, func() string, int) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) StartLeaderDKG(int, int, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) StartLeaderReshare(int, int, []*dkg.Participant, []*dkg.Participant, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) Stop()
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) WaitDKGComplete(uint32, time.Duration) (*key.Group, error)
+pkg github.com/drand/drand/v2/demo/node, method (*node.LocalNode) WritePublic(string)
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) AcceptReshare() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) ChainInfo(string) bool
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) CtrlAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) ExecuteLeaderDKG() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) ExecuteLeaderReshare() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) GetBeacon(string, uint64) (*drand.PublicRandResponse, string)
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) GetGroup() *key.Group
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) Identity() (*dkg.Participant, error)
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) Index() int
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) JoinDKG() error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) JoinReshare(key.Group) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) Ping() bool
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) PrintLog()
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) PrivateAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) PublicAddr() string
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) Start(chain.StorageType, func() string, int) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) StartLeaderDKG(int, int, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) StartLeaderReshare(int, int, []*dkg.Participant, []*dkg.Participant, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) Stop()
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) UpdateBinary(string, bool)
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) WaitDKGComplete(uint32, time.Duration) (*key.Group, error)
+pkg github.com/drand/drand/v2/demo/node, method (*node.NodeProc) WritePublic(string)
+pkg github.com/drand/drand/v2/demo/node, type LocalNode struct
+pkg github.com/drand/drand/v2/demo/node, type Node interface { AcceptReshare, ChainInfo, CtrlAddr, ExecuteLeaderDKG, ExecuteLeaderReshare, GetBeacon, GetGroup, Identity, Index, JoinDKG, JoinReshare, Ping, PrintLog, PrivateAddr, PublicAddr, Start, StartLeaderDKG, StartLeaderReshare, Stop, WaitDKGComplete, WritePublic }
+pkg github.com/drand/drand/v2/demo/node, type Node interface, AcceptReshare() error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, ChainInfo(string) bool
+pkg github.com/drand/drand/v2/demo/node, type Node interface, CtrlAddr() string
+pkg github.com/drand/drand/v2/demo/node, type Node interface, ExecuteLeaderDKG() error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, ExecuteLeaderReshare() error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, GetBeacon(string, uint64) (*drand.PublicRandResponse, string)
+pkg github.com/drand/drand/v2/demo/node, type Node interface, GetGroup() *key.Group
+pkg github.com/drand/drand/v2/demo/node, type Node interface, Identity() (*dkg.Participant, error)
+pkg github.com/drand/drand/v2/demo/node, type Node interface, Index() int
+pkg github.com/drand/drand/v2/demo/node, type Node interface, JoinDKG() error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, JoinReshare(key.Group) error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, Ping() bool
+pkg github.com/drand/drand/v2/demo/node, type Node interface, PrintLog()
+pkg github.com/drand/drand/v2/demo/node, type Node interface, PrivateAddr() string
+pkg github.com/drand/drand/v2/demo/node, type Node interface, PublicAddr() string
+pkg github.com/drand/drand/v2/demo/node, type Node interface, Start(chain.StorageType, func() string, int) error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, StartLeaderDKG(int, int, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, StartLeaderReshare(int, int, []*dkg.Participant, []*dkg.Participant, []*dkg.Participant) error
+pkg github.com/drand/drand/v2/demo/node, type Node interface, Stop()
+pkg github.com/drand/drand/v2/demo/node, type Node interface, WaitDKGComplete(uint32, time.Duration) (*key.Group, error)
+pkg github.com/drand/drand/v2/demo/node, type Node interface, WritePublic(string)
+pkg github.com/drand/drand/v2/demo/node, type NodeProc struct
+pkg github.com/drand/drand/v2/demo/node, type ProposalFile struct
+pkg github.com/drand/drand/v2/demo/node, type ProposalFile struct, Joining []*dkg.Participant
+pkg github.com/drand/drand/v2/demo/node, type ProposalFile struct, Leaving []*dkg.Participant
+pkg github.com/drand/drand/v2/demo/node, type ProposalFile struct, Remaining []*dkg.Participant
+pkg github.com/drand/drand/v2/handler/http, func New(context.Context, string) (*http.DrandHandler, error)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) ChainHashes(http.ResponseWriter, *http.Request)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) ChainInfo(http.ResponseWriter, *http.Request)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) GetHTTPHandler() http.Handler
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) Health(http.ResponseWriter, *http.Request)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) LatestRand(http.ResponseWriter, *http.Request)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) PublicRand(http.ResponseWriter, *http.Request)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) RegisterDefaultBeaconHandler(*http.BeaconHandler)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) RegisterNewBeaconHandler(client.Client, string) *http.BeaconHandler
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) RemoveBeaconHandler(string)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) SetHTTPHandler(http.Handler)
+pkg github.com/drand/drand/v2/handler/http, method (*http.DrandHandler) Watch(*http.BeaconHandler, chan bool)
+pkg github.com/drand/drand/v2/handler/http, type BeaconHandler struct
+pkg github.com/drand/drand/v2/handler/http, type DrandHandler struct
+pkg github.com/drand/drand/v2/test/mock, func NewGrpcClient(*mock.Server) *mock.GrpcClient
+pkg github.com/drand/drand/v2/test/mock, func NewMockBeacon(*testing.T, *crypto.Scheme, clockwork.Clock) (*drand.ChainInfoPacket, *drand.PublicRandResponse)
+pkg github.com/drand/drand/v2/test/mock, func NewMockGRPCPublicServer(*testing.T, log.Logger, string, bool, *crypto.Scheme, clockwork.Clock) (net.Listener, net.Service)
+pkg github.com/drand/drand/v2/test/mock, func NewMockServer(*testing.T, bool, *crypto.Scheme, clockwork.Clock) net.Service
+pkg github.com/drand/drand/v2/test/mock, method (*mock.GrpcClient) Close() error
+pkg github.com/drand/drand/v2/test/mock, method (*mock.GrpcClient) Get(context.Context, uint64) (client.Result, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.GrpcClient) Info(context.Context) (*chain.Info, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.GrpcClient) RoundAt(time.Time) uint64
+pkg github.com/drand/drand/v2/test/mock, method (*mock.GrpcClient) Watch(context.Context) <-chan client.Result
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) Command(context.Context, *dkg.DKGCommand) (*dkg.EmptyDKGResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) DKGStatus(context.Context, *dkg.DKGStatusRequest) (*dkg.DKGStatusResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) EmitRand(bool)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) Metrics(context.Context, *drand.MetricsRequest) (*drand.MetricsResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) Packet(context.Context, *dkg.GossipPacket) (*dkg.EmptyDKGResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (*mock.Server) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) BackupDatabase(context.Context, *drand.BackupDBRequest) (*drand.BackupDBResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) BroadcastDKG(context.Context, *dkg.DKGPacket) (*dkg.EmptyDKGResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) GetIdentity(context.Context, *drand.IdentityRequest) (*drand.IdentityResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) LoadBeacon(context.Context, *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) Migrate(context.Context, *drand.Empty) (*drand.Empty, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) NodeVersionStreamValidator(interface{}, grpc.ServerStream, *grpc.StreamServerInfo, grpc.StreamHandler) error
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) NodeVersionValidator(context.Context, interface{}, *grpc.UnaryServerInfo, grpc.UnaryHandler) (interface{}, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) PingPong(context.Context, *drand.Ping) (*drand.Pong, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) RemoteStatus(context.Context, *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) StartCheckChain(*drand.StartSyncRequest, drand.Control_StartCheckChainServer) error
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) StartFollowChain(*drand.StartSyncRequest, drand.Control_StartFollowChainServer) error
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/v2/test/mock, method (mock.Server) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error
+pkg github.com/drand/drand/v2/test/mock, type Data struct
+pkg github.com/drand/drand/v2/test/mock, type Data struct, BadSecondRound bool
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Genesis int64
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Period time.Duration
+pkg github.com/drand/drand/v2/test/mock, type Data struct, PreviousRound int
+pkg github.com/drand/drand/v2/test/mock, type Data struct, PreviousSignature string
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Public []uint8
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Round int
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Scheme *crypto.Scheme
+pkg github.com/drand/drand/v2/test/mock, type Data struct, Signature string
+pkg github.com/drand/drand/v2/test/mock, type GrpcClient struct
+pkg github.com/drand/drand/v2/test/mock, type Server struct
+pkg github.com/drand/drand/v2/test/mock, type Server struct, embedded *net.EmptyServer
+pkg github.com/drand/drand/v2/test/mock, type Service interface { EmitRand }
+pkg github.com/drand/drand/v2/test/mock, type Service interface, EmitRand(bool)

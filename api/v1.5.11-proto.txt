@@ -1,0 +1,948 @@
+pkg github.com/drand/drand/protobuf/common, func NewMetadata(*common.NodeVersion) *common.Metadata
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) GetBeaconID() string
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) GetChainHash() []uint8
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) GetNodeVersion() *common.NodeVersion
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) ProtoMessage()
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) Reset()
+pkg github.com/drand/drand/protobuf/common, method (*common.Metadata) String() string
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) GetMajor() uint32
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) GetMinor() uint32
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) GetPatch() uint32
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) GetPrerelease() string
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) ProtoMessage()
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) Reset()
+pkg github.com/drand/drand/protobuf/common, method (*common.NodeVersion) String() string
+pkg github.com/drand/drand/protobuf/common, type Metadata struct
+pkg github.com/drand/drand/protobuf/common, type Metadata struct, BeaconID string
+pkg github.com/drand/drand/protobuf/common, type Metadata struct, ChainHash []uint8
+pkg github.com/drand/drand/protobuf/common, type Metadata struct, NodeVersion *common.NodeVersion
+pkg github.com/drand/drand/protobuf/common, type NodeVersion struct
+pkg github.com/drand/drand/protobuf/common, type NodeVersion struct, Major uint32
+pkg github.com/drand/drand/protobuf/common, type NodeVersion struct, Minor uint32
+pkg github.com/drand/drand/protobuf/common, type NodeVersion struct, Patch uint32
+pkg github.com/drand/drand/protobuf/common, type NodeVersion struct, Prerelease *string
+pkg github.com/drand/drand/protobuf/common, var File_common_common_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) GetEncryptedShare() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) GetShareIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Deal) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) GetCommits() [][]uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) GetDealerIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) GetDeals() []*dkg.Deal
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) GetSessionId() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.DealBundle) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) GetShare() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) GetShareIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Justification) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) GetDealerIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) GetJustifications() []*dkg.Justification
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) GetSessionId() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.JustificationBundle) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) GetBundle() dkg.isPacket_Bundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) GetDeal() *dkg.DealBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) GetJustification() *dkg.JustificationBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) GetResponse() *dkg.ResponseBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Packet) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) GetDealerIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) GetStatus() bool
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.Response) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) GetResponses() []*dkg.Response
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) GetSessionId() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) GetShareIndex() uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) ProtoMessage()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) Reset()
+pkg github.com/drand/drand/protobuf/crypto/dkg, method (*dkg.ResponseBundle) String() string
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Deal struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Deal struct, EncryptedShare []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Deal struct, ShareIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct, Commits [][]uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct, DealerIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct, Deals []*dkg.Deal
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct, SessionId []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type DealBundle struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Justification struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Justification struct, Share []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Justification struct, ShareIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type JustificationBundle struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type JustificationBundle struct, DealerIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type JustificationBundle struct, Justifications []*dkg.Justification
+pkg github.com/drand/drand/protobuf/crypto/dkg, type JustificationBundle struct, SessionId []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type JustificationBundle struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet struct, Bundle dkg.isPacket_Bundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Deal struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Deal struct, Deal *dkg.DealBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Justification struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Justification struct, Justification *dkg.JustificationBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Response struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Packet_Response struct, Response *dkg.ResponseBundle
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Response struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Response struct, DealerIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type Response struct, Status bool
+pkg github.com/drand/drand/protobuf/crypto/dkg, type ResponseBundle struct
+pkg github.com/drand/drand/protobuf/crypto/dkg, type ResponseBundle struct, Responses []*dkg.Response
+pkg github.com/drand/drand/protobuf/crypto/dkg, type ResponseBundle struct, SessionId []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, type ResponseBundle struct, ShareIndex uint32
+pkg github.com/drand/drand/protobuf/crypto/dkg, type ResponseBundle struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/crypto/dkg, var File_crypto_dkg_dkg_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/drand, func NewControlClient(grpc.ClientConnInterface) drand.ControlClient
+pkg github.com/drand/drand/protobuf/drand, func NewProtocolClient(grpc.ClientConnInterface) drand.ProtocolClient
+pkg github.com/drand/drand/protobuf/drand, func NewPublicClient(grpc.ClientConnInterface) drand.PublicClient
+pkg github.com/drand/drand/protobuf/drand, func RegisterControlServer(grpc.ServiceRegistrar, drand.ControlServer)
+pkg github.com/drand/drand/protobuf/drand, func RegisterProtocolServer(grpc.ServiceRegistrar, drand.ProtocolServer)
+pkg github.com/drand/drand/protobuf/drand, func RegisterPublicServer(grpc.ServiceRegistrar, drand.PublicServer)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) GetAddress() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) GetTls() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Address) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) GetOutputFile() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BackupDBResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) GetPreviousSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) GetRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) GetIsRunning() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) GetIsServing() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) GetIsStarted() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) GetIsStopped() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) GetStatus() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.BeaconStatus) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetGenesisTime() int64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetGroupHash() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetHash() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetPublicKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) GetSchemeID() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainInfoRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) GetIsEmpty() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) GetLastRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) GetLength() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ChainStoreStatus) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) GetCoKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.CokeyResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) GetDkgTimeout() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) GetNewGroup() *drand.GroupPacket
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) GetSecretProof() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGInfoPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) GetDkg() *dkg.Packet
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DKGPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) GetStatus() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.DkgStatus) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Empty) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) GetScript() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) GetUserOnly() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.EntropyInfo) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) GetLocation() drand.isGroupInfo_Location
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) GetPath() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) GetUrl() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupInfo) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetCatchupPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetDistKey() [][]uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetGenesisSeed() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetGenesisTime() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetNodes() []*drand.Node
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetSchemeID() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetThreshold() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) GetTransitionTime() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) GetGroupToml() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.GroupTOMLResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) GetStatus() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.HomeResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) GetAddress() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) GetKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) GetTls() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Identity) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetAddress() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetSchemeName() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) GetTls() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.IdentityResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetBeaconPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetCatchupPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetEntropy() *drand.EntropyInfo
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetInfo() *drand.SetupInfoPacket
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) GetSchemeID() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitDKGPacketResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) GetCatchupPeriod() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) GetCatchupPeriodChanged() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) GetInfo() *drand.SetupInfoPacket
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) GetOld() *drand.GroupInfo
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.InitResharePacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) GetIds() []string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListBeaconIDsResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) GetIds() []string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ListSchemesResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.LoadBeaconResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) GetIndex() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) GetPublic() *drand.Identity
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Node) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) GetPartialSig() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) GetPreviousSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) GetRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PartialBeaconPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Ping) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.Pong) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) GetPriKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PrivateKeyResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) GetPubKey() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicKeyResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) GetRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) GetPreviousSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) GetRandomness() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) GetRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) GetSignature() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.PublicRandResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) GetAddresses() []*drand.Address
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) GetStatuses() map[string]*drand.StatusResponse
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.RemoteStatusResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) GetStatus() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ReshareStatus) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetBeaconOffset() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetDkgOffset() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetForce() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetLeader() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetLeaderAddress() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetLeaderTls() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetNodes() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetSecret() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetThreshold() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) GetTimeout() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SetupInfoPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) GetIndex() uint32
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) GetShare() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShareResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.ShutdownResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) GetNode() *drand.Identity
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) GetPreviousGroupHash() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) GetSecretProof() []uint8
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SignalDKGPacket) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) GetInfoHash() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) GetIsTls() bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) GetNodes() []string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) GetUpTo() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StartSyncRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) GetCheckConn() []*drand.Address
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) GetBeacon() *drand.BeaconStatus
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) GetChainStore() *drand.ChainStoreStatus
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) GetConnections() map[string]bool
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) GetDkg() *drand.DkgStatus
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) GetReshare() *drand.ReshareStatus
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.StatusResponse) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) GetCurrent() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) GetTarget() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncProgress) String() string
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) Descriptor() ([]uint8, []int)
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) GetFromRound() uint64
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) GetMetadata() *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) ProtoMessage()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) ProtoReflect() protoreflect.Message
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) Reset()
+pkg github.com/drand/drand/protobuf/drand, method (*drand.SyncRequest) String() string
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) BackupDatabase(context.Context, *drand.BackupDBRequest) (*drand.BackupDBResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) LoadBeacon(context.Context, *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) RemoteStatus(context.Context, *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) Share(context.Context, *drand.ShareRequest) (*drand.ShareResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) StartCheckChain(*drand.StartSyncRequest, drand.Control_StartCheckChainServer) error
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) StartFollowChain(*drand.StartSyncRequest, drand.Control_StartFollowChainServer) error
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedControlServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) GetIdentity(context.Context, *drand.IdentityRequest) (*drand.IdentityResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *drand.SignalDKGPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedProtocolServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedPublicServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedPublicServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedPublicServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+pkg github.com/drand/drand/protobuf/drand, method (drand.UnimplementedPublicServer) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error
+pkg github.com/drand/drand/protobuf/drand, type Address struct
+pkg github.com/drand/drand/protobuf/drand, type Address struct, Address string
+pkg github.com/drand/drand/protobuf/drand, type Address struct, Tls bool
+pkg github.com/drand/drand/protobuf/drand, type BackupDBRequest struct
+pkg github.com/drand/drand/protobuf/drand, type BackupDBRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type BackupDBRequest struct, OutputFile string
+pkg github.com/drand/drand/protobuf/drand, type BackupDBResponse struct
+pkg github.com/drand/drand/protobuf/drand, type BackupDBResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type BeaconPacket struct
+pkg github.com/drand/drand/protobuf/drand, type BeaconPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type BeaconPacket struct, PreviousSignature []uint8
+pkg github.com/drand/drand/protobuf/drand, type BeaconPacket struct, Round uint64
+pkg github.com/drand/drand/protobuf/drand, type BeaconPacket struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct, IsRunning bool
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct, IsServing bool
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct, IsStarted bool
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct, IsStopped bool
+pkg github.com/drand/drand/protobuf/drand, type BeaconStatus struct, Status uint32
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, GenesisTime int64
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, GroupHash []uint8
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, Hash []uint8
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, Period uint32
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, PublicKey []uint8
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoPacket struct, SchemeID string
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoRequest struct
+pkg github.com/drand/drand/protobuf/drand, type ChainInfoRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ChainStoreStatus struct
+pkg github.com/drand/drand/protobuf/drand, type ChainStoreStatus struct, IsEmpty bool
+pkg github.com/drand/drand/protobuf/drand, type ChainStoreStatus struct, LastRound uint64
+pkg github.com/drand/drand/protobuf/drand, type ChainStoreStatus struct, Length uint64
+pkg github.com/drand/drand/protobuf/drand, type CokeyRequest struct
+pkg github.com/drand/drand/protobuf/drand, type CokeyRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type CokeyResponse struct
+pkg github.com/drand/drand/protobuf/drand, type CokeyResponse struct, CoKey []uint8
+pkg github.com/drand/drand/protobuf/drand, type CokeyResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface { BackupDatabase, ChainInfo, GroupFile, InitDKG, InitReshare, ListBeaconIDs, ListSchemes, LoadBeacon, PingPong, PrivateKey, PublicKey, RemoteStatus, Share, Shutdown, StartCheckChain, StartFollowChain, Status }
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, BackupDatabase(context.Context, *drand.BackupDBRequest, ...grpc.CallOption) (*drand.BackupDBResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, ChainInfo(context.Context, *drand.ChainInfoRequest, ...grpc.CallOption) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, GroupFile(context.Context, *drand.GroupRequest, ...grpc.CallOption) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, InitDKG(context.Context, *drand.InitDKGPacket, ...grpc.CallOption) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, InitReshare(context.Context, *drand.InitResharePacket, ...grpc.CallOption) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest, ...grpc.CallOption) (*drand.ListBeaconIDsResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, ListSchemes(context.Context, *drand.ListSchemesRequest, ...grpc.CallOption) (*drand.ListSchemesResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, LoadBeacon(context.Context, *drand.LoadBeaconRequest, ...grpc.CallOption) (*drand.LoadBeaconResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, PingPong(context.Context, *drand.Ping, ...grpc.CallOption) (*drand.Pong, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, PrivateKey(context.Context, *drand.PrivateKeyRequest, ...grpc.CallOption) (*drand.PrivateKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, PublicKey(context.Context, *drand.PublicKeyRequest, ...grpc.CallOption) (*drand.PublicKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, RemoteStatus(context.Context, *drand.RemoteStatusRequest, ...grpc.CallOption) (*drand.RemoteStatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, Share(context.Context, *drand.ShareRequest, ...grpc.CallOption) (*drand.ShareResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, Shutdown(context.Context, *drand.ShutdownRequest, ...grpc.CallOption) (*drand.ShutdownResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, StartCheckChain(context.Context, *drand.StartSyncRequest, ...grpc.CallOption) (drand.Control_StartCheckChainClient, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, StartFollowChain(context.Context, *drand.StartSyncRequest, ...grpc.CallOption) (drand.Control_StartFollowChainClient, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlClient interface, Status(context.Context, *drand.StatusRequest, ...grpc.CallOption) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface { BackupDatabase, ChainInfo, GroupFile, InitDKG, InitReshare, ListBeaconIDs, ListSchemes, LoadBeacon, PingPong, PrivateKey, PublicKey, RemoteStatus, Share, Shutdown, StartCheckChain, StartFollowChain, Status }
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, BackupDatabase(context.Context, *drand.BackupDBRequest) (*drand.BackupDBResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, InitReshare(context.Context, *drand.InitResharePacket) (*drand.GroupPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, LoadBeacon(context.Context, *drand.LoadBeaconRequest) (*drand.LoadBeaconResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, PingPong(context.Context, *drand.Ping) (*drand.Pong, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, RemoteStatus(context.Context, *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, Share(context.Context, *drand.ShareRequest) (*drand.ShareResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, StartCheckChain(*drand.StartSyncRequest, drand.Control_StartCheckChainServer) error
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, StartFollowChain(*drand.StartSyncRequest, drand.Control_StartFollowChainServer) error
+pkg github.com/drand/drand/protobuf/drand, type ControlServer interface, Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface { CloseSend, Context, Header, Recv, RecvMsg, SendMsg, Trailer }
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, CloseSend() error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, Header() (metadata.MD, error)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, Recv() (*drand.SyncProgress, error)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainClient interface, Trailer() metadata.MD
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface { Context, RecvMsg, Send, SendHeader, SendMsg, SetHeader, SetTrailer }
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, Send(*drand.SyncProgress) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, SendHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, SetHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartCheckChainServer interface, SetTrailer(metadata.MD)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface { CloseSend, Context, Header, Recv, RecvMsg, SendMsg, Trailer }
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, CloseSend() error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, Header() (metadata.MD, error)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, Recv() (*drand.SyncProgress, error)
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainClient interface, Trailer() metadata.MD
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface { Context, RecvMsg, Send, SendHeader, SendMsg, SetHeader, SetTrailer }
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, Send(*drand.SyncProgress) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, SendHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, SetHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Control_StartFollowChainServer interface, SetTrailer(metadata.MD)
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct, DkgTimeout uint32
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct, NewGroup *drand.GroupPacket
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct, SecretProof []uint8
+pkg github.com/drand/drand/protobuf/drand, type DKGInfoPacket struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/drand, type DKGPacket struct
+pkg github.com/drand/drand/protobuf/drand, type DKGPacket struct, Dkg *dkg.Packet
+pkg github.com/drand/drand/protobuf/drand, type DKGPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type DkgStatus struct
+pkg github.com/drand/drand/protobuf/drand, type DkgStatus struct, Status uint32
+pkg github.com/drand/drand/protobuf/drand, type Empty struct
+pkg github.com/drand/drand/protobuf/drand, type Empty struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type EntropyInfo struct
+pkg github.com/drand/drand/protobuf/drand, type EntropyInfo struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type EntropyInfo struct, Script string
+pkg github.com/drand/drand/protobuf/drand, type EntropyInfo struct, UserOnly bool
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo struct
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo struct, Location drand.isGroupInfo_Location
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo_Path struct
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo_Path struct, Path string
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo_Url struct
+pkg github.com/drand/drand/protobuf/drand, type GroupInfo_Url struct, Url string
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, CatchupPeriod uint32
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, DistKey [][]uint8
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, GenesisSeed []uint8
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, GenesisTime uint64
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, Nodes []*drand.Node
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, Period uint32
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, SchemeID string
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, Threshold uint32
+pkg github.com/drand/drand/protobuf/drand, type GroupPacket struct, TransitionTime uint64
+pkg github.com/drand/drand/protobuf/drand, type GroupRequest struct
+pkg github.com/drand/drand/protobuf/drand, type GroupRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type GroupTOMLResponse struct
+pkg github.com/drand/drand/protobuf/drand, type GroupTOMLResponse struct, GroupToml string
+pkg github.com/drand/drand/protobuf/drand, type GroupTOMLResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type HomeRequest struct
+pkg github.com/drand/drand/protobuf/drand, type HomeRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type HomeResponse struct
+pkg github.com/drand/drand/protobuf/drand, type HomeResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type HomeResponse struct, Status string
+pkg github.com/drand/drand/protobuf/drand, type Identity struct
+pkg github.com/drand/drand/protobuf/drand, type Identity struct, Address string
+pkg github.com/drand/drand/protobuf/drand, type Identity struct, Key []uint8
+pkg github.com/drand/drand/protobuf/drand, type Identity struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/drand, type Identity struct, Tls bool
+pkg github.com/drand/drand/protobuf/drand, type IdentityRequest struct
+pkg github.com/drand/drand/protobuf/drand, type IdentityRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, Address string
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, Key []uint8
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, SchemeName string
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/drand, type IdentityResponse struct, Tls bool
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, BeaconPeriod uint32
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, CatchupPeriod uint32
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, Entropy *drand.EntropyInfo
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, Info *drand.SetupInfoPacket
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacket struct, SchemeID string
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacketResponse struct
+pkg github.com/drand/drand/protobuf/drand, type InitDKGPacketResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct, CatchupPeriod uint32
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct, CatchupPeriodChanged bool
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct, Info *drand.SetupInfoPacket
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type InitResharePacket struct, Old *drand.GroupInfo
+pkg github.com/drand/drand/protobuf/drand, type Interceptors interface { NodeVersionStreamValidator, NodeVersionValidator }
+pkg github.com/drand/drand/protobuf/drand, type Interceptors interface, NodeVersionStreamValidator(interface{}, grpc.ServerStream, *grpc.StreamServerInfo, grpc.StreamHandler) error
+pkg github.com/drand/drand/protobuf/drand, type Interceptors interface, NodeVersionValidator(context.Context, interface{}, *grpc.UnaryServerInfo, grpc.UnaryHandler) (interface{}, error)
+pkg github.com/drand/drand/protobuf/drand, type ListBeaconIDsRequest struct
+pkg github.com/drand/drand/protobuf/drand, type ListBeaconIDsRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ListBeaconIDsResponse struct
+pkg github.com/drand/drand/protobuf/drand, type ListBeaconIDsResponse struct, Ids []string
+pkg github.com/drand/drand/protobuf/drand, type ListBeaconIDsResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ListSchemesRequest struct
+pkg github.com/drand/drand/protobuf/drand, type ListSchemesRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ListSchemesResponse struct
+pkg github.com/drand/drand/protobuf/drand, type ListSchemesResponse struct, Ids []string
+pkg github.com/drand/drand/protobuf/drand, type ListSchemesResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type LoadBeaconRequest struct
+pkg github.com/drand/drand/protobuf/drand, type LoadBeaconRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type LoadBeaconResponse struct
+pkg github.com/drand/drand/protobuf/drand, type LoadBeaconResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type Node struct
+pkg github.com/drand/drand/protobuf/drand, type Node struct, Index uint32
+pkg github.com/drand/drand/protobuf/drand, type Node struct, Public *drand.Identity
+pkg github.com/drand/drand/protobuf/drand, type PartialBeaconPacket struct
+pkg github.com/drand/drand/protobuf/drand, type PartialBeaconPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PartialBeaconPacket struct, PartialSig []uint8
+pkg github.com/drand/drand/protobuf/drand, type PartialBeaconPacket struct, PreviousSignature []uint8
+pkg github.com/drand/drand/protobuf/drand, type PartialBeaconPacket struct, Round uint64
+pkg github.com/drand/drand/protobuf/drand, type Ping struct
+pkg github.com/drand/drand/protobuf/drand, type Ping struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type Pong struct
+pkg github.com/drand/drand/protobuf/drand, type Pong struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PrivateKeyRequest struct
+pkg github.com/drand/drand/protobuf/drand, type PrivateKeyRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PrivateKeyResponse struct
+pkg github.com/drand/drand/protobuf/drand, type PrivateKeyResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PrivateKeyResponse struct, PriKey []uint8
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface { BroadcastDKG, GetIdentity, PartialBeacon, PushDKGInfo, SignalDKGParticipant, Status, SyncChain }
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, BroadcastDKG(context.Context, *drand.DKGPacket, ...grpc.CallOption) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, GetIdentity(context.Context, *drand.IdentityRequest, ...grpc.CallOption) (*drand.IdentityResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, PartialBeacon(context.Context, *drand.PartialBeaconPacket, ...grpc.CallOption) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, PushDKGInfo(context.Context, *drand.DKGInfoPacket, ...grpc.CallOption) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, SignalDKGParticipant(context.Context, *drand.SignalDKGPacket, ...grpc.CallOption) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, Status(context.Context, *drand.StatusRequest, ...grpc.CallOption) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolClient interface, SyncChain(context.Context, *drand.SyncRequest, ...grpc.CallOption) (drand.Protocol_SyncChainClient, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface { BroadcastDKG, GetIdentity, PartialBeacon, PushDKGInfo, SignalDKGParticipant, Status, SyncChain }
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, GetIdentity(context.Context, *drand.IdentityRequest) (*drand.IdentityResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, SignalDKGParticipant(context.Context, *drand.SignalDKGPacket) (*drand.Empty, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type ProtocolServer interface, SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface { CloseSend, Context, Header, Recv, RecvMsg, SendMsg, Trailer }
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, CloseSend() error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, Header() (metadata.MD, error)
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, Recv() (*drand.BeaconPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainClient interface, Trailer() metadata.MD
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface { Context, RecvMsg, Send, SendHeader, SendMsg, SetHeader, SetTrailer }
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, Send(*drand.BeaconPacket) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, SendHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, SetHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Protocol_SyncChainServer interface, SetTrailer(metadata.MD)
+pkg github.com/drand/drand/protobuf/drand, type PublicClient interface { ChainInfo, Home, PublicRand, PublicRandStream }
+pkg github.com/drand/drand/protobuf/drand, type PublicClient interface, ChainInfo(context.Context, *drand.ChainInfoRequest, ...grpc.CallOption) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicClient interface, Home(context.Context, *drand.HomeRequest, ...grpc.CallOption) (*drand.HomeResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicClient interface, PublicRand(context.Context, *drand.PublicRandRequest, ...grpc.CallOption) (*drand.PublicRandResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicClient interface, PublicRandStream(context.Context, *drand.PublicRandRequest, ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicKeyRequest struct
+pkg github.com/drand/drand/protobuf/drand, type PublicKeyRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PublicKeyResponse struct
+pkg github.com/drand/drand/protobuf/drand, type PublicKeyResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PublicKeyResponse struct, PubKey []uint8
+pkg github.com/drand/drand/protobuf/drand, type PublicRandRequest struct
+pkg github.com/drand/drand/protobuf/drand, type PublicRandRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PublicRandRequest struct, Round uint64
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct, PreviousSignature []uint8
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct, Randomness []uint8
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct, Round uint64
+pkg github.com/drand/drand/protobuf/drand, type PublicRandResponse struct, Signature []uint8
+pkg github.com/drand/drand/protobuf/drand, type PublicServer interface { ChainInfo, Home, PublicRand, PublicRandStream }
+pkg github.com/drand/drand/protobuf/drand, type PublicServer interface, ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicServer interface, Home(context.Context, *drand.HomeRequest) (*drand.HomeResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicServer interface, PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type PublicServer interface, PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface { CloseSend, Context, Header, Recv, RecvMsg, SendMsg, Trailer }
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, CloseSend() error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, Header() (metadata.MD, error)
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, Recv() (*drand.PublicRandResponse, error)
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamClient interface, Trailer() metadata.MD
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface { Context, RecvMsg, Send, SendHeader, SendMsg, SetHeader, SetTrailer }
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, Context() context.Context
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, RecvMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, Send(*drand.PublicRandResponse) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, SendHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, SendMsg(interface{}) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, SetHeader(metadata.MD) error
+pkg github.com/drand/drand/protobuf/drand, type Public_PublicRandStreamServer interface, SetTrailer(metadata.MD)
+pkg github.com/drand/drand/protobuf/drand, type RemoteStatusRequest struct
+pkg github.com/drand/drand/protobuf/drand, type RemoteStatusRequest struct, Addresses []*drand.Address
+pkg github.com/drand/drand/protobuf/drand, type RemoteStatusRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type RemoteStatusResponse struct
+pkg github.com/drand/drand/protobuf/drand, type RemoteStatusResponse struct, Statuses map[string]*drand.StatusResponse
+pkg github.com/drand/drand/protobuf/drand, type ReshareStatus struct
+pkg github.com/drand/drand/protobuf/drand, type ReshareStatus struct, Status uint32
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, BeaconOffset uint32
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, DkgOffset uint32
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Force bool
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Leader bool
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, LeaderAddress string
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, LeaderTls bool
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Nodes uint32
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Secret []uint8
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Threshold uint32
+pkg github.com/drand/drand/protobuf/drand, type SetupInfoPacket struct, Timeout uint32
+pkg github.com/drand/drand/protobuf/drand, type ShareRequest struct
+pkg github.com/drand/drand/protobuf/drand, type ShareRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ShareResponse struct
+pkg github.com/drand/drand/protobuf/drand, type ShareResponse struct, Index uint32
+pkg github.com/drand/drand/protobuf/drand, type ShareResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ShareResponse struct, Share []uint8
+pkg github.com/drand/drand/protobuf/drand, type ShutdownRequest struct
+pkg github.com/drand/drand/protobuf/drand, type ShutdownRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type ShutdownResponse struct
+pkg github.com/drand/drand/protobuf/drand, type ShutdownResponse struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type SignalDKGPacket struct
+pkg github.com/drand/drand/protobuf/drand, type SignalDKGPacket struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type SignalDKGPacket struct, Node *drand.Identity
+pkg github.com/drand/drand/protobuf/drand, type SignalDKGPacket struct, PreviousGroupHash []uint8
+pkg github.com/drand/drand/protobuf/drand, type SignalDKGPacket struct, SecretProof []uint8
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct, InfoHash string
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct, IsTls bool
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct, Nodes []string
+pkg github.com/drand/drand/protobuf/drand, type StartSyncRequest struct, UpTo uint64
+pkg github.com/drand/drand/protobuf/drand, type StatusRequest struct
+pkg github.com/drand/drand/protobuf/drand, type StatusRequest struct, CheckConn []*drand.Address
+pkg github.com/drand/drand/protobuf/drand, type StatusRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct, Beacon *drand.BeaconStatus
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct, ChainStore *drand.ChainStoreStatus
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct, Connections map[string]bool
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct, Dkg *drand.DkgStatus
+pkg github.com/drand/drand/protobuf/drand, type StatusResponse struct, Reshare *drand.ReshareStatus
+pkg github.com/drand/drand/protobuf/drand, type SyncProgress struct
+pkg github.com/drand/drand/protobuf/drand, type SyncProgress struct, Current uint64
+pkg github.com/drand/drand/protobuf/drand, type SyncProgress struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type SyncProgress struct, Target uint64
+pkg github.com/drand/drand/protobuf/drand, type SyncRequest struct
+pkg github.com/drand/drand/protobuf/drand, type SyncRequest struct, FromRound uint64
+pkg github.com/drand/drand/protobuf/drand, type SyncRequest struct, Metadata *common.Metadata
+pkg github.com/drand/drand/protobuf/drand, type UnimplementedControlServer struct
+pkg github.com/drand/drand/protobuf/drand, type UnimplementedProtocolServer struct
+pkg github.com/drand/drand/protobuf/drand, type UnimplementedPublicServer struct
+pkg github.com/drand/drand/protobuf/drand, type UnsafeControlServer interface, unexported methods
+pkg github.com/drand/drand/protobuf/drand, type UnsafeProtocolServer interface, unexported methods
+pkg github.com/drand/drand/protobuf/drand, type UnsafePublicServer interface, unexported methods
+pkg github.com/drand/drand/protobuf/drand, var Control_ServiceDesc grpc.ServiceDesc
+pkg github.com/drand/drand/protobuf/drand, var File_drand_api_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/drand, var File_drand_common_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/drand, var File_drand_control_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/drand, var File_drand_protocol_proto protoreflect.FileDescriptor
+pkg github.com/drand/drand/protobuf/drand, var Protocol_ServiceDesc grpc.ServiceDesc
+pkg github.com/drand/drand/protobuf/drand, var Public_ServiceDesc grpc.ServiceDesc
