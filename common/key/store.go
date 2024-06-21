@@ -139,18 +139,18 @@ func (f *fileStore) LoadKeyPair() (*Pair, error) {
 }
 
 func (f *fileStore) LoadGroup() (*Group, error) {
-	g := new(Group)
-	err := Load(f.groupFile, g)
+	var g Group
+	err := Load(f.groupFile, &g)
 	if err != nil {
 		return nil, err
 	}
 	// we don't want to return a pointer to an empty `Group` struct if
 	// there isn't a group in the file system
 	//nolint:nilnil
-	if g == new(Group) {
+	if reflect.DeepEqual(g, Group{}) {
 		return nil, nil
 	}
-	return g, nil
+	return &g, nil
 }
 
 func (f *fileStore) SaveGroup(g *Group) error {
