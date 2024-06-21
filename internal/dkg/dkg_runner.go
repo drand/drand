@@ -160,8 +160,12 @@ func (r *TestRunner) WaitForDKG(lg log.Logger, epoch uint32, numberOfSeconds int
 		case uint32(Failed):
 			return ErrDKGFailed
 		}
-		if res.Complete == nil || res.Complete.Epoch != epoch {
-			lg.Debugw("DKGStatus invalid Complete... retrying", "Complete", res.Complete)
+		if res.Complete == nil {
+			lg.Debugw("DKG not completed... retrying")
+			continue
+		}
+		if res.Complete.Epoch != epoch {
+			lg.Debugw("No complete DKG for the desired epoch... retrying")
 			continue
 		}
 
@@ -169,10 +173,7 @@ func (r *TestRunner) WaitForDKG(lg log.Logger, epoch uint32, numberOfSeconds int
 			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", Status(res.Complete.State).String()))
 		}
 
-		if err == nil {
-			return nil
-		}
-		lg.Infow("DKG not finished... retrying")
+		return nil
 	}
 
 	return errors.New("DKG never finished")
