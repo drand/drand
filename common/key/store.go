@@ -146,7 +146,6 @@ func (f *fileStore) LoadGroup() (*Group, error) {
 	}
 	// we don't want to return a pointer to an empty `Group` struct if
 	// there isn't a group in the file system
-	//nolint:nilnil
 	if reflect.DeepEqual(g, Group{}) {
 		return nil, nil
 	}
