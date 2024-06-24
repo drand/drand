@@ -37,7 +37,7 @@ jobs:
       - name: Validate drand binary version matches git tag for this release
         shell: bash
         run: |
-          set -xeou pipefail
+          set -eou pipefail
           drand_version=$(docker run -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -v | awk '{ print "v" $2 }')
           # see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
           tag_version=$(git describe --tags | grep -P \
@@ -48,8 +48,11 @@ jobs:
           )
           if [[ "$drand_version" != "$tag_version" ]]; then
             >&2 echo "Error unexpected binary version $drand_version found on tag $tag_version"
+            gh run cancel ${{ github.run_id }}
             exit 1
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22.1'
