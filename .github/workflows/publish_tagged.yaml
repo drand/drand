@@ -17,7 +17,8 @@ env:
 
 jobs:
   tagged-deploy:
-    strategy: fail-fast
+    strategy:
+      fail-fast: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
