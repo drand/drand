@@ -37,9 +37,10 @@ jobs:
       - name: Validate drand binary version matches git tag for this release
         shell: bash
         run: |
+          set -xeou pipefail
           drand_version=$(docker run -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -v | awk '{ print "v" $2 }')
           # see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-          drand_tag=$(git describe --tags |  grep -P \ 
+          drand_tag=$(git describe --tags | grep -P \
           '^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'\
           '(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)'\
           '(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?'\
