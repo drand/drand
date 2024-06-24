@@ -40,14 +40,14 @@ jobs:
           set -xeou pipefail
           drand_version=$(docker run -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -v | awk '{ print "v" $2 }')
           # see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-          drand_tag=$(git describe --tags | grep -P \
+          tag_version=$(git describe --tags | grep -P \
           '^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'\
           '(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)'\
           '(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?'\
           '(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
           )
           if [[ "$drand_version" != "$tag_version" ]]; then
-            >&2 echo "Error unexpected binary version $drand_version found on tag $drand_tag"
+            >&2 echo "Error unexpected binary version $drand_version found on tag $tag_version"
             exit 1
           fi
       - uses: actions/setup-go@v5
