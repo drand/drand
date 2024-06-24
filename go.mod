@@ -21,7 +21,7 @@ require (
 	github.com/prometheus/common v0.53.0
 	github.com/rogpeppe/go-internal v1.12.0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli/v2 v2.27.2
+	github.com/urfave/cli/v2 v2.19.3
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.51.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.51.0
@@ -37,10 +37,6 @@ require (
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.1
 )
-
-//nolint:gomoddirectives
-// Without this replace, urfave/cli will have race conditions in our tests
-replace github.com/urfave/cli/v2 => github.com/urfave/cli/v2 v2.19.3
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
