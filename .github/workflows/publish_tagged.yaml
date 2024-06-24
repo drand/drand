@@ -24,11 +24,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # Note: The push step is at the end of this workflow, because we want to validate the binary
+      # is the right version for this tag
+      - name: Build tagged Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          build-args: |
+            gitCommit: ${{ github.sha }}
       - name: Validate drand binary version matches git tag for this release
         shell: bash
         run: |
           drand_version=$(docker run -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -v | awk '{ print "v" $2 }')
-          drand_tag=$(git describe --tags |  grep -P '^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$)
+          # see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+          drand_tag=$(git describe --tags |  grep -P
+          '^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'\
+          '(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)'\
+          '(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?'\
+          '(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
+          )
           if [[ "$drand_version" != "$tag_version" ]]; then
             >&2 echo "Error unexpected binary version $drand_version found on tag $drand_tag"
             exit 1
@@ -53,6 +69,7 @@ jobs:
           build-args: |
             gitCommit: ${{ github.sha }}
 
+      # This should use the previous cached build before the validation test
       - name: Build and push tagged Docker image without TLS
         uses: docker/build-push-action@v5
         with:
