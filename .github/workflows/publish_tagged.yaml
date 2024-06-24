@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -eou pipefail
-          drand_version=$(docker run --entrypoint /bin/sh -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -c "/usr/local/bin/drand -v | awk '{ print \"v\" $2 }'")
+          drand_version=$(docker run --entrypoint /bin/sh -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} -c "/usr/local/bin/drand -v | awk '{ print \"v\" \$2 }'")
           # see https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
           tag_version=$(git describe --tags | grep -P \
           '^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)'\
