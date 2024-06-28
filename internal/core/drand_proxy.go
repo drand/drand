@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/drand/drand/v2/crypto"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
@@ -37,8 +38,11 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, erro
 	if err != nil {
 		return nil, err
 	}
-	// we don't need to return the metadata
+	// we don't need to return the metadata to the public
 	resp.Metadata = nil
+	// we need to set the randomness now since it isn't sent over the wire anymore in V2
+	resp.Randomness = crypto.RandomnessFromSignature(resp.GetSignature())
+
 	return resp, err
 }
 
