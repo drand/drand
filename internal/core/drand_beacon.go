@@ -372,14 +372,14 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 
 	case chain.MemDB:
 		metrics.DrandStorageBackend.
-			WithLabelValues("memdb").
+			WithLabelValues(beaconName, "memdb").
 			Set(float64(chain.MemDBMetrics))
 
 		dbStore, err = memdb.NewStore(bp.opts.memDBSize), nil
 
 	case chain.PostgreSQL:
 		metrics.DrandStorageBackend.
-			WithLabelValues("postgres").
+			WithLabelValues(beaconName, "postgres").
 			Set(float64(chain.PostgreSQLMetrics))
 
 		dbStore, err = pgdb.NewStore(ctx, bp.log, bp.opts.pgConn, beaconName)
