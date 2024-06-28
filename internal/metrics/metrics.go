@@ -221,7 +221,7 @@ var (
 	DrandStorageBackend = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "drand_node_db",
 		Help: "The database type the node is running with. 1=bolt-trimmed, 2=postgres, 3=memdb, 4=bolt-untrimmed",
-	}, []string{"db_type"})
+	}, []string{"beaconID", "db_type"})
 
 	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, using the states from
 	// https://github.com/grpc/grpc-go/blob/8075dd35d2738b352c4355b4b353dc1e9183bea7/connectivity/connectivity.go#L51-L62
