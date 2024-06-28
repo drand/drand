@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/drand/drand/v2/crypto"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
@@ -13,6 +12,7 @@ import (
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
