@@ -6,6 +6,7 @@ import (
 
 	"github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/core"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
@@ -19,10 +20,18 @@ func NewGrpcClient(s *Server) *GrpcClient {
 }
 
 func (c *GrpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
-	return c.s.PublicRand(ctx, &drand.PublicRandRequest{
+	rand, err := c.s.PublicRand(ctx, &drand.PublicRandRequest{
 		Round:    round,
 		Metadata: nil,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// we need to set the randomness now since it isn't sent over the wire anymore in V2
+	rand.Randomness = crypto.RandomnessFromSignature(rand.GetSignature())
+
+	return rand, nil
 }
 
 func (c *GrpcClient) Watch(ctx context.Context) <-chan client.Result {

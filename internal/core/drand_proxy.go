@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/client"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/protobuf/drand"
 )
 
@@ -37,8 +38,11 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, erro
 	if err != nil {
 		return nil, err
 	}
-	// we don't need to return the metadata
+	// we don't need to return the metadata to the public
 	resp.Metadata = nil
+	// we need to set the randomness now since it isn't sent over the wire anymore in V2
+	resp.Randomness = crypto.RandomnessFromSignature(resp.GetSignature())
+
 	return resp, err
 }
 

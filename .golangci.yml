@@ -43,6 +43,8 @@ issues:
     - path: internal/core/drand_proxy.go
       linters:
         - nilnil
+    - path: internal/core/drand_proxy.go
+      text: "SA1019" # we need to use the deprecated Randomness field
 run:
   skip-dirs:
     - demo
