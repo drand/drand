@@ -217,10 +217,15 @@ func (c *chainStore) runAggregator() {
 			default:
 			}
 
-			cache.Append(partial.p)
+			err = cache.Append(partial.p)
+			if err != nil {
+				c.l.Errorw("unable to append partial to cache", "from", partial.addr, "partial_round", partial.p.GetRound())
+				span.RecordError(err)
+				break
+			}
 			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSignature())
 			if roundCache == nil {
-				c.l.Errorw("", "store_partial", partial.addr, "no_round_cache", partial.p.GetRound())
+				c.l.Errorw("no round cache", "from", partial.addr, "partial_round", partial.p.GetRound())
 				span.RecordError(errors.New("no round cache"))
 				span.End()
 				break
