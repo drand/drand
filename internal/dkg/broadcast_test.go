@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/testlogger"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/net"
@@ -23,7 +22,6 @@ func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 		ctx,
 		gateway.DKGClient,
 		l,
-		common.GetAppVersion(),
 		"default",
 		"127.0.0.1:8080",
 		[]*drand.Participant{},
@@ -43,7 +41,6 @@ func TestNewBroadcasterWithParticipantsDoesNotFail(t *testing.T) {
 		ctx,
 		gateway.DKGClient,
 		l,
-		common.GetAppVersion(),
 		"default",
 		"127.0.0.1:8080",
 		[]*drand.Participant{

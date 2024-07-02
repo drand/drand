@@ -1,10 +1,13 @@
 package dkg
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
@@ -22,7 +25,7 @@ func (d *Process) signMessage(
 		return nil, err
 	}
 
-	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForProto(proposal, packet, beaconID))
+	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForSigning(packet, proposal))
 	if err != nil {
 		return nil, err
 	}
@@ -33,14 +36,17 @@ func (d *Process) signMessage(
 	}, nil
 }
 
-func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.GossipMetadata, proposal *drand.ProposalTerms) error {
-	participants := util.Concat(proposal.Remaining, proposal.Joining)
+func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.ProposalTerms) error {
+	beaconID := packet.GetMetadata().GetBeaconID()
+	d.log.Debugw("Verifying DKG packet", "beaconID", beaconID, "from", packet.GetMetadata().GetAddress())
+
+	participants := util.Concat(proposal.GetRemaining(), proposal.GetJoining())
 	// signing is done before the metadata is attached, so we must remove it before we perform verification
 
 	// find the participant the signature is allegedly from
 	var p *drand.Participant
 	for _, participant := range participants {
-		if participant.Address == metadata.Address {
+		if participant.GetAddress() == packet.GetMetadata().GetAddress() {
 			p = participant
 			break
 		}
@@ -50,7 +56,7 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 	}
 
 	// get the scheme for the network, so we can correctly unmarshal the public key
-	kp, err := d.beaconIdentifier.KeypairFor(metadata.BeaconID)
+	kp, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {
 		return err
 	}
@@ -63,20 +69,90 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, metadata *drand.Goss
 	}
 
 	// we need to copy here or the GC/compiler does something weird
-	sig := make([]byte, len(metadata.Signature))
-	copy(sig, metadata.Signature)
+	sig := make([]byte, len(packet.GetMetadata().GetSignature()))
+	copy(sig, packet.GetMetadata().GetSignature())
 
-	msg := messageForProto(proposal, packet, metadata.BeaconID)
-
-	return kp.Scheme().AuthScheme.Verify(pubPoint, msg, sig)
+	msg := messageForSigning(packet, proposal)
+	err = kp.Scheme().AuthScheme.Verify(pubPoint, msg, sig)
+	if err != nil {
+		return fmt.Errorf("error verifying '%s' packet with msg '%s': %w ", packetName(packet), hex.EncodeToString(msg), err)
+	}
+	return nil
 }
 
-func messageForProto(proposal *drand.ProposalTerms, packet *drand.GossipPacket, beaconID string) []byte {
-	// we remove the metadata for verification of the packet, as the signer hasn't created the metadata
-	// upon signing
-	packetWithoutMetadata := proto.Clone(packet).(*drand.GossipPacket)
-	packetWithoutMetadata.Metadata = nil
-	return []byte(proposal.String() + packetWithoutMetadata.String() + beaconID)
+func messageForSigning(packet *drand.GossipPacket, proposal *drand.ProposalTerms) []byte {
+	// bytes.Buffer Writes are always returning nil errors, no need to check them
+	var ret bytes.Buffer
+	// we validate the packet type
+	ret.WriteString("sender:" + packet.GetMetadata().GetAddress())
+	ret.WriteString("beaconID:" + packet.GetMetadata().GetBeaconID())
+
+	switch t := packet.Packet.(type) {
+	case *drand.GossipPacket_Proposal:
+		ret.WriteString("Proposal:")
+		ret.WriteString(t.Proposal.GetBeaconID())
+		ret.Write(binary.LittleEndian.AppendUint32([]byte{}, t.Proposal.GetEpoch()))
+		ret.WriteString(t.Proposal.GetLeader().GetAddress())
+		ret.Write(t.Proposal.GetLeader().GetSignature())
+		// the rest of a proposal packet is verified by processing below the proposal terms after having applied the proposal
+	case *drand.GossipPacket_Accept:
+		ret.WriteString("Accepted:" + t.Accept.GetAcceptor().GetAddress())
+	case *drand.GossipPacket_Reject:
+		ret.WriteString("Rejected:" + t.Reject.GetRejector().GetAddress())
+	case *drand.GossipPacket_Abort:
+		ret.WriteString("Aborted:" + t.Abort.GetReason())
+	case *drand.GossipPacket_Execute:
+		enc, _ := t.Execute.GetTime().AsTime().MarshalBinary()
+		ret.WriteString("Execute:")
+		ret.Write(enc)
+	case *drand.GossipPacket_Dkg:
+		ret.WriteString("Gossip packet")
+	default:
+		// this is impossible in theory: there are checks erroring out much earlier
+		// if we get an unknown packet type we make sure signature verification fails
+		ensureFailure := make([]byte, 64)
+		rand.Reader.Read(ensureFailure)
+		ret.Write(ensureFailure)
+	}
+
+	// we validate the effects of the packet
+	ret.WriteString("Proposal")
+	// respecting the Protobuf ordering as per dkg_control.proto
+	ret.WriteString(proposal.GetBeaconID())
+	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetEpoch()))
+	ret.WriteString(proposal.GetLeader().GetAddress())
+	ret.Write(proposal.GetLeader().GetSignature())
+	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetThreshold()))
+
+	encTimeout, _ := proposal.GetTimeout().AsTime().MarshalBinary()
+	ret.Write(encTimeout)
+
+	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetCatchupPeriodSeconds()))
+	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetBeaconPeriodSeconds()))
+	ret.WriteString(proposal.GetSchemeID())
+
+	encGenesis, _ := proposal.GetGenesisTime().AsTime().MarshalBinary()
+	ret.Write(encGenesis)
+
+	ret.WriteString("joining")
+	for _, p := range proposal.GetJoining() {
+		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.Write(p.GetSignature())
+	}
+
+	ret.WriteString("remaining")
+	for _, p := range proposal.GetRemaining() {
+		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.Write(p.GetSignature())
+	}
+
+	ret.WriteString("leaving")
+	for _, p := range proposal.GetLeaving() {
+		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.Write(p.GetSignature())
+	}
+
+	return ret.Bytes()
 }
 
 // used for determining the message that was signed for verifying packet authenticity

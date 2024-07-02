@@ -95,7 +95,7 @@ func (d *Process) applyPacketToState(beaconID string, packet *drand.GossipPacket
 	}
 
 	// we must verify the message against the next state, as the current state upon first proposal will be empty
-	err = d.verifyMessage(packet, packet.Metadata, termsFromState(nextState))
+	err = d.verifyMessage(packet, termsFromState(nextState))
 	if err != nil {
 		return fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
 	}

@@ -706,8 +706,8 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
-	err := validateForAllDKGs(currentState, terms)
-	if err != nil {
+
+	if err := validateForAllDKGs(currentState, terms); err != nil {
 		return err
 	}
 
@@ -724,10 +724,10 @@ func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
 	// nodes joining after the first epoch accept some things at face value
 	// nodes already in the network shouldn't accept e.g. a change of genesis time
 	if currentState.State != Fresh {
-		err = validateReshareForRemainers(currentState, terms)
+		return validateReshareForRemainers(currentState, terms)
 	}
 
-	return err
+	return nil
 }
 
 func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error {

@@ -83,7 +83,6 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 		ctx,
 		d.internalClient,
 		d.log,
-		common.GetAppVersion(),
 		beaconID,
 		me.Address,
 		sortedParticipants,
