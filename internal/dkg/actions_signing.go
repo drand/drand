@@ -25,7 +25,7 @@ func (d *Process) signMessage(
 		return nil, err
 	}
 
-	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForSigning(packet, proposal))
+	sig, err := kp.Scheme().AuthScheme.Sign(kp.Key, messageForSigning(beaconID, packet, proposal))
 	if err != nil {
 		return nil, err
 	}
@@ -72,35 +72,34 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.Prop
 	sig := make([]byte, len(packet.GetMetadata().GetSignature()))
 	copy(sig, packet.GetMetadata().GetSignature())
 
-	msg := messageForSigning(packet, proposal)
+	msg := messageForSigning(beaconID, packet, proposal)
 	err = kp.Scheme().AuthScheme.Verify(pubPoint, msg, sig)
 	if err != nil {
-		return fmt.Errorf("error verifying '%s' packet with msg '%s': %w ", packetName(packet), hex.EncodeToString(msg), err)
+		return fmt.Errorf("error verifying '%s' packet with msg '%s' and metadata '%s': %w ", packetName(packet), hex.EncodeToString(msg), packet.GetMetadata(), err)
 	}
 	return nil
 }
 
-func messageForSigning(packet *drand.GossipPacket, proposal *drand.ProposalTerms) []byte {
+func messageForSigning(beaconID string, packet *drand.GossipPacket, proposal *drand.ProposalTerms) []byte {
 	// bytes.Buffer Writes are always returning nil errors, no need to check them
 	var ret bytes.Buffer
 	// we validate the packet type
-	ret.WriteString("sender:" + packet.GetMetadata().GetAddress())
-	ret.WriteString("beaconID:" + packet.GetMetadata().GetBeaconID())
+	ret.WriteString("beaconID:" + beaconID + "\n")
 
 	switch t := packet.Packet.(type) {
 	case *drand.GossipPacket_Proposal:
 		ret.WriteString("Proposal:")
-		ret.WriteString(t.Proposal.GetBeaconID())
+		ret.WriteString(t.Proposal.GetBeaconID() + "\n")
 		ret.Write(binary.LittleEndian.AppendUint32([]byte{}, t.Proposal.GetEpoch()))
-		ret.WriteString(t.Proposal.GetLeader().GetAddress())
+		ret.WriteString("\nLeader:" + t.Proposal.GetLeader().GetAddress() + "\n")
 		ret.Write(t.Proposal.GetLeader().GetSignature())
 		// the rest of a proposal packet is verified by processing below the proposal terms after having applied the proposal
 	case *drand.GossipPacket_Accept:
-		ret.WriteString("Accepted:" + t.Accept.GetAcceptor().GetAddress())
+		ret.WriteString("Accepted:" + t.Accept.GetAcceptor().GetAddress() + "\n")
 	case *drand.GossipPacket_Reject:
-		ret.WriteString("Rejected:" + t.Reject.GetRejector().GetAddress())
+		ret.WriteString("Rejected:" + t.Reject.GetRejector().GetAddress() + "\n")
 	case *drand.GossipPacket_Abort:
-		ret.WriteString("Aborted:" + t.Abort.GetReason())
+		ret.WriteString("Aborted:" + t.Abort.GetReason() + "\n")
 	case *drand.GossipPacket_Execute:
 		enc, _ := t.Execute.GetTime().AsTime().MarshalBinary()
 		ret.WriteString("Execute:")
@@ -109,18 +108,17 @@ func messageForSigning(packet *drand.GossipPacket, proposal *drand.ProposalTerms
 		ret.WriteString("Gossip packet")
 	default:
 		// this is impossible in theory: there are checks erroring out much earlier
-		// if we get an unknown packet type we make sure signature verification fails
+		// so if we get an unknown packet type we make sure signature verification fails
 		ensureFailure := make([]byte, 64)
 		rand.Reader.Read(ensureFailure)
 		ret.Write(ensureFailure)
 	}
 
-	// we validate the effects of the packet
-	ret.WriteString("Proposal")
+	ret.WriteString("Proposal:\n")
 	// respecting the Protobuf ordering as per dkg_control.proto
-	ret.WriteString(proposal.GetBeaconID())
+	ret.WriteString(proposal.GetBeaconID() + "\n")
 	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetEpoch()))
-	ret.WriteString(proposal.GetLeader().GetAddress())
+	ret.WriteString("\nLeader:" + proposal.GetLeader().GetAddress() + "\n")
 	ret.Write(proposal.GetLeader().GetSignature())
 	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetThreshold()))
 
@@ -129,26 +127,23 @@ func messageForSigning(packet *drand.GossipPacket, proposal *drand.ProposalTerms
 
 	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetCatchupPeriodSeconds()))
 	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetBeaconPeriodSeconds()))
-	ret.WriteString(proposal.GetSchemeID())
+	ret.WriteString("\nScheme: " + proposal.GetSchemeID() + "\n")
 
 	encGenesis, _ := proposal.GetGenesisTime().AsTime().MarshalBinary()
 	ret.Write(encGenesis)
 
-	ret.WriteString("joining")
 	for _, p := range proposal.GetJoining() {
-		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.WriteString("\nJoiner:" + p.GetAddress() + "\nSig:")
 		ret.Write(p.GetSignature())
 	}
 
-	ret.WriteString("remaining")
 	for _, p := range proposal.GetRemaining() {
-		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.WriteString("\nRemainer:" + p.GetAddress() + "\nSig:")
 		ret.Write(p.GetSignature())
 	}
 
-	ret.WriteString("leaving")
 	for _, p := range proposal.GetLeaving() {
-		ret.WriteString("Addr:" + p.GetAddress() + "Sig:")
+		ret.WriteString("\nLeaver:" + p.GetAddress() + "\nSig:")
 		ret.Write(p.GetSignature())
 	}
 
