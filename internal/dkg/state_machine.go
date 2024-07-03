@@ -706,7 +706,6 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
-
 	if err := validateForAllDKGs(currentState, terms); err != nil {
 		return err
 	}

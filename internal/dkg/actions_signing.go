@@ -75,7 +75,11 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.Prop
 	msg := messageForSigning(beaconID, packet, proposal)
 	err = kp.Scheme().AuthScheme.Verify(pubPoint, msg, sig)
 	if err != nil {
-		return fmt.Errorf("error verifying '%s' packet with msg '%s' and metadata '%s': %w ", packetName(packet), hex.EncodeToString(msg), packet.GetMetadata(), err)
+		return fmt.Errorf("error verifying '%s' packet with msg '%s' and metadata '%s': %w ",
+			packetName(packet),
+			hex.EncodeToString(msg),
+			packet.GetMetadata(),
+			err)
 	}
 	return nil
 }
@@ -109,8 +113,9 @@ func messageForSigning(beaconID string, packet *drand.GossipPacket, proposal *dr
 	default:
 		// this is impossible in theory: there are checks erroring out much earlier
 		// so if we get an unknown packet type we make sure signature verification fails
-		ensureFailure := make([]byte, 64)
-		rand.Reader.Read(ensureFailure)
+		//nolint:mnd
+		ensureFailure := make([]byte, 16)
+		_, _ = rand.Reader.Read(ensureFailure)
 		ret.Write(ensureFailure)
 	}
 
