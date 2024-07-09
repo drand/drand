@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"sync"
 
-	commonutils "github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
@@ -53,7 +52,6 @@ type echoBroadcast struct {
 	ctx context.Context
 	sync.Mutex
 	l        log.Logger
-	version  commonutils.Version
 	beaconID string
 	// responsible for sending out the messages
 	dispatcher *dispatcher
@@ -75,7 +73,6 @@ func newEchoBroadcast(
 	ctx context.Context,
 	client net.DKGClient,
 	l log.Logger,
-	version commonutils.Version,
 	beaconID string,
 	own string,
 	to []*pdkg.Participant,
@@ -90,7 +87,6 @@ func newEchoBroadcast(
 	return &echoBroadcast{
 		ctx:        ctx,
 		l:          l.Named("echoBroadcast"),
-		version:    version,
 		beaconID:   beaconID,
 		dispatcher: newDispatcher(ctx, client, l, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
