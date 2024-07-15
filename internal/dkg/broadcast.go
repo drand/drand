@@ -453,7 +453,7 @@ func protoToResp(r *pdkg.ResponseBundle) *dkg.ResponseBundle {
 	for _, rr := range r.Responses {
 		response := dkg.Response{
 			DealerIndex: rr.DealerIndex,
-			Status:      rr.Status,
+			Status:      dkg.Status(rr.Status),
 		}
 		resp.Responses = append(resp.Responses, response)
 	}
@@ -517,7 +517,7 @@ func respToProto(r *dkg.ResponseBundle, beaconID string) *pdkg.Packet {
 	for i, resp := range r.Responses {
 		presp := &pdkg.Response{
 			DealerIndex: resp.DealerIndex,
-			Status:      resp.Status,
+			Status:      int32(resp.Status),
 		}
 		bundle.Responses[i] = presp
 	}

@@ -175,7 +175,7 @@ func NewBeaconTest(
 func (b *BeaconTest) CreateNode(ctx context.Context, t *testing.T, i int) {
 	findShare := func(target int) *key.Share {
 		for _, s := range b.shares {
-			if s.Share.I == target {
+			if int(s.Share.I) == target {
 				return s
 			}
 		}

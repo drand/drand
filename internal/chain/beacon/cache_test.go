@@ -21,7 +21,7 @@ func generatePartial(t *testing.T, idx int, round uint64, prev []byte) *drand.Pa
 	require.NoError(t, err)
 
 	sh := &share.PriShare{
-		I: idx,
+		I: uint32(idx),
 		V: fakeKey.Key,
 	}
 

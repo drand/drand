@@ -340,7 +340,7 @@ func TestMigrateOldGroupFileWithLeavers(t *testing.T) {
 			DistKeyShare: kyberDKG.DistKeyShare{
 				Commits: nil,
 				Share: &share.PriShare{
-					I: i,
+					I: uint32(i),
 					V: sch.KeyGroup.Scalar(),
 				},
 			},
