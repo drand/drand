@@ -242,5 +242,4 @@ func TestVersionBuildTags(t *testing.T) {
 			t.Fatalf("Incorrct matching string. Actual: %s, expected: %s", actual, tt.expected)
 		}
 	}
-
 }
