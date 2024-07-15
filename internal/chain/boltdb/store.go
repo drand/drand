@@ -64,11 +64,14 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	default:
 	}
 
+	// we assume folder of the form 'multibeacon/beaconid/db' which isn't necessarily true in tests
+	// but is always true on a running daemon.
+	beaconID := path.Base(path.Dir(folder))
 	dbPath := path.Join(folder, BoltFileName)
 
 	if shouldUseTrimmedBolt(ctx, l, dbPath, opts) {
 		metrics.DrandStorageBackend.
-			WithLabelValues("bolt-trimmed").
+			WithLabelValues(beaconID, "bolt-trimmed").
 			Set(float64(chain.BoltTrimmedMetrics))
 
 		return newTrimmedStore(ctx, l, folder, opts)
@@ -77,7 +80,7 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	l.Infow("Starting boltdb", "mode", "untrimmed")
 
 	metrics.DrandStorageBackend.
-		WithLabelValues("bolt-untrimmed").
+		WithLabelValues(beaconID, "bolt-untrimmed").
 		Set(float64(chain.BoltUntrimmedMetrics))
 
 	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)

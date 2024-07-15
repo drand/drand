@@ -178,6 +178,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 
 	metas := make([]*drand.Metadata, 0, len(dd.chainHashes))
 	for chainHex, id := range dd.chainHashes {
+		dd.log.Debugw("processing", "chainhex", chainHex, "id", id)
 		if chainHex == common.DefaultChainHash {
 			continue
 		}
@@ -192,6 +193,8 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 			ChainHash:   chain,
 		})
 	}
+
+	dd.log.Debugw("responding to ListBeaconIDs request", "metas", metas, "ids", ids)
 
 	return &drand.ListBeaconIDsResponse{Ids: ids, Metadatas: metas}, nil
 }
