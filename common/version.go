@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 )
@@ -65,7 +66,7 @@ func (v Version) ToProto() *pbcommon.NodeVersion {
 
 func (v Version) String() string {
 	pre := ""
-	if BUILDTAGS != "" {
+	if strings.Contains(BUILDTAGS, "insecure") {
 		pre += "-insecure"
 	}
 	if v.Prerelease != "" {
