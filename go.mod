@@ -6,8 +6,6 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/ardanlabs/darwin/v2 v2.0.0
 	github.com/briandowns/spinner v1.23.1
-	github.com/drand/kyber v1.3.1
-	github.com/drand/kyber-bls12381 v0.3.1
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -22,6 +20,7 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.2
+	go.dedis.ch/kyber/v4 v4.0.0-pre2.0.20240715063652-1a8e4d59ad8a
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.52.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0

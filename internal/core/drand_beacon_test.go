@@ -9,9 +9,9 @@ import (
 
 	"github.com/drand/drand/v2/common/key"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	kyberDKG "github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	kyberDKG "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 
 	"github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/kyber/share/dkg"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 func TestPedersenDkgCheckEmptyList(t *testing.T) {

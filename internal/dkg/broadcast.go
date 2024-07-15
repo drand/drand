@@ -15,8 +15,8 @@ import (
 	"github.com/drand/drand/v2/internal/util"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 // Broadcast is an interface that represents the minimum functionality required
@@ -106,7 +106,8 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.dealCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
-	h := hash(bundle.Hash())
+	bits, _ := bundle.Hash()
+	h := hash(bits)
 	b.l.Infow("push broadcast", "deal", fmt.Sprintf("%x", h[:5]))
 	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
@@ -118,7 +119,8 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.respCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
-	h := hash(bundle.Hash())
+	bits, _ := bundle.Hash()
+	h := hash(bits)
 	b.l.Debugw("push", "response", bundle.String())
 	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
@@ -130,7 +132,8 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.justCh <- *bundle
 	b.Lock()
 	defer b.Unlock()
-	h := hash(bundle.Hash())
+	bits, _ := bundle.Hash()
+	h := hash(bits)
 	b.l.Debugw("push", "justification", fmt.Sprintf("%x", h[:5]))
 	b.sendout(ctx, h, bundle, true, b.beaconID)
 }
@@ -150,9 +153,9 @@ func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *pdkg.DKGPacket) err
 		span.RecordError(err)
 		return err
 	}
-
-	hash := hash(dkgPacket.Hash())
-	if b.hashes.exists(hash) {
+	bits, _ := dkgPacket.Hash()
+	h := hash(bits)
+	if b.hashes.exists(h) {
 		// if we've already seen this one, no need to verify even because that
 		// means we already broadcasted it
 		b.l.Debugw("ignoring duplicate packet", "index", dkgPacket.Index(), "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
@@ -168,7 +171,7 @@ func (b *echoBroadcast) BroadcastDKG(ctx context.Context, p *pdkg.DKGPacket) err
 	}
 
 	b.l.Debugw("received new packet to echoBroadcast", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
-	b.sendout(ctx, hash, dkgPacket, false, b.beaconID) // we're using the rate limiting
+	b.sendout(ctx, h, dkgPacket, false, b.beaconID) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return nil
 }

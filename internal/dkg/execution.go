@@ -15,9 +15,9 @@ import (
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign/schnorr"
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/sign/schnorr"
 )
 
 func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStartTime time.Time) error {

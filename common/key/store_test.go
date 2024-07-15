@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonutils "github.com/drand/drand/v2/common"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 func TestKeysSaveLoad(t *testing.T) {
