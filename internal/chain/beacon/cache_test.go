@@ -10,7 +10,7 @@ import (
 	"github.com/drand/drand/v2/common/testlogger"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber/share"
+	"go.dedis.ch/kyber/v4/share"
 )
 
 var fakeKey, _ = key.NewKeyPair("127.0.0.1:8080", nil)
@@ -21,7 +21,7 @@ func generatePartial(t *testing.T, idx int, round uint64, prev []byte) *drand.Pa
 	require.NoError(t, err)
 
 	sh := &share.PriShare{
-		I: idx,
+		I: uint32(idx),
 		V: fakeKey.Key,
 	}
 

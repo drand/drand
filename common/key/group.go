@@ -18,8 +18,8 @@ import (
 	common2 "github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 // TODO new256 returns an error so we make a wrapper around

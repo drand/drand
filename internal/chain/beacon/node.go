@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -151,7 +152,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	span.AddEvent("h.crypto.DigestBeacon - done")
 
 	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
-	if idx < 0 {
+	if idx < 0 || idx > math.MaxInt {
 		err := fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 		span.RecordError(err)
 		h.l.Errorw("error", "err", err)
@@ -199,7 +200,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		"from_node", nodeName,
 		"status", "OK")
 
-	if idx == h.crypto.Index() {
+	if uint32(idx) == h.crypto.Index() {
 		h.l.Errorw("",
 			"process_partial", addr,
 			"index_got", idx,

@@ -15,7 +15,7 @@ import (
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
-	"github.com/drand/kyber/share/dkg"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 type Status uint32
