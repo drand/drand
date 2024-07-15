@@ -70,7 +70,7 @@ func (v Version) String() string {
 		pre += "-insecure"
 	}
 	if v.Prerelease != "" {
-		pre = "-"
+		pre += "-"
 	}
 	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }
