@@ -239,7 +239,7 @@ func TestVersionBuildTags(t *testing.T) {
 			t.Fatalf("Incorrect version string. Actual: %s, expected: %s", actual, tt.expected)
 		}
 		if actual == tt.expected && !tt.shouldWork {
-			t.Fatalf("Incorrct matching string. Actual: %s, expected: %s", actual, tt.expected)
+			t.Fatalf("Incorrect matching string. Actual: %s, expected: %s", actual, tt.expected)
 		}
 	}
 }
