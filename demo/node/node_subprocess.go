@@ -142,6 +142,8 @@ func (n *NodeProc) setup() {
 func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
 	if dbEngineType != "" {
 		n.dbEngineType = dbEngineType
+	} else {
+		n.dbEngineType = chain.BoltDB
 	}
 	if pgDSN != nil {
 		n.pgDSN = pgDSN()
