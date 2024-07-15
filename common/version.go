@@ -13,7 +13,7 @@ import (
 var version = Version{
 	Major:      2,
 	Minor:      0,
-	Patch:      1,
+	Patch:      2,
 	Prerelease: "",
 }
 
@@ -65,11 +65,11 @@ func (v Version) ToProto() *pbcommon.NodeVersion {
 
 func (v Version) String() string {
 	pre := ""
+	if BUILDTAGS != "" {
+		pre += "-insecure"
+	}
 	if v.Prerelease != "" {
 		pre = "-"
-	}
-	if BUILDTAGS != "" {
-		pre += "insecure-"
 	}
 	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }
