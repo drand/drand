@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
@@ -38,17 +39,22 @@ func roundID(round uint64, previous []byte) string {
 }
 
 // Append adds a partial signature to the cache.
-func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
+func (c *partialCache) Append(p *drand.PartialBeaconPacket) error {
 	id := roundID(p.GetRound(), p.GetPreviousSignature())
-	idx, _ := c.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
-	round := c.getCache(id, p)
-	if round == nil {
-		return
+	idx, err := c.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
+	if err != nil {
+		c.l.Errorw("partialCache could not get index of threshold scheme", "err", err)
+		return err
+	}
+	round, err := c.getCache(id, p)
+	if round == nil || err != nil {
+		return fmt.Errorf("could not get round from cache: %w", err)
 	}
 	if round.append(p) {
 		// we increment the counter of that node index
 		c.rcvd[idx] = append(c.rcvd[idx], id)
 	}
+	return nil
 }
 
 // FlushRounds deletes all rounds cache that are inferior or equal to `round`.
@@ -85,19 +91,23 @@ func (c *partialCache) GetRoundCache(round uint64, previous []byte) *roundCache 
 
 // newRoundCache creates a new round cache given p. If the signer of the partial
 // already has more than `
-func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundCache {
+func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) (*roundCache, error) {
 	if round, ok := c.rounds[id]; ok {
-		return round
+		return round, nil
 	}
 
-	idx, _ := c.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
+	idx, err := c.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
+	if err != nil {
+		c.l.Errorw("partial cache miss", "beacon_id", id, "index", idx, "not_present_for", p.GetRound())
+		return nil, err
+	}
 	if len(c.rcvd[idx]) >= MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
 		toEvict := c.rcvd[idx][0]
 		round, ok := c.rounds[toEvict]
 		if !ok {
-			c.l.Errorw("", "beacon_id", id, "cache", "miss", "node", idx, "not_present_for", p.GetRound())
-			return nil
+			c.l.Errorw("evicted round missing from cache", "beacon_id", id, "toEvict", toEvict, "node", idx, "not_present_for", p.GetRound())
+			return nil, fmt.Errorf("evicted round missing from cache")
 		}
 		round.flushIndex(idx)
 		c.rcvd[idx] = append(c.rcvd[idx][1:], id)
@@ -108,7 +118,7 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 	}
 	round := newRoundCache(id, p, c.scheme)
 	c.rounds[id] = round
-	return round
+	return round, nil
 }
 
 type roundCache struct {
@@ -140,7 +150,10 @@ func (r *roundCache) GetPreviousSignature() []byte {
 // append stores the partial and returns true if the partial is not stored . It
 // returns false if the cache is already caching this partial signature.
 func (r *roundCache) append(p *drand.PartialBeaconPacket) bool {
-	idx, _ := r.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
+	idx, err := r.scheme.ThresholdScheme.IndexOf(p.GetPartialSig())
+	if err != nil {
+		return false
+	}
 	if _, seen := r.sigs[idx]; seen {
 		return false
 	}

@@ -150,7 +150,12 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	msg := h.crypto.DigestBeacon(&common.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
 	span.AddEvent("h.crypto.DigestBeacon - done")
 
-	idx, _ := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
+	idx, err := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
+	if err != nil {
+		span.RecordError(err)
+		h.l.Errorw("invalid index for partial", "from", addr, "err", err)
+		return nil, err
+	}
 	if idx < 0 {
 		err := fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 		span.RecordError(err)
@@ -174,7 +179,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 
 	// verify if request is valid
 	span.AddEvent("h.crypto.ThresholdScheme.VerifyPartial")
-	err := h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig())
+	err = h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig())
 	span.AddEvent("h.crypto.ThresholdScheme.VerifyPartial - done")
 
 	if err != nil {
