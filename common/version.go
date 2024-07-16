@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 )
@@ -13,7 +14,7 @@ import (
 var version = Version{
 	Major:      2,
 	Minor:      0,
-	Patch:      1,
+	Patch:      2,
 	Prerelease: "",
 }
 
@@ -25,6 +26,7 @@ var version = Version{
 var (
 	COMMIT    = ""
 	BUILDDATE = ""
+	BUILDTAGS = ""
 )
 
 func GetAppVersion() Version {
@@ -64,8 +66,11 @@ func (v Version) ToProto() *pbcommon.NodeVersion {
 
 func (v Version) String() string {
 	pre := ""
+	if strings.Contains(BUILDTAGS, "insecure") {
+		pre += "-insecure"
+	}
 	if v.Prerelease != "" {
-		pre = "-"
+		pre += "-"
 	}
 	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }

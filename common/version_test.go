@@ -182,3 +182,64 @@ func TestVersionCompatible(tm *testing.T) {
 		})
 	}
 }
+
+func TestVersionBuildTags(t *testing.T) {
+	for _, tt := range []struct {
+		version    Version
+		expected   string
+		buildtags  string
+		shouldWork bool
+	}{
+		{
+			version123pre,
+			"1.2.3-pre",
+			"",
+			true,
+		},
+		{
+			version123pre,
+			"1.2.3-pre",
+			"conn_insecure",
+			false,
+		},
+		{
+			version123pre,
+			"1.2.3-insecure-pre",
+			"conn_insecure",
+			true,
+		},
+		{
+			version123,
+			"1.2.3-insecure",
+			"conn_insecure",
+			true,
+		},
+		{
+			version205,
+			"2.0.5",
+			"conn_insecure",
+			false,
+		},
+		{
+			version205,
+			"2.0.5-insecure",
+			"conn_insecure",
+			true,
+		},
+		{
+			version200pre,
+			"2.0.0-pre",
+			"verysecure",
+			true,
+		},
+	} {
+		BUILDTAGS = tt.buildtags
+		actual := tt.version.String()
+		if actual != tt.expected && tt.shouldWork {
+			t.Fatalf("Incorrect version string. Actual: %s, expected: %s", actual, tt.expected)
+		}
+		if actual == tt.expected && !tt.shouldWork {
+			t.Fatalf("Incorrect matching string. Actual: %s, expected: %s", actual, tt.expected)
+		}
+	}
+}
