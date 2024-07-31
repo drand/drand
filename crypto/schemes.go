@@ -259,7 +259,7 @@ const BN254UnchainedOnG1SchemeID = "bls-bn254-unchained-on-g1"
 // be optimally compatible with the EVM.
 func NewPedersenBLSBN254UnchainedOnG1Scheme() (cs *Scheme) {
 	var Pairing = bn254.NewSuite()
-	Pairing.SetDomainG1([]byte("BLS_SIG_BN254G1_XMD:KECCAK-256_SSWU_RO_NUL_"))
+	Pairing.SetDomainG1([]byte("BLS_SIG_BN254G1_XMD:KECCAK-256_SVDW_RO_NUL_"))
 
 	var KeyGroup = Pairing.G2()
 	var SigGroup = Pairing.G1()
