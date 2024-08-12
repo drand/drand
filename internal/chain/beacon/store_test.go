@@ -20,7 +20,7 @@ func TestSchemeStore(t *testing.T) {
 	ctx, sch, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	l := testlogger.New(t)
-	bstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
+	bstore, err := boltdb.NewBoltStore(ctx, l, dir)
 	require.NoError(t, err)
 
 	genesisBeacon := chain.GenesisBeacon([]byte("genesis_signature"))

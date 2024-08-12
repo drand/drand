@@ -14,7 +14,7 @@ import (
 )
 
 func TestNilGroupFails(t *testing.T) {
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	err = store.MigrateFromGroupfile("some-beacon", nil, fakeShare())
@@ -22,7 +22,7 @@ func TestNilGroupFails(t *testing.T) {
 }
 
 func TestNilKeyShareFails(t *testing.T) {
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	group := fakeGroup()
@@ -32,7 +32,7 @@ func TestNilKeyShareFails(t *testing.T) {
 }
 
 func TestEmptyBeaconIDFails(t *testing.T) {
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	keyShare := fakeShare()
@@ -47,7 +47,7 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 
 	// create a new store
 	beaconID := "banana"
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	// save an existing state in it
@@ -83,7 +83,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 	// create a new store
 	beaconID := "banana"
 	aDifferentBeaconID := "different-beacon-id"
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	// save an existing state but for a different beacon ID
@@ -117,7 +117,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 func TestValidMigrationIsRetrievable(t *testing.T) {
 	// create a new store
 	beaconID := "banana"
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	// perform the migration
@@ -134,7 +134,7 @@ func TestValidMigrationIsRetrievable(t *testing.T) {
 func TestInvalidMigrationIsNotRetrievable(t *testing.T) {
 	// create a new store
 	beaconID := "banana"
-	store, err := NewDKGStore(t.TempDir(), nil)
+	store, err := NewDKGStore(t.TempDir())
 	require.NoError(t, err)
 
 	// perform an invalid migration

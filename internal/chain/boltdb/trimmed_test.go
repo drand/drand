@@ -33,7 +33,7 @@ func TestTrimmedStoreBoltOrder(t *testing.T) {
 	}
 
 	l := testlogger.New(t)
-	store, err := newTrimmedStore(ctx, l, tmp, nil)
+	store, err := newTrimmedStore(ctx, l, tmp)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -91,7 +91,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	store, err := newTrimmedStore(ctx, l, tmp, nil)
+	store, err := newTrimmedStore(ctx, l, tmp)
 	require.NoError(t, err)
 
 	sLen, err := store.Len(ctx)
@@ -145,7 +145,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 	err = store.Close()
 	require.NoError(t, err)
 
-	store, err = newTrimmedStore(ctx, l, tmp, nil)
+	store, err = newTrimmedStore(ctx, l, tmp)
 	require.NoError(t, err)
 	require.NoError(t, store.Put(ctx, b1))
 
@@ -156,7 +156,7 @@ func TestTrimmedStoreBolt(t *testing.T) {
 	err = store.Close()
 	require.NoError(t, err)
 
-	store, err = newTrimmedStore(ctx, l, tmp, nil)
+	store, err = newTrimmedStore(ctx, l, tmp)
 	require.NoError(t, err)
 	err = store.Put(ctx, b1)
 	require.NoError(t, err)
@@ -204,7 +204,7 @@ func TestTrimmedStore_Cursor(t *testing.T) {
 	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
 	l := testlogger.New(t)
-	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
+	dbStore, err := newTrimmedStore(ctx, l, tmp)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, dbStore.Close())

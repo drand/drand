@@ -17,7 +17,7 @@ func TestStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
 	ctx := IsATest(context.Background())
 	l := testlogger.New(t)
-	store, err := NewBoltStore(ctx, l, tmp, nil)
+	store, err := NewBoltStore(ctx, l, tmp)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -61,7 +61,7 @@ func TestStoreBolt(t *testing.T) {
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	store, err := NewBoltStore(ctx, l, tmp, nil)
+	store, err := NewBoltStore(ctx, l, tmp)
 	require.NoError(t, err)
 
 	sLen, err := store.Len(ctx)
@@ -102,7 +102,7 @@ func TestStoreBolt(t *testing.T) {
 	err = store.Close()
 	require.NoError(t, err)
 
-	store, err = NewBoltStore(ctx, l, tmp, nil)
+	store, err = NewBoltStore(ctx, l, tmp)
 	require.NoError(t, err)
 	require.NoError(t, store.Put(ctx, b1))
 
@@ -113,7 +113,7 @@ func TestStoreBolt(t *testing.T) {
 	err = store.Close()
 	require.NoError(t, err)
 
-	store, err = NewBoltStore(ctx, l, tmp, nil)
+	store, err = NewBoltStore(ctx, l, tmp)
 	require.NoError(t, err)
 	err = store.Put(ctx, b1)
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestStore_Cursor(t *testing.T) {
 	tmp := t.TempDir()
 	ctx := IsATest(context.Background())
 	l := testlogger.New(t)
-	dbStore, err := NewBoltStore(ctx, l, tmp, nil)
+	dbStore, err := NewBoltStore(ctx, l, tmp)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, dbStore.Close())
@@ -239,7 +239,7 @@ func TestShouldUseTrimmedBolt(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			logger := testlogger.New(t)
-			got := shouldUseTrimmedBolt(tt.ctx, logger, tt.sourceBeaconPath, nil)
+			got := shouldUseTrimmedBolt(tt.ctx, logger, tt.sourceBeaconPath)
 			require.Equal(t, tt.want, got)
 		})
 	}

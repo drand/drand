@@ -8,7 +8,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	clock "github.com/jonboulle/clockwork"
-	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/v2/common"
@@ -34,7 +33,6 @@ type Config struct {
 	dkgPhaseTimeout       time.Duration
 	grpcOpts              []grpc.DialOption
 	callOpts              []grpc.CallOption
-	boltOpts              *bolt.Options
 	pgDSN                 string
 	pgConn                *sqlx.DB
 	memDBSize             int
@@ -139,18 +137,6 @@ func WithDkgPhaseTimeout(t time.Duration) ConfigOption {
 	return func(d *Config) {
 		d.dkgPhaseTimeout = t
 	}
-}
-
-// WithBoltOptions applies boltdb specific options when storing random beacons.
-func WithBoltOptions(opts *bolt.Options) ConfigOption {
-	return func(d *Config) {
-		d.boltOpts = opts
-	}
-}
-
-// BoltOptions returns the options given to the bolt db
-func (d *Config) BoltOptions() *bolt.Options {
-	return d.boltOpts
 }
 
 // WithDBStorageEngine allows setting the specific storage type

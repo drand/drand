@@ -853,7 +853,6 @@ func checkIdentityAddress(lg log.Logger, addr, beaconID string) error {
 // deleteBeaconCmd deletes all beacon in the database from the given round until
 // the head of the chain
 func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
-	conf := contextToConfig(c, l)
 	ctx := c.Context
 
 	startRoundStr := c.Args().First()
@@ -886,7 +885,7 @@ func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 		}
 		// Using an anonymous function to not leak the defer
 		er = func() error {
-			store, err := boltdb.NewBoltStore(ctx, l, path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
+			store, err := boltdb.NewBoltStore(ctx, l, path.Join(storePath, core.DefaultDBFolder))
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}

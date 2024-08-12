@@ -17,7 +17,7 @@ func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
 	ctx, _, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
 	l := testlogger.New(t)
-	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
+	bbstore, err := boltdb.NewBoltStore(ctx, l, dir)
 	require.NoError(t, err)
 	cb := NewCallbackStore(l, bbstore)
 	id1 := "superid"
