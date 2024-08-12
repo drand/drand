@@ -584,10 +584,7 @@ func CLI() *cli.App {
 		appComm[i] = &v
 	}
 	app.Commands = appComm
-	// we need to copy the underlying flags to avoid races
-	verbFlag := *verboseFlag
-	foldFlag := *folderFlag
-	app.Flags = toArray(&verbFlag, &foldFlag)
+
 	return app
 }
 
