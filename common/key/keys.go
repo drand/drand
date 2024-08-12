@@ -1,7 +1,6 @@
 package key
 
 import (
-	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -203,23 +202,6 @@ func (i *Identity) TOML() interface{} {
 // TOMLValue returns a TOML-compatible interface value
 func (i *Identity) TOMLValue() interface{} {
 	return &PublicTOML{}
-}
-
-// ByKey is simply an interface to sort lexig
-type ByKey []*Identity
-
-func (b ByKey) Len() int {
-	return len(b)
-}
-
-func (b ByKey) Swap(i, j int) {
-	(b)[i], (b)[j] = (b)[j], (b)[i]
-}
-
-func (b ByKey) Less(i, j int) bool {
-	is, _ := (b)[i].Key.MarshalBinary()
-	js, _ := (b)[j].Key.MarshalBinary()
-	return bytes.Compare(is, js) < 0
 }
 
 var ErrInvalidKeyScheme = errors.New("the key's scheme may not match the beacon's scheme")
