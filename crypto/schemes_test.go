@@ -6,11 +6,36 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/v2/common"
+	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber/util/random"
 )
+
+func TestNamesInList(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected bool
+	}{
+		{"", false},
+		{crypto.DefaultSchemeID, true},
+		{crypto.ShortSigSchemeID, true},
+		{crypto.SigsOnG1ID, true},
+		{crypto.UnchainedSchemeID, true},
+		{"nonexistentschemename", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name+"IsInList", func(t *testing.T) {
+			for _, v := range crypto.ListSchemes() {
+				if tt.name == v {
+					return
+				}
+			}
+			require.False(t, tt.expected)
+		})
+	}
+}
 
 func BenchmarkVerifyBeacon(b *testing.B) {
 	sch, err := crypto.GetSchemeFromEnv()
@@ -23,7 +48,7 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -31,16 +56,14 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 	sig, _ := sch.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		beacon := &chain.Beacon{
+		beacon := &common.Beacon{
 			PreviousSig: prevSig,
 			Round:       16,
 			Signature:   sig,
 		}
 
 		err := sch.VerifyBeacon(beacon, public)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(b, err)
 	}
 }
 
@@ -54,7 +77,7 @@ func BenchmarkSignBeacon(b *testing.B) {
 
 	prevSig := []byte("My Sweet Previous Signature")
 
-	msg := sch.DigestBeacon(&chain.Beacon{
+	msg := sch.DigestBeacon(&common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 	})
@@ -66,18 +89,15 @@ func BenchmarkSignBeacon(b *testing.B) {
 	}
 	b.StopTimer()
 
-	beacon := &chain.Beacon{
+	beacon := &common.Beacon{
 		PreviousSig: prevSig,
 		Round:       16,
 		Signature:   sig,
 	}
 	err = sch.VerifyBeacon(beacon, public)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(b, err)
 }
 
-//nolint:lll
 func TestVerifyBeacon(t *testing.T) {
 	t.Parallel()
 	testBeacons := []struct {
@@ -112,11 +132,30 @@ func TestVerifyBeacon(t *testing.T) {
 			Scheme: "bls-unchained-on-g1",
 			Round:  3,
 			Sig:    "ac7c3ca14bc88bd014260f22dc016b4fe586f9313c3a549c83d195811a99a5d2d4999d4df6daec73ff51fafadd6d5bb5",
-		}, {
+		},
+		{
 			PubKey: "a0b862a7527fee3a731bcb59280ab6abd62d5c0b6ea03dc4ddf6612fdfc9d01f01c31542541771903475eb1ec6615f8d0df0b8b6dce385811d6dcf8cbefb8759e5e616a3dfd054c928940766d9a5b9db91e3b697e5d70a975181e007f87fca5e",
 			Scheme: "bls-unchained-on-g1",
 			Round:  2,
 			Sig:    "a050676d1a1b6ceedb5fb3281cdfe88695199971426ff003c0862460b3a72811328a07ecd53b7d57fc82bb67f35efaf1",
+		},
+		{
+			PubKey: "00e3e43df8fcc6a8e57a419a72cee58dc97ad27b2cd17db52ca6e173fe2962971d9d20260c7006980bb49ce8a152bb81e43862f0b6a2c49c3a19b457c2892b7302eb4c1d3ebefde8b9eefeabcdc2d8dcef925f270a345c298a6c31a2df23bd4f1319c6bb3b5376e85f1e0ee12359ecc28928593163c4df2d0b9c6d3505e2c02f",
+			Scheme: "bls-bn254-unchained-on-g1",
+			Round:  1,
+			Sig:    "256867706c495afda16143b5cb7013dc582ee698a096220bb2a7a12e9091603427a95923355cf492d540e4d428e949e46e4e293165f4f30b8b12c51fae591e37",
+		},
+		{
+			PubKey: "047033cd6e8a37849271c7a2b624176ded162fa8d8f309610f0d32cb1b4e647124a1d10d86e51d268e5927b12a772997c47bc39396ef44daf73e29d246b9f56c210e4bb108f94165a6d8005fa82f3265bfde96289bc2fcca42c643997693aedf2e75abeb76348f0f7f96a02bbc7c9cc68aba524008b7b20e9c27353589297096",
+			Scheme: "bls-bn254-unchained-on-g1",
+			Round:  16,
+			Sig:    "0367ff3a4ae82eb060decfe4d79549d07dbbf490e6c0d800ffe1e5a4edca03af231486e2358564a5c34be1a010bb8afc84e8d347fdf27807e2e987bf430cc222",
+		},
+		{
+			PubKey: "2a8fde29149e45235ddf09a79873f9e830294decd247722ccbf0552c15d1c5231550c146413b9326b9c4f425d16962964e458211c1e4c86f70bd354fa3fbf1d417fcf10dd2edbc8e5f95f27bb975ada01d9625033051e272085e3d25244d3dec19bf704f8c41e0b8dc56e36b6b0ae624448e46f511c4da2a95e5e32c3e270ab8",
+			Scheme: "bls-bn254-unchained-on-g1",
+			Round:  5,
+			Sig:    "27014bdeb181aac8afe771f67d6c168c46e5a184b6a62cd4c2a155650a992eda2df062eb8aaa87e2712d71bf64e66ea8cf0845b4cfbf4151ba595ae7bce72555",
 		},
 	}
 
@@ -129,7 +168,40 @@ func TestVerifyBeacon(t *testing.T) {
 		require.NoError(t, err)
 		prev, err := hex.DecodeString(beacon.PrevSig)
 		require.NoError(t, err)
-		err = sch.VerifyBeacon(&chain.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
+		err = sch.VerifyBeacon(&common.Beacon{Round: beacon.Round, Signature: sig, PreviousSig: prev}, public)
 		require.NoError(t, err)
+	}
+}
+
+func TestGetSchemeByID(t *testing.T) {
+	tests := []struct {
+		name      string
+		isDefault bool
+		want      bool
+	}{
+		{"", true, true},
+		{crypto.DefaultSchemeID, true, true},
+		{crypto.ShortSigSchemeID, false, true},
+		{crypto.SigsOnG1ID, false, true},
+		{crypto.UnchainedSchemeID, false, true},
+		{"nonexistentschemename", false, false},
+		{crypto.DefaultSchemeID + "wrong", false, false},
+		{"wrong" + crypto.ShortSigSchemeID, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+"byID", func(t *testing.T) {
+			got, err := crypto.GetSchemeByID(tt.name)
+			gotBool := err == nil
+			// special case "" is considered to be the default beacon
+			if gotBool && got.Name != tt.name && tt.name != "" {
+				t.Errorf("GetSchemeByID() got = %v, want %v", got, tt.name)
+			}
+			if tt.isDefault && got.Name != crypto.DefaultSchemeID {
+				t.Errorf("UnexpectedDefaultName got = %v", got.Name)
+			}
+			if gotBool != tt.want {
+				t.Errorf("GetSchemeByID() gotBool = %v, want %v", gotBool, tt.want)
+			}
+		})
 	}
 }

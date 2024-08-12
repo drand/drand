@@ -1,0 +1,86 @@
+/*
+ * This protobuf file contains the definitions of all the calls and messages
+ * used by drand nodes themselves to create the distributed randomness beacon.
+ */
+syntax = "proto3";
+
+package dkg;
+
+option go_package = "github.com/drand/drand/v2/protobuf/dkg";
+
+import "drand/common.proto";
+
+// Packet is a wrapper around the three different types of DKG messages
+message Packet {
+    oneof Bundle {
+        DealBundle deal = 1;
+        ResponseBundle response = 2;
+        JustificationBundle justification = 3;
+    }
+    drand.Metadata metadata = 4;
+}
+
+
+// DealBundle is a packet issued by a dealer that contains each individual
+// deals, as well as the coefficients of the public polynomial he used.
+message DealBundle {
+    // Index of the dealer that issues these deals
+    uint32 dealer_index = 1;
+    // Coefficients of the public polynomial that is created from the
+    // private polynomial from which the shares are derived.
+    repeated bytes commits = 2;
+    // list of deals for each individual share holders.
+    repeated Deal deals = 3;
+    // session identifier of the protocol run
+    bytes session_id = 4;
+    // signature over the hash of the deal
+    bytes signature = 5;
+}
+
+// Deal contains a share for a participant.
+message Deal {
+    uint32 share_index = 1;
+    // encryption of the share using ECIES
+    bytes encrypted_share = 2;
+}
+
+// ResponseBundle is a packet issued by a share holder that contains all the
+// responses (complaint and/or success) to broadcast.
+message ResponseBundle {
+    uint32 share_index = 1;
+    repeated Response responses = 2;
+    // session identifier of the protocol run
+    bytes session_id = 3;
+    // signature over the hash of the response
+    bytes signature = 4;
+}
+
+// Response holds the response that a participant broadcast after having
+// received a deal.
+message Response {
+    // index of the dealer for which this response is for
+    uint32 dealer_index = 1;
+    // Status represents a complaint if set to false, a success if set to
+    // true.
+    bool status = 2;
+}
+
+// JustificationBundle is a packet that holds all justifications a dealer must
+// produce
+message JustificationBundle {
+    uint32 dealer_index = 1;
+    repeated Justification justifications = 2;
+    // session identifier of the protocol run
+    bytes session_id = 3;
+    // signature over the hash of the justification
+    bytes signature = 4;
+}
+
+// Justification holds the justification from a dealer after a participant
+// issued a complaint response because of a supposedly invalid deal.
+message Justification {
+    // represents for who share holder this justification is
+    uint32 share_index = 1;
+    // plaintext share so everyone can see it correct
+    bytes share = 2;
+}

@@ -1,10 +1,11 @@
-FROM --platform=linux/amd64 golang:1.20.1-buster AS builder
+FROM --platform=linux/amd64 golang:1.22-bookworm AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG major=0
 ARG minor=0
 ARG patch=0
 ARG gitCommit
+ARG buildTag
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
@@ -33,11 +34,13 @@ COPY . $SRC_PATH
 RUN \
   go install \
   -mod=readonly \
+  -tags=${buildTag} \
   -ldflags \
-  "-X github.com/drand/drand/common.COMMIT=${gitCommit} \
-  -X github.com/drand/drand/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-  -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
+  "-X github.com/drand/drand/v2/common.COMMIT=${gitCommit} \
+  -X github.com/drand/drand/v2/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/v2/internal/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/v2/internal/drand-cli.gitCommit=${gitCommit}" \
+  ./cmd/drand
 
 FROM --platform=linux/amd64 busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -65,4 +68,4 @@ VOLUME $DRAND_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 # Defaults for drand go here
-CMD ["start", "--tls-disable", "--control 8888", "--private-listen 0.0.0.0:4444"]
+CMD ["start", "--control 8888", "--private-listen 0.0.0.0:4444"]

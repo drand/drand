@@ -2,7 +2,7 @@
 
 
 num_of_nodes=3
-docker_image_version=v1.5.3
+docker_image_version=v2.0.6-testnet
 
 ### first we check if docker and docker-compose are installed
 
@@ -20,8 +20,11 @@ if [ ! has_docker_compose ]; then
   exit 1
 fi
 
+echo [+] Cleaning up old run
+docker-compose -f docker-compose-network.yml down -v
+
 echo [+] Pulling the official drand docker image $docker_image_version
-docker pull drandorg/go-drand:$docker_image_version 1>/dev/null
+docker pull ghcr.io/drand/go-drand:$docker_image_version 1>/dev/null
 
 
 ### then we create a volume for each of those nodes
@@ -40,7 +43,7 @@ do
   # these will end up on drand1:8010, drand2:8020, drand3:8030, etc
   # note they map to the container's mapped ports, but the internal ports; internally the services still listen on 8080
   path=drand_docker_demo$i:80${i}0
-  docker run --rm --volume drand_docker_demo$i:/data/drand drandorg/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --tls-disable --id default $path 1>/dev/null
+  docker run --rm --volume drand_docker_demo$i:/data/drand ghcr.io/drand/go-drand:$docker_image_version generate-keypair --folder /data/drand/.drand --id default $path 1>/dev/null
 done
 
 ### now we start them all using docker-compose as it'll be easy to spin up and down
@@ -55,23 +58,23 @@ sleep 5
 ### now we run the initial distributed key generation
 ### we're going to use the first node as the leader node
 
-echo [+] Starting distributed key generation for the leader
+echo [+] Initialising distributed key generation for the leader
 
+docker exec drand_docker_demo1 drand dkg generate-proposal  --joiner drand_docker_demo1:8010 --joiner drand_docker_demo2:8020 --joiner drand_docker_demo3:8030 --out proposal.toml
 # we start the DKG and send it to the background;
-docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo1 sh -c "drand share --id default --leader --nodes 3 --threshold 2 --period 15s --tls-disable"
+docker exec drand_docker_demo1 drand dkg init --proposal ./proposal.toml --threshold 2 --period 3s --control 8818
 
-# and sleep a second so the other nodes don't try and join before the leader has set up all its bits and bobs!
-sleep 1
-echo [+] Started distributed key generation for the leader
 
 echo [+] Joining distributed key generation for the followers
 for i in $(seq 2 $num_of_nodes);
 do
   # we start the DKG and send it to the background
-  docker exec --env DRAND_SHARE_SECRET=deadbeefdeadbeefdeadbeefdeadbeef --detach drand_docker_demo$i sh -c "drand share --id default --connect drand_docker_demo1:8010 --tls-disable"
+  docker exec --detach drand_docker_demo$i drand dkg join --control 88$i8
 done
 
 
+echo [+] Started distributed key generation execution on the leader
+docker exec --detach drand_docker_demo1 drand dkg execute --control 8818
 ### now we wait for the distributed key generation to be completed and the first round to be created
 
 echo [+] Waiting for the DKG to finish - could take up to a minute!
@@ -86,7 +89,7 @@ do
   fi
 
   ### once the first round has been created, we know that the DKG happened successfully
-  response=$(curl --silent localhost:9010/public/1)
+  response=$(curl --silent 127.0.0.1:9010/public/1)
   code=$?
   if [ $code -eq 0 ]; then
     if [[ $response =~ "round" ]]; then

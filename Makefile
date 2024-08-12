@@ -4,11 +4,11 @@
 .PHONY: test-integration test-integration-boltdb test-integration-memdb test-integration-postgres
 .PHONY: test-integration-run-demo test-integration-run-demo-boltdb test-integration-run-demo-memdb test-integration-run-demo-postgres
 .PHONY: demo demo-boltdb demo-memdb demo-postgres
-.PHONY: deploy-local linter install build client drand relay-http relay-gossip relay-s3
+.PHONY: deploy-local linter install build drand
 .PHONY: install_deps_linux install_deps_darwin install_deps_darwin-m
 
-VER_PACKAGE=github.com/drand/drand/common
-CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
+VER_PACKAGE=github.com/drand/drand/v2/common
+CLI_PACKAGE=github.com/drand/drand/v2/internal/drand-cli
 
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
@@ -24,7 +24,7 @@ drand: build
 ####################  Lint and fmt process ##################
 
 install_lint:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.1
 
 lint:
 	golangci-lint --version
@@ -59,122 +59,109 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	go test -failfast $(SHORTTEST) -race -v ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure ./...
 
 test-unit-boltdb: test-unit
 
 test-unit-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags memdb ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,memdb ./...
 
 test-unit-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags postgres ./...
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,postgres ./...
 
 test-unit-cover:
-	go test -failfast $(SHORTTEST) -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -tags conn_insecure -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-boltdb-cover: test-unit-cover
 
 test-unit-memdb-cover:
-	go test -failfast $(SHORTTEST) -v -tags memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags conn_insecure,memdb -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-unit-postgres-cover:
-	go test -failfast $(SHORTTEST) -v -tags postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast $(SHORTTEST) -v -tags conn_insecure,postgres -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
-	go test -failfast $(SHORTTEST) -race -v -tags integration ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration ./demo/
 
 test-integration-boltdb: test-integration
 
 test-integration-memdb:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,memdb ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration,memdb ./demo/
 
 test-integration-postgres:
-	go test -failfast $(SHORTTEST) -race -v -tags integration,postgres ./demo/
+	go test -failfast $(SHORTTEST) -race -v -tags conn_insecure,integration,postgres ./demo/
 
 test-integration-run-demo:
-	cd demo && go build && ./demo -build -test -debug
+	cd demo && go build -tags conn_insecure && ./demo -build -test -debug
 
 test-integration-run-demo-boltdb: test-integration-run-demo
 
 test-integration-run-demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+	cd demo && go build  -tags conn_insecure && ./demo -dbtype=memdb -build -test -debug
 
 test-integration-run-demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
+	cd demo && go build  -tags conn_insecure && ./demo -dbtype=postgres -build -test -debug
 
 
 coverage:
 	go get -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -failfast $(SHORTTEST) -v  -tags conn_insecure -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 coverage-boltdb: coverage
 
 coverage-memdb:
 	go get -tags=memdb -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=conn_insecure,memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-memdb.txt ./...
 
 coverage-postgres:
 	go get -tags=postgres -v -t -d ./...
-	go test -failfast $(SHORTTEST) -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
+	go test -failfast $(SHORTTEST) -v -tags=conn_insecure,postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
-	cd demo && go build && ./demo -build
-	#cd demo && sudo ./run.sh
+	cd demo && go build -tags conn_insecure && ./demo -build
 
 demo-boltdb: demo
 
 demo-memdb:
-	cd demo && go build && ./demo -dbtype=memdb -build
+	cd demo && go build -tags conn_insecure && ./demo -dbtype=memdb -build
 
 demo-postgres:
-	cd demo && go build && ./demo -dbtype=postgres -build
+	cd demo && go build -tags conn_insecure && ./demo -dbtype=postgres -build
 
 ############################################ Build ############################################
 
 build_proto:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.32.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN
 install:
-	go install -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
+	$(info This is installing drand with TLS enabled.)
+	$(info  )
+	go install -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
 # create the "drand" binary in the current folder
 build:
-	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
+	$(info This is building drand with TLS enabled, use 'make build_insecure' to do local tests without TLS.)
+	$(info  )
+	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
-# create the "drand-client" binary in the current folder
-client:
-	go build -o drand-client -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/client
-drand-client: client
+# create the "drand" binary in the current folder without TLS connections, useful for tests.
+build_insecure:
+	go build -tags conn_insecure -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(VER_PACKAGE).BUILDTAGS=insecure -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)" ./cmd/drand
 
-# create the "drand-relay-http" binary in the current folder
-relay-http:
-	go build -o drand-relay-http -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay
-drand-relay-http: relay-http
-
-# create the "drand-relay-gossip" binary in the current folder
-relay-gossip:
-	go build -o drand-relay-gossip -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-gossip
-drand-relay-gossip: relay-gossip
-
-# create the "drand-relay-s3" binary in the current folder
-relay-s3:
-	go build -o drand-relay-s3 -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-s3
-drand-relay-s3: relay-s3
-
-build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+build_all: drand
 
 build_docker_all: build_docker build_docker_dev
 build_docker:
 	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .
 
 build_docker_dev:
-	docker build -f test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
+	docker build -f internal/test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
-PROTOC_VERSION=3.19.6
+PROTOC_VERSION=25.3
 PROTOC_ZIP_LINUX=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 PROTOC_ZIP_DARWIN=protoc-$(PROTOC_VERSION)-osx-x86_64.zip
 PROTOC_ZIP_DARWIN_M=protoc-$(PROTOC_VERSION)-osx-aarch_64.zip

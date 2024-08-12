@@ -54,9 +54,44 @@ var (
 		Prerelease: "",
 	}
 
+	version159 = Version{
+		Major:      1,
+		Minor:      5,
+		Patch:      9,
+		Prerelease: "",
+	}
+
 	version200 = Version{
 		Major:      2,
 		Minor:      0,
+		Patch:      0,
+		Prerelease: "",
+	}
+
+	version200pre = Version{
+		Major:      2,
+		Minor:      0,
+		Patch:      0,
+		Prerelease: "pre",
+	}
+
+	version205 = Version{
+		Major:      2,
+		Minor:      0,
+		Patch:      5,
+		Prerelease: "",
+	}
+
+	version210 = Version{
+		Major:      2,
+		Minor:      1,
+		Patch:      0,
+		Prerelease: "",
+	}
+
+	version220 = Version{
+		Major:      2,
+		Minor:      2,
 		Patch:      0,
 		Prerelease: "",
 	}
@@ -104,16 +139,30 @@ func TestVersionCompatible(tm *testing.T) {
 	}{
 		{version123, version123pre, true},
 		{version123, version124, true},
-		{version157, version158, true},
-		{version158, version158, true},
-		{version158, version200, true},
-		{version123, version157, false},
 		{version123, version130pre, true},
+		{version123, version157, false},
 		{version123, version200, false},
-		{version157, version200, false},
-		{version123pre, version130pre, true},
 		{version123pre, version130, true},
+		{version123pre, version130pre, true},
 		{version123pre, version157, false},
+		{version130pre, version157, false},
+		{version157, version158, true},
+		{version157, version159, true},
+		{version157, version200, false},
+		{version157, version205, false},
+		{version157, version210, false},
+		{version158, version158, true},
+		{version158, version159, true},
+		{version158, version200, true},
+		{version158, version205, true},
+		{version158, version210, false},
+		{version158, version200pre, true},
+		{version159, version200, true},
+		{version200, version200, true},
+		{version200, version205, true},
+		{version200, version210, true},
+		{version200, version220, false},
+		{version210, version220, true},
 	} {
 		compat := tt.isCompat
 		a := tt.a
@@ -131,5 +180,66 @@ func TestVersionCompatible(tm *testing.T) {
 			t.Setenv("DISABLE_VERSION_CHECK", "1")
 			testCompatible(t, a, b)
 		})
+	}
+}
+
+func TestVersionBuildTags(t *testing.T) {
+	for _, tt := range []struct {
+		version    Version
+		expected   string
+		buildtags  string
+		shouldWork bool
+	}{
+		{
+			version123pre,
+			"1.2.3-pre",
+			"",
+			true,
+		},
+		{
+			version123pre,
+			"1.2.3-pre",
+			"conn_insecure",
+			false,
+		},
+		{
+			version123pre,
+			"1.2.3-insecure-pre",
+			"conn_insecure",
+			true,
+		},
+		{
+			version123,
+			"1.2.3-insecure",
+			"conn_insecure",
+			true,
+		},
+		{
+			version205,
+			"2.0.5",
+			"conn_insecure",
+			false,
+		},
+		{
+			version205,
+			"2.0.5-insecure",
+			"conn_insecure",
+			true,
+		},
+		{
+			version200pre,
+			"2.0.0-pre",
+			"verysecure",
+			true,
+		},
+	} {
+		BUILDTAGS = tt.buildtags
+		actual := tt.version.String()
+		if actual != tt.expected && tt.shouldWork {
+			t.Fatalf("Incorrect version string. Actual: %s, expected: %s", actual, tt.expected)
+		}
+		if actual == tt.expected && !tt.shouldWork {
+			t.Fatalf("Incorrect matching string. Actual: %s, expected: %s", actual, tt.expected)
+		}
 	}
 }

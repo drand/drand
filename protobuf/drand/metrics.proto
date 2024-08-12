@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/drand/drand/v2/protobuf/drand";
+
+service Metrics {
+  rpc Metrics(MetricsRequest) returns (MetricsResponse) { }
+}
+
+message MetricsRequest {
+}
+
+message MetricsResponse {
+  bytes metrics = 1;
+}

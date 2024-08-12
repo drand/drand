@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - install docker
-- install docker compose (probably bundled with docker these days)
+- install docker compose (probably bundled with your version of docker)
 - run on linux :) (other platforms may work but YMMV)
 
 ## Creation of a keypair
@@ -11,6 +11,8 @@ Pull the latest drand image:
 ```shell
 docker pull ghcr.io/drand/go-drand:v2.0.2
 ```
+> [!NOTE]
+> If you want to run drand locally without TLS, you should use the `ghcr.io/drand/go-drand-local:v2.0.2` image instead!
 
 Create a volume where you're going to store your keypairs and other config data
 ```shell
@@ -20,51 +22,62 @@ docker volume create drand
 Next we must create a keypair and store it in the docker volume we've just created.
 
 ```shell
-docker run --rm --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 generate-keypair  --folder /data/drand/.drand --tls-disable --id default 0.0.0.0:8080
+docker run --rm --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 generate-keypair  --folder /data/drand/.drand --id default 0.0.0.0:8080
 ```
+
+> [!NOTE]
+> If you are on mac M1/2/3 you will have to add `--platform linux/amd64` after the `run` but before the other arguments in all the commands
 
 This will create a keypair for the default public listening address (0.0.0.0:8080) and store it in the `/data/drand/.drand` directory
 which is mapped to the `drand` volume we created in the previous step.
+> [!NOTE]
+> An error such as 'Keys couldn't be loaded on drand daemon' is fine - this just means your daemon wasn't running while you generated your keys; it's possible to hot-load keys on a running daemon
 
-You should replace `0.0.0.0:8080` with your public IP address, e.g. `pl1-rpc.drand.sh:443`, as this key is how other nodes in the network
-will verify that they're talking to your node. 
+> [!IMPORTANT]
+> You should replace `0.0.0.0:8080` with your public IP address, e.g. `pl1-rpc.drand.sh:443`, as this key is how other nodes in the network
+will verify that they're talking to your node.
+> Access to this path should be firewalled to only allow connections from nodes in the relevant allowlist ([mainnet allowlist](https://github.com/drand/loe-mainnet-allowlist/) and [testnet allowlist](https://github.com/drand/loe-testnet-allowlist/))
+> For League of Entropy members, there may be restrictions on what ports are accessible via others' security groups. Contact a member of the League of Entropy if you use an exotic port; 443/8080 should be fine.
 
-_Note_: access to this path should be firewalled to only allow connections from nodes in the relevant allowlist ([mainnet allowlist](https://github.com/drand/loe-mainnet-allowlist/) and [testnet allowlist](https://github.com/drand/loe-testnet-allowlist/))
+> [!CAUTION]
+> You should _not_ expose your control port to the internet nor other members of the network. If you do, they will be able to run arbitrary commands on your node and you will have a bad time.
 
 
 ## Starting drand
 Finally we can start the docker container by running:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --tls-disable --private-listen 0.0.0.0:8080
+docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --private-listen 0.0.0.0:8080
 ```
 
 If we run `docker logs -f drand`, we should be able to see that the node has started and is waiting for distributed key generation:
 ```
-drand 1.5.2-testnet (date 06/02/2023@10:47:55, commit 7ea4a3c536bebf9436bfbc5d7b91eab9db932f53)
-2023-02-08T14:08:42.622Z	INFO	0.0.0.0:8080	core/drand_daemon.go:117		{"network": "init", "insecure": true}
-2023-02-08T14:08:42.643Z	INFO	0.0.0.0:8080	core/drand_daemon.go:145	DrandDaemon initialized	{"private_listen": "0.0.0.0:8080", "control_port": "8888", "public_listen": "", "folder": "/data/drand/.drand/multibeacon"}
-2023-02-08T14:08:42.679Z	INFO	0.0.0.0:8080	core/drand_daemon.go:316	beacon id [default]: will run as fresh install -> expect to run DKG.
+Changing user to drand
+2024-06-28T08:19:55.671Z	INFO	key/store.go:222	Detected stores	{"folder": "/data/drand/.drand/multibeacon", "amount": 1}
+2024-06-28T08:19:55.678Z	WARN	key/store.go:234	could not load group, please report this unless this is a new node	{"beaconID": "default", "err": "open /data/drand/.drand/multibeacon/default/groups/drand_group.toml: no such file or directory"}
+drand 2.0.1 (date 24/06/2024@14:21:38, commit )
+2024-06-28T08:19:55.695Z	INFO	0.0.0.0:8080	core/drand_daemon.go:190	DrandDaemon initialized	{"private_listen": "0.0.0.0:8080", "control_port": "8888", "folder": "/data/drand/.drand/multibeacon", "storage_engine": "bolt"}
+2024-06-28T08:19:55.701Z	INFO	0.0.0.0:8080	core/drand_daemon.go:385	beacon id [default]: will run as fresh install -> expect to run DKG.
 ```
 
-If we try and run `curl -v localhost:8080/chains` we won't get anything back! The private listening port only speaks gRPC and is used when
+If we try and run `curl -v 127.0.0.1:8080/chains` we won't get anything back! The private listening port only speaks gRPC and is used when
 nodes talk to one another. To expose the randomness itself, we must provide a public listening port.
 
 Kill the container and rerun it with a command such as:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --tls-disable --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
+docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
 ```
 
-Now if we run `curl -v localhost:9080/chains` we should get a 200 response back and an empty list of chains.
+Now if we run `curl -v 127.0.0.1:9080/chains` we should get a 200 response back and an empty list of chains.
 
 ## Running with docker compose
 This dir contains a sample [docker-compose.yml](./docker-compose.yml) that can be used to spin up a single node. You will still have to go through
-the steps of creating a volume and keypair above to use it.
+the steps of creating a volume and keypair above to use it, though the volume names may vary.
 
 Additionally, you can easily set up a test network of three nodes by running [the start-network.sh script](./start-network.sh).
 It can be torn down and cleaned up by using the [./cleanup.sh shell script](./cleanup.sh).
 This manifest will spin up a network of three nodes and run an initial distributed key generation process, and they will start generating randomness beacons.
 
 ## Running with nginx
-Many LoE partners like to run a reverse proxy in front of their node to easily manage TLS termination, domain names and firewalling. 
-In [docker-compose-nginx.yml](./docker-compose-nginx.yml) you can find a manifest for running a single drand docker container and an 
-ginx container to route traffic to it. Similar to the keypair, we will have to create a volume containing the nginx config (and any TLS config you wish to add).
+Many LoE partners like to run a reverse proxy in front of their node to easily manage TLS termination, domain names and firewalling.
+In [docker-compose-nginx.yml](./docker-compose-nginx.yml) you can find a manifest for running a single drand docker container and an
+nginx container to route traffic to it. Similar to the keypair, we will have to create a volume containing the nginx config (and any TLS config you wish to add).

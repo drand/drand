@@ -1,10 +1,8 @@
-version: "3"
-
 services:
   drand_docker_demo_1:
     container_name: drand_docker_demo1
-    image: ghcr.io/drand/go-drand:v2.0.2
-    command: start --verbose --tls-disable --private-listen drand_docker_demo1:8010 --control 8888 --public-listen 0.0.0.0:9080
+    image: ghcr.io/drand/go-drand-local:v2.0.2
+    command: start --verbose --private-listen drand_docker_demo1:8010 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo1:/data/drand
     restart: always
@@ -15,8 +13,8 @@ services:
 
   drand_docker_demo_2:
     container_name: drand_docker_demo2
-    image: ghcr.io/drand/go-drand:v2.0.2
-    command: start --verbose --tls-disable --private-listen drand_docker_demo2:8020 --control 8888 --public-listen 0.0.0.0:9080
+    image: ghcr.io/drand/go-drand-local:v2.0.2
+    command: start --verbose --private-listen drand_docker_demo2:8020 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo2:/data/drand
     restart: always
@@ -27,8 +25,8 @@ services:
 
   drand_docker_demo_3:
     container_name: drand_docker_demo3
-    image: ghcr.io/drand/go-drand:v2.0.2
-    command: start --verbose --tls-disable --private-listen drand_docker_demo3:8030 --control 8888 --public-listen 0.0.0.0:9080
+    image: ghcr.io/drand/go-drand-local:v2.0.2
+    command: start --verbose --private-listen drand_docker_demo3:8030 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo3:/data/drand
     restart: always
@@ -40,11 +38,7 @@ services:
 volumes:
   drand_docker_demo1:
     external: true
-    name: drand_docker_demo1
   drand_docker_demo2:
     external: true
-    name: drand_docker_demo2
   drand_docker_demo3:
     external: true
-    name: drand_docker_demo3
-

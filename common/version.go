@@ -3,17 +3,18 @@ package common
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	pbcommon "github.com/drand/drand/protobuf/common"
+	pbcommon "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Must be manually updated!
 // Before releasing: Verify the version number and set Prerelease to ""
 // After releasing: Increase the Patch number and set Prerelease to "-pre"
 var version = Version{
-	Major:      1,
-	Minor:      5,
-	Patch:      11,
+	Major:      2,
+	Minor:      0,
+	Patch:      2,
 	Prerelease: "",
 }
 
@@ -25,6 +26,7 @@ var version = Version{
 var (
 	COMMIT    = ""
 	BUILDDATE = ""
+	BUILDTAGS = ""
 )
 
 func GetAppVersion() Version {
@@ -64,8 +66,11 @@ func (v Version) ToProto() *pbcommon.NodeVersion {
 
 func (v Version) String() string {
 	pre := ""
+	if strings.Contains(BUILDTAGS, "insecure") {
+		pre += "-insecure"
+	}
 	if v.Prerelease != "" {
-		pre = "-"
+		pre += "-"
 	}
 	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }

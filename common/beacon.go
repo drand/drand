@@ -1,7 +1,12 @@
 package common
 
 import (
-	"errors"
+	"bytes"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
+	"github.com/drand/drand/v2/crypto"
 )
 
 // DefaultBeaconID is the value used when beacon id has an empty value. This
@@ -50,11 +55,97 @@ func GetCanonicalBeaconID(id string) string {
 	return id
 }
 
-// ErrNotPartOfGroup indicates that this node is not part of the group for a specific beacon ID
-var ErrNotPartOfGroup = errors.New("this node is not part of the group")
+// Beacon holds the randomness as well as the info to verify it.
+type Beacon struct {
+	// PreviousSig is the previous signature generated
+	PreviousSig HexBytes `json:"previous_signature,omitempty"`
+	// Round is the round number this beacon is tied to
+	Round uint64 `json:"round"`
+	// Signature is the BLS deterministic signature as per the crypto.Scheme used
+	Signature HexBytes `json:"signature"`
+}
 
-// ErrPeerNotFound indicates that a peer is not part of any group that this node knows of
-var ErrPeerNotFound = errors.New("peer not found")
+// Equal indicates if two beacons are equal
+func (b *Beacon) Equal(b2 *Beacon) bool {
+	return bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
+		b.Round == b2.Round &&
+		bytes.Equal(b.Signature, b2.Signature)
+}
 
-// ErrInvalidChainHash means there was an error or a mismatch with the chain hash
-var ErrInvalidChainHash = errors.New("incorrect chain hash")
+// Marshal provides a JSON encoding of a beacon. Careful, this is not the one rendered by the public endpoints.
+func (b *Beacon) Marshal() ([]byte, error) {
+	return json.Marshal(b)
+}
+
+// Unmarshal decodes a beacon from JSON
+func (b *Beacon) Unmarshal(buff []byte) error {
+	return json.Unmarshal(buff, b)
+}
+
+// Randomness returns the hashed signature. The choice of the hash determines the size of the output.
+func (b *Beacon) Randomness() []byte {
+	return crypto.RandomnessFromSignature(b.Signature)
+}
+
+func (b *Beacon) GetRandomness() []byte {
+	return b.Randomness()
+}
+
+// GetPreviousSignature returns the previous signature if it's non-nil or nil otherwise
+func (b *Beacon) GetPreviousSignature() []byte {
+	return b.PreviousSig
+}
+
+// GetSignature returns the signature if it's non-nil or nil otherwise
+func (b *Beacon) GetSignature() []byte {
+	return b.Signature
+}
+
+// GetRound provides the round of the beacon
+func (b *Beacon) GetRound() uint64 {
+	return b.Round
+}
+
+func (b *Beacon) String() string {
+	return fmt.Sprintf("{ round: %d, sig: %s, prevSig: %s }", b.Round, shortSigStr(b.Signature), shortSigStr(b.PreviousSig))
+}
+
+func shortSigStr(sig []byte) string {
+	if sig == nil {
+		return "nil"
+	}
+	if len(sig) == 0 {
+		return ""
+	}
+
+	maxi := 3
+	if len(sig) < maxi {
+		maxi = len(sig)
+	}
+	return hex.EncodeToString(sig[0:maxi])
+}
+
+// HexBytes ensures that JSON marshallers marshal to hex rather than base64 to keep compatibility
+// with old store formats
+type HexBytes []byte
+
+func (h *HexBytes) MarshalJSON() ([]byte, error) {
+	hexString := hex.EncodeToString(*h)
+	return json.Marshal(hexString)
+}
+
+// UnmarshalJSON converts a hexadecimal string from JSON to a byte slice
+func (h *HexBytes) UnmarshalJSON(data []byte) error {
+	var hexString string
+	if err := json.Unmarshal(data, &hexString); err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(hexString)
+	if err != nil {
+		return err
+	}
+
+	*h = b
+	return nil
+}
