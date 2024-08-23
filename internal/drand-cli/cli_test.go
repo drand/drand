@@ -329,7 +329,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	go func() {
 		err := CLI().Run(startArgs)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Error(err)
 		}
 	}()
 

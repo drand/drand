@@ -2,6 +2,9 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -49,12 +52,45 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	if bp.beacon == nil || len(bp.chainHash) == 0 {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
-	var beaconResp *common.Beacon
-	var err error
-	if in.GetRound() == 0 {
-		beaconResp, err = bp.beacon.Store().Last(ctx)
-	} else {
+	beaconResp, err := bp.beacon.Store().Last(ctx)
+	if wanted := in.GetRound(); err == nil && wanted == beaconResp.GetRound()+1 {
+		// we got a request for the next round about to be produced, let's honor it with a callback
+		// we cancel after period since we should never wait so long
+		ctx, cancel := context.WithTimeout(ctx, bp.group.Period)
+		defer cancel()
+		waitlist := make(chan *common.Beacon, 1)
+		rnd := make([]byte, sha256.Size)
+		_, err = rand.Read(rnd)
+		if err != nil {
+			rnd = beaconResp.GetRandomness()[:sha256.Size]
+		}
+		fn := func(b *common.Beacon, closed bool) {
+			if closed {
+				close(waitlist)
+				return
+			}
+			if b.GetRound() == wanted {
+				waitlist <- b
+			}
+			// if we didn't get the right beacon something is off anyway
+			close(waitlist)
+			// we can remove our callback once it's executed
+			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
+		}
+		bp.beacon.Store().AddCallback(addr+hex.EncodeToString(rnd), fn)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx Done in PublicRand: %w", ctx.Err())
+		case b, ok := <-waitlist:
+			if ok {
+				beaconResp, err = b, nil
+			} else {
+				beaconResp, err = nil, fmt.Errorf("failed to wait for beacon %d", wanted)
+			}
+		}
+	} else if wanted > 0 {
 		// fetch the correct entry or the next one if not found
+		// we overwrite beaconResp and err with the correct one
 		beaconResp, err = bp.beacon.Store().Get(ctx, in.GetRound())
 	}
 	if err != nil || beaconResp == nil {

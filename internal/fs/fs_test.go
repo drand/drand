@@ -58,24 +58,24 @@ func TestCopyFolder(t *testing.T) {
 	subFolder2Path := path.Join(folder2Path, "folder2")
 
 	if err := CreateSecureFolder(subFolder1Path); err == "" {
-		t.Errorf(err)
+		t.Error("bad permissions", subFolder1Path)
 	}
 	if err := CreateSecureFolder(subFolder2Path); err == "" {
-		t.Errorf(err)
+		t.Error("bad permissions", subFolder2Path)
 	}
 
 	if err := CopyFolder(folder1Path, subFolder2Path); err != nil {
-		t.Errorf(err.Error())
+		t.Error("error copying folders", err)
 	}
 
 	folders, err := Folders(subFolder2Path)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
 	for _, fd := range folders {
 		if fd != path.Join(subFolder2Path, "folder1") {
-			t.Errorf("folder1 should be inside subFolder2 path")
+			t.Error("folder1 should be inside subFolder2 path")
 		}
 	}
 }
