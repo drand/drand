@@ -72,7 +72,7 @@ func TestDeleteBeacon(t *testing.T) {
 	opt := core.WithConfigFolder(tmp)
 	conf := core.NewConfig(l, opt)
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
-	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
+	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID))
 	require.NoError(t, err)
 	err = store.Put(ctx, &common.Beacon{
 		Round:     1,
@@ -109,7 +109,7 @@ func TestDeleteBeacon(t *testing.T) {
 	app := CLI()
 	require.NoError(t, app.Run(args))
 
-	store, err = boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
+	store, err = boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID))
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
@@ -379,7 +379,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, fileStore.SaveShare(fakeShare))
 
 	// save a fake complete DKG in the store
-	dStore, err := dkg2.NewDKGStore(tmpPath, nil)
+	dStore, err := dkg2.NewDKGStore(tmpPath)
 	require.NoError(t, err)
 	err = dStore.SaveFinished(beaconID, &dkg2.DBState{
 		BeaconID:      beaconID,
@@ -1403,7 +1403,7 @@ func TestDeleteBeaconNegativeRound(t *testing.T) {
 	opt := core.WithConfigFolder(tmp)
 	conf := core.NewConfig(l, opt)
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
-	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID), conf.BoltOptions())
+	store, err := boltdb.NewBoltStore(ctx, l, conf.DBFolder(beaconID))
 	require.NoError(t, err)
 	err = store.Put(ctx, &common.Beacon{
 		Round:     1,

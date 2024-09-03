@@ -3,8 +3,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -15,8 +13,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // Calls init function.
-
-	"github.com/drand/drand/v2/common/log"
 )
 
 // Config is the required properties to use the database.
@@ -162,37 +158,4 @@ check:
 	const q = `SELECT true`
 	var tmp bool
 	return db.QueryRowContext(ctx, q).Scan(&tmp)
-}
-
-// WithinTran runs passed function and do commit/rollback at the end.
-func WithinTran(ctx context.Context, l log.Logger, db *sqlx.DB, fn func(context.Context, *sqlx.Tx) error) error {
-	ctx, span := tracer.NewSpan(ctx, "database.WithinTran")
-	defer span.End()
-
-	l.Infow("begin tran")
-	tx, err := db.Beginx()
-	if err != nil {
-		return fmt.Errorf("begin tran: %w", err)
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			if errors.Is(err, sql.ErrTxDone) {
-				return
-			}
-			l.Errorw("unable to rollback tran", "ERROR", err)
-		}
-		l.Infow("rollback tran")
-	}()
-
-	if err := fn(ctx, tx); err != nil {
-		return fmt.Errorf("exec tran: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit tran: %w", err)
-	}
-	l.Infow("commit tran")
-
-	return nil
 }

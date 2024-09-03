@@ -54,7 +54,7 @@ func isThisATest(ctx context.Context) bool {
 }
 
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
-func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (chain.Store, error) {
+func NewBoltStore(ctx context.Context, l log.Logger, folder string) (chain.Store, error) {
 	ctx, span := tracer.NewSpan(ctx, "boltStore.NewBoltStore")
 	defer span.End()
 
@@ -69,12 +69,12 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	beaconID := path.Base(path.Dir(folder))
 	dbPath := path.Join(folder, BoltFileName)
 
-	if shouldUseTrimmedBolt(ctx, l, dbPath, opts) {
+	if shouldUseTrimmedBolt(ctx, l, dbPath) {
 		metrics.DrandStorageBackend.
 			WithLabelValues(beaconID, "bolt-trimmed").
 			Set(float64(chain.BoltTrimmedMetrics))
 
-		return newTrimmedStore(ctx, l, folder, opts)
+		return newTrimmedStore(ctx, l, folder)
 	}
 
 	l.Infow("Starting boltdb", "mode", "untrimmed")
@@ -83,7 +83,7 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 		WithLabelValues(beaconID, "bolt-untrimmed").
 		Set(float64(chain.BoltUntrimmedMetrics))
 
-	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
+	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func NewBoltStore(ctx context.Context, l log.Logger, folder string, opts *bolt.O
 	}, err
 }
 
-func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath string, opts *bolt.Options) bool {
+func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath string) bool {
 	ctx, span := tracer.NewSpan(ctx, "boltStore.shouldUseTrimmedBolt")
 	defer span.End()
 
@@ -113,7 +113,7 @@ func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath st
 	}
 
 	// Existing beacon stores should use the format that's suitable
-	existingDB, err := bolt.Open(sourceBeaconPath, BoltStoreOpenPerm, opts)
+	existingDB, err := bolt.Open(sourceBeaconPath, BoltStoreOpenPerm, nil)
 	if err != nil {
 		l.Errorw("while trying to open existing bolt database", "err", err)
 		return true

@@ -30,13 +30,13 @@ const DirPerm = 0755
 var stagedStateBucket = []byte("dkg")
 var finishedStateBucket = []byte("dkg_finished")
 
-func NewDKGStore(baseFolder string, options *bolt.Options) (*BoltStore, error) {
+func NewDKGStore(baseFolder string) (*BoltStore, error) {
 	err := os.MkdirAll(baseFolder, DirPerm)
 	if err != nil {
 		return nil, err
 	}
 	dbPath := path.Join(baseFolder, BoltFileName)
-	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, options)
+	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, nil)
 	if err != nil {
 		return nil, err
 	}

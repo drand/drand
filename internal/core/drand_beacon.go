@@ -368,7 +368,7 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 		// metrics are set in the NewBoltStore since there are two types, trimmed and untrimmed
-		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath, bp.opts.boltOpts)
+		dbStore, err = boltdb.NewBoltStore(ctx, bp.log, dbPath)
 
 	case chain.MemDB:
 		metrics.DrandStorageBackend.

@@ -62,7 +62,7 @@ func createTestCBStore(t *testing.T) CallbackStore {
 	dir := t.TempDir()
 	ctx, _, _ := dcontext.PrevSignatureMattersOnContext(t, context.Background())
 	l := testlogger.New(t)
-	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
+	bbstore, err := boltdb.NewBoltStore(ctx, l, dir)
 	require.NoError(t, err)
 	cb := NewCallbackStore(l, bbstore)
 

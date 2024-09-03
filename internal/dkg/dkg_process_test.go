@@ -456,7 +456,7 @@ type stubbedDKGProcess struct {
 
 func newStubbedDKGProcess(t *testing.T, name string, bus *messageBus, beaconIDs ...string) (*stubbedDKGProcess, error) {
 	dir := t.TempDir()
-	store, err := NewDKGStore(dir, nil)
+	store, err := NewDKGStore(dir)
 	if err != nil {
 		return nil, err
 	}

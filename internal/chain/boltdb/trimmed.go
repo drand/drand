@@ -30,7 +30,7 @@ type trimmedStore struct {
 }
 
 // newTrimmedStore returns a Store implementation using the boltdb storage engine.
-func newTrimmedStore(ctx context.Context, l log.Logger, folder string, opts *bolt.Options) (*trimmedStore, error) {
+func newTrimmedStore(ctx context.Context, l log.Logger, folder string) (*trimmedStore, error) {
 	ctx, span := tracer.NewSpan(ctx, "boltTrimmedStore.NewTrimmedStore")
 	defer span.End()
 
@@ -43,7 +43,7 @@ func newTrimmedStore(ctx context.Context, l log.Logger, folder string, opts *bol
 	}
 
 	dbPath := path.Join(folder, BoltFileName)
-	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
+	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, nil)
 	if err != nil {
 		return nil, err
 	}
