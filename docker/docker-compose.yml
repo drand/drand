@@ -3,7 +3,7 @@ version: "3"
 services:
   drand_docker_demo:
     container_name: drand_docker_demo
-    image: ghcr.io/drand/go-drand-local:v2.0.1
+    image: ghcr.io/drand/go-drand-local:v2.0.2
     command: start --verbose --private-listen 0.0.0.0:8080 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand:/data/drand
