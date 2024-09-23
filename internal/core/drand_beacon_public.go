@@ -2,11 +2,9 @@ package core
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
@@ -54,44 +52,17 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	}
 	beaconResp, err := bp.beacon.Store().Last(ctx)
 	if wanted := in.GetRound(); err == nil && wanted == beaconResp.GetRound()+1 {
-		// we got a request for the next round about to be produced, let's honor it with a callback
-		// we cancel after period since we should never wait so long
-		ctx, cancel := context.WithTimeout(ctx, bp.group.Period)
-		defer cancel()
-		waitlist := make(chan *common.Beacon, 1)
-		rnd := make([]byte, sha256.Size)
-		_, err = rand.Read(rnd)
-		if err != nil {
-			rnd = beaconResp.GetRandomness()[:sha256.Size]
-		}
-		fn := func(b *common.Beacon, closed bool) {
-			if closed {
-				close(waitlist)
-				return
-			}
-			if b.GetRound() == wanted {
-				waitlist <- b
-			}
-			// if we didn't get the right beacon something is off anyway
-			close(waitlist)
-			// we can remove our callback once it's executed
-			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
-		}
-		bp.beacon.Store().AddCallback(addr+hex.EncodeToString(rnd), fn)
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx Done in PublicRand: %w", ctx.Err())
-		case b, ok := <-waitlist:
-			if ok {
-				beaconResp, err = b, nil
-			} else {
-				beaconResp, err = nil, fmt.Errorf("failed to wait for beacon %d", wanted)
-			}
-		}
+		// we got a request for the next round about to be produced, we could
+		// also do it with a callback, but let's KISS
+		targetTime := common.TimeOfRound(bp.group.Period, bp.group.GenesisTime, wanted)
+		bp.state.RUnlock()
+		bp.opts.clock.Sleep(time.Until(time.Unix(targetTime, 0)))
+		bp.state.RLock()
+		beaconResp, err = bp.beacon.Store().Get(ctx, wanted)
 	} else if wanted > 0 {
 		// fetch the correct entry or the next one if not found
 		// we overwrite beaconResp and err with the correct one
-		beaconResp, err = bp.beacon.Store().Get(ctx, in.GetRound())
+		beaconResp, err = bp.beacon.Store().Get(ctx, wanted)
 	}
 	if err != nil || beaconResp == nil {
 		bp.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
