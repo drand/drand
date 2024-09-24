@@ -2,9 +2,12 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
@@ -52,13 +55,46 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	}
 	beaconResp, err := bp.beacon.Store().Last(ctx)
 	if wanted := in.GetRound(); err == nil && wanted == beaconResp.GetRound()+1 {
-		// we got a request for the next round about to be produced, we could
-		// also do it with a callback, but let's KISS
-		targetTime := common.TimeOfRound(bp.group.Period, bp.group.GenesisTime, wanted)
-		bp.state.RUnlock()
-		bp.opts.clock.Sleep(time.Until(time.Unix(targetTime, 0)))
-		bp.state.RLock()
-		beaconResp, err = bp.beacon.Store().Get(ctx, wanted)
+		// we got a request for the next round about to be produced, let's honor it with a callback
+		// we cancel after period since we should never wait so long
+		cctx, cancel := context.WithTimeout(ctx, bp.group.Period)
+		defer cancel()
+		waitlist := make(chan *common.Beacon, 1)
+		rnd := make([]byte, sha256.Size)
+		_, err = rand.Read(rnd)
+		if err != nil {
+			_ = copy(rnd, beaconResp.GetRandomness())
+		}
+		var mu sync.Mutex
+		// the closed bool is only ever called if the same callback is re-added,
+		// this has 0 chances of happening thanks to the rnd in the callback ID.
+		fn := func(b *common.Beacon, _ bool) {
+			mu.Lock()
+			defer mu.Unlock()
+			if cctx.Err() != nil {
+				return
+			}
+			cancel()
+			// we can remove our callback as soon as it's executing once
+			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
+
+			if b.GetRound() == wanted {
+				waitlist <- b
+			}
+			// if we didn't get the right beacon something is off anyway, close
+			close(waitlist)
+		}
+		bp.beacon.Store().AddCallback(addr+hex.EncodeToString(rnd), fn)
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("ctx Done in PublicRand: %w", ctx.Err())
+		case b, ok := <-waitlist:
+			if ok {
+				beaconResp, err = b, nil
+			} else {
+				beaconResp, err = nil, fmt.Errorf("failed to wait for beacon %d", wanted)
+			}
+		}
 	} else if wanted > 0 {
 		// fetch the correct entry or the next one if not found
 		// we overwrite beaconResp and err with the correct one
