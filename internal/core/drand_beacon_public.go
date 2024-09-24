@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
@@ -56,9 +57,8 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	beaconResp, err := bp.beacon.Store().Last(ctx)
 	if wanted := in.GetRound(); err == nil && wanted == beaconResp.GetRound()+1 {
 		// we got a request for the next round about to be produced, let's honor it with a callback
-		// we cancel after period since we should never wait so long
-		cctx, cancel := context.WithTimeout(ctx, bp.group.Period)
-		defer cancel()
+		// to make sure we don't miss it because of the aggregation time
+		cctx, cancel := context.WithCancel(ctx)
 		waitlist := make(chan *common.Beacon, 1)
 		rnd := make([]byte, sha256.Size)
 		_, err = rand.Read(rnd)
@@ -74,7 +74,6 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 			if cctx.Err() != nil {
 				return
 			}
-			cancel()
 			// we can remove our callback as soon as it's executing once
 			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
 
@@ -83,17 +82,25 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 			}
 			// if we didn't get the right beacon something is off anyway, close
 			close(waitlist)
+			cancel()
 		}
 		bp.beacon.Store().AddCallback(addr+hex.EncodeToString(rnd), fn)
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx Done in PublicRand: %w", ctx.Err())
+			// make sure to remove callback, noop if already removed
+			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
+			return nil, fmt.Errorf("ctx Done in PublicRand waiting for next beacon: %w", ctx.Err())
 		case b, ok := <-waitlist:
 			if ok {
 				beaconResp, err = b, nil
 			} else {
-				beaconResp, err = nil, fmt.Errorf("failed to wait for beacon %d", wanted)
+				return nil, fmt.Errorf("failed to wait for next beacon %d", wanted)
 			}
+		case <-time.After(bp.group.Period + time.Second):
+			// we cancel after period+1s since we should never wait so long anyway
+			cancel()
+			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
+			return nil, fmt.Errorf("waited too long for next beacon %d", wanted)
 		}
 	} else if wanted > 0 {
 		// fetch the correct entry or the next one if not found
