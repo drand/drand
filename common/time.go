@@ -14,7 +14,7 @@ const maxTimeBuffer = int64(1 << timeBufferBits)
 // specified.
 const TimeOfRoundErrorValue = math.MaxInt64 - maxTimeBuffer
 
-// TimeOfRound is returning the time the current round should happen
+// TimeOfRound is returning the time the `round` should happen
 func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	if round == 0 {
 		return genesis

@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/drand/drand/v2/common"
 	chain2 "github.com/drand/drand/v2/common/chain"
@@ -55,43 +57,56 @@ func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandReq
 	beaconResp, err := bp.beacon.Store().Last(ctx)
 	if wanted := in.GetRound(); err == nil && wanted == beaconResp.GetRound()+1 {
 		// we got a request for the next round about to be produced, let's honor it with a callback
-		// we cancel after period since we should never wait so long
-		ctx, cancel := context.WithTimeout(ctx, bp.group.Period)
-		defer cancel()
+		// to make sure we don't miss it because of the aggregation time
+		cctx, cancel := context.WithCancel(ctx)
 		waitlist := make(chan *common.Beacon, 1)
 		rnd := make([]byte, sha256.Size)
 		_, err = rand.Read(rnd)
 		if err != nil {
-			rnd = beaconResp.GetRandomness()[:sha256.Size]
+			_ = copy(rnd, beaconResp.GetRandomness())
 		}
-		fn := func(b *common.Beacon, closed bool) {
-			if closed {
-				close(waitlist)
+		cbID := addr + hex.EncodeToString(rnd)
+		var mu sync.Mutex
+		// the closed bool is only ever called if the same callback is re-added,
+		// this has 0 chances of happening thanks to the rnd in the callback ID.
+		fn := func(b *common.Beacon, _ bool) {
+			mu.Lock()
+			defer mu.Unlock()
+			if cctx.Err() != nil {
 				return
 			}
+			// we can remove our callback as soon as it's executing once
+			bp.beacon.Store().RemoveCallback(cbID)
+
 			if b.GetRound() == wanted {
 				waitlist <- b
 			}
-			// if we didn't get the right beacon something is off anyway
+			// if we didn't get the right beacon something is off anyway, close
 			close(waitlist)
-			// we can remove our callback once it's executed
-			bp.beacon.Store().RemoveCallback(addr + hex.EncodeToString(rnd))
+			cancel()
 		}
-		bp.beacon.Store().AddCallback(addr+hex.EncodeToString(rnd), fn)
+		bp.beacon.Store().AddCallback(cbID, fn)
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx Done in PublicRand: %w", ctx.Err())
+			// make sure to remove callback, noop if already removed
+			bp.beacon.Store().RemoveCallback(cbID)
+			return nil, fmt.Errorf("ctx Done in PublicRand waiting for next beacon: %w", ctx.Err())
 		case b, ok := <-waitlist:
 			if ok {
 				beaconResp, err = b, nil
 			} else {
-				beaconResp, err = nil, fmt.Errorf("failed to wait for beacon %d", wanted)
+				return nil, fmt.Errorf("failed to wait for next beacon %d", wanted)
 			}
+		case <-time.After(bp.group.Period + time.Second):
+			// we cancel after period+1s since we should never wait so long anyway
+			cancel()
+			bp.beacon.Store().RemoveCallback(cbID)
+			return nil, fmt.Errorf("waited too long for next beacon %d", wanted)
 		}
 	} else if wanted > 0 {
 		// fetch the correct entry or the next one if not found
 		// we overwrite beaconResp and err with the correct one
-		beaconResp, err = bp.beacon.Store().Get(ctx, in.GetRound())
+		beaconResp, err = bp.beacon.Store().Get(ctx, wanted)
 	}
 	if err != nil || beaconResp == nil {
 		bp.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)

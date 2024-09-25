@@ -600,7 +600,7 @@ func TestDrandPublicRand(t *testing.T) {
 
 	n := 4
 	thr := key.DefaultThreshold(n)
-	p := 1 * time.Second
+	p := 2 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
 
 	dt := NewDrandTestScenario(t, n, thr, p, beaconID, clockwork.NewFakeClockAt(time.Now()))
@@ -627,6 +627,7 @@ func TestDrandPublicRand(t *testing.T) {
 	}
 
 	client := net.NewGrpcClient(testlogger.New(t))
+	client2 := net.NewGrpcClient(testlogger.New(t))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -636,10 +637,37 @@ func TestDrandPublicRand(t *testing.T) {
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 
-	// get next rounds
 	initRound := resp.Round + 1
 	maxi := initRound + 4
+
 	for i := initRound; i < maxi; i++ {
+		// get next rounds before we advance the clock
+		go func() {
+			req := new(drand.PublicRandRequest)
+			req.Round = i
+			t.Logf("1. Getting the next rand concurrently %d \n", i)
+			start := dt.clock.Now()
+			defer func() {
+				duration := dt.clock.Since(start)
+				t.Logf("1. Getting the next rand took %dms \n", duration.Milliseconds())
+			}()
+			resp, err := client.PublicRand(ctx, rootID, req)
+			require.NoError(t, err)
+			require.Equal(t, i, resp.Round)
+		}()
+		go func() {
+			req := new(drand.PublicRandRequest)
+			req.Round = i
+			t.Logf("2. Getting the next rand concurrently %d \n", i)
+			start := dt.clock.Now()
+			defer func() {
+				duration := dt.clock.Since(start)
+				t.Logf("2. Getting the next rand took %dms \n", duration.Milliseconds())
+			}()
+			resp, err := client2.PublicRand(ctx, rootID, req)
+			require.NoError(t, err)
+			require.Equal(t, i, resp.Round)
+		}()
 		t.Logf("Move clock to generate a new round %d \n", i)
 		dt.AdvanceMockClock(t, group.Period)
 
