@@ -168,14 +168,10 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 	_, span := tracer.NewSpan(ctx, "dd.ListBeaconIDs")
 	defer span.End()
 
-	dd.state.Lock()
-	defer dd.state.Unlock()
+	dd.state.RLock()
+	defer dd.state.RUnlock()
 
 	ids := make([]string, 0)
-	for id := range dd.beaconProcesses {
-		ids = append(ids, id)
-	}
-
 	metas := make([]*drand.Metadata, 0, len(dd.chainHashes))
 	for chainHex, id := range dd.chainHashes {
 		dd.log.Debugw("processing", "chainhex", chainHex, "id", id)
@@ -187,6 +183,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 			dd.log.Error("invalid chainhash in map", "err", err, "map", dd.chainHashes)
 			return nil, err
 		}
+		ids = append(ids, id)
 		metas = append(metas, &drand.Metadata{
 			NodeVersion: dd.version.ToProto(),
 			BeaconID:    id,
