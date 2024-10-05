@@ -590,9 +590,7 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 			name: "fresh state can join with a valid proposal",
 			startingState: func() *DBState {
 				s, err := NewFreshState(beaconID).Proposed(bob, NewInitialProposal(beaconID, alice, bob), &drand.GossipMetadata{Address: alice.Address})
-				if err != nil {
-					panic(err)
-				}
+				require.NoError(t, err)
 				return s
 			}(),
 			transitionFn: func(in *DBState) (*DBState, error) {
