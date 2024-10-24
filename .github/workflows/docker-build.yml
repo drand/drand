@@ -29,15 +29,3 @@ jobs:
           build-args: |
             gitCommit: ${{ github.sha }}
             buildTag: conn_insecure
-
-      - name: Update 'docker/README.md' and set the last tag version
-        run: |
-          sed "s/<TAG>/${{ github.ref_name }}/g" docker/README.template.md > docker/README.md
-
-      - name: Commit updated README.md
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add README.md
-          git commit -m "Update README.md with latest tag ${{ github.ref_name }}"
-          git push
