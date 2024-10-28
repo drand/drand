@@ -184,7 +184,7 @@ func testValid(t *testing.T, d *Data) {
 	require.NoError(t, err)
 
 	err = d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, invMsg, sig)
-	require.NoError(t, err, "should be invalid signature")
+	require.Error(t, err, "should be invalid signature")
 }
 
 func decodeHex(s string) []byte {
