@@ -14,6 +14,7 @@ import (
 
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
@@ -162,12 +163,11 @@ func (s *Server) EmitRand(closeStream bool) {
 	s.t.Log("MOCK SERVER: emit round done", resp.Round)
 }
 
-func testValid(d *Data) {
+func testValid(t *testing.T, d *Data) {
 	pub := d.Public
 	pubPoint := d.Scheme.KeyGroup.Point()
-	if err := pubPoint.UnmarshalBinary(pub); err != nil {
-		panic(err)
-	}
+	err := pubPoint.UnmarshalBinary(pub)
+	require.NoError(t, err)
 	sig := decodeHex(d.Signature)
 
 	var msg, invMsg []byte
@@ -180,12 +180,11 @@ func testValid(d *Data) {
 		invMsg = sha256Hash(nil, d.Round-1)
 	}
 
-	if err := d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
-		panic(err)
-	}
-	if err := d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
-		panic("should be invalid signature")
-	}
+	err = d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, msg, sig)
+	require.NoError(t, err)
+
+	err = d.Scheme.ThresholdScheme.VerifyRecovered(pubPoint, invMsg, sig)
+	require.Error(t, err, "should be invalid signature")
 }
 
 func decodeHex(s string) []byte {
@@ -210,13 +209,12 @@ type Data struct {
 	Scheme            *crypto.Scheme
 }
 
-func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
+func generateMockData(t *testing.T, sch *crypto.Scheme, clk clock.Clock) *Data {
 	secret := sch.KeyGroup.Scalar().Pick(random.New())
 	public := sch.KeyGroup.Point().Mul(secret, nil)
 	var previous [32]byte
-	if _, err := rand.Reader.Read(previous[:]); err != nil {
-		panic(err)
-	}
+	_, err := rand.Reader.Read(previous[:])
+	require.NoError(t, err)
 	round := 1969
 	prevRound := uint64(1968)
 
@@ -229,9 +227,7 @@ func generateMockData(sch *crypto.Scheme, clk clock.Clock) *Data {
 
 	sshare := share.PriShare{I: 0, V: secret}
 	tsig, err := sch.ThresholdScheme.Sign(&sshare, msg)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
 	publicBuff, _ := public.MarshalBinary()
@@ -285,8 +281,8 @@ func nextMockData(d *Data) *Data {
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
 func NewMockGRPCPublicServer(t *testing.T, l log.Logger, bind string, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) (net.Listener, net.Service) {
-	d := generateMockData(sch, clk)
-	testValid(d)
+	d := generateMockData(t, sch, clk)
+	testValid(t, d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
@@ -294,17 +290,16 @@ func NewMockGRPCPublicServer(t *testing.T, l log.Logger, bind string, badSecondR
 	server := newMockServer(t, d, clk)
 	ctx := log.ToContext(context.Background(), l)
 	listener, err := net.NewGRPCListenerForPrivate(ctx, bind, server)
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	server.addr = listener.Addr()
 	return listener, server
 }
 
 // NewMockServer creates a server interface not bound to a network port
 func NewMockServer(t *testing.T, badSecondRound bool, sch *crypto.Scheme, clk clock.Clock) net.Service {
-	d := generateMockData(sch, clk)
-	testValid(d)
+	d := generateMockData(t, sch, clk)
+	testValid(t, d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
@@ -326,7 +321,7 @@ func sha256Hash(prev []byte, round int) []byte {
 
 // NewMockBeacon provides a random beacon and the chain it validates against
 func NewMockBeacon(t *testing.T, sch *crypto.Scheme, clk clock.Clock) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
-	d := generateMockData(sch, clk)
+	d := generateMockData(t, sch, clk)
 	s := newMockServer(t, d, clk)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
