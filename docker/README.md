@@ -9,10 +9,10 @@
 
 Pull the latest drand image:
 ```shell
-docker pull ghcr.io/drand/go-drand:v2.0.2
+docker pull ghcr.io/drand/go-drand:latest
 ```
 > [!NOTE]
-> If you want to run drand locally without TLS, you should use the `ghcr.io/drand/go-drand-local:v2.0.2` image instead!
+> If you want to run drand locally without TLS, you should use the `ghcr.io/drand/go-drand-local:latest` image instead!
 
 Create a volume where you're going to store your keypairs and other config data
 ```shell
@@ -22,7 +22,7 @@ docker volume create drand
 Next we must create a keypair and store it in the docker volume we've just created.
 
 ```shell
-docker run --rm --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 generate-keypair  --folder /data/drand/.drand --id default 0.0.0.0:8080
+docker run --rm --volume drand:/data/drand ghcr.io/drand/go-drand:latest generate-keypair  --folder /data/drand/.drand --id default 0.0.0.0:8080
 ```
 
 > [!NOTE]
@@ -46,7 +46,7 @@ will verify that they're talking to your node.
 ## Starting drand
 Finally we can start the docker container by running:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --private-listen 0.0.0.0:8080
+docker run --rm -d -p"8080:8080" -p"8888:8888" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:latest start --private-listen 0.0.0.0:8080
 ```
 
 If we run `docker logs -f drand`, we should be able to see that the node has started and is waiting for distributed key generation:
@@ -64,7 +64,7 @@ nodes talk to one another. To expose the randomness itself, we must provide a pu
 
 Kill the container and rerun it with a command such as:
 ```shell
-docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:v2.0.2 start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
+docker run --rm -d -p"8080:8080" -p"8888:8888" -p"9080:9080" --name drand  --volume drand:/data/drand ghcr.io/drand/go-drand:latest start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
 ```
 
 Now if we run `curl -v 127.0.0.1:9080/chains` we should get a 200 response back and an empty list of chains.

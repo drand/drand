@@ -40,7 +40,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 				}
 			}
 			// if no beacon process is not yet initialized entirely, this is an error
-			return "", fmt.Errorf("unknown chain hash: %s out of %v", chainHash, dd.chainHashes)
+			return "", fmt.Errorf("%w: %s out of %v", common.ErrUnknownChainhash, chainHash, dd.chainHashes)
 		}
 	}
 
