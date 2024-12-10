@@ -1,7 +1,7 @@
 services:
   drand_docker_demo_1:
     container_name: drand_docker_demo1
-    image: ghcr.io/drand/go-drand-local:v2.0.2
+    image: ghcr.io/drand/go-drand-local:latest
     command: start --verbose --private-listen drand_docker_demo1:8010 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo1:/data/drand
@@ -13,7 +13,7 @@ services:
 
   drand_docker_demo_2:
     container_name: drand_docker_demo2
-    image: ghcr.io/drand/go-drand-local:v2.0.2
+    image: ghcr.io/drand/go-drand-local:latest
     command: start --verbose --private-listen drand_docker_demo2:8020 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo2:/data/drand
@@ -25,7 +25,7 @@ services:
 
   drand_docker_demo_3:
     container_name: drand_docker_demo3
-    image: ghcr.io/drand/go-drand-local:v2.0.2
+    image: ghcr.io/drand/go-drand-local:latest
     command: start --verbose --private-listen drand_docker_demo3:8030 --control 8888 --public-listen 0.0.0.0:9080
     volumes:
       - drand_docker_demo3:/data/drand

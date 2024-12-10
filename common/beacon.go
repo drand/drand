@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/drand/drand/v2/crypto"
@@ -24,6 +25,8 @@ const MultiBeaconFolder = "multibeacon"
 // LogsToSkip is used to reduce log verbosity when doing bulk processes, issuing logs only every LogsToSkip steps
 // this is currently set so that when processing past beacons it will give a log every ~2 seconds
 const LogsToSkip = 300
+
+var ErrUnknownChainhash = errors.New("unknown chainhash")
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.
 // There is a direct relationship between an empty string and the reserved id "default".
