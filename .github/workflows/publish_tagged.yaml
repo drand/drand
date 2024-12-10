@@ -41,7 +41,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             gitCommit: ${{ github.sha }}
 
@@ -50,7 +50,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:${{ github.ref_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:${{ github.ref_name }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:latest
           build-args: |
             gitCommit: ${{ github.sha }}
             buildTag: conn_insecure
