@@ -12,6 +12,7 @@ services:
       - 8080:8080
       - 8888:8888
       - 9080:9080
+
   drand_docker_demo-nginx:
     container_name: drand_docker_demo-nginx
     image: nginx:1.23.3-alpine

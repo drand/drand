@@ -294,6 +294,7 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 
 //nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
+	t.Skip("This test still uses the old share command instead of the newer DKG")
 	lg := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)

@@ -39,8 +39,6 @@ func NewThresholdMonitor(beaconID string, l log.Logger, groupSize, threshold int
 func (t *ThresholdMonitor) Start() {
 	t.log.Infow("starting threshold monitor", "beaconID", t.beaconID)
 
-	maxFailures := t.groupSize - t.threshold
-
 	go func() {
 		for {
 			select {
@@ -53,6 +51,7 @@ func (t *ThresholdMonitor) Start() {
 				for address := range t.failedConnections {
 					failingNodes = append(failingNodes, address)
 				}
+				maxFailures := t.groupSize - t.threshold
 
 				if len(failingNodes) >= maxFailures {
 					t.log.Errorw(
