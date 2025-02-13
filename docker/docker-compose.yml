@@ -12,8 +12,6 @@ services:
       - 8080:8080
       - 8888:8888
       - 9080:9080
-    environment:
-      PORT: 8080
 
 volumes:
   drand:
