@@ -13,7 +13,7 @@ type MockNode struct {
 	addr      string
 	daemon    *DrandDaemon
 	drand     *BeaconProcess
-	clock     clock.FakeClock
+	clock     *clock.FakeClock
 	dkgRunner *dkg.TestRunner
 }
 
