@@ -112,7 +112,7 @@ type node struct {
 	shares   *key.Share
 	handler  *Handler
 	listener net.Listener
-	clock    clock.FakeClock
+	clock    *clock.FakeClock
 	started  bool
 	server   *testBeaconServer
 }
@@ -128,13 +128,13 @@ type BeaconTest struct {
 	privs    []*key.Pair
 	dpublic  kyber.Point
 	nodes    map[int]*node
-	time     clock.FakeClock
+	time     *clock.FakeClock
 	prefix   string
 	scheme   *crypto.Scheme
 }
 
 func NewBeaconTest(
-	ctx context.Context, t *testing.T, c clock.FakeClock,
+	ctx context.Context, t *testing.T, c *clock.FakeClock,
 	n, thr int, period time.Duration,
 	genesisTime int64, beaconID string,
 ) *BeaconTest {
@@ -313,7 +313,7 @@ func (b *BeaconTest) searchNode(t *testing.T, i int) int {
 func (b *BeaconTest) MoveTime(t *testing.T, timeToMove time.Duration) {
 	for _, n := range b.nodes {
 		before := n.clock.Now().Unix()
-		n.handler.conf.Clock.(clock.FakeClock).Advance(timeToMove)
+		n.handler.conf.Clock.(*clock.FakeClock).Advance(timeToMove)
 		t.Logf(" - %d increasing time of node %d - %s (pointer %p)- before: %d - current: %d - pointer clock %p\n",
 			time.Now().Unix(),
 			n.index,

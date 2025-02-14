@@ -147,7 +147,7 @@ func (s *Server) EmitRand(closeStream bool) {
 		s.t.Log("MOCK SERVER: context error ", err)
 		return
 	}
-	s.clk.(clock.FakeClock).Advance(time.Duration(s.chainInfo.Period) * time.Second)
+	s.clk.(*clock.FakeClock).Advance(time.Duration(s.chainInfo.Period) * time.Second)
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err

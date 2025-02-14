@@ -38,7 +38,7 @@ type DrandTestScenario struct {
 	newDir string
 
 	// global clock on which all drand clocks are synchronized
-	clock clock.FakeClock
+	clock *clock.FakeClock
 
 	n             int
 	thr           int
@@ -145,7 +145,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period.
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clk clock.FakeClock, opts ...ConfigOption) *DrandTestScenario {
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beaconID string, clk *clock.FakeClock, opts ...ConfigOption) *DrandTestScenario {
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	dt := new(DrandTestScenario)
