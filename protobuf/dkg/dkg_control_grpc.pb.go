@@ -19,10 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	DKGControl_Command_FullMethodName      = "/dkg.DKGControl/Command"
-	DKGControl_Packet_FullMethodName       = "/dkg.DKGControl/Packet"
-	DKGControl_DKGStatus_FullMethodName    = "/dkg.DKGControl/DKGStatus"
-	DKGControl_BroadcastDKG_FullMethodName = "/dkg.DKGControl/BroadcastDKG"
+	DKGControl_Command_FullMethodName   = "/dkg.DKGControl/Command"
+	DKGControl_DKGStatus_FullMethodName = "/dkg.DKGControl/DKGStatus"
 )
 
 // DKGControlClient is the client API for DKGControl service.
@@ -30,9 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type DKGControlClient interface {
 	Command(ctx context.Context, in *DKGCommand, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
-	Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
 	DKGStatus(ctx context.Context, in *DKGStatusRequest, opts ...grpc.CallOption) (*DKGStatusResponse, error)
-	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
 }
 
 type dKGControlClient struct {
@@ -52,27 +48,9 @@ func (c *dKGControlClient) Command(ctx context.Context, in *DKGCommand, opts ...
 	return out, nil
 }
 
-func (c *dKGControlClient) Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
-	out := new(EmptyDKGResponse)
-	err := c.cc.Invoke(ctx, DKGControl_Packet_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *dKGControlClient) DKGStatus(ctx context.Context, in *DKGStatusRequest, opts ...grpc.CallOption) (*DKGStatusResponse, error) {
 	out := new(DKGStatusResponse)
 	err := c.cc.Invoke(ctx, DKGControl_DKGStatus_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *dKGControlClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
-	out := new(EmptyDKGResponse)
-	err := c.cc.Invoke(ctx, DKGControl_BroadcastDKG_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +62,7 @@ func (c *dKGControlClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts
 // for forward compatibility
 type DKGControlServer interface {
 	Command(context.Context, *DKGCommand) (*EmptyDKGResponse, error)
-	Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error)
 	DKGStatus(context.Context, *DKGStatusRequest) (*DKGStatusResponse, error)
-	BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error)
 }
 
 // UnimplementedDKGControlServer should be embedded to have forward compatible implementations.
@@ -96,14 +72,8 @@ type UnimplementedDKGControlServer struct {
 func (UnimplementedDKGControlServer) Command(context.Context, *DKGCommand) (*EmptyDKGResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Command not implemented")
 }
-func (UnimplementedDKGControlServer) Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Packet not implemented")
-}
 func (UnimplementedDKGControlServer) DKGStatus(context.Context, *DKGStatusRequest) (*DKGStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DKGStatus not implemented")
-}
-func (UnimplementedDKGControlServer) BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
 }
 
 // UnsafeDKGControlServer may be embedded to opt out of forward compatibility for this service.
@@ -135,24 +105,6 @@ func _DKGControl_Command_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DKGControl_Packet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GossipPacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DKGControlServer).Packet(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DKGControl_Packet_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DKGControlServer).Packet(ctx, req.(*GossipPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DKGControl_DKGStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DKGStatusRequest)
 	if err := dec(in); err != nil {
@@ -171,24 +123,6 @@ func _DKGControl_DKGStatus_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DKGControl_BroadcastDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DKGPacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DKGControlServer).BroadcastDKG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DKGControl_BroadcastDKG_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DKGControlServer).BroadcastDKG(ctx, req.(*DKGPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // DKGControl_ServiceDesc is the grpc.ServiceDesc for DKGControl service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -201,16 +135,133 @@ var DKGControl_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DKGControl_Command_Handler,
 		},
 		{
-			MethodName: "Packet",
-			Handler:    _DKGControl_Packet_Handler,
-		},
-		{
 			MethodName: "DKGStatus",
 			Handler:    _DKGControl_DKGStatus_Handler,
 		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "dkg/dkg_control.proto",
+}
+
+const (
+	DKGPublic_Packet_FullMethodName       = "/dkg.DKGPublic/Packet"
+	DKGPublic_BroadcastDKG_FullMethodName = "/dkg.DKGPublic/BroadcastDKG"
+)
+
+// DKGPublicClient is the client API for DKGPublic service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type DKGPublicClient interface {
+	Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
+	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error)
+}
+
+type dKGPublicClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewDKGPublicClient(cc grpc.ClientConnInterface) DKGPublicClient {
+	return &dKGPublicClient{cc}
+}
+
+func (c *dKGPublicClient) Packet(ctx context.Context, in *GossipPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
+	out := new(EmptyDKGResponse)
+	err := c.cc.Invoke(ctx, DKGPublic_Packet_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dKGPublicClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*EmptyDKGResponse, error) {
+	out := new(EmptyDKGResponse)
+	err := c.cc.Invoke(ctx, DKGPublic_BroadcastDKG_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DKGPublicServer is the server API for DKGPublic service.
+// All implementations should embed UnimplementedDKGPublicServer
+// for forward compatibility
+type DKGPublicServer interface {
+	Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error)
+	BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error)
+}
+
+// UnimplementedDKGPublicServer should be embedded to have forward compatible implementations.
+type UnimplementedDKGPublicServer struct {
+}
+
+func (UnimplementedDKGPublicServer) Packet(context.Context, *GossipPacket) (*EmptyDKGResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Packet not implemented")
+}
+func (UnimplementedDKGPublicServer) BroadcastDKG(context.Context, *DKGPacket) (*EmptyDKGResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
+}
+
+// UnsafeDKGPublicServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DKGPublicServer will
+// result in compilation errors.
+type UnsafeDKGPublicServer interface {
+	mustEmbedUnimplementedDKGPublicServer()
+}
+
+func RegisterDKGPublicServer(s grpc.ServiceRegistrar, srv DKGPublicServer) {
+	s.RegisterService(&DKGPublic_ServiceDesc, srv)
+}
+
+func _DKGPublic_Packet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GossipPacket)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DKGPublicServer).Packet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DKGPublic_Packet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DKGPublicServer).Packet(ctx, req.(*GossipPacket))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DKGPublic_BroadcastDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DKGPacket)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DKGPublicServer).BroadcastDKG(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DKGPublic_BroadcastDKG_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DKGPublicServer).BroadcastDKG(ctx, req.(*DKGPacket))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DKGPublic_ServiceDesc is the grpc.ServiceDesc for DKGPublic service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var DKGPublic_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "dkg.DKGPublic",
+	HandlerType: (*DKGPublicServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Packet",
+			Handler:    _DKGPublic_Packet_Handler,
+		},
 		{
 			MethodName: "BroadcastDKG",
-			Handler:    _DKGControl_BroadcastDKG_Handler,
+			Handler:    _DKGPublic_BroadcastDKG_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
