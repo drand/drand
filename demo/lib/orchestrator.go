@@ -138,7 +138,7 @@ func (e *Orchestrator) startNodes(nodes []node.Node) error {
 			return nil
 		case <-ctx.Done():
 			fmt.Println("[-] can not ping all nodes in 30 seconds. Shutting down.")
-			panic("failed to ping nodes in 30 seconds")
+			panic("Panic: failed to ping nodes in 30 seconds")
 		}
 	}
 }

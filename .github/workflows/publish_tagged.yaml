@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22.1'
+          go-version: '1.22.10'
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
