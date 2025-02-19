@@ -101,6 +101,7 @@ func (n *NodeProc) setup() {
 	// find a free port
 	freePort := test.FreePort()
 	freePortREST := test.FreePort()
+	n.metricPort = test.FreePort()
 	host := "127.0.0.1"
 	n.privAddr = host + ":" + freePort
 	n.pubAddr = host + ":" + freePortREST
@@ -116,13 +117,7 @@ func (n *NodeProc) setup() {
 		Clock:    clock.NewRealClock(),
 	}
 	// call drand binary
-	n.priv, err = key.NewKeyPair(n.privAddr, n.scheme)
-	if err != nil {
-		panic(err)
-	}
-
 	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID, "--scheme", n.scheme.Name}
-
 	args = append(args, n.privAddr)
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
@@ -167,6 +162,7 @@ func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, me
 
 	args = append(args, pair("--private-listen", "0.0.0.0:"+privPort)...)
 	args = append(args, pair("--public-listen", "0.0.0.0:"+pubPort)...)
+	args = append(args, pair("--metrics", n.metricPort)...)
 
 	args = append(args, pair("--db", string(n.dbEngineType))...)
 	args = append(args, pair("--pg-dsn", n.pgDSN)...)
@@ -376,7 +372,7 @@ func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf(" -- ping output : %s - err %s\n", out, err)
+		fmt.Printf(" -- ping output : %s - (cmd %s) err %s\n", out, cmd, err)
 	} else {
 		fmt.Printf(" -- ping output : %s\n", out)
 	}

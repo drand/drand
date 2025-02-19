@@ -127,7 +127,7 @@ func main() {
 	defer func() {
 		// print logs in case things panic
 		if err := recover(); err != nil {
-			fmt.Println(err)
+			fmt.Println("PANIC:", err)
 			orch.PrintLogs()
 			os.Exit(1)
 		}
