@@ -73,7 +73,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
-	pdkg.RegisterDKGControlServer(grpcServer, s)
+	pdkg.RegisterDKGPublicServer(grpcServer, s)
 
 	g := &grpcListener{
 		Service:      s,

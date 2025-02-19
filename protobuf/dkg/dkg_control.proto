@@ -9,8 +9,11 @@ option go_package = "github.com/drand/drand/v2/protobuf/dkg";
 
 service DKGControl {
   rpc Command(DKGCommand) returns (EmptyDKGResponse){}
-  rpc Packet(GossipPacket) returns (EmptyDKGResponse) {}
   rpc DKGStatus(DKGStatusRequest) returns (DKGStatusResponse) {}
+}
+
+service DKGPublic {
+  rpc Packet(GossipPacket) returns (EmptyDKGResponse) {}
   rpc BroadcastDKG(DKGPacket) returns (EmptyDKGResponse) {}
 }
 

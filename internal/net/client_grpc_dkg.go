@@ -28,7 +28,7 @@ func (g *grpcClient) Packet(ctx context.Context, p Peer, in *drand.GossipPacket,
 	if err != nil {
 		return nil, fmt.Errorf("grpcClient.Packet: %w", err)
 	}
-	client := drand.NewDKGControlClient(c)
+	client := drand.NewDKGPublicClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
 	resp, err = client.Packet(ctx, in)
@@ -58,7 +58,7 @@ func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPack
 	if err != nil {
 		return nil, fmt.Errorf("grpcClient.BroadcastDKG: %w", err)
 	}
-	client := drand.NewDKGControlClient(c)
+	client := drand.NewDKGPublicClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
 	resp, err = client.BroadcastDKG(ctx, in)

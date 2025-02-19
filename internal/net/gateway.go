@@ -49,8 +49,9 @@ type Service interface {
 	drand.PublicServer
 	drand.ControlServer
 	drand.ProtocolServer
-	drand.Interceptors
+	pdkg.DKGPublicServer
 	pdkg.DKGControlServer
+	drand.Interceptors
 	drand.MetricsServer
 }
 

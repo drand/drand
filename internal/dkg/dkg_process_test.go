@@ -399,16 +399,16 @@ func (s stubbedBeacon) KeypairFor(_ string) (*key.Pair, error) {
 // messageBus manages messaging between DKG processes without having to actually use gRPC
 type messageBus struct {
 	lock      sync.Mutex
-	listeners map[string]dkg.DKGControlClient
+	listeners map[string]dkg.DKGPublicClient
 }
 
 func newMessageBus() *messageBus {
 	return &messageBus{
-		listeners: make(map[string]dkg.DKGControlClient),
+		listeners: make(map[string]dkg.DKGPublicClient),
 	}
 }
 
-func (m *messageBus) Add(address string, process dkg.DKGControlClient) {
+func (m *messageBus) Add(address string, process dkg.DKGPublicClient) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.listeners[address] = process
