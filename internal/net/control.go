@@ -37,7 +37,7 @@ func NewGRPCListener(l log.Logger, s Service, controlAddr string) (ControlListen
 	}
 
 	proto.RegisterControlServer(grpcServer, s)
-	pdkg.RegisterDKGPublicServer(grpcServer, s)
+	pdkg.RegisterDKGControlServer(grpcServer, s)
 
 	return ControlListener{log: l, conns: grpcServer, lis: lis}, nil
 }
