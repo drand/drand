@@ -11,7 +11,7 @@ the steps the demo is performing:
 * Setting up a new network from scratch (running the DKG)
 * Getting some beacons
 * Stopping a node and checking the network is still alive
-* Getting node back and checking it has caught up the chain
+* Getting node back and checking it has caught up with the chain
 * Doing a resharing to an extended group
 * Checking if the new network produces valid random beacons
 
@@ -40,5 +40,5 @@ You can fetch randomness by running the command written out by the demo.
 ## Inspecting nodes
 
 All temporary files are written to `/tmp/drand-full`.
-You can inspect the private key, share, group and log of all nodes in
+You can inspect the private key, share, group, and log of all nodes in
 `/tmp/drand-full/node-X/`.
