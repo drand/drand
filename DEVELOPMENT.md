@@ -57,7 +57,7 @@ For more details, see the [testing section below](#testing-with-postgresql-as-da
 #### Observability features
 
 Drand can produce traces compatible with OpenTelemetry specification. To turn on this feature, set the `DRAND_TRACES`
-environment varible to the desired destination, e.g.
+environment variable to the desired destination, e.g.
 ```shell
 export DRAND_TRACES=127.0.0.1:4317
 export DRAND_TRACES_PROBABILITY=1 # This will sample all traces to the destination server
