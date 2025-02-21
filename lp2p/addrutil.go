@@ -16,6 +16,14 @@ const (
 	dnsResolveTimeout = 10 * time.Second
 )
 
+func isLastComponentP2P(m ma.Multiaddr) bool {
+	ps := m.Protocols()
+	if len(ps) == 0 {
+		return false
+	}
+	return ps[len(ps)-1].Code == ma.P_P2P
+}
+
 // resolveAddresses resolves addresses in parallel
 func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver transport.Resolver) ([]peer.AddrInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, dnsResolveTimeout)
@@ -49,7 +57,7 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver transp
 			// filter out addresses that still doesn't end in `ipfs/Qm...`
 			found := 0
 			for _, raddr := range raddrs {
-				if _, last := ma.SplitLast(raddr); last != nil && last.Protocol().Code == ma.P_P2P {
+				if isLastComponentP2P(raddr) {
 					maddrC <- raddr
 					found++
 				}
