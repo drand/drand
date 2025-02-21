@@ -49,7 +49,7 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver transp
 			// filter out addresses that still doesn't end in `ipfs/Qm...`
 			found := 0
 			for _, raddr := range raddrs {
-				if _, last := ma.SplitLast(raddr); last != nil && last.Protocol().Code == ma.P_P2P {
+				if _, last := ma.SplitLast(raddr); !last.Empty() && last.Protocol().Code == ma.P_P2P {
 					maddrC <- raddr
 					found++
 				}
