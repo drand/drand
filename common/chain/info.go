@@ -69,13 +69,13 @@ func (i *Info) HashString() string {
 }
 
 // Equal indicates if two Chain Info objects are equivalent
-func (i *Info) Equal(c2 *Info) bool {
-	return i.GenesisTime == c2.GenesisTime &&
-		i.Period == c2.Period &&
-		i.PublicKey.Equal(c2.PublicKey) &&
-		bytes.Equal(i.GenesisSeed, c2.GenesisSeed) &&
-		common.CompareBeaconIDs(i.ID, c2.ID) &&
-		i.Scheme == c2.Scheme
+func (i *Info) Equal(i2 *Info) bool {
+	return i.GenesisTime == i2.GenesisTime &&
+		i.Period == i2.Period &&
+		i.PublicKey.Equal(i2.PublicKey) &&
+		bytes.Equal(i.GenesisSeed, i2.GenesisSeed) &&
+		common.CompareBeaconIDs(i.ID, i2.ID) &&
+		i.Scheme == i2.Scheme
 }
 
 // GetSchemeName returns the scheme name used
@@ -88,10 +88,11 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	var v2Str struct {
 		PublicKey    common.HexBytes `json:"public_key"`
 		ID           string          `json:"beacon_id"`
-		Period       time.Duration   `json:"period"`
+		Period       uint64          `json:"period"`
 		Scheme       string          `json:"scheme"`
 		GenesisTime  int64           `json:"genesis_time"`
 		GenesisSeed  common.HexBytes `json:"genesis_seed"`
+		ChainHash    string          `json:"chain_hash"`
 		OldSchemeID  string          `json:"schemeID"`
 		OldGroupHash common.HexBytes `json:"groupHash"`
 		OldMetadata  *struct {
@@ -107,7 +108,7 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	i.GenesisSeed = v2Str.GenesisSeed
 	i.GenesisTime = v2Str.GenesisTime
 	i.Scheme = v2Str.Scheme
-	i.Period = v2Str.Period
+	i.Period = time.Duration(v2Str.Period) * time.Second
 	i.ID = v2Str.ID
 
 	// support old scheme name
@@ -130,29 +131,38 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	}
 	i.PublicKey = pk
 
+	if v2Str.ChainHash != "" {
+		if i.HashString() != v2Str.ChainHash {
+			return fmt.Errorf("chain hash mismatch: %s != %s", i.HashString(), v2Str.ChainHash)
+		}
+	}
+
 	return nil
 }
 
 func (i *Info) MarshalJSON() ([]byte, error) {
 	var v2Str struct {
-		PublicKey   common.HexBytes `json:"public_key"`
+		PublicKey   string          `json:"public_key"`
 		ID          string          `json:"beacon_id"`
-		Period      time.Duration   `json:"period"`
+		Period      uint64          `json:"period"`
 		Scheme      string          `json:"scheme"`
 		GenesisTime int64           `json:"genesis_time"`
 		GenesisSeed common.HexBytes `json:"genesis_seed"`
+		ChainHash   string          `json:"chain_hash"`
 	}
 
 	v2Str.ID = i.ID
 	v2Str.Scheme = i.Scheme
-	v2Str.Period = i.Period
+	v2Str.Period = uint64(i.Period.Seconds())
 	v2Str.GenesisSeed = i.GenesisSeed
 	v2Str.GenesisTime = i.GenesisTime
+	v2Str.ChainHash = i.HashString()
+
 	rawPk, err := i.PublicKey.MarshalBinary()
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal public key: %w", err)
 	}
-	v2Str.PublicKey = rawPk
+	v2Str.PublicKey = hex.EncodeToString(rawPk)
 
 	return json.Marshal(v2Str)
 }

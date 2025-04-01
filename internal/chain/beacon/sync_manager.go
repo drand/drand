@@ -531,7 +531,7 @@ var ErrCallbackReplaced = errors.New("callback replaced")
 
 // SyncChain holds the receiver logic to reply to a sync request, recommended timeouts are 2 or 3 times the period
 //
-//nolint:funlen,gocyclo // This has the right length
+//nolint:gocyclo
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	ctx, span := tracer.NewSpan(stream.Context(), "SyncChain")
 	defer span.End()

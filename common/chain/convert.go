@@ -34,22 +34,22 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 }
 
 // ToProto returns the protobuf description of the chain info
-func (c *Info) ToProto(metadata *drand.Metadata) *drand.ChainInfoPacket {
-	buff, _ := c.PublicKey.MarshalBinary()
+func (i *Info) ToProto(metadata *drand.Metadata) *drand.ChainInfoPacket {
+	buff, _ := i.PublicKey.MarshalBinary()
 
 	if metadata != nil {
-		metadata.BeaconID = c.ID
+		metadata.BeaconID = i.ID
 	} else {
-		metadata = &drand.Metadata{BeaconID: c.ID}
+		metadata = &drand.Metadata{BeaconID: i.ID}
 	}
 
 	return &drand.ChainInfoPacket{
 		PublicKey:   buff,
-		GenesisTime: c.GenesisTime,
-		Period:      uint32(c.Period.Seconds()),
-		Hash:        c.Hash(),
-		GroupHash:   c.GenesisSeed,
-		SchemeID:    c.Scheme,
+		GenesisTime: i.GenesisTime,
+		Period:      uint32(i.Period.Seconds()),
+		Hash:        i.Hash(),
+		GroupHash:   i.GenesisSeed,
+		SchemeID:    i.Scheme,
 		Metadata:    metadata,
 	}
 }
@@ -70,7 +70,7 @@ func InfoFromJSON(buff io.Reader) (*Info, error) {
 }
 
 // ToJSON provides a json serialization of an info packet
-func (c *Info) ToJSON(w io.Writer, metadata *drand.Metadata) error {
-	info := c.ToProto(metadata)
+func (i *Info) ToJSON(w io.Writer, metadata *drand.Metadata) error {
+	info := i.ToProto(metadata)
 	return json.NewEncoder(w).Encode(info)
 }

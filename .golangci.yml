@@ -74,7 +74,7 @@ linters:
     - exhaustive
     # - exhaustivestruct
     # - exhaustruct
-    - exportloopref
+    # - exportloopref # disabled since Go 1.23
     - forbidigo
     # - forcetypeassert #TODO could be enabled
     - funlen

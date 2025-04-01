@@ -316,7 +316,6 @@ func selfSign(c *cli.Context, l log.Logger) error {
 
 const refreshRate = 500 * time.Millisecond
 
-//nolint:funlen
 func checkCmd(c *cli.Context, l log.Logger) error {
 	defer l.Infow("Finished sync")
 

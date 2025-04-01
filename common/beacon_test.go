@@ -1,9 +1,7 @@
 package common
 
 import (
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -51,7 +49,41 @@ func TestJsonHexBytes(t *testing.T) {
 	b := new(HexBytes)
 	err := json.Unmarshal([]byte(seed), b)
 	require.NoError(t, err)
-	actual, err := hex.DecodeString(strings.Trim(seed, `"`))
+	require.Equal(t, b.String(), strings.Trim(seed, `"`))
+}
+
+func TestJsonHexBytesStructs(t *testing.T) {
+	input := `{"genesis_seed":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e"}`
+
+	b := new(struct {
+		Data *HexBytes `json:"genesis_seed"`
+	})
+	err := json.Unmarshal([]byte(input), b)
 	require.NoError(t, err)
-	require.Equal(t, fmt.Sprintf("%v", &actual), fmt.Sprintf("%v", b))
+	require.Equal(t, b.Data.String(), "f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e")
+
+	b2 := new(struct {
+		Data HexBytes `json:"genesis_seed"`
+	})
+	err = json.Unmarshal([]byte(input), b2)
+	require.NoError(t, err)
+	require.Equal(t, b2.Data.String(), "f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e")
+
+	out := new(struct {
+		Data *HexBytes `json:"genesis_seed"`
+	})
+	out.Data = b.Data
+
+	res, err := json.Marshal(out)
+	require.NoError(t, err)
+	require.Equal(t, input, string(res))
+
+	out2 := new(struct {
+		Data HexBytes `json:"genesis_seed"`
+	})
+	out2.Data = b2.Data
+
+	res2, err := json.Marshal(out2)
+	require.NoError(t, err)
+	require.Equal(t, input, string(res2))
 }
