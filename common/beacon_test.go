@@ -1,6 +1,10 @@
 package common
 
 import (
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -39,4 +43,15 @@ func Test_shortSigStr(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestJsonHexBytes(t *testing.T) {
+	seed := `"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e"`
+
+	b := new(HexBytes)
+	err := json.Unmarshal([]byte(seed), b)
+	require.NoError(t, err)
+	actual, err := hex.DecodeString(strings.Trim(seed, `"`))
+	require.NoError(t, err)
+	require.Equal(t, fmt.Sprintf("%v", &actual), fmt.Sprintf("%v", b))
 }

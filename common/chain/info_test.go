@@ -3,6 +3,7 @@ package chain
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -105,4 +106,22 @@ func TestChainInfo(t *testing.T) {
 		BeaconID: "differentfrom" + beaconID,
 	})
 	require.Equal(t, beaconID, packet.Metadata.BeaconID)
+}
+
+func TestJsonFromRelay(t *testing.T) {
+	v2Str := `{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period":3,"genesis_time":1692803367,"genesis_seed":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","chain_hash":"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971","scheme":"bls-unchained-g1-rfc9380","beacon_id":"quicknet"}`
+
+	info := new(Info)
+	err := json.Unmarshal([]byte(v2Str), info)
+	require.NoError(t, err)
+
+	// backware compat with v1 relay strings
+	v1Str := `{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period":3,"genesis_time":1692803367,"hash":"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971","groupHash":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","schemeID":"bls-unchained-g1-rfc9380","metadata":{"beaconID":"quicknet"}}`
+	info = new(Info)
+	err = json.Unmarshal([]byte(v1Str), info)
+	require.NoError(t, err)
+
+	rawBytes, err := json.Marshal(info)
+	require.NoError(t, err)
+	require.JSONEq(t, v2Str, string(rawBytes))
 }
