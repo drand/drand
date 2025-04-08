@@ -142,6 +142,8 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON implements the json Marshaler interface for Info, we don't use a pointer receiver
 // because otherwise it wouldn't properly marshal plain Info objects.
+//
+//nolint:gocritic
 func (i Info) MarshalJSON() ([]byte, error) {
 	var v2Str struct {
 		PublicKey   string          `json:"public_key"`

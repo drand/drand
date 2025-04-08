@@ -1,6 +1,9 @@
 issues:
   # Let us display all issues of one type at once
   max-same-issues: 0
+  exclude-dirs:
+    - demo
+    - test
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
     - path: _test\.go
@@ -45,10 +48,9 @@ issues:
         - nilnil
     - path: internal/core/drand_proxy.go
       text: "SA1019" # we need to use the deprecated Randomness field
-run:
-  skip-dirs:
-    - demo
-    - test
+    - text: "G115" # we sadly have a mismatch between int types for the threshold between drand and kyber
+      linters:
+        - gosec
 
 linters:
   enable:
@@ -137,7 +139,7 @@ linters:
     # - structcheck # Deprecated
     - stylecheck
     # - tagliatelle
-    - tenv
+    # - tenv # Deprecated
     - testableexamples
     # - testpackage
     # - thelper #TODO could be enabled
@@ -147,6 +149,7 @@ linters:
     - unparam
     - unused
     - usestdlibvars
+    - usetesting
     # - varcheck # Deprecated
     # - varnamelen
     - wastedassign
