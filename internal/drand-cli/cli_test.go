@@ -1214,6 +1214,7 @@ func genDrandInstances(t *testing.T, beaconID string, n int) []*drandInstance {
 
 	ins := make([]*drandInstance, 0, n)
 	for i := 1; i <= n; i++ {
+		//nolint:usetesting
 		nodePath, err := os.MkdirTemp(tmpPath, "node")
 		require.NoError(t, err)
 

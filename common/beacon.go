@@ -132,9 +132,10 @@ func shortSigStr(sig []byte) string {
 // with old store formats
 type HexBytes []byte
 
-func (h *HexBytes) MarshalJSON() ([]byte, error) {
-	hexString := hex.EncodeToString(*h)
-	return json.Marshal(hexString)
+// MarshalJSON marshals the HexBytes to a JSON string, it is important not to use a pointer receiver
+// otherwise non-pointer types will not be marshaled correctly
+func (h HexBytes) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.String())
 }
 
 // UnmarshalJSON converts a hexadecimal string from JSON to a byte slice
@@ -151,4 +152,8 @@ func (h *HexBytes) UnmarshalJSON(data []byte) error {
 
 	*h = b
 	return nil
+}
+
+func (h *HexBytes) String() string {
+	return hex.EncodeToString(*h)
 }

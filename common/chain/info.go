@@ -5,11 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/kyber"
 )
 
@@ -39,43 +42,131 @@ func NewChainInfo(g *key.Group) *Info {
 // Hash returns the canonical hash representing the chain information. A hash is
 // consistent throughout the entirety of a chain, regardless of the network
 // composition, the actual nodes, generating the randomness.
-func (c *Info) Hash() []byte {
+func (i *Info) Hash() []byte {
 	h := sha256.New()
-	_ = binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
-	_ = binary.Write(h, binary.BigEndian, c.GenesisTime)
+	_ = binary.Write(h, binary.BigEndian, uint32(i.Period.Seconds()))
+	_ = binary.Write(h, binary.BigEndian, i.GenesisTime)
 
-	buff, err := c.PublicKey.MarshalBinary()
+	buff, err := i.PublicKey.MarshalBinary()
 	if err != nil {
 		log.DefaultLogger().Errorw("chain info: failed to hash pubkey", "err", err)
 	}
 
 	_, _ = h.Write(buff)
-	_, _ = h.Write(c.GenesisSeed)
+	_, _ = h.Write(i.GenesisSeed)
 
 	// To keep backward compatibility
-	if !common.IsDefaultBeaconID(c.ID) {
-		_, _ = h.Write([]byte(c.ID))
+	if !common.IsDefaultBeaconID(i.ID) {
+		_, _ = h.Write([]byte(i.ID))
 	}
 
 	return h.Sum(nil)
 }
 
 // HashString returns the value of Hash in string format
-func (c *Info) HashString() string {
-	return hex.EncodeToString(c.Hash())
+func (i *Info) HashString() string {
+	return hex.EncodeToString(i.Hash())
 }
 
 // Equal indicates if two Chain Info objects are equivalent
-func (c *Info) Equal(c2 *Info) bool {
-	return c.GenesisTime == c2.GenesisTime &&
-		c.Period == c2.Period &&
-		c.PublicKey.Equal(c2.PublicKey) &&
-		bytes.Equal(c.GenesisSeed, c2.GenesisSeed) &&
-		common.CompareBeaconIDs(c.ID, c2.ID) &&
-		c.Scheme == c2.Scheme
+func (i *Info) Equal(i2 *Info) bool {
+	return i.GenesisTime == i2.GenesisTime &&
+		i.Period == i2.Period &&
+		i.PublicKey.Equal(i2.PublicKey) &&
+		bytes.Equal(i.GenesisSeed, i2.GenesisSeed) &&
+		common.CompareBeaconIDs(i.ID, i2.ID) &&
+		i.Scheme == i2.Scheme
 }
 
 // GetSchemeName returns the scheme name used
-func (c *Info) GetSchemeName() string {
-	return c.Scheme
+func (i *Info) GetSchemeName() string {
+	return i.Scheme
+}
+
+// UnmarshalJSON implements the json Unmarshaler interface for Info
+func (i *Info) UnmarshalJSON(data []byte) error {
+	var v2Str struct {
+		PublicKey    common.HexBytes `json:"public_key"`
+		ID           string          `json:"beacon_id"`
+		Period       uint64          `json:"period"`
+		Scheme       string          `json:"scheme"`
+		GenesisTime  int64           `json:"genesis_time"`
+		GenesisSeed  common.HexBytes `json:"genesis_seed"`
+		ChainHash    string          `json:"chain_hash"`
+		OldSchemeID  string          `json:"schemeID"`
+		OldGroupHash common.HexBytes `json:"groupHash"`
+		OldMetadata  *struct {
+			OldBeaconID string `json:"beaconID"`
+		} `json:"metadata"`
+	}
+
+	err := json.Unmarshal(data, &v2Str)
+	if err != nil {
+		return fmt.Errorf("not a v2 info string: %w", err)
+	}
+
+	i.GenesisSeed = v2Str.GenesisSeed
+	i.GenesisTime = v2Str.GenesisTime
+	i.Scheme = v2Str.Scheme
+	i.Period = time.Duration(v2Str.Period) * time.Second
+	i.ID = v2Str.ID
+
+	// support old scheme name
+	if v2Str.OldSchemeID != "" && i.Scheme == "" {
+		i.Scheme = v2Str.OldSchemeID
+		i.GenesisSeed = v2Str.OldGroupHash
+		if v2Str.OldMetadata != nil && v2Str.OldMetadata.OldBeaconID != "" {
+			i.ID = v2Str.OldMetadata.OldBeaconID
+		}
+	}
+
+	sch, err := crypto.GetSchemeByID(i.Scheme)
+	if err != nil {
+		return fmt.Errorf("invalid scheme advertised: %w", err)
+	}
+	pk := sch.KeyGroup.Point()
+	err = pk.UnmarshalBinary(v2Str.PublicKey)
+	if err != nil {
+		return fmt.Errorf("invalid public key %q: %w", sch.Name, err)
+	}
+	i.PublicKey = pk
+
+	if v2Str.ChainHash != "" {
+		if i.HashString() != v2Str.ChainHash {
+			return fmt.Errorf("chain hash mismatch: %s != %s", i.HashString(), v2Str.ChainHash)
+		}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements the json Marshaler interface for Info, we don't use a pointer receiver
+// because otherwise it wouldn't properly marshal plain Info objects.
+//
+//nolint:gocritic
+func (i Info) MarshalJSON() ([]byte, error) {
+	var v2Str struct {
+		PublicKey   string          `json:"public_key"`
+		ID          string          `json:"beacon_id"`
+		Period      uint64          `json:"period"`
+		Scheme      string          `json:"scheme"`
+		GenesisTime int64           `json:"genesis_time"`
+		GenesisSeed common.HexBytes `json:"genesis_seed"`
+		ChainHash   string          `json:"chain_hash"`
+	}
+
+	v2Str.ID = i.ID
+	v2Str.Scheme = i.Scheme
+	v2Str.Period = uint64(i.Period.Seconds())
+	v2Str.GenesisSeed = i.GenesisSeed
+	v2Str.GenesisTime = i.GenesisTime
+	v2Str.ChainHash = i.HashString()
+
+	rawPk, err := i.PublicKey.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal public key: %w", err)
+	}
+	v2Str.PublicKey = hex.EncodeToString(rawPk)
+
+	return json.Marshal(v2Str)
 }
