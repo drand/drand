@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -44,7 +45,7 @@ func NewChainInfo(g *key.Group) *Info {
 // composition, the actual nodes, generating the randomness.
 func (i *Info) Hash() []byte {
 	h := sha256.New()
-	_ = binary.Write(h, binary.BigEndian, uint32(i.Period.Seconds()))
+	_ = binary.Write(h, binary.BigEndian, int64(i.Period.Nanoseconds()))
 	_ = binary.Write(h, binary.BigEndian, i.GenesisTime)
 
 	buff, err := i.PublicKey.MarshalBinary()
@@ -88,11 +89,12 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	var v2Str struct {
 		PublicKey    common.HexBytes `json:"public_key"`
 		ID           string          `json:"beacon_id"`
-		Period       uint64          `json:"period"`
+		PeriodNs     int64           `json:"period_ns,omitempty"`
 		Scheme       string          `json:"scheme"`
 		GenesisTime  int64           `json:"genesis_time"`
 		GenesisSeed  common.HexBytes `json:"genesis_seed"`
 		ChainHash    string          `json:"chain_hash"`
+		OldPeriodSec uint32          `json:"period,omitempty"`
 		OldSchemeID  string          `json:"schemeID"`
 		OldGroupHash common.HexBytes `json:"groupHash"`
 		OldMetadata  *struct {
@@ -108,8 +110,15 @@ func (i *Info) UnmarshalJSON(data []byte) error {
 	i.GenesisSeed = v2Str.GenesisSeed
 	i.GenesisTime = v2Str.GenesisTime
 	i.Scheme = v2Str.Scheme
-	i.Period = time.Duration(v2Str.Period) * time.Second
 	i.ID = v2Str.ID
+
+	if v2Str.PeriodNs > 0 {
+		i.Period = time.Duration(v2Str.PeriodNs)
+	} else if v2Str.OldPeriodSec > 0 {
+		i.Period = time.Duration(v2Str.OldPeriodSec) * time.Second
+	} else {
+		return errors.New("chain info JSON missing 'period_ns' or 'period' field")
+	}
 
 	// support old scheme name
 	if v2Str.OldSchemeID != "" && i.Scheme == "" {
@@ -148,7 +157,7 @@ func (i Info) MarshalJSON() ([]byte, error) {
 	var v2Str struct {
 		PublicKey   string          `json:"public_key"`
 		ID          string          `json:"beacon_id"`
-		Period      uint64          `json:"period"`
+		PeriodNs    int64           `json:"period_ns"`
 		Scheme      string          `json:"scheme"`
 		GenesisTime int64           `json:"genesis_time"`
 		GenesisSeed common.HexBytes `json:"genesis_seed"`
@@ -157,7 +166,7 @@ func (i Info) MarshalJSON() ([]byte, error) {
 
 	v2Str.ID = i.ID
 	v2Str.Scheme = i.Scheme
-	v2Str.Period = uint64(i.Period.Seconds())
+	v2Str.PeriodNs = i.Period.Nanoseconds()
 	v2Str.GenesisSeed = i.GenesisSeed
 	v2Str.GenesisTime = i.GenesisTime
 	v2Str.ChainHash = i.HashString()

@@ -12,6 +12,7 @@ import (
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
 
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
@@ -148,10 +149,10 @@ func (d *Process) StartNetwork(
 		SchemeID:    options.Scheme,
 		GenesisTime: genesisTime,
 		// GenesisSeed is created after the DKG, so it cannot exist yet
-		GenesisSeed:          nil,
-		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
-		BeaconPeriodSeconds:  options.PeriodSeconds,
-		Joining:              util.Filter(options.Joining, util.NonEmpty),
+		GenesisSeed:   nil,
+		CatchupPeriod: options.CatchupPeriod,
+		BeaconPeriod:  options.Period,
+		Joining:       util.Filter(options.Joining, util.NonEmpty),
 	}
 
 	// apply our enriched DKG payload onto the current DKG state to create a new state
@@ -270,19 +271,19 @@ func (d *Process) StartProposal(
 	}
 
 	terms := drand.ProposalTerms{
-		BeaconID:             beaconID,
-		Threshold:            options.Threshold,
-		Epoch:                currentState.Epoch + 1,
-		SchemeID:             currentState.SchemeID,
-		BeaconPeriodSeconds:  uint32(currentState.BeaconPeriod.Seconds()),
-		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
-		GenesisTime:          timestamppb.New(currentState.GenesisTime),
-		GenesisSeed:          currentState.GenesisSeed,
-		Timeout:              options.Timeout,
-		Leader:               me,
-		Joining:              options.Joining,
-		Remaining:            options.Remaining,
-		Leaving:              options.Leaving,
+		BeaconID:      beaconID,
+		Threshold:     options.Threshold,
+		Epoch:         currentState.Epoch + 1,
+		SchemeID:      currentState.SchemeID,
+		CatchupPeriod: options.CatchupPeriod,
+		BeaconPeriod:  durationpb.New(currentState.BeaconPeriod),
+		GenesisTime:   timestamppb.New(currentState.GenesisTime),
+		GenesisSeed:   currentState.GenesisSeed,
+		Timeout:       options.Timeout,
+		Leader:        me,
+		Joining:       options.Joining,
+		Remaining:     options.Remaining,
+		Leaving:       options.Leaving,
 	}
 	nextState, err := currentState.Proposing(me, &terms)
 	if err != nil {

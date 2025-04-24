@@ -3,6 +3,7 @@ syntax = "proto3";
 package dkg;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "dkg/dkg.proto";
 
 option go_package = "github.com/drand/drand/v2/protobuf/dkg";
@@ -58,9 +59,9 @@ message GossipMetadata {
 message FirstProposalOptions {
   google.protobuf.Timestamp timeout = 1;
   uint32 threshold = 2;
-  uint32 period_seconds = 3;
+  google.protobuf.Duration period = 3;
   string scheme = 4;
-  uint32 catchup_period_seconds = 5;
+  google.protobuf.Duration catchup_period = 5;
   google.protobuf.Timestamp genesis_time = 6;
   repeated Participant joining = 7;
 }
@@ -68,7 +69,7 @@ message FirstProposalOptions {
 message ProposalOptions {
   google.protobuf.Timestamp timeout = 1;
   uint32 threshold = 2;
-  uint32 catchup_period_seconds = 3;
+  google.protobuf.Duration catchup_period = 3;
   repeated Participant joining = 4;
   repeated Participant leaving = 5;
   repeated Participant remaining = 6;
@@ -95,8 +96,8 @@ message ProposalTerms {
   Participant leader = 3;
   uint32 threshold = 4;
   google.protobuf.Timestamp timeout = 5;
-  uint32 catchup_period_seconds = 6;
-  uint32 beacon_period_seconds = 7;
+  google.protobuf.Duration catchup_period = 6;
+  google.protobuf.Duration beacon_period = 7;
   string schemeID = 8;
   google.protobuf.Timestamp genesis_time = 9;
   bytes genesis_seed = 10; // joiners require this as they don't have the original group file to generate it
@@ -173,5 +174,5 @@ message DKGEntry {
 // DKGPacket is the packet that nodes send to others nodes as part of the
 // broadcasting protocol.
 message DKGPacket {
-  Packet dkg = 1;
+  dkg.Packet dkg = 1;
 }

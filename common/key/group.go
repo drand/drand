@@ -20,6 +20,8 @@ import (
 	proto "github.com/drand/drand/v2/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TODO new256 returns an error so we make a wrapper around
@@ -383,17 +385,31 @@ func GroupFromProto(g *proto.GroupPacket, targetScheme *crypto.Scheme) (*Group, 
 		return nil, fmt.Errorf("invalid threshold: %d vs %d (minimum)", thr, MinimumT(n))
 	}
 
-	genesisTime := int64(g.GetGenesisTime())
-	if genesisTime == 0 {
-		return nil, fmt.Errorf("genesis time zero")
+	genesisTimeProto := g.GetGenesisTime()
+	if genesisTimeProto == nil || !genesisTimeProto.IsValid() {
+		return nil, fmt.Errorf("genesis time invalid or missing")
+	}
+	genesisTime := genesisTimeProto.AsTime().Unix()
+
+	periodProto := g.GetPeriod()
+	if periodProto == nil || !periodProto.IsValid() {
+		return nil, fmt.Errorf("period duration is missing or invalid")
+	}
+	period := periodProto.AsDuration()
+	if period <= 0 {
+		return nil, fmt.Errorf("period time must be positive")
 	}
 
-	period := time.Duration(g.GetPeriod()) * time.Second
-	if period == time.Duration(0) {
-		return nil, fmt.Errorf("period time is zero")
+	// Catchup period is optional in proto, default to 0 if missing/invalid
+	var catchupPeriod time.Duration
+	catchupPeriodProto := g.GetCatchupPeriod() // Now returns *durationpb.Duration
+	if catchupPeriodProto != nil && catchupPeriodProto.IsValid() {
+		catchupPeriod = catchupPeriodProto.AsDuration()
+		if catchupPeriod < 0 {
+			catchupPeriod = 0 // Treat negative as 0
+		}
 	}
 
-	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
 	beaconID := g.GetMetadata().GetBeaconID()
 
 	var dist = new(DistPublic)
@@ -411,7 +427,7 @@ func GroupFromProto(g *proto.GroupPacket, targetScheme *crypto.Scheme) (*Group, 
 		CatchupPeriod:  catchupPeriod,
 		Nodes:          nodes,
 		GenesisTime:    genesisTime,
-		TransitionTime: int64(g.GetTransitionTime()),
+		TransitionTime: int64(g.GetTransitionTime()), // Cast uint64 to int64
 		Scheme:         sch,
 		ID:             beaconID,
 	}
@@ -448,11 +464,11 @@ func (g *Group) ToProto(version common2.Version) *proto.GroupPacket {
 	}
 
 	out.Nodes = ids
-	out.Period = uint32(g.Period.Seconds())
-	out.CatchupPeriod = uint32(g.CatchupPeriod.Seconds())
+	out.Period = durationpb.New(g.Period)               // Correct
+	out.CatchupPeriod = durationpb.New(g.CatchupPeriod) // Correct
 	out.Threshold = uint32(g.Threshold)
-	out.GenesisTime = uint64(g.GenesisTime)
-	out.TransitionTime = uint64(g.TransitionTime)
+	out.GenesisTime = timestamppb.New(time.Unix(g.GenesisTime, 0)) // Correct
+	out.TransitionTime = uint64(g.TransitionTime)                  // Keep as uint64 for proto
 	out.GenesisSeed = g.GetGenesisSeed()
 	out.SchemeID = g.Scheme.Name
 

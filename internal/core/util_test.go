@@ -377,7 +377,7 @@ func (d *DrandTestScenario) RunDKG(t *testing.T) (*key.Group, error) {
 	followers := d.nodes[1:]
 
 	timeout := 5 * time.Minute
-	err := leader.dkgRunner.StartNetwork(d.thr, int(d.period.Seconds()), d.scheme.Name, timeout, int(d.catchupPeriod.Seconds()), joiners)
+	err := leader.dkgRunner.StartNetwork(d.thr, d.period, d.scheme.Name, timeout, d.catchupPeriod, joiners)
 
 	if err != nil {
 		return nil, err
@@ -527,7 +527,9 @@ func (d *DrandTestScenario) RunReshareWithHooks(t *testing.T, remainingNodes, jo
 		}
 	}
 
-	err := leader.dkgRunner.StartReshare(threshold, int(d.catchupPeriod.Seconds()), joiners, remainers, []*drand.Participant{})
+	// Pass duration directly for catchup period and add timeout.
+	reshareTimeout := 1 * time.Minute
+	err := leader.dkgRunner.StartReshare(threshold, d.catchupPeriod, reshareTimeout, joiners, remainers, []*drand.Participant{})
 	if err != nil {
 		return nil, err
 	}

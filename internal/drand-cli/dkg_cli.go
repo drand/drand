@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common"
@@ -39,17 +40,20 @@ var dkgCommand = &cli.Command{
 	Usage: "Commands for interacting with the DKG",
 	Subcommands: []*cli.Command{
 		{
-			Name: "init",
+			Name:        "init",
+			Usage:       "(Leader Only) Propose a new DKG ceremony for a group",
+			Description: `The init command is used by the leader node to initiate a new DKG ceremony...`,
 			Flags: toArray(
+				folderFlag,
 				beaconIDFlag,
 				controlFlag,
-				schemeFlag,
 				periodFlag,
+				genesisTimeFlag,
+				dkgTimeoutFlag,
 				thresholdFlag,
 				catchupPeriodFlag,
+				schemeFlag,
 				proposalFlag,
-				dkgTimeoutFlag,
-				genesisTimeFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
@@ -58,14 +62,17 @@ var dkgCommand = &cli.Command{
 			},
 		},
 		{
-			Name: "reshare",
+			Name:        "reshare",
+			Usage:       "(Leader Only) Propose a resharing ceremony",
+			Description: `The reshare command is used by the leader node to initiate a resharing ceremony...`,
 			Flags: toArray(
+				folderFlag,
 				beaconIDFlag,
 				controlFlag,
+				dkgTimeoutFlag,
 				thresholdFlag,
 				catchupPeriodFlag,
 				proposalFlag,
-				dkgTimeoutFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
@@ -259,11 +266,10 @@ func withDefault(first, second string) string {
 }
 
 func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
-	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, genesisTimeFlag}
-
-	for _, flag := range requiredFlags {
-		if !c.IsSet(flag.Name) {
-			return nil, fmt.Errorf("%s flag is required for initial proposals", flag.Name)
+	requiredFlagNames := []string{proposalFlag.Name, periodFlag.Name, schemeFlag.Name, catchupPeriodFlag.Name, genesisTimeFlag.Name}
+	for _, name := range requiredFlagNames {
+		if !c.IsSet(name) {
+			return nil, fmt.Errorf("%s flag is required for initial proposals", name)
 		}
 	}
 
@@ -282,20 +288,35 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		return nil, err
 	}
 
+	threshold := c.Uint(thresholdFlag.Name)
+
+	// Parse durations from string flags
+	timeoutDuration, err := time.ParseDuration(c.String(dkgTimeoutFlag.Name))
+	if err != nil {
+		return nil, fmt.Errorf("invalid dkg timeout duration: %w", err)
+	}
+	genesisDelay, err := time.ParseDuration(c.String(genesisTimeFlag.Name))
+	if err != nil {
+		return nil, fmt.Errorf("invalid genesis delay duration: %w", err)
+	}
+	// Get durations directly from DurationFlags
 	period := c.Duration(periodFlag.Name)
-	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
+	catchupPeriod := c.Duration(catchupPeriodFlag.Name)
 
-	genesisTime := time.Now().Add(c.Duration(genesisTimeFlag.Name))
+	timeoutTime := time.Now().Add(timeoutDuration)
+	genesisTime := time.Now().Add(genesisDelay)
 
-	return &drand.FirstProposalOptions{
-		Timeout:              timestamppb.New(timeout),
-		Threshold:            uint32(c.Int(thresholdFlag.Name)),
-		PeriodSeconds:        uint32(period.Seconds()),
-		Scheme:               c.String(schemeFlag.Name),
-		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		GenesisTime:          timestamppb.New(genesisTime),
-		Joining:              proposalFile.Joining,
-	}, nil
+	opts := &drand.FirstProposalOptions{
+		Timeout:       timestamppb.New(timeoutTime),
+		Threshold:     uint32(threshold),
+		Period:        durationpb.New(period),
+		Scheme:        c.String(schemeFlag.Name),
+		CatchupPeriod: durationpb.New(catchupPeriod),
+		Joining:       proposalFile.Joining,
+		GenesisTime:   timestamppb.New(genesisTime),
+	}
+
+	return opts, nil
 }
 
 func validateInitialProposal(proposalFile *ProposalFile) error {
@@ -311,10 +332,10 @@ func validateInitialProposal(proposalFile *ProposalFile) error {
 }
 
 func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
-	bannedFlags := []*cli.StringFlag{periodFlag, schemeFlag}
-	for _, flag := range bannedFlags {
-		if c.IsSet(flag.Name) {
-			return nil, fmt.Errorf("%s flag can only be set for initial proposals", flag.Name)
+	bannedFlagNames := []string{periodFlag.Name, schemeFlag.Name}
+	for _, name := range bannedFlagNames {
+		if c.IsSet(name) {
+			return nil, fmt.Errorf("%s flag can only be set for initial proposals", name)
 		}
 	}
 
@@ -337,20 +358,23 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("you must provider remainers for a proposal")
 	}
 
-	var timeout time.Time
-	if c.IsSet(dkgTimeoutFlag.Name) {
-		timeout = time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
-	} else {
-		timeout = time.Now().Add(core.DefaultDKGTimeout)
+	// Parse duration from string flag
+	timeoutDuration, err := time.ParseDuration(c.String(dkgTimeoutFlag.Name))
+	if err != nil {
+		return nil, fmt.Errorf("invalid dkg timeout duration: %w", err)
 	}
+	timeoutTime := time.Now().Add(timeoutDuration)
+
+	// Get duration directly from DurationFlag
+	catchupPeriod := c.Duration(catchupPeriodFlag.Name)
 
 	return &drand.ProposalOptions{
-		Timeout:              timestamppb.New(timeout),
-		Threshold:            uint32(c.Int(thresholdFlag.Name)),
-		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		Joining:              proposalFile.Joining,
-		Leaving:              proposalFile.Leaving,
-		Remaining:            proposalFile.Remaining,
+		Timeout:       timestamppb.New(timeoutTime),
+		Threshold:     uint32(c.Int(thresholdFlag.Name)),
+		CatchupPeriod: durationpb.New(catchupPeriod),
+		Joining:       proposalFile.Joining,
+		Leaving:       proposalFile.Leaving,
+		Remaining:     proposalFile.Remaining,
 	}, nil
 }
 

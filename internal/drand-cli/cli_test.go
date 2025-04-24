@@ -1043,9 +1043,8 @@ func (d *drandInstance) startInitialDKG(
 	t *testing.T,
 	l log.Logger,
 	instances []*drandInstance,
-	threshold,
-	//nolint:unparam // This is a parameter
-	periodSeconds int,
+	threshold int,
+	period time.Duration,
 	beaconID string,
 	sch *crypto.Scheme,
 ) {
@@ -1069,9 +1068,9 @@ func (d *drandInstance) startInitialDKG(
 		"init",
 		"--genesis-delay", "20s",
 		"--proposal", proposalPath,
-		"--catchup-period", fmt.Sprintf("%ds", periodSeconds/2),
+		"--catchup-period", (period / 2).String(),
 		"--threshold", fmt.Sprintf("%d", threshold),
-		"--period", fmt.Sprintf("%ds", periodSeconds),
+		"--period", period.String(),
 		"--control", d.ctrlPort,
 		"--scheme", sch.Name,
 		"--id", beaconID,
@@ -1268,7 +1267,7 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 
 	// How many rounds to generate while the node is stopped.
 	roundsWhileMissing := 50
-	period := 1
+	periodSeconds := 1 // Keep as int representing seconds for this test logic
 	n := 4
 	instances := genDrandInstances(t, beaconID, n)
 	memDBNodeID := len(instances) - 1
@@ -1284,7 +1283,8 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	for i, inst := range instances {
 		inst := inst
 		if i == 0 {
-			inst.startInitialDKG(t, l, instances, 3, period, beaconID, sch)
+			// Pass period as duration:
+			inst.startInitialDKG(t, l, instances, 3, time.Duration(periodSeconds)*time.Second, beaconID, sch)
 			// Wait a bit after launching the leader to launch the other nodes too.
 			time.Sleep(500 * time.Millisecond)
 		} else {
@@ -1312,17 +1312,20 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	memDBClient, err := net.NewControlClient(l, memDBNode.ctrlPort)
 	require.NoError(t, err)
 
-	chainInfo, err := memDBClient.ChainInfo(beaconID)
+	chainInfoPkt, err := memDBClient.ChainInfo(beaconID)
+	require.NoError(t, err)
+	chainInfo, err := chain2.InfoFromProto(chainInfoPkt)
 	require.NoError(t, err)
 
 	// Wait until DKG finishes
-	secondsToGenesisTime := chainInfo.GenesisTime - time.Now().Unix()
+	// Convert proto timestamp to Unix time before subtraction
+	secondsToGenesisTime := chainInfo.GenesisTime - time.Now().Unix() // chainInfo.GenesisTime is already int64 Unix
 	t.Logf("waiting %ds until DKG finishes\n", secondsToGenesisTime)
 	time.Sleep(time.Duration(secondsToGenesisTime) * time.Second)
 
 	// Wait for some rounds to be generated
 	t.Log("wait for some rounds to be generated")
-	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+	time.Sleep(time.Duration(roundsWhileMissing*periodSeconds) * time.Second)
 
 	// Get the status before stopping the node
 	status, err := memDBClient.Status(beaconID)
@@ -1338,7 +1341,7 @@ func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Log("waiting for beacons to be generated while a beacon process is stopped on a node")
-	time.Sleep(time.Duration(roundsWhileMissing*period) * time.Second)
+	time.Sleep(time.Duration(roundsWhileMissing*periodSeconds) * time.Second)
 
 	// reload a beacon
 	err = instances[memDBNodeID].load(beaconID)
@@ -1487,4 +1490,44 @@ func TestMetricsForPeer(t *testing.T) {
 	require.Contains(t, string(out), "dkg_leader")
 	require.Contains(t, string(out), "outgoing_connection_state")
 	require.GreaterOrEqual(t, len(out), 512)
+}
+
+func TestDKGInitFlags(t *testing.T) {
+	l := testlogger.New(t)
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := test.GetBeaconIDFromEnv()
+
+	// Test with valid duration strings
+	n := 1
+	instances := genAndLaunchDrandInstances(t, n)
+	inst := instances[0]
+	defer inst.stopAll()
+
+	// Test case 1: Milliseconds period
+	inst.startInitialDKG(t, l, instances, n, 500*time.Millisecond, beaconID, sch)
+	inst.awaitDKGComplete(t, beaconID, 1, 30) // Wait for DKG with ms period
+	inst.stop(beaconID)                       // Stop beacon before next DKG
+
+	// Test case 2: Fractional seconds period
+	inst.startInitialDKG(t, l, instances, n, 1250*time.Millisecond, beaconID, sch)
+	inst.awaitDKGComplete(t, beaconID, 2, 30) // Wait for DKG with frac s period
+	inst.stop(beaconID)
+
+	// Test case 3: Invalid duration string (should fail)
+	invalidPeriod := "abc"
+	proposalPath := filepath.Join(t.TempDir(), "proposal.toml")
+	os.WriteFile(proposalPath, []byte(`Joining = []`), 0755)
+	dkgArgs := []string{
+		"drand", "dkg", "init",
+		"--genesis-delay", "1s",
+		"--proposal", proposalPath,
+		"--threshold", "1",
+		"--period", invalidPeriod, // Invalid duration
+		"--control", inst.ctrlPort,
+		"--id", beaconID,
+	}
+	err = CLI().Run(dkgArgs)
+	require.Error(t, err, "DKG init should fail with invalid period string")
+	require.Contains(t, err.Error(), "invalid value \"abc\" for flag -period") // Check for urfave/cli error
 }

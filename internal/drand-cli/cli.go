@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
@@ -128,17 +129,16 @@ var backupOutFlag = &cli.StringFlag{
 	Usage: "the filepath to save the backup to",
 }
 
-var periodFlag = &cli.StringFlag{
-	Name:    "period",
-	Usage:   "period to set when doing a setup",
-	EnvVars: []string{"DRAND_PERIOD"},
+var periodFlag = &cli.DurationFlag{
+	Name:  "period",
+	Usage: "period of the beacon chain (e.g., 30s, 1m, 500ms)",
+	Value: 30 * time.Second,
 }
 
-var catchupPeriodFlag = &cli.StringFlag{
-	Name:    "catchup-period",
-	Usage:   "Minimum period while in catchup. Set only by the leader of share / reshares",
-	Value:   "0s",
-	EnvVars: []string{"DRAND_CATCHUP_PERIOD"},
+var catchupPeriodFlag = &cli.DurationFlag{
+	Name:  "catchup-period",
+	Usage: "catch-up period during DKG for nodes joining later (e.g., 1m, 2m30s)",
+	Value: time.Minute,
 }
 
 var thresholdFlag = &cli.IntFlag{

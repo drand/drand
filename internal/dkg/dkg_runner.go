@@ -9,6 +9,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/jonboulle/clockwork"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
@@ -27,24 +28,23 @@ type TestRunner struct {
 
 func (r *TestRunner) StartNetwork(
 	threshold int,
-	period int,
+	period time.Duration,
 	schemeID string,
 	timeout time.Duration,
-	catchupPeriod int,
+	catchupPeriod time.Duration,
 	joiners []*drand.Participant,
 ) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Initial{
 		Initial: &drand.FirstProposalOptions{
-			Timeout:              timestamppb.New(r.Clock.Now().Add(timeout)),
-			Threshold:            uint32(threshold),
-			PeriodSeconds:        uint32(period),
-			Scheme:               schemeID,
-			CatchupPeriodSeconds: uint32(catchupPeriod),
-			// put the genesis a little in the future to give demo nodes some time to do the DKG
-			GenesisTime: timestamppb.New(r.Clock.Now().Add(GenesisDelay)),
-			Joining:     joiners,
+			Timeout:       timestamppb.New(r.Clock.Now().Add(timeout)),
+			Threshold:     uint32(threshold),
+			Period:        durationpb.New(period),
+			Scheme:        schemeID,
+			CatchupPeriod: durationpb.New(catchupPeriod),
+			GenesisTime:   timestamppb.New(r.Clock.Now().Add(GenesisDelay)),
+			Joining:       joiners,
 		},
 	},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
@@ -54,7 +54,8 @@ func (r *TestRunner) StartNetwork(
 
 func (r *TestRunner) StartReshare(
 	threshold int,
-	catchupPeriod int,
+	catchupPeriod time.Duration,
+	timeout time.Duration,
 	joiners []*drand.Participant,
 	remainers []*drand.Participant,
 	leavers []*drand.Participant,
@@ -63,12 +64,12 @@ func (r *TestRunner) StartReshare(
 	defer cancel()
 	_, err := r.Client.Command(ctx, &drand.DKGCommand{Command: &drand.DKGCommand_Resharing{
 		Resharing: &drand.ProposalOptions{
-			Threshold:            uint32(threshold),
-			CatchupPeriodSeconds: uint32(catchupPeriod),
-			Timeout:              timestamppb.New(r.Clock.Now().Add(1 * time.Minute)),
-			Joining:              joiners,
-			Remaining:            remainers,
-			Leaving:              leavers,
+			Threshold:     uint32(threshold),
+			CatchupPeriod: durationpb.New(catchupPeriod),
+			Timeout:       timestamppb.New(r.Clock.Now().Add(timeout)),
+			Joining:       joiners,
+			Remaining:     remainers,
+			Leaving:       leavers,
 		}},
 		Metadata: &drand.CommandMetadata{BeaconID: r.BeaconID},
 	})

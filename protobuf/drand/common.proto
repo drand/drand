@@ -5,6 +5,9 @@ syntax = "proto3";
 
 package drand;
 
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
 option go_package = "github.com/drand/drand/v2/protobuf/drand";
 
 message NodeVersion {
@@ -87,14 +90,13 @@ message Node {
 message GroupPacket {
     repeated Node nodes = 1;
     uint32 threshold = 2;
-    // period in seconds
-    uint32 period = 3;
-    uint64 genesis_time = 4;
+    google.protobuf.Duration period = 3;
+    google.protobuf.Timestamp genesis_time = 4;
     uint64 transition_time = 5;
     bytes genesis_seed = 6;
     repeated bytes dist_key = 7;
     // catchup_period in seconds
-    uint32 catchup_period = 8;
+    google.protobuf.Duration catchup_period = 8;
     string schemeID = 9;
     Metadata metadata = 10;
 }
@@ -109,10 +111,10 @@ message ChainInfoRequest {
 message ChainInfoPacket {
     // marshalled public key
     bytes public_key = 1;
-    // period in seconds
-    uint32 period = 2;
-    // genesis time of the chain
-    int64 genesis_time = 3;
+    // period is the time duration between each round.
+    google.protobuf.Duration period = 2;
+    // genesis_time corresponds to the time of round 0.
+    google.protobuf.Timestamp genesis_time = 3;
     // hash is included for ease of use - not needing to have a drand client to
     // compute its hash
     bytes hash = 4;

@@ -4,7 +4,6 @@ package dkg
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"testing"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
@@ -44,13 +44,13 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "valid proposal with successful gossip sends to all parties except leader",
 			proposal: &drand.FirstProposalOptions{
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            2,
-				PeriodSeconds:        10,
-				Scheme:               sch.Name,
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob, carol},
+				Timeout:       timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:     2,
+				Period:        durationpb.New(10 * time.Second),
+				Scheme:        sch.Name,
+				CatchupPeriod: durationpb.New(10 * time.Second),
+				GenesisTime:   timestamppb.New(time.Now()),
+				Joining:       []*drand.Participant{alice, bob, carol},
 			},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
@@ -63,13 +63,13 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "database get failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            2,
-				PeriodSeconds:        10,
-				Scheme:               sch.Name,
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
+				Timeout:       timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:     2,
+				Period:        durationpb.New(10 * time.Second),
+				Scheme:        sch.Name,
+				CatchupPeriod: durationpb.New(10 * time.Second),
+				GenesisTime:   timestamppb.New(time.Now()),
+				Joining:       []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(nil, expectedError)
@@ -80,13 +80,13 @@ func TestInitialDKG(t *testing.T) {
 		{
 			name: "database store failure does not attempt to call network",
 			proposal: &drand.FirstProposalOptions{
-				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-				Threshold:            2,
-				PeriodSeconds:        10,
-				Scheme:               sch.Name,
-				CatchupPeriodSeconds: 10,
-				GenesisTime:          timestamppb.New(time.Now()),
-				Joining:              []*drand.Participant{alice, bob},
+				Timeout:       timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:     2,
+				Period:        durationpb.New(10 * time.Second),
+				Scheme:        sch.Name,
+				CatchupPeriod: durationpb.New(10 * time.Second),
+				GenesisTime:   timestamppb.New(time.Now()),
+				Joining:       []*drand.Participant{alice, bob},
 			},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, proposal *drand.FirstProposalOptions, expectedError error) {
 				store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
@@ -145,11 +145,11 @@ func TestReshare(t *testing.T) {
 	beaconID := "someBeaconID"
 	currentState := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
 	validProposal := drand.ProposalOptions{
-		Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
-		Threshold:            2,
-		CatchupPeriodSeconds: 10,
-		Joining:              []*drand.Participant{carol},
-		Remaining:            []*drand.Participant{alice, bob},
+		Timeout:       timestamppb.New(time.Now().Add(1 * time.Hour)),
+		Threshold:     2,
+		CatchupPeriod: durationpb.New(10 * time.Second),
+		Joining:       []*drand.Participant{carol},
+		Remaining:     []*drand.Participant{alice, bob},
 	}
 
 	tests := []struct {
@@ -293,63 +293,34 @@ func TestReshare(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	sch, _ := crypto.GetSchemeFromEnv()
-	myKeypair, err := key.NewKeyPair("somebody.com:443", sch)
+	myKeypair, err := key.NewKeyPair("alice:443", sch)
 	require.NoError(t, err)
 
 	alice, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
-	bob := NewParticipant("bob")
+	bob := NewParticipant("bob:443")
+	carol := NewParticipant("carol:443")
 	beaconID := "someBeaconID"
 
-	pub, err := myKeypair.Public.Key.MarshalBinary()
-	require.NoError(t, err)
+	// Create a realistic sample state representing epoch 1 completion
+	sample := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+	require.NotNil(t, sample.FinalGroup, "Completed state should have a final group")
+	sample.Epoch = 1                                                                            // Ensure epoch is 1 for the finished group
+	require.Positive(t, sample.FinalGroup.Threshold, "Sample group threshold must be positive") // Add check
 
-	sample := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
-	require.NoError(t, err)
-	groupFileToml := key.GroupTOML{
-		Threshold:     int(sample.Threshold),
-		Period:        sample.BeaconPeriod.String(),
-		CatchupPeriod: sample.CatchupPeriod.String(),
-		GenesisTime:   sample.GenesisTime.Unix(),
-		GenesisSeed:   hex.EncodeToString(sample.GenesisSeed),
-		Nodes: []*key.NodeTOML{
-			{
-				PublicTOML: &key.PublicTOML{
-					Address:    alice.Address,
-					SchemeName: sch.Name,
-					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
-				},
-				Index: 1,
-			},
-			{
-				PublicTOML: &key.PublicTOML{
-					Address:    bob.Address,
-					SchemeName: sch.Name,
-					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
-				},
-				Index: 2,
-			},
-			{
-				PublicTOML: &key.PublicTOML{
-					Address:    carol.Address,
-					SchemeName: sch.Name,
-					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
-				},
-				Index: 3,
-			},
-		},
-	}
-
-	groupFile := &key.Group{}
-	err = groupFile.FromTOML(&groupFileToml)
-	require.NoError(t, err)
+	// Use the FinalGroup from the sample state to generate TOML bytes
+	groupToml := sample.FinalGroup.TOML().(*key.GroupTOML)                                           // Get the TOML struct
+	require.Positive(t, groupToml.Threshold, "GroupTOML threshold must be positive before encoding") // Add check
 
 	var groupFileBytes bytes.Buffer
-	err = toml.NewEncoder(&groupFileBytes).Encode(&groupFileToml)
+	err = toml.NewEncoder(&groupFileBytes).Encode(groupToml) // Encode the TOML struct
 	require.NoError(t, err)
+
+	// Verify parsing works correctly here
+	groupFromBytes, err := util.ParseGroupFileBytes(groupFileBytes.Bytes())
+	require.NoError(t, err)
+	require.NotNil(t, groupFromBytes, "Group parsed from bytes should not be nil")
+	require.Positive(t, groupFromBytes.Threshold, "Group parsed from bytes should have positive threshold")
 
 	tests := []struct {
 		name                     string
@@ -363,7 +334,7 @@ func TestJoin(t *testing.T) {
 			name:        "join on first epoch succeeds without group file but does not gossip anything",
 			joinOptions: &drand.JoinOptions{},
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
-				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob)
+				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob, carol)
 				current.Joining = []*drand.Participant{alice, bob, carol}
 				current.Remaining = nil
 				store.On("GetCurrent", beaconID).Return(current, nil)
@@ -377,18 +348,29 @@ func TestJoin(t *testing.T) {
 		},
 		{
 			name:        "join on second epoch succeeds with group file but does not gossip anything",
-			joinOptions: &drand.JoinOptions{GroupFile: groupFileBytes.Bytes()},
+			joinOptions: &drand.JoinOptions{GroupFile: groupFileBytes.Bytes()}, // Use correctly generated bytes
 			prepareMocks: func(store *MockStore, client *MockDKGClient, expectedError error) {
-				current := NewCompleteDKGEntry(t, beaconID, Proposed, bob, carol)
-				current.Epoch = 2
-				current.FinalGroup = groupFile
-				current.Joining = []*drand.Participant{alice}
+				// Create a state reflecting proposed epoch 2, based on finished epoch 1 (groupFromBytes)
+				proposalTerms := NewValidProposal(beaconID, 2, bob, carol) // Bob proposes epoch 2, carol remaining
+				proposalTerms.Joining = []*drand.Participant{alice}        // Alice is joining
+				proposalTerms.Remaining = []*drand.Participant{bob, carol}
+				proposalTerms.GenesisSeed = groupFromBytes.GetGenesisSeed() // Use seed from epoch 1 group
+				// Use GenesisTime from epoch 1 group
+				proposalTerms.GenesisTime = timestamppb.New(time.Unix(groupFromBytes.GenesisTime, 0))
+
+				current, err := NewFreshState(beaconID).Proposed(carol, proposalTerms, &drand.GossipMetadata{Address: bob.Address})
+				require.NoError(t, err)
+				require.Equal(t, groupFromBytes.GetGenesisSeed(), current.GenesisSeed)   // Verify seed matches
+				require.Equal(t, groupFromBytes.GenesisTime, current.GenesisTime.Unix()) // Verify genesis time matches
+
 				store.On("GetCurrent", beaconID).Return(current, nil)
 				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
 				client.On("Packet", mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			validateOutput: func(output *DBState) {
 				require.Equal(t, Joined, output.State)
+				require.NotNil(t, output.FinalGroup)
+				require.True(t, groupFromBytes.Equal(output.FinalGroup))
 			},
 			expectedNetworkCallCount: 0,
 		},

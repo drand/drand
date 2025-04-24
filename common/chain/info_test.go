@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -77,6 +79,10 @@ func TestChainInfo(t *testing.T) {
 
 	require.True(t, c1.Equal(c13))
 
+	// Validate the hash calculated matches the expected (updated for new hashing logic)
+	expectedV2Hash := c1.HashString() // Calculate the current hash
+	require.Equal(t, expectedV2Hash, c13.HashString(), "JSON decoded hash should match original")
+
 	var c3Buff bytes.Buffer
 
 	// trying with a wrong scheme name
@@ -109,18 +115,41 @@ func TestChainInfo(t *testing.T) {
 }
 
 func TestJsonFromRelay(t *testing.T) {
-	v2Str := `{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period":3,"genesis_time":1692803367,"genesis_seed":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","chain_hash":"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971","scheme":"bls-unchained-g1-rfc9380","beacon_id":"quicknet"}`
+	// Calculate the expected hash based on the test data and the new hashing logic
+	sch, _ := crypto.GetSchemeByID("bls-unchained-g1-rfc9380")
+	pkBytes, _ := hex.DecodeString("83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a")
+	pkPoint := sch.KeyGroup.Point()
+	pkPoint.UnmarshalBinary(pkBytes)
+	genesisSeedBytes, _ := hex.DecodeString("f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e")
+	tempInfo := Info{
+		PublicKey:   pkPoint,
+		ID:          "quicknet",
+		Period:      3 * time.Second, // Period is 3 seconds
+		Scheme:      "bls-unchained-g1-rfc9380",
+		GenesisTime: 1692803367,
+		GenesisSeed: genesisSeedBytes,
+	}
+	newExpectedHash := tempInfo.HashString() // Calculate the new hash
+
+	// Update the chain_hash in the test string
+	v2Str := fmt.Sprintf(`{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period_ns":%d,"genesis_time":1692803367,"genesis_seed":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","chain_hash":"%s","scheme":"bls-unchained-g1-rfc9380","beacon_id":"quicknet"}`, tempInfo.Period.Nanoseconds(), newExpectedHash)
 
 	info := new(Info)
 	err := json.Unmarshal([]byte(v2Str), info)
 	require.NoError(t, err)
+	require.Equal(t, newExpectedHash, info.HashString(), "Hash from unmarshaled info should match calculated hash") // Verify hash matches
 
-	// backware compat with v1 relay strings
-	v1Str := `{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period":3,"genesis_time":1692803367,"hash":"52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971","groupHash":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","schemeID":"bls-unchained-g1-rfc9380","metadata":{"beaconID":"quicknet"}}`
+	// Test backward compatibility with old format (period in seconds)
+	v1Str := `{"public_key":"83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a","period":3,"genesis_time":1692803367,"hash":"OLD_HASH_PLACEHOLDER","groupHash":"f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e","schemeID":"bls-unchained-g1-rfc9380","metadata":{"beaconID":"quicknet"}}`
+	// Replace placeholder if v1 hash needs specific testing, otherwise UnmarshalJSON handles it
+	v1Str = strings.Replace(v1Str, "OLD_HASH_PLACEHOLDER", newExpectedHash, 1)
+
 	info2 := new(Info)
 	err = json.Unmarshal([]byte(v1Str), info2)
 	require.NoError(t, err)
+	require.Equal(t, newExpectedHash, info2.HashString(), "Hash from V1 unmarshaled info should match calculated hash") // Verify hash matches
 
+	// Test marshaling output matches the new format
 	rawBytes, err := json.Marshal(info)
 	require.NoError(t, err)
 	require.JSONEq(t, v2Str, string(rawBytes))

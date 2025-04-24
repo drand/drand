@@ -61,8 +61,8 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 		SchemeID:      sch.Name,
 		GenesisTime:   now,
 		GenesisSeed:   []byte("deadbeef"),
-		CatchupPeriod: 1,
-		BeaconPeriod:  3,
+		CatchupPeriod: 1 * time.Second,
+		BeaconPeriod:  3 * time.Second,
 		Leader:        nil,
 		Remaining:     nil,
 		Joining:       nil,
@@ -97,8 +97,8 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 		SchemeID:      sch.Name,
 		GenesisTime:   now,
 		GenesisSeed:   []byte("deadbeef"),
-		CatchupPeriod: 1,
-		BeaconPeriod:  3,
+		CatchupPeriod: 1 * time.Second,
+		BeaconPeriod:  3 * time.Second,
 		Leader:        nil,
 		Remaining:     nil,
 		Joining:       nil,
@@ -158,10 +158,10 @@ func fakeGroup() *key.Group {
 	sch, _ := crypto.GetSchemeFromEnv()
 	return &key.Group{
 		Threshold:     1,
-		Period:        3,
+		Period:        3 * time.Second,
 		Scheme:        sch,
 		ID:            "default",
-		CatchupPeriod: 2,
+		CatchupPeriod: 2 * time.Second,
 		Nodes: []*key.Node{{
 			Index: 0,
 			Identity: &key.Identity{

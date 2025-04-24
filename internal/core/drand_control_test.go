@@ -29,8 +29,8 @@ func TestValidateGroupTransitionPeriod(t *testing.T) {
 	d := BeaconProcess{log: testlogger.New(t)}
 	var oldgrp, newgrp key.Group
 
-	oldgrp = key.Group{Period: 10}
-	newgrp = key.Group{Period: 20}
+	oldgrp = key.Group{Period: 10 * time.Second}
+	newgrp = key.Group{Period: 20 * time.Second}
 
 	err := d.validateGroupTransition(&oldgrp, &newgrp)
 	require.ErrorContains(t, err, "control: old and new group have different period", "error validating group period")

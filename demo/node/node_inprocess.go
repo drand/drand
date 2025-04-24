@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	common2 "github.com/drand/drand/v2/common"
@@ -26,6 +27,7 @@ import (
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
 )
 
 // LocalNode ...
@@ -360,4 +362,74 @@ func (l *LocalNode) Identity() (*pdkg.Participant, error) {
 		return nil, err
 	}
 	return util.PublicKeyAsParticipant(keypair.Public)
+}
+
+func (l *LocalNode) StartDKG(addr string, p time.Duration, catchupPeriod time.Duration, thr int) {
+	ctx := context.Background()
+	// Send DKG Init command
+	// use the LocalNode address as default
+	if addr == "" {
+		addr = l.pubAddr
+	}
+
+	proposal, err := generateJoiningProposal(l.log, l.beaconID, []string{addr})
+	require.NoError(l.t, err)
+
+	proposalPath := filepath.Join(l.base, "proposal.toml")
+	err = os.WriteFile(proposalPath, []byte(proposal), 0755)
+	require.NoError(l.t, err)
+
+	selfIdentity, err := l.Identity()
+	require.NoError(l.t, err)
+
+	lg := log.DefaultLogger()
+	l.dkgRunner = &dkg.TestRunner{
+		Client:   l.daemon,
+		BeaconID: l.beaconID,
+		Clock:    clock.NewRealClock(),
+	}
+
+	dkgTimeout := 30 * time.Minute // Set a reasonable timeout
+	err = l.dkgRunner.StartNetwork(thr, p, l.scheme.Name, dkgTimeout, catchupPeriod, []*drand.Participant{selfIdentity})
+	require.NoError(l.t, err)
+
+	l.log.Infof("start dkg %s sent\n", l.pubAddr)
+}
+
+func (l *LocalNode) StartReshare(addrs []string, thr int) {
+	ctx := context.Background()
+
+	lg := log.DefaultLogger()
+	joiners := make([]*drand.Participant, 0)
+	remainers := make([]*drand.Participant, 0)
+
+	// the leader is always a remainer
+	selfIdentity, err := l.Identity()
+	require.NoError(l.t, err)
+
+	remainers = append(remainers, selfIdentity)
+
+	// the rest are joiners
+	for _, a := range addrs {
+		if a == l.pubAddr {
+			continue
+		}
+		ident, err := l.IdentityFromAddress(ctx, a)
+		require.NoError(l.t, err)
+		joiners = append(joiners, ident)
+	}
+
+	l.dkgRunner = &dkg.TestRunner{
+		Client:   l.daemon,
+		BeaconID: l.beaconID,
+		Clock:    clock.NewRealClock(),
+	}
+
+	// Determine catchup period (e.g., half of current period) and timeout
+	catchupDuration := l.daemon.beaconProcesses[l.beaconID].group.Period / 2
+	reshareTimeout := 1 * time.Minute
+	err = l.dkgRunner.StartReshare(thr, catchupDuration, reshareTimeout, joiners, remainers, nil)
+	require.NoError(l.t, err)
+
+	l.log.Infof("start reshare %s sent\n", l.pubAddr)
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common"
@@ -1308,6 +1309,7 @@ func TestDKGWithMismatchedSchemes(t *testing.T) {
 	require.ErrorContainsf(t, err, key.ErrInvalidKeyScheme.Error(), "expected node to fail DKG due to mismatch of schemes")
 }
 
+// TestPacketWithoutMetadata validates that when a packet is sent without metadata, the node doesn't panic
 func TestPacketWithoutMetadata(t *testing.T) {
 	beaconID := "blah"
 	scenario := NewDrandTestScenario(t, 2, 2, 1*time.Second, beaconID, clockwork.NewFakeClockAt(time.Now()))
@@ -1317,12 +1319,13 @@ func TestPacketWithoutMetadata(t *testing.T) {
 
 	_, err = scenario.nodes[0].daemon.Packet(context.Background(), &pdkg.GossipPacket{Packet: &pdkg.GossipPacket_Proposal{
 		Proposal: &pdkg.ProposalTerms{
-			BeaconID:             beaconID,
-			Epoch:                2,
-			Leader:               nil,
-			Threshold:            uint32(scenario.thr),
-			Timeout:              timestamppb.New(scenario.clock.Now().Add(1 * time.Minute)),
-			CatchupPeriodSeconds: 6,
+			BeaconID:      beaconID,
+			Epoch:         2,
+			Leader:        nil,
+			Threshold:     uint32(scenario.thr),
+			Timeout:       timestamppb.New(scenario.clock.Now().Add(1 * time.Minute)),
+			CatchupPeriod: durationpb.New(6 * time.Second),
+			BeaconPeriod:  durationpb.New(scenario.period),
 		}}, Metadata: nil},
 	)
 

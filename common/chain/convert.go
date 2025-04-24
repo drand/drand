@@ -6,6 +6,8 @@ import (
 	"time"
 
 	json "github.com/nikkolasg/hexjson"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/protobuf/drand"
 
@@ -23,10 +25,25 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 		return nil, err
 	}
 
+	periodProto := p.GetPeriod()
+	if periodProto == nil || !periodProto.IsValid() {
+		return nil, fmt.Errorf("invalid or missing period duration in ChainInfoPacket")
+	}
+	period := periodProto.AsDuration()
+	if period <= 0 {
+		return nil, fmt.Errorf("period must be positive in ChainInfoPacket")
+	}
+
+	genesisTimeProto := p.GetGenesisTime()
+	if genesisTimeProto == nil || !genesisTimeProto.IsValid() {
+		return nil, fmt.Errorf("invalid or missing genesis time in ChainInfoPacket")
+	}
+	genesisTime := genesisTimeProto.AsTime().Unix()
+
 	return &Info{
 		PublicKey:   public,
-		GenesisTime: p.GenesisTime,
-		Period:      time.Duration(p.Period) * time.Second,
+		GenesisTime: genesisTime,
+		Period:      period,
 		GenesisSeed: p.GroupHash,
 		Scheme:      sch.Name,
 		ID:          p.GetMetadata().GetBeaconID(),
@@ -45,8 +62,8 @@ func (i *Info) ToProto(metadata *drand.Metadata) *drand.ChainInfoPacket {
 
 	return &drand.ChainInfoPacket{
 		PublicKey:   buff,
-		GenesisTime: i.GenesisTime,
-		Period:      uint32(i.Period.Seconds()),
+		GenesisTime: timestamppb.New(time.Unix(i.GenesisTime, 0)),
+		Period:      durationpb.New(i.Period),
 		Hash:        i.Hash(),
 		GroupHash:   i.GenesisSeed,
 		SchemeID:    i.Scheme,

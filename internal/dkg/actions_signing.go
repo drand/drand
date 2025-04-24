@@ -8,11 +8,14 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
+	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+	"google.golang.org/protobuf/proto"
 )
 
 func (d *Process) signMessage(
@@ -130,12 +133,28 @@ func messageForSigning(beaconID string, packet *drand.GossipPacket, proposal *dr
 	encTimeout, _ := proposal.GetTimeout().AsTime().MarshalBinary()
 	ret.Write(encTimeout)
 
-	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetCatchupPeriodSeconds()))
-	ret.Write(binary.LittleEndian.AppendUint32([]byte{}, proposal.GetBeaconPeriodSeconds()))
+	// Write durations as nanoseconds for deterministic hashing
+	catchupPeriod := proposal.GetCatchupPeriod()
+	if catchupPeriod != nil && catchupPeriod.IsValid() {
+		nanoCatchup := catchupPeriod.AsDuration().Nanoseconds()
+		ret.Write(binary.LittleEndian.AppendUint64([]byte{}, uint64(nanoCatchup)))
+	} else {
+		ret.Write(binary.LittleEndian.AppendUint64([]byte{}, 0)) // Write 0 if nil/invalid
+	}
+
+	beaconPeriod := proposal.GetBeaconPeriod()
+	if beaconPeriod != nil && beaconPeriod.IsValid() {
+		nanoPeriod := beaconPeriod.AsDuration().Nanoseconds()
+		ret.Write(binary.LittleEndian.AppendUint64([]byte{}, uint64(nanoPeriod)))
+	} else {
+		ret.Write(binary.LittleEndian.AppendUint64([]byte{}, 0)) // Write 0 if nil/invalid
+	}
+
 	ret.WriteString("\nScheme: " + proposal.GetSchemeID() + "\n")
 
 	encGenesis, _ := proposal.GetGenesisTime().AsTime().MarshalBinary()
 	ret.Write(encGenesis)
+	ret.Write(proposal.GetGenesisSeed()) // Add GenesisSeed to hash
 
 	for _, p := range proposal.GetJoining() {
 		ret.WriteString("\nJoiner:" + p.GetAddress() + "\nSig:")
@@ -157,19 +176,54 @@ func messageForSigning(beaconID string, packet *drand.GossipPacket, proposal *dr
 
 // used for determining the message that was signed for verifying packet authenticity
 func termsFromState(state *DBState) *drand.ProposalTerms {
-	return &drand.ProposalTerms{
-		BeaconID:             state.BeaconID,
-		Threshold:            state.Threshold,
-		Epoch:                state.Epoch,
-		SchemeID:             state.SchemeID,
-		BeaconPeriodSeconds:  uint32(state.BeaconPeriod.Seconds()),
-		CatchupPeriodSeconds: uint32(state.CatchupPeriod.Seconds()),
-		GenesisTime:          timestamppb.New(state.GenesisTime),
-		GenesisSeed:          state.GenesisSeed,
-		Timeout:              timestamppb.New(state.Timeout),
-		Leader:               state.Leader,
-		Joining:              state.Joining,
-		Remaining:            state.Remaining,
-		Leaving:              state.Leaving,
+	var catchupProto *durationpb.Duration
+	if state.CatchupPeriod > 0 {
+		catchupProto = durationpb.New(state.CatchupPeriod)
 	}
+	var beaconProto *durationpb.Duration
+	if state.BeaconPeriod > 0 {
+		beaconProto = durationpb.New(state.BeaconPeriod)
+	}
+	return &drand.ProposalTerms{
+		BeaconID:      state.BeaconID,
+		Threshold:     state.Threshold,
+		Epoch:         state.Epoch,
+		SchemeID:      state.SchemeID,
+		BeaconPeriod:  beaconProto,
+		CatchupPeriod: catchupProto,
+		GenesisTime:   timestamppb.New(state.GenesisTime),
+		GenesisSeed:   state.GenesisSeed,
+		Timeout:       timestamppb.New(state.Timeout),
+		Leader:        state.Leader,
+		Joining:       state.Joining,
+		Remaining:     state.Remaining,
+		Leaving:       state.Leaving,
+	}
+}
+
+// CreateDealBundleHash creates the hash that needs to be signed by the dealer.
+func CreateDealBundleHash(bundle *drand.DealBundle, schemeID string, epoch uint32) ([]byte, error) {
+	sch, err := crypto.GetSchemeByID(schemeID)
+	if err != nil {
+		return nil, fmt.Errorf("actions_signing: invalid scheme ID '%s' for hashing: %w", schemeID, err)
+	}
+	h := sch.IdentityHash()
+	if h == nil {
+		return nil, fmt.Errorf("actions_signing: hasher is nil for scheme ID '%s'", schemeID)
+	}
+	_, _ = h.Write([]byte(schemeID))
+	_ = binary.Write(h, binary.LittleEndian, epoch)
+	_ = binary.Write(h, binary.LittleEndian, bundle.DealerIndex)
+	for _, c := range bundle.Commits {
+		_, _ = h.Write(c)
+	}
+	for _, d := range bundle.Deals {
+		dealBytes, err := proto.Marshal(d)
+		if err != nil {
+			return nil, fmt.Errorf("actions_signing: failed to marshal deal for hashing: %w", err)
+		}
+		_, _ = h.Write(dealBytes)
+	}
+	_, _ = h.Write(bundle.SessionId)
+	return h.Sum(nil), nil
 }

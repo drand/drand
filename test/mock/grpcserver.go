@@ -15,6 +15,8 @@ import (
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
@@ -61,15 +63,17 @@ func newMockServer(t logger, d *Data, clk clock.Clock) *Server {
 		t = fmtLogger{}
 	}
 
+	pkBytes, _ := hex.DecodeString(d.Signature)
+
 	return &Server{
 		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
 		t:           t,
 		clk:         clk,
 		chainInfo: &drand.ChainInfoPacket{
-			Period:      uint32(d.Period.Seconds()),
-			GenesisTime: d.Genesis,
-			PublicKey:   d.Public,
+			Period:      durationpb.New(d.Period),
+			GenesisTime: timestamppb.New(time.Unix(d.Genesis, 0)),
+			PublicKey:   pkBytes,
 			SchemeID:    d.Scheme.Name,
 		},
 	}
@@ -147,7 +151,14 @@ func (s *Server) EmitRand(closeStream bool) {
 		s.t.Log("MOCK SERVER: context error ", err)
 		return
 	}
-	s.clk.(*clock.FakeClock).Advance(time.Duration(s.chainInfo.Period) * time.Second)
+
+	periodDuration := s.chainInfo.Period.AsDuration()
+	if !s.chainInfo.Period.IsValid() || periodDuration <= 0 {
+		periodDuration = time.Second
+		s.t.Log("MOCK SERVER: invalid period in chainInfo, defaulting to 1s")
+	}
+
+	s.clk.(*clock.FakeClock).Advance(periodDuration)
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err

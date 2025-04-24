@@ -46,7 +46,7 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 	leaderNode := nodes[0]
 	leader, err := leaderNode.RunnerFor(beaconID)
 	require.NoError(t, err)
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 2*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 
 	// the nodes all join, but immediately go down
@@ -82,7 +82,7 @@ func TestDKGFailedAtProtocol(t *testing.T) {
 	}
 
 	// the leader kicks off the DKG again
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 2*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 
 	// this time each node joins without error
@@ -132,7 +132,7 @@ func TestFailedReshare(t *testing.T) {
 	leaderNode := nodes[0]
 	leader, err := leaderNode.RunnerFor(beaconID)
 	require.NoError(t, err)
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 
 	for _, n := range nodes[1:] {
@@ -148,7 +148,7 @@ func TestFailedReshare(t *testing.T) {
 	err = leader.WaitForDKG(log.DefaultLogger(), 1, 60)
 	require.NoError(t, err)
 
-	err = leader.StartReshare(2, 1, nil, identities, nil)
+	err = leader.StartReshare(2, 15*time.Second, 1*time.Minute, nil, identities, nil)
 	require.NoError(t, err)
 
 	for _, n := range nodes[1:] {
@@ -207,7 +207,7 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 
 			dkgCompletionChannel := leaderNode.delegate.completedDKGs.Listen()
 
-			err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+			err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 			require.NoError(t, err)
 
 			for _, n := range nodes[1:] {
@@ -230,7 +230,7 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			}
 
 			// we then run a resharing
-			err = leader.StartReshare(2, 1, nil, identities, nil)
+			err = leader.StartReshare(2, 15*time.Second, 1*time.Minute, nil, identities, nil)
 			require.NoError(t, err)
 
 			for _, n := range nodes[1:] {
@@ -283,7 +283,7 @@ func TestAbortedDKGCanRestart(t *testing.T) {
 	// then we run the initial DKG
 	leader, err := nodes[0].RunnerFor(beaconID)
 	require.NoError(t, err)
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 	for _, node := range nodes[1:] {
 		r, err := node.RunnerFor(beaconID)
@@ -304,14 +304,14 @@ func TestAbortedDKGCanRestart(t *testing.T) {
 	require.NoError(t, err)
 
 	// then start a resharing
-	err = leader.StartReshare(3, 1, []*dkg.Participant{newKey}, identities, nil)
+	err = leader.StartReshare(3, 15*time.Second, 1*time.Minute, []*dkg.Participant{newKey}, identities, nil)
 	require.NoError(t, err)
 	// but quickly abort it
 	err = leader.Abort()
 	require.NoError(t, err)
 
 	// now we try the same ceremony again
-	err = leader.StartReshare(3, 1, []*dkg.Participant{newKey}, identities, nil)
+	err = leader.StartReshare(3, 15*time.Second, 1*time.Minute, []*dkg.Participant{newKey}, identities, nil)
 	require.NoError(t, err)
 
 	for _, node := range nodes[1:] {
@@ -354,7 +354,7 @@ func TestFailedFirstEpochCanRecover(t *testing.T) {
 	// then we run the DKG
 	leader, err := nodes[0].RunnerFor(beaconID)
 	require.NoError(t, err)
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 	for _, node := range nodes[1:] {
 		r, err := node.RunnerFor(beaconID)
@@ -375,7 +375,7 @@ func TestFailedFirstEpochCanRecover(t *testing.T) {
 
 	// then we run the DKG again
 	require.NoError(t, err)
-	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
+	err = leader.StartNetwork(2, 30*time.Second, crypto.DefaultSchemeID, 1*time.Minute, 15*time.Second, identities)
 	require.NoError(t, err)
 	for _, node := range nodes[1:] {
 		r, err := node.RunnerFor(beaconID)

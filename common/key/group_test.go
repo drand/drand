@@ -18,8 +18,9 @@ import (
 
 func newIds(t *testing.T, n int) []*Node {
 	ids := make([]*Node, n)
+	sch, _ := crypto.GetSchemeFromEnv()
 	for i := 0; i < n; i++ {
-		key, err := NewKeyPair("127.0.0.1:3000", nil)
+		key, err := NewKeyPair("127.0.0.1:3000", sch)
 		require.NoError(t, err)
 
 		ids[i] = &Node{
@@ -43,9 +44,10 @@ func TestGroupProtobuf(t *testing.T) {
 	ids := newIds(t, n)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
+	beaconID := "test_beacon"
 
 	dpub := []kyber.Point{sch.KeyGroup.Point().Pick(random.New())}
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, beaconID)
 	group.Threshold = thr
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -114,8 +116,9 @@ func TestGroupUnsignedIdentities(t *testing.T) {
 	ids := newIds(t, 5)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
+	beaconID := "test_beacon"
 
-	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{sch.KeyGroup.Point()}}, 30*time.Second, 61, sch, "test_beacon")
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{sch.KeyGroup.Point()}}, 30*time.Second, 61, sch, beaconID)
 	require.Nil(t, group.UnsignedIdentities())
 
 	ids[0].Signature = nil
@@ -129,10 +132,11 @@ func TestGroupSaveLoad(t *testing.T) {
 	ids := newIds(t, n)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
+	beaconID := "test_beacon"
 
 	dpub := []kyber.Point{sch.KeyGroup.Point().Pick(random.New())}
 
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, beaconID)
 	group.Threshold = 3
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -173,9 +177,10 @@ func makeGroup(t *testing.T) *Group {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
+	beaconID := "test_beacon"
 
 	fakeKey := sch.KeyGroup.Point().Pick(random.New())
-	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, sch, "test_beacon")
+	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, sch, beaconID)
 	group.Threshold = MinimumT(0)
 	return group
 }
@@ -280,4 +285,90 @@ ID = "default"
 	require.NoError(t, err)
 	// even though there are 12 indexes, we expect the len to be 10 as some are missing
 	require.Equal(t, 8, g.Len())
+}
+
+func TestGroupTOML(t *testing.T) {
+	n := 5
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := "test_beacon"
+
+	// Use BatchIdentities with corrected arguments
+	_, group := BatchIdentities(t, n)
+	require.Equal(t, n, len(group.Nodes))
+	group.GenesisTime = time.Now().Unix()
+	group.Period = time.Second * 10
+	group.Scheme = sch
+	group.ID = beaconID
+
+	var buff bytes.Buffer
+	err = toml.NewEncoder(&buff).Encode(group.TOML())
+	require.NoError(t, err)
+
+	groupDecoded := new(Group)
+	_, err = toml.NewDecoder(&buff).Decode(groupDecoded.TOMLValue())
+	require.NoError(t, err)
+	err = groupDecoded.FromTOML(groupDecoded.TOMLValue())
+	require.NoError(t, err)
+	require.Equal(t, group.Period, groupDecoded.Period)
+	require.True(t, group.Equal(groupDecoded))
+
+	// Test with fractional period
+	fracPeriod := 1500 * time.Millisecond
+	// Use BatchIdentities with corrected arguments
+	_, gFrac := BatchIdentities(t, n)
+	gFrac.Period = fracPeriod
+	gFrac.GenesisTime = time.Now().Unix() + 1000
+	gFrac.Scheme = sch
+	gFrac.ID = beaconID
+
+	var fracBuff bytes.Buffer
+	err = toml.NewEncoder(&fracBuff).Encode(gFrac.TOML())
+	require.NoError(t, err)
+
+	gFracDecoded := new(Group)
+	_, err = toml.NewDecoder(&fracBuff).Decode(gFracDecoded.TOMLValue())
+	require.NoError(t, err)
+	err = gFracDecoded.FromTOML(gFracDecoded.TOMLValue())
+	require.NoError(t, err)
+
+	require.True(t, gFrac.Equal(gFracDecoded), "Fractional period TOML groups should be equal")
+	require.Equal(t, fracPeriod, gFracDecoded.Period, "Fractional period should decode correctly from TOML")
+}
+
+func TestGroupProto(t *testing.T) {
+	n := 5
+	sch, err := crypto.GetSchemeFromEnv()
+	require.NoError(t, err)
+	beaconID := "test_beacon"
+	v := common.NodeVersion{Major: 1, Minor: 0, Patch: 0}
+
+	// Use BatchIdentities with corrected arguments
+	_, group := BatchIdentities(t, n)
+	require.Equal(t, n, len(group.Nodes))
+	group.GenesisTime = time.Now().Unix()
+	group.Period = time.Second * 10
+	group.Scheme = sch
+	group.ID = beaconID
+
+	protoGroup := group.ToProto(v)
+	groupDecoded, err := GroupFromProto(protoGroup, nil)
+	require.NoError(t, err)
+	require.NotNil(t, groupDecoded)
+	require.True(t, group.Equal(groupDecoded))
+
+	// Test proto with fractional period
+	fracPeriodProto := 1500 * time.Millisecond
+	// Use BatchIdentities with corrected arguments
+	_, gFracProto := BatchIdentities(t, n)
+	gFracProto.Period = fracPeriodProto
+	gFracProto.GenesisTime = time.Now().Unix() + 1000
+	gFracProto.Scheme = sch
+	gFracProto.ID = beaconID
+
+	gFracProtoP := gFracProto.ToProto(v)
+	gFracProtoDecoded, err := GroupFromProto(gFracProtoP, nil)
+	require.NoError(t, err)
+	require.True(t, gFracProto.Equal(gFracProtoDecoded), "Fractional period Proto groups should be equal")
+	require.Equal(t, fracPeriodProto, gFracProtoDecoded.Period, "Fractional period should decode correctly from Proto")
 }

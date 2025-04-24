@@ -184,7 +184,8 @@ func TestMigrateOldGroupFile(t *testing.T) {
 	}
 
 	// then we actually do the reshare
-	require.NoError(t, runners[0].StartReshare(2, 1, nil, identities, nil))
+	reshareTimeout := 1 * time.Minute
+	require.NoError(t, runners[0].StartReshare(2, 1*time.Second, reshareTimeout, nil, identities, nil))
 	require.NoError(t, runners[1].Accept())
 	require.NoError(t, runners[2].Accept())
 	require.NoError(t, runners[0].StartExecution())
@@ -342,7 +343,8 @@ func TestLeaverNodeDownDoesntFailProposal(t *testing.T) {
 	}
 
 	// then we actually do the reshare without node 3
-	require.NoError(t, runners[0].StartReshare(2, 1, nil, remainers, []*dkgproto.Participant{leaver}))
+	reshareTimeoutLeaver := 1 * time.Minute
+	require.NoError(t, runners[0].StartReshare(2, 1*time.Second, reshareTimeoutLeaver, nil, remainers, []*dkgproto.Participant{leaver}))
 	require.NoError(t, runners[1].Accept())
 	require.NoError(t, runners[0].StartExecution())
 	require.NoError(t, runners[0].WaitForDKG(log.DefaultLogger(), 2, 60))
