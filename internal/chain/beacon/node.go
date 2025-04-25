@@ -120,12 +120,18 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
+//
+//nolint:funlen
 func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	ctx, span := tracer.NewSpan(ctx, "h.ProcessPartialBeacon")
 	defer span.End()
 
 	addr := net.RemoteAddress(ctx)
 	pRound := p.GetRound()
+	span.SetAttributes(
+		attribute.Int64("round", int64(pRound)),
+		attribute.String("addr", addr),
+	)
 	h.l.Debugw("Processing PartialBeacon", "from", addr, "round", pRound)
 
 	nextRound, _ := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -136,6 +142,8 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	// clock passed to the next round
 	if pRound > nextRound {
 		h.l.Errorw("ignoring future partial", "from", addr, "round", pRound, "current_round", currentRound)
+		span.RecordError(fmt.Errorf("ignoring future partial"))
+
 		return nil, fmt.Errorf("invalid round: %d instead of %d", pRound, currentRound)
 	}
 
@@ -143,6 +151,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	if latest, err := h.chain.Last(ctx); err == nil && pRound <= latest.GetRound() {
 		h.l.Debugw("ignoring past partial", "from", addr, "round", pRound, "current_round", currentRound, "latestStored", latest.GetRound())
 		span.RecordError(fmt.Errorf("invalid past partial"))
+
 		return new(proto.Empty), nil
 	}
 
@@ -154,12 +163,14 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	if err != nil {
 		span.RecordError(err)
 		h.l.Errorw("invalid index for partial", "from", addr, "err", err)
+
 		return nil, err
 	}
 	if idx < 0 {
 		err := fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 		span.RecordError(err)
 		h.l.Errorw("error", "err", err)
+
 		return nil, err
 	}
 
@@ -168,13 +179,16 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		err := fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
 		span.RecordError(err)
 		h.l.Errorw("error", "err", err)
+
 		return nil, err
 	}
 
 	nodeName := node.Address()
 	if nodeName == h.addr {
-		h.l.Warnw("received a partial with our own index", "partial", pRound, "from", addr)
-		return nil, fmt.Errorf("invalid self index %d in partial with msg %v partial_round %v", idx, msg, pRound)
+		h.l.Warnw("received a partial with our own address", "partial", pRound, "from", addr)
+		span.RecordError(fmt.Errorf("invalid own address in received partial"))
+
+		return nil, fmt.Errorf("invalid own index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 	}
 
 	// verify if request is valid
@@ -192,6 +206,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 			"from_idx", idx,
 			"from_node", nodeName)
 		span.RecordError(err)
+
 		return nil, err
 	}
 
@@ -215,6 +230,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		return new(proto.Empty), nil
 	}
 
+	span.AddEvent("h.chain.NewValidPartial")
 	h.chain.NewValidPartial(ctx, addr, p)
 	return new(proto.Empty), nil
 }

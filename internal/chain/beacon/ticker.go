@@ -65,7 +65,7 @@ func (t *ticker) Start() {
 		now := t.clock.Now().Unix()
 		_, ttime := common.NextRound(now, t.period, t.genesis)
 		if ttime > now {
-			t.clock.Sleep(time.Duration(ttime-now) * time.Second)
+			t.clock.Sleep(t.clock.Until(time.Unix(ttime, 0)))
 		}
 		// first tick happens at specified time
 		chanTime <- t.clock.Now()

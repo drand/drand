@@ -9,6 +9,7 @@ import (
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
@@ -159,10 +160,15 @@ func (d *discrepancyStore) Put(ctx context.Context, b *common.Beacon) error {
 	ctx, span := tracer.NewSpan(ctx, "discrepancyStore.Put")
 	defer span.End()
 
+	span.SetAttributes(
+		attribute.Int64("round", int64(b.Round)),
+	)
+
 	// When computing time_discrepancy, time.Now() should be obtained as close as
 	// possible to receiving the beacon, before any other storage layer interaction.
 	// When moved after store.Put(), the value will include the time it takes
 	// the storage layer to store the value, making it inaccurate.
+	span.AddEvent("discrepancyStore.Put - start")
 	actual := d.clock.Now()
 
 	if err := d.Store.Put(ctx, b); err != nil {
@@ -170,6 +176,7 @@ func (d *discrepancyStore) Put(ctx context.Context, b *common.Beacon) error {
 	}
 
 	storageTime := d.clock.Now()
+	span.AddEvent("discrepancyStore.Put - done")
 
 	expected := common.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual.UnixNano()-expected) / float64(time.Millisecond)
@@ -232,6 +239,7 @@ func (c *callbackStore) Put(ctx context.Context, b *common.Beacon) error {
 	if b.Round != 0 {
 		c.RLock()
 		defer c.RUnlock()
+		span.AddEvent("dispatching callbacks")
 		for id, cb := range c.callbacks {
 			j, ok := c.newJob[id]
 			if !ok {
@@ -243,6 +251,7 @@ func (c *callbackStore) Put(ctx context.Context, b *common.Beacon) error {
 				b:  b,
 			}
 		}
+		span.AddEvent("dispatching callbacks - done")
 	}
 	return nil
 }
