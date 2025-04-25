@@ -120,6 +120,8 @@ func NewHandler(ctx context.Context, c net.ProtocolClient, s chain.Store, conf *
 
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
+//
+//nolint:funlen
 func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	ctx, span := tracer.NewSpan(ctx, "h.ProcessPartialBeacon")
 	defer span.End()
