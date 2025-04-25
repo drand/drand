@@ -161,7 +161,7 @@ func (c *chainStore) runAggregator() {
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
 		case partial := <-c.newPartials:
-			ctx, span := tracer.NewSpanFromSpanContext(c.ctx, partial.spanContext, "c.runAggregator")
+			ctx, span := tracer.NewSpanFromSpanContext(c.ctx, partial.spanContext, "c.runAggregator.newPartials")
 
 			span.SetAttributes(
 				attribute.Int64("round", int64(partial.p.Round)),
@@ -197,6 +197,9 @@ func (c *chainStore) runAggregator() {
 			// check if we can reconstruct
 			if !shouldStore {
 				span.AddEvent("ignoring_partial")
+				span.SetAttributes(
+					attribute.Int64("round", int64(pRound)),
+					attribute.Int64("last_beacon_stored", int64(lastBeacon.Round)))
 				c.l.Debugw("", "ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
 				span.End()
 				break
@@ -221,6 +224,7 @@ func (c *chainStore) runAggregator() {
 			if err != nil {
 				c.l.Errorw("unable to append partial to cache", "from", partial.addr, "partial_round", partial.p.GetRound())
 				span.RecordError(err)
+				span.End()
 				break
 			}
 			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSignature())
@@ -239,14 +243,17 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
+			span.AddEvent("aggregating")
 			msg := c.crypto.DigestBeacon(roundCache)
 
 			finalSig, err := c.crypto.Scheme.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Errorw("invalid_recovery", "error", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				span.RecordError(errors.New("invalid recovery"))
+				span.End()
 				break
 			}
+			span.AddEvent("VerifyRecovered")
 			if err := c.crypto.Scheme.ThresholdScheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
 				c.l.Errorw("invalid_sig", "error", err, "round", pRound)
 				span.RecordError(errors.New("invalid signature"))
