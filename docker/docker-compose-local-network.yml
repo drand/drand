@@ -1,7 +1,6 @@
 services:
   drand_docker_demo_1:
     container_name: drand_docker_demo1
-    # image: ghcr.io/drand/go-drand-local:latest
     build:
       context: ..
       dockerfile: Dockerfile
@@ -18,7 +17,6 @@ services:
 
   drand_docker_demo_2:
     container_name: drand_docker_demo2
-    # image: ghcr.io/drand/go-drand-local:latest
     build:
       context: ..
       dockerfile: Dockerfile
@@ -35,7 +33,6 @@ services:
 
   drand_docker_demo_3:
     container_name: drand_docker_demo3
-    # image: ghcr.io/drand/go-drand-local:latest
     build:
       context: ..
       dockerfile: Dockerfile
