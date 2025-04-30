@@ -90,7 +90,7 @@ This setup differs from the standard network script by:
 2. Setting up a more complete DKG configuration with additional parameters:
    - Explicitly specifying all parameters for `generate-proposal` to ensure correct node addressing
    - Using an increased `genesis-delay` (60s instead of the default) to provide enough time for network initialization
-   - Setting additional parameters like `catchup-period` and `timeout` for better local testing
+   - Setting additional parameters like `catchup-period` and `timeout` for local testing
 3. Including a delay to ensure followers have time to join before executing the DKG
 
 To run the local test network:
