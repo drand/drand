@@ -376,6 +376,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		attribute.Int64("fromRound", int64(from)),
 		attribute.Int64("upToRound", int64(upTo)),
 		attribute.String("addr", peer.Address()),
+		attribute.String("beaconID", s.info.ID),
 	)
 
 	logger := s.log.Named("tryNode")
@@ -460,6 +461,10 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			beacon := protoToBeacon(beaconPacket)
 
+			span.SetAttributes(
+				attribute.Int64("round", int64(beacon.GetRound())),
+			)
+
 			// verify the signature validity
 			if err := s.scheme.VerifyBeacon(beacon, s.info.PublicKey); err != nil {
 				span.RecordError(errors.New("invalid beacon"))
@@ -468,6 +473,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return false
 			}
 
+			span.AddEvent("tryNode store.Put - start")
 			if isResync {
 				logger.Debugw("Resync Put: trying to save beacon", "beacon", beacon.Round)
 				if err := s.insecureStore.Put(cnode, beacon); err != nil {
@@ -490,6 +496,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 					return false
 				}
 			}
+			span.AddEvent("tryNode store.Put - success")
 
 			// we let know the sync manager that we received a beacon
 			s.newSyncedBeacon <- beacon
