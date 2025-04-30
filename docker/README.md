@@ -77,6 +77,35 @@ Additionally, you can easily set up a test network of three nodes by running [th
 It can be torn down and cleaned up by using the [./cleanup.sh shell script](./cleanup.sh).
 This manifest will spin up a network of three nodes and run an initial distributed key generation process, and they will start generating randomness beacons.
 
+## Running a local test network
+
+For local development and testing, you can use the [start-local-network.sh](./start-local-network.sh) script along with [docker-compose-local-network.yml](./docker-compose-local-network.yml) to run a local network of 3 nodes.
+
+> [!IMPORTANT]
+> The docker-compose-local-network.yml builds from source rather than using the prebuilt `ghcr.io/drand/go-drand-local` image. This is because the prebuilt image doesn't properly support the `conn_insecure` build tag needed for local development with multiple nodes communicating with each other. Instead, the compose file passes `buildTag: conn_insecure` as a build argument to ensure this flag is included.
+
+This setup differs from the standard network script by:
+
+1. Building with the `conn_insecure` tag to allow local node-to-node communication without TLS
+2. Setting up a more complete DKG configuration with additional parameters:
+   - Explicitly specifying all parameters for `generate-proposal` to ensure correct node addressing
+   - Using an increased `genesis-delay` (60s instead of the default) to provide enough time for network initialization
+   - Setting additional parameters like `catchup-period` and `timeout` for better local testing
+3. Including a delay to ensure followers have time to join before executing the DKG
+
+To run the local test network:
+
+```shell
+./start-local-network.sh
+```
+
+This will create a three-node network and automatically perform the distributed key generation. Once complete, you can access the public API endpoints at:
+- Node 1: http://127.0.0.1:9010
+- Node 2: http://127.0.0.1:9020
+- Node 3: http://127.0.0.1:9030
+
+For more details about drand commands and DKG operations, see the [drand CLI documentation](https://docs.drand.love/operator/drand-cli/#drand-dkg).
+
 ## Running with nginx
 Many LoE partners like to run a reverse proxy in front of their node to easily manage TLS termination, domain names and firewalling.
 In [docker-compose-nginx.yml](./docker-compose-nginx.yml) you can find a manifest for running a single drand docker container and an
