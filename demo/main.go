@@ -54,7 +54,7 @@ func main() {
 
 	nRound, n := 2, 6
 	thr, newThr := 4, 5
-	period := "3s"
+	period := "1s"
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		panic(err)

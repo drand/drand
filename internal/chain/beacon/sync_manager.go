@@ -135,8 +135,8 @@ func (s *SyncManager) Run() {
 		s.clock.Sleep(time.Second)
 	}
 	// tracks the time of the last round we successfully synced
-	lastRoundTime := 0
-	// the context being used by the current sync process
+	lastRoundTime := time.Unix(0, 0)
+	// the context being used by the current sync process, we're re-using the same variables, yes
 	ctx, cancel := context.WithCancel(s.ctx)
 	for {
 		select {
@@ -166,28 +166,31 @@ func (s *SyncManager) Run() {
 			// We always give a delay of a few periods since the one next to "now"
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
-			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
-			if ctx.Err() != nil || upperBound < int(s.clock.Now().Unix()) {
+			upperBound := lastRoundTime.Add(s.period * time.Duration(s.factor))
+			// either the previous sync was already canceled OR we haven't received a new block in a while
+			// -> time to start a new sync in both cases
+			if ctx.Err() != nil || time.Now().After(upperBound) {
 				s.log.Infow("canceling old sync as it took long")
 
-				span.End()
-				// either we are already canceled or we haven't received a new block in a while
-				// -> time to start a new sync in both cases
 				cancel()
+				// note how we use the uber-parent s.ctx context and not the one we just canceled, obviously.
 				ctx, cancel = context.WithCancel(s.ctx)
+
 				go func() {
 					if err := s.Sync(ctx, request); err != nil {
 						s.log.Errorw("sync was unsuccessful", "from", request.from, "to", request.upTo, "err", err)
 					} else {
 						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
-						// cancel is safe to call concurrently
-						cancel()
 					}
+					// cancel is safe to call concurrently, we're cancelling the ctx when Sync returns
+					cancel()
 				}()
+
+				span.End()
 			}
 		case <-s.newSyncedBeacon:
 			// just received a new beacon from sync, we keep track of this time
-			lastRoundTime = int(s.clock.Now().Unix())
+			lastRoundTime = s.clock.Now()
 		}
 	}
 }
@@ -431,6 +434,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		select {
 		case beaconPacket, ok := <-beaconCh:
 			cnode, span := tracer.NewSpan(cnode, "syncManager.tryNode.loop")
+			//ccnode, _ = context.WithTimeout(ccnode, s.period*time.Duration(s.factor))
 
 			if !ok {
 				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
@@ -627,6 +631,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 		if closed {
 			errChan <- ErrCallbackReplaced
+			store.RemoveCallback(id)
 			logger.Debugw("callback replaced", "err", ErrCallbackReplaced)
 			return
 		}

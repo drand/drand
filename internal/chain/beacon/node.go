@@ -535,7 +535,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			if err != nil {
 				h.thresholdMonitor.ReportFailure(beaconID, i.Address())
 				span.RecordError(err)
-				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
+				h.l.Errorw("error sending partial", "round", round, "to", i.Address(), "err", err)
 				return
 			}
 			metrics.SuccessfulPartial(beaconID, i.Address())

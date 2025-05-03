@@ -261,7 +261,7 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
 	if jobChan, exists := c.newJob[id]; exists {
-		c.l.Debugw("removing existing call back", "id", id, "reason", "to add a new one")
+		c.l.Debugw("removing existing call back", "id", id, "reason", "called AddCallback")
 		jobChan <- cbPair{
 			cb:    c.callbacks[id],
 			b:     nil,
@@ -274,6 +274,8 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.l.Debugw("adding callback", "id", id)
 
 	c.callbacks[id] = fn
+	// so, this is a risk of blocking when a lots of callbacks are added, because then each Put is trying to send
+	// jobs on all the callbacks, but we "only"
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
 	go c.runWorker(c.newJob[id])
 }

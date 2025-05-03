@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultPartialChanBuffer = 10
+	defaultPartialChanBuffer = 5
 	defaultNewBeaconBuffer   = 100
 )
 
