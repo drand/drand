@@ -108,12 +108,6 @@ func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, conf
 	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
 
-	// Clear the entropy source environment variable when the function returns
-	// This ensures it's not used in subsequent DKG executions unless explicitly set again
-	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
-		defer os.Unsetenv("DRAND_ENTROPY_SOURCE")
-	}
-
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
 		return err
