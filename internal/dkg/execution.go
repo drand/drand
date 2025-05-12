@@ -6,12 +6,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/entropy"
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
@@ -104,6 +107,12 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 func (d *Process) executeAndFinishDKG(ctx context.Context, beaconID string, config *dkg.Config) error {
 	ctx, span := tracer.NewSpan(ctx, "dkg.executeAndFinishDKG")
 	defer span.End()
+
+	// Clear the entropy source environment variable when the function returns
+	// This ensures it's not used in subsequent DKG executions unless explicitly set again
+	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
+		defer os.Unsetenv("DRAND_ENTROPY_SOURCE")
+	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
@@ -298,6 +307,13 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		oldThreshold = current.FinalGroup.Threshold
 	}
 
+	// Check if a custom entropy source is specified via environment variable
+	var reader io.Reader
+	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
+		d.log.Infow("Using custom entropy source from environment variable", "source", entropySource)
+		reader = entropy.NewScriptReader(entropySource)
+	}
+
 	suite := sch.KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
@@ -308,8 +324,8 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		OldThreshold:   oldThreshold,
 		Share:          nil,
 		Threshold:      int(current.Threshold),
-		Reader:         nil,
-		UserReaderOnly: false,
+		Reader:         reader,
+		UserReaderOnly: reader != nil, // Only use the user's reader if it's provided
 		FastSync:       true,
 		Nonce:          nonceFor(current),
 		Auth:           schnorr.NewScheme(suite),
@@ -333,6 +349,13 @@ func (d *Process) reshareDKGConfig(
 		return nil, err
 	}
 
+	// Check if a custom entropy source is specified via environment variable
+	var reader io.Reader
+	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
+		d.log.Infow("Using custom entropy source from environment variable", "source", entropySource)
+		reader = entropy.NewScriptReader(entropySource)
+	}
+
 	suite := keypair.Scheme().KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
@@ -343,8 +366,8 @@ func (d *Process) reshareDKGConfig(
 		Share:          &previous.KeyShare.DistKeyShare,
 		Threshold:      int(current.Threshold),
 		OldThreshold:   int(previous.Threshold),
-		Reader:         nil,
-		UserReaderOnly: false,
+		Reader:         reader,
+		UserReaderOnly: reader != nil, // Only use the user's reader if it's provided
 		FastSync:       true,
 		Nonce:          nonceFor(current),
 		Auth:           schnorr.NewScheme(suite),

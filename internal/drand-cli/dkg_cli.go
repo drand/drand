@@ -50,6 +50,7 @@ var dkgCommand = &cli.Command{
 				proposalFlag,
 				dkgTimeoutFlag,
 				genesisTimeFlag,
+				sourceFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
@@ -191,6 +192,12 @@ var dkgTimeoutFlag = &cli.StringFlag{
 	Value: "24h",
 }
 
+var sourceFlag = &cli.StringFlag{
+	Name:    "source",
+	Usage:   "Path to an executable file that will output random bytes to stdout when executed. This can be used to provide external entropy to the DKG process. The executable should output random bytes to stdout when called.",
+	EnvVars: []string{"DRAND_SOURCE"},
+}
+
 //nolint:dupl//not worth extracting a few lines
 func dkgInit(c *cli.Context, l log.Logger) error {
 	controlPort := withDefault(c.String(controlFlag.Name), core.DefaultControlPort)
@@ -200,6 +207,20 @@ func dkgInit(c *cli.Context, l log.Logger) error {
 	}
 
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
+
+	// Check if a custom randomness source is provided
+	if c.IsSet(sourceFlag.Name) {
+		sourcePath := c.String(sourceFlag.Name)
+		if sourcePath != "" {
+			l.Infow("Using custom entropy source", "source", sourcePath)
+
+			// Set the DRAND_ENTROPY_SOURCE environment variable
+			// This will be read by the dkg process when it initializes
+			if err := os.Setenv("DRAND_ENTROPY_SOURCE", sourcePath); err != nil {
+				return fmt.Errorf("failed to set entropy source environment variable: %w", err)
+			}
+		}
+	}
 
 	proposal, err := parseInitialProposal(c)
 	if err != nil {
@@ -287,7 +308,8 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 
 	genesisTime := time.Now().Add(c.Duration(genesisTimeFlag.Name))
 
-	return &drand.FirstProposalOptions{
+	// Create the proposal options
+	options := &drand.FirstProposalOptions{
 		Timeout:              timestamppb.New(timeout),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		PeriodSeconds:        uint32(period.Seconds()),
@@ -295,7 +317,9 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
 		GenesisTime:          timestamppb.New(genesisTime),
 		Joining:              proposalFile.Joining,
-	}, nil
+	}
+
+	return options, nil
 }
 
 func validateInitialProposal(proposalFile *ProposalFile) error {

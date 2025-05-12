@@ -40,6 +40,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
 - [Usage](#usage)
   - [Run Drand locally](#run-drand-locally)
   - [Create a Drand deployment](#create-a-drand-deployment)
+  - [Using Custom Entropy Source](#using-custom-entropy-source)
   - [Fetching Public Randomness](#fetching-public-randomness)
   - [Using HTTP endpoints](#using-http-endpoints)
   - [JavaScript client](#javascript-client)
@@ -171,6 +172,30 @@ through TLS by using a reverse-proxy to perform TLS termination.
 ### Create a Drand deployment
 
 Consult full instructions at [DEPLOYMENT](https://drand.love/operator/deploy/)
+
+### Using Custom Entropy Source
+
+When setting up a new drand network, you can provide additional entropy to the DKG process using the `--source` flag with the `dkg init` command:
+
+```bash
+drand dkg init --source /path/to/entropy/script [other flags...]
+```
+
+The `--source` flag specifies the path to an executable file that will output random bytes to stdout when executed. This can be used to add external entropy to the DKG process, making the randomness generation more robust.
+
+Example of a simple entropy script (e.g., `/path/to/entropy/script`):
+```bash
+#!/bin/bash
+# A simple script that reads from /dev/urandom
+head -c 32 /dev/urandom
+```
+
+Make sure the script is executable:
+```bash
+chmod +x /path/to/entropy/script
+```
+
+This feature is particularly useful for high-security deployments where you want to incorporate additional sources of randomness (like hardware random number generators, lava lamps, etc.) into the initial distributed key generation process.
 
 ### Fetching Public Randomness
 

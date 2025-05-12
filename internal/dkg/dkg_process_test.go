@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -562,4 +563,95 @@ func (p *stubbedDKGProcess) BroadcastDKG(
 
 func (p *stubbedDKGProcess) Close() {
 	// no-op
+}
+
+func TestDKGWithCustomEntropySource(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	// Create a temporary script file that outputs random bytes
+	scriptContent := `#!/bin/sh
+echo "customrandombytes"
+`
+	tmpFile, err := os.CreateTemp("", "test-entropy-*.sh")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write([]byte(scriptContent)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	// Make the script executable
+	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+		t.Fatalf("Failed to make script executable: %v", err)
+	}
+
+	// Set the environment variable to use our custom entropy source
+	originalValue := os.Getenv("DRAND_ENTROPY_SOURCE")
+	err = os.Setenv("DRAND_ENTROPY_SOURCE", tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to set entropy source environment variable: %v", err)
+	}
+	// Restore the original value when the test completes
+	defer func() {
+		if originalValue == "" {
+			os.Unsetenv("DRAND_ENTROPY_SOURCE")
+		} else {
+			os.Setenv("DRAND_ENTROPY_SOURCE", originalValue)
+		}
+	}()
+
+	beaconID := "default"
+	nodeCount := 3
+	mb := newMessageBus()
+
+	nodes := make([]*stubbedDKGProcess, nodeCount)
+	identities := make([]*dkg.Participant, nodeCount)
+	for i := 0; i < nodeCount; i++ {
+		stub, err := newStubbedDKGProcess(t, fmt.Sprintf("a:888%d", i), mb, beaconID)
+		require.NoError(t, err)
+		identity, err := util.PublicKeyAsParticipant(stub.key.Public)
+		require.NoError(t, err)
+
+		nodes[i] = stub
+		identities[i] = identity
+	}
+
+	// the leader kicks off a DKG
+	leaderNode := nodes[0]
+	leader, err := leaderNode.RunnerFor(beaconID)
+	require.NoError(t, err)
+	err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 2*time.Minute, 1, identities)
+	require.NoError(t, err)
+
+	// the nodes all join
+	for _, n := range nodes[1:] {
+		r, err := n.RunnerFor(beaconID)
+		require.NoError(t, err)
+		err = r.JoinDKG()
+		require.NoError(t, err)
+	}
+
+	// the leader kicks off execution
+	err = leader.StartExecution()
+	require.NoError(t, err)
+
+	// wait for the DKG to complete
+	err = leader.WaitForDKG(log.DefaultLogger(), 1, 30)
+	require.NoError(t, err)
+
+	// verify the DKG completed successfully
+	successfulStatus, err := leaderNode.DKGStatus(context.Background(), &dkg.DKGStatusRequest{BeaconID: beaconID})
+	require.NoError(t, err)
+	require.Equal(t, Complete.String(), Status(successfulStatus.Current.State).String())
+	require.Equal(t, Complete.String(), Status(successfulStatus.Complete.State).String())
+
+	// The test succeeds if we get here, because it means the DKG process completed
+	// successfully using our custom entropy source
 }
