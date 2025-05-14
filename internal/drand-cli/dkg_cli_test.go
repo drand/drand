@@ -68,26 +68,19 @@ func NewParticipant(name string) *drand.Participant {
 }
 
 func TestSourceFlag(t *testing.T) {
-	// Create a temporary script file that outputs random bytes
-	scriptContent := `#!/bin/sh
-echo "randomdata"
-`
-	tmpFile, err := os.CreateTemp("", "test-script-*.sh")
+	// Create a temporary file with random data
+	fileData := []byte("randomdata")
+	tmpFile, err := os.CreateTemp("", "test-entropy-*.dat")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.Write([]byte(scriptContent)); err != nil {
+	if _, err := tmpFile.Write(fileData); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		t.Fatalf("Failed to close temp file: %v", err)
-	}
-
-	// Make the script executable
-	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
-		t.Fatalf("Failed to make script executable: %v", err)
 	}
 
 	// Verify source flag exists and has the correct properties

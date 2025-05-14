@@ -304,8 +304,14 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 	// Check if a custom entropy source is specified via environment variable
 	var reader io.Reader
 	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
-		d.log.Infow("Using custom entropy source from environment variable", "source", entropySource)
-		reader = entropy.NewScriptReader(entropySource)
+		d.log.Infow("Using custom entropy source", "source", entropySource)
+		var err error
+		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
+		if err != nil {
+			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
+				"source", entropySource, "error", err)
+			reader = nil
+		}
 	}
 
 	suite := sch.KeyGroup.(dkg.Suite)
@@ -346,8 +352,14 @@ func (d *Process) reshareDKGConfig(
 	// Check if a custom entropy source is specified via environment variable
 	var reader io.Reader
 	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
-		d.log.Infow("Using custom entropy source from environment variable", "source", entropySource)
-		reader = entropy.NewScriptReader(entropySource)
+		d.log.Infow("Using custom entropy source", "source", entropySource)
+		var err error
+		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
+		if err != nil {
+			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
+				"source", entropySource, "error", err)
+			reader = nil
+		}
 	}
 
 	suite := keypair.Scheme().KeyGroup.(dkg.Suite)

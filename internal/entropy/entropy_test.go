@@ -2,11 +2,10 @@ package entropy
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/drand/drand/v2/common/log"
 )
 
 func TestGetRandomness32BytesDefault(t *testing.T) {
@@ -34,152 +33,87 @@ func TestNoDuplicatesDefault(t *testing.T) {
 	}
 }
 
-func TestEntropyRead(t *testing.T) {
-	file, err := os.Create("./veryrandom.sh")
-	require.NoError(t, err)
-
-	require.NoError(t, file.Chmod(0740))
-
-	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
-	require.NoError(t, err)
-
-	file.Close()
-	t.Cleanup(func() {
-		os.Remove("./veryrandom.sh")
-	})
-
-	execRand := "./veryrandom.sh"
-	entropyReader := NewScriptReader(execRand)
-	p := make([]byte, 32)
-	n, err := entropyReader.Read(p)
-	if err != nil || n != len(p) {
-		t.Fatal("read did not work")
-	}
-}
-
-func TestEntropyReadSmallExec(t *testing.T) {
-	file, err := os.Create("./veryrandom2.sh")
-	require.NoError(t, err)
-
-	require.NoError(t, file.Chmod(0740))
-
-	_, err = file.WriteString("#!/bin/sh\necho Hey")
-	require.NoError(t, err)
-
-	file.Close()
-	t.Cleanup(func() {
-		os.Remove("./veryrandom2.sh")
-	})
-
-	execRand := "./veryrandom2.sh"
-	entropyReader := NewScriptReader(execRand)
-	p := make([]byte, 32)
-	n, err := entropyReader.Read(p)
-	if err != nil || n != len(p) {
-		t.Fatal("read did not work", n, err)
-	}
-}
-
-func TestNewScriptReader(t *testing.T) {
-	// Create a temporary script file that outputs random bytes
-	scriptContent := `#!/bin/sh
-echo "randomdata"
-`
-	tmpFile, err := os.CreateTemp("", "test-script-*.sh")
+func TestFileReader(t *testing.T) {
+	// Create a temporary file with test data
+	testData := []byte("test random data for file reader")
+	tmpFile, err := os.CreateTemp("", "test-entropy-*.dat")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.Write([]byte(scriptContent)); err != nil {
+	if _, err := tmpFile.Write(testData); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		t.Fatalf("Failed to close temp file: %v", err)
 	}
 
-	// Make the script executable
-	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
-		t.Fatalf("Failed to make script executable: %v", err)
-	}
+	// Create a file reader with the temporary file
+	reader := NewFileReader(tmpFile.Name())
 
-	// Create a new script reader with the temporary script
-	reader := NewScriptReader(tmpFile.Name())
-
-	// Read from the script and verify the output
-	data := make([]byte, 10)
+	// Read from the file and verify the output
+	data := make([]byte, len(testData))
 	n, err := reader.Read(data)
-	if err != nil && err != io.EOF {
-		t.Fatalf("Failed to read from script reader: %v", err)
-	}
-
-	expectedData := []byte("randomdata\n")
-	if !bytes.Equal(data[:n], expectedData[:n]) {
-		t.Errorf("Expected data %q, got %q", expectedData[:n], data[:n])
-	}
-}
-
-func TestScriptReaderError(t *testing.T) {
-	// Test with a non-existent script
-	reader := NewScriptReader("/nonexistent/script/path")
-
-	data := make([]byte, 10)
-	_, err := reader.Read(data)
-	if err == nil {
-		t.Error("Expected error when reading from non-existent script, got nil")
-	}
-}
-
-func TestScriptReaderMultipleReads(t *testing.T) {
-	// Create a temporary script file that outputs random bytes
-	scriptContent := `#!/bin/sh
-echo "morethantenbytes"
-`
-	tmpFile, err := os.CreateTemp("", "test-script-*.sh")
 	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	if _, err := tmpFile.Write([]byte(scriptContent)); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
+		t.Fatalf("Failed to read from file reader: %v", err)
 	}
 
-	// Make the script executable
-	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
-		t.Fatalf("Failed to make script executable: %v", err)
+	if n != len(testData) {
+		t.Errorf("Expected to read %d bytes, got %d", len(testData), n)
 	}
 
-	// Create a new script reader
-	reader := NewScriptReader(tmpFile.Name())
+	if !bytes.Equal(data, testData) {
+		t.Errorf("Expected data %q, got %q", testData, data)
+	}
+}
 
-	// First read
-	data1 := make([]byte, 5)
-	n1, err := reader.Read(data1)
-	if err != nil && err != io.EOF {
-		t.Fatalf("Failed on first read: %v", err)
+func TestGetReaderFromSource(t *testing.T) {
+	// Create a regular file
+	regularData := []byte("regular file data")
+	regularFile, err := os.CreateTemp("", "test-regular-*.dat")
+	if err != nil {
+		t.Fatalf("Failed to create regular temp file: %v", err)
+	}
+	defer os.Remove(regularFile.Name())
+
+	if _, err := regularFile.Write(regularData); err != nil {
+		t.Fatalf("Failed to write to regular file: %v", err)
+	}
+	if err := regularFile.Close(); err != nil {
+		t.Fatalf("Failed to close regular file: %v", err)
 	}
 
-	// ScriptReader runs the script every time it's called,
-	// so we should get the beginning of the output each time
-	expectedData := []byte("morethantenbytes\n")
-	if !bytes.Equal(data1[:n1], expectedData[:n1]) {
-		t.Errorf("First read failed. Expected %q, got %q", expectedData[:n1], data1[:n1])
+	// Create a directory
+	tempDir, err := os.MkdirTemp("", "test-dir-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create a test logger
+	logger := log.DefaultLogger().Named("test")
+
+	// Test with regular file
+	reader, err := GetReaderFromSource(regularFile.Name(), logger)
+	if err != nil {
+		t.Fatalf("Failed to get reader for regular file: %v", err)
 	}
 
-	// Second read - should run the script again
-	data2 := make([]byte, 5)
-	n2, err := reader.Read(data2)
-	if err != nil && err != io.EOF {
-		t.Fatalf("Failed on second read: %v", err)
+	_, ok := reader.(*fileReader)
+	if !ok {
+		t.Errorf("Expected fileReader for regular file, got %T", reader)
 	}
 
-	// Each read should contain the same data, as the script is re-run each time
-	if !bytes.Equal(data1[:n1], data2[:n2]) {
-		t.Errorf("Expected same data for both reads. First read: %q, Second read: %q",
-			data1[:n1], data2[:n2])
+	// Test with directory (should fail)
+	_, err = GetReaderFromSource(tempDir, logger)
+	if err == nil {
+		t.Error("Expected error when using directory as source, got nil")
+	}
+
+	// Test with non-existent file
+	_, err = GetReaderFromSource("/nonexistent/file", logger)
+	if err == nil {
+		t.Error("Expected error when using non-existent file as source, got nil")
 	}
 }

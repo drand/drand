@@ -178,24 +178,17 @@ Consult full instructions at [DEPLOYMENT](https://drand.love/operator/deploy/)
 When setting up a new drand network, you can provide additional entropy to the DKG process using the `--source` flag with the `dkg init` command:
 
 ```bash
-drand dkg init --source /path/to/entropy/script [other flags...]
+drand dkg init --source /path/to/entropy/source [other flags...]
 ```
 
-The `--source` flag specifies the path to an executable file that will output random bytes to stdout when executed. This can be used to add external entropy to the DKG process, making the randomness generation more robust. Once set, this entropy source will be remembered for future DKG operations.
+The `--source` flag accepts regular files containing random bytes, such as `/dev/urandom`:
 
-Example of a simple entropy script (e.g., `/path/to/entropy/script`):
 ```bash
-#!/bin/bash
-# A simple script that reads from /dev/urandom
-head -c 32 /dev/urandom
+# Using /dev/urandom as an entropy source (recommended)
+drand dkg init --source /dev/urandom [other flags...]
 ```
 
-Make sure the script is executable:
-```bash
-chmod +x /path/to/entropy/script
-```
-
-This feature is particularly useful for high-security deployments where you want to incorporate additional sources of randomness (like hardware random number generators, lava lamps, etc.) into the distributed key generation process.
+You can use any file that contains random bytes. The DKG process will read bytes directly from this file.
 
 ### Fetching Public Randomness
 

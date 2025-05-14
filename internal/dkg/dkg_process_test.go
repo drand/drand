@@ -570,26 +570,19 @@ func TestDKGWithCustomEntropySource(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	// Create a temporary script file that outputs random bytes
-	scriptContent := `#!/bin/sh
-echo "customrandombytes"
-`
-	tmpFile, err := os.CreateTemp("", "test-entropy-*.sh")
+	// Create a temporary regular file with random data
+	fileData := []byte("randomdatafromfile123456789012345678901234567890")
+	tmpFile, err := os.CreateTemp("", "test-entropy-*.dat")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.Write([]byte(scriptContent)); err != nil {
+	if _, err := tmpFile.Write(fileData); err != nil {
 		t.Fatalf("Failed to write to temp file: %v", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		t.Fatalf("Failed to close temp file: %v", err)
-	}
-
-	// Make the script executable
-	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
-		t.Fatalf("Failed to make script executable: %v", err)
 	}
 
 	// Set the environment variable to use our custom entropy source
@@ -653,5 +646,5 @@ echo "customrandombytes"
 	require.Equal(t, Complete.String(), Status(successfulStatus.Complete.State).String())
 
 	// The test succeeds if we get here, because it means the DKG process completed
-	// successfully using our custom entropy source
+	// successfully using our custom file entropy source
 }
