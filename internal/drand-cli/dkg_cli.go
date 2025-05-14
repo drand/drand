@@ -194,7 +194,7 @@ var dkgTimeoutFlag = &cli.StringFlag{
 
 var sourceFlag = &cli.StringFlag{
 	Name:    "source",
-	Usage:   "Path to a file containing random bytes, such as /dev/urandom. This can be used to provide external entropy to the DKG process.",
+	Usage:   "Path to a file descriptor containing random bytes, such as /dev/urandom. Approximately 32 bytes will be sampled from this file descriptor during the DKG process to provide external entropy.",
 	EnvVars: []string{"DRAND_SOURCE"},
 }
 
