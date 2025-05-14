@@ -305,7 +305,6 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 	var reader io.Reader
 	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
 		d.log.Infow("Using custom entropy source", "source", entropySource)
-		var err error
 		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
 		if err != nil {
 			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
@@ -353,7 +352,6 @@ func (d *Process) reshareDKGConfig(
 	var reader io.Reader
 	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
 		d.log.Infow("Using custom entropy source", "source", entropySource)
-		var err error
 		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
 		if err != nil {
 			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
