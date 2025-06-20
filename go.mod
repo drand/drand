@@ -10,7 +10,7 @@ require (
 	github.com/briandowns/spinner v1.23.2
 	github.com/drand/kyber v1.3.1
 	github.com/drand/kyber-bls12381 v0.3.3
-	github.com/go-chi/chi/v5 v5.2.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/jedib0t/go-pretty/v6 v6.6.7
