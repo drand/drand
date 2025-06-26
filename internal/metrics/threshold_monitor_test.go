@@ -319,6 +319,8 @@ func (m *mockLogger) Named(s string) log.Logger {
 	panic("implement me")
 }
 
+func (m *mockLogger) Name() string { return "mockLogger" }
+
 func (m *mockLogger) AddCallerSkip(skip int) log.Logger {
 	panic("implement me")
 }

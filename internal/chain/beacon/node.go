@@ -279,7 +279,7 @@ func (h *Handler) Catchup(ctx context.Context) {
 	nRound, tTime := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
-	h.l.Infow("Launching Catchup", "upto", nRound)
+	h.l.Infow("Launching in catchup", "upto", nRound, "period", h.conf.Group.Period, "catchup_period", h.conf.Group.CatchupPeriod)
 	h.chain.RunSync(ctx, nRound, nil)
 }
 
@@ -428,10 +428,10 @@ func (h *Handler) run(startTime int64) {
 
 			h.l.Debugw("", "beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
 			if b.Round < current.round {
-				// When network is down, all alive nodes will broadcast their
+				// When the network is down, all living nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
-				// new beacon is created,i.e. network is up again, this channel
-				// will be triggered and we enter fast mode here.
+				// new beacon is created, i.e. network is up again, this channel
+				// will be triggered and we enter fast catchup mode here.
 				// Since that last node is late, nodes must now hurry up to do
 				// the next beacons in time -> we run the next beacon now
 				// already. If that next beacon is created soon after, this
@@ -535,7 +535,7 @@ func (h *Handler) broadcastNextPartial(ctx context.Context, current roundInfo, u
 			if err != nil {
 				h.thresholdMonitor.ReportFailure(beaconID, i.Address())
 				span.RecordError(err)
-				h.l.Errorw("error sending partial", "round", round, "err", err, "to", i.Address())
+				h.l.Errorw("error sending partial", "round", round, "to", i.Address(), "err", err)
 				return
 			}
 			metrics.SuccessfulPartial(beaconID, i.Address())

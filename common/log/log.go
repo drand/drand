@@ -32,6 +32,7 @@ type Logger interface {
 	Panicw(msg string, keyvals ...interface{})
 	With(args ...interface{}) Logger
 	Named(s string) Logger
+	Name() string
 	AddCallerSkip(skip int) Logger
 }
 
@@ -45,6 +46,10 @@ func (l *log) With(args ...interface{}) Logger {
 
 func (l *log) Named(s string) Logger {
 	return &log{l.SugaredLogger.Named(s)}
+}
+
+func (l *log) Name() string {
+	return l.SugaredLogger.Desugar().Name()
 }
 
 const (

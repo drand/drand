@@ -261,7 +261,7 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.Lock()
 	defer c.Unlock()
 	if jobChan, exists := c.newJob[id]; exists {
-		c.l.Debugw("removing existing call back", "id", id, "reason", "to add a new one")
+		c.l.Debugw("removing existing callback", "id", id, "reason", "called AddCallback")
 		jobChan <- cbPair{
 			cb:    c.callbacks[id],
 			b:     nil,
@@ -274,7 +274,16 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.l.Debugw("adding callback", "id", id)
 
 	c.callbacks[id] = fn
+	// so, this is a risk of blocking when a lots of callbacks are added, because then each Put is trying to send
+	// jobs on all the callbacks, but we "only" allow up to CallbackWorkerQueue
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
+
+	// Let us keep track of how many callbacks we have
+	// TODO: have the stores know their beacon name instead of using the logger name
+	loggerName := c.l.Name()
+	metrics.SyncCallbacks.WithLabelValues(loggerName).Set(float64(len(c.callbacks)))
+	metrics.SyncJobs.WithLabelValues(loggerName).Set(float64(len(c.newJob)))
+	// we run one go routine per callback
 	go c.runWorker(c.newJob[id])
 }
 
@@ -287,6 +296,12 @@ func (c *callbackStore) RemoveCallback(id string) {
 		close(c.newJob[id])
 		delete(c.newJob, id)
 	}
+
+	// Let us keep track of how many callbacks we have
+	// TODO: have the stores know their beacon name instead of using the logger name
+	loggerName := c.l.Name()
+	metrics.SyncCallbacks.WithLabelValues(loggerName).Set(float64(len(c.callbacks)))
+	metrics.SyncJobs.WithLabelValues(loggerName).Set(float64(len(c.newJob)))
 }
 
 func (c *callbackStore) Close() error {
