@@ -32,7 +32,7 @@ type CallbackStore interface {
 	RemoveCallback(id string)
 }
 
-// appendStore is a store that only appends new block with a round +1 from the
+// appendStore is a store that only appends new beacons with a round +1 from the
 // last block inserted and with the corresponding previous signature
 type appendStore struct {
 	chain.Store
@@ -274,8 +274,6 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.l.Debugw("adding callback", "id", id)
 
 	c.callbacks[id] = fn
-	// so, this is a risk of blocking when a lots of callbacks are added, because then each Put is trying to send
-	// jobs on all the callbacks, but we "only" allow up to CallbackWorkerQueue
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
 
 	// Let us keep track of how many callbacks we have

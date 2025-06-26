@@ -167,7 +167,7 @@ func (s *SyncManager) Run() {
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
 			upperBound := lastRoundTime.Add(s.period * time.Duration(s.factor))
-			// either the previous sync was already canceled OR we haven't received a new block in a while
+			// either the previous sync was already canceled OR we haven't received a new beacon in a while
 			// -> time to start a new sync in both cases
 			if ctx.Err() != nil || s.clock.Now().After(upperBound) {
 				s.log.Infow("canceling old sync as it took long")
