@@ -613,7 +613,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	// Register a callback to process all new incoming beacons until an error happens.
 	// The callback happens in a separate goroutine.
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	logger.Debugw("Attaching callback to store", "id", id)
 
 	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
