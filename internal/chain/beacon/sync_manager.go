@@ -182,7 +182,7 @@ func (s *SyncManager) Run() {
 					} else {
 						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
 					}
-					// cancel is safe to call concurrently, we're cancelling the ctx when Sync returns
+					// cancel is safe to call concurrently, we're canceling the ctx when Sync returns
 					cancel()
 				}()
 
