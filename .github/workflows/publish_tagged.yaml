@@ -43,7 +43,7 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
-            gitCommit: ${{ github.sha }}
+            gitCommit=${{ github.sha }}
 
       - name: Build and push tagged Docker image without TLS
         uses: docker/build-push-action@v5
@@ -52,5 +52,5 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:${{ github.ref_name }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-local:latest
           build-args: |
-            gitCommit: ${{ github.sha }}
-            buildTag: conn_insecure
+            gitCommit=${{ github.sha }}
+            buildTag=conn_insecure

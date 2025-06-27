@@ -245,8 +245,9 @@ func (c *ControlClient) StartCheckChain(cc context.Context,
 		return nil, nil, err
 	}
 
+	// using buffered channels to not block
 	outCh = make(chan *proto.SyncProgress, progressSyncQueue)
-	errCh = make(chan error)
+	errCh = make(chan error, progressSyncQueue)
 	go func() {
 		defer func() {
 			close(outCh)

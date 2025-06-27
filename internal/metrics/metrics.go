@@ -247,6 +247,22 @@ var (
 			"1 = Error occurred, 0 = No error occurred",
 	}, []string{"beaconID", "address"})
 
+	SyncCallbacks = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sync_total_callbacks",
+			Help: "The number of currently active callbacks",
+		},
+		[]string{"beacon_id"},
+	)
+
+	SyncJobs = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sync_total_jobs",
+			Help: "The number of currently active jobs",
+		},
+		[]string{"beacon_id"},
+	)
+
 	metricsBound sync.Once
 )
 
@@ -271,6 +287,7 @@ func bindMetrics(l log.Logger) {
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
 		drandBuildTime,
+		dkgEpoch,
 		dkgState,
 		dkgStateTimestamp,
 		dkgLeader,
@@ -282,6 +299,8 @@ func bindMetrics(l log.Logger) {
 		DrandStartTimestamp,
 		DrandStorageBackend,
 		ErrorSendingPartialCounter,
+		SyncCallbacks,
+		SyncJobs,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
