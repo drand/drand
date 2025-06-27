@@ -175,16 +175,16 @@ func (s *SyncManager) Run() {
 				cancel()
 				// note how we use the uber-parent s.ctx context and not the one we just canceled, obviously.
 				ctx, cancel = context.WithCancel(s.ctx)
-
-				go func() {
+				// CancelFunc as arg to avoid overwriting it
+				go func(innerCancel context.CancelFunc) {
 					if err := s.Sync(ctx, request); err != nil {
 						s.log.Errorw("sync was unsuccessful", "from", request.from, "to", request.upTo, "err", err)
 					} else {
 						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
 					}
-					// cancel is safe to call concurrently, we're canceling the ctx when Sync returns
-					cancel()
-				}()
+					// CancelFunc are safe to call concurrently, we're canceling the ctx when Sync returns
+					innerCancel()
+				}(cancel)
 
 				span.End()
 			}
