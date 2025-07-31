@@ -132,11 +132,11 @@ func NewRequestInfo(ctx context.Context, upTo uint64, nodes []net.Peer) RequestI
 func (s *SyncManager) Run() {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
-		s.clock.Sleep(time.Second)
+		s.clock.Sleep(s.clock.Until(time.Unix(s.info.GenesisTime, 0)))
 	}
 	// tracks the time of the last round we successfully synced
-	lastRoundTime := 0
-	// the context being used by the current sync process
+	lastRoundTime := time.Unix(0, 0)
+	// the context being used by the current sync process, we're re-using the same variables, yes
 	ctx, cancel := context.WithCancel(s.ctx)
 	for {
 		select {
@@ -166,28 +166,31 @@ func (s *SyncManager) Run() {
 			// We always give a delay of a few periods since the one next to "now"
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
-			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
-			if ctx.Err() != nil || upperBound < int(s.clock.Now().Unix()) {
+			upperBound := lastRoundTime.Add(s.period * time.Duration(s.factor))
+			// either the previous sync was already canceled OR we haven't received a new beacon in a while
+			// -> time to start a new sync in both cases
+			if ctx.Err() != nil || s.clock.Now().After(upperBound) {
 				s.log.Infow("canceling old sync as it took long")
 
-				span.End()
-				// either we are already canceled or we haven't received a new block in a while
-				// -> time to start a new sync in both cases
 				cancel()
+				// note how we use the uber-parent s.ctx context and not the one we just canceled, obviously.
 				ctx, cancel = context.WithCancel(s.ctx)
-				go func() {
+				// CancelFunc as arg to avoid overwriting it
+				go func(innerCancel context.CancelFunc) {
 					if err := s.Sync(ctx, request); err != nil {
 						s.log.Errorw("sync was unsuccessful", "from", request.from, "to", request.upTo, "err", err)
 					} else {
 						s.log.Infow("sync completed successfully", "from", request.from, "to", request.upTo)
-						// cancel is safe to call concurrently
-						cancel()
 					}
-				}()
+					// CancelFunc are safe to call concurrently, we're canceling the ctx when Sync returns
+					innerCancel()
+				}(cancel)
+
+				span.End()
 			}
 		case <-s.newSyncedBeacon:
 			// just received a new beacon from sync, we keep track of this time
-			lastRoundTime = int(s.clock.Now().Unix())
+			lastRoundTime = s.clock.Now()
 		}
 	}
 }
@@ -612,8 +615,8 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	// Register a callback to process all new incoming beacons until an error happens.
-	// The callback happens in a separate goroutine.
-	errChan := make(chan error)
+	// The callback happens in a separate goroutine. We use a buffered channel so that it never blocks!
+	errChan := make(chan error, 1)
 	logger.Debugw("Attaching callback to store", "id", id)
 
 	// AddCallback will replace the existing callback with the new one, making the old SyncChain call to return
@@ -643,7 +646,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		store.RemoveCallback(id)
 		return ctx.Err()
 	case err := <-errChan:
-		// the send will remove itself upon error
+		// the send will remove itself upon error, the channel will be GCed
 		return err
 	}
 }
