@@ -161,6 +161,27 @@ operations and will continue to print out new randomness every Xs (currently
 6s).
 For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
 
+#### Quick Start with Docker
+
+For a faster setup, you can use Docker to run a local network:
+
+```bash
+cd docker
+./start-network.sh
+```
+
+This will create a 3-node drand network and automatically perform the DKG setup.
+The network will be accessible at:
+- Node 1: http://127.0.0.1:9010
+- Node 2: http://127.0.0.1:9020  
+- Node 3: http://127.0.0.1:9030
+
+To stop the network:
+```bash
+cd docker
+./cleanup.sh
+```
+
 
 A drand beacon provides several public services to clients. A drand node
 exposes its public services on a gRPC endpoint as well as a REST JSON endpoint,

@@ -1,0 +1,39 @@
+[Unit]
+Description=Drand - Distributed Randomness Beacon Daemon
+Documentation=https://drand.love/docs/
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=drand
+Group=drand
+WorkingDirectory=/var/lib/drand
+ExecStart=/usr/local/bin/drand start --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:9080
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=drand
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/drand
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# Network settings
+PrivateNetwork=false
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
