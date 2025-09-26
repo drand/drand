@@ -16,9 +16,7 @@ DRAND_LOG_LEVEL=info
 DRAND_VERBOSE=false
 
 # Network configuration
-DRAND_TLS_DISABLED=false
-DRAND_CERT_PATH=/etc/drand/tls.crt
-DRAND_KEY_PATH=/etc/drand/tls.key
+# TLS is not configured here. Drand expects TLS termination to be handled by a reverse proxy in front of this service.
 
 # Metrics configuration (optional)
 # DRAND_METRICS_PORT=9090
