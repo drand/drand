@@ -1,8 +1,8 @@
 [Unit]
 Description=Drand - Distributed Randomness Beacon Daemon
 Documentation=https://drand.love/docs/
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
