@@ -32,7 +32,11 @@ ProtectControlGroups=true
 PrivateNetwork=false
 
 # Resource limits
-LimitNOFILE=65536
+# Note: tune open file limits according to your deployment profile.
+# - Beacon-only nodes typically need lower limits.
+# - High-traffic relays may require significantly higher limits.
+# Uncomment and set an appropriate value for your environment.
+# LimitNOFILE=65536
 MemoryMax=512M
 
 [Install]
