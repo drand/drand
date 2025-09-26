@@ -11,11 +11,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if running as root
+# Determine privilege helper
 if [[ $EUID -eq 0 ]]; then
-   echo -e "${RED}This script should not be run as root${NC}"
-   echo "Please run as a regular user with sudo privileges"
-   exit 1
+    SUDO=""
+else
+    SUDO="sudo"
 fi
 
 # Check if systemd is available
@@ -33,28 +33,28 @@ fi
 # Create drand user if it doesn't exist
 if ! id "drand" &>/dev/null; then
     echo -e "${GREEN}Creating drand user...${NC}"
-    sudo useradd --system --home /var/lib/drand --shell /bin/false drand
+    ${SUDO} useradd --system --home /var/lib/drand --shell /bin/false drand
 fi
 
 # Create drand directories
 echo -e "${GREEN}Creating drand directories...${NC}"
-sudo mkdir -p /var/lib/drand
-sudo mkdir -p /etc/drand
-sudo chown drand:drand /var/lib/drand
-sudo chmod 755 /var/lib/drand
+${SUDO} mkdir -p /var/lib/drand
+${SUDO} mkdir -p /etc/drand
+${SUDO} chown drand:drand /var/lib/drand
+${SUDO} chmod 755 /var/lib/drand
 
 # Install systemd service file
 echo -e "${GREEN}Installing systemd service file...${NC}"
-sudo cp contrib/systemd/drand.service /etc/systemd/system/
-sudo chmod 644 /etc/systemd/system/drand.service
+${SUDO} cp contrib/systemd/drand.service /etc/systemd/system/
+${SUDO} chmod 644 /etc/systemd/system/drand.service
 
 # Reload systemd
 echo -e "${GREEN}Reloading systemd daemon...${NC}"
-sudo systemctl daemon-reload
+${SUDO} systemctl daemon-reload
 
 # Enable the service (but don't start it yet)
 echo -e "${GREEN}Enabling drand service...${NC}"
-sudo systemctl enable drand
+${SUDO} systemctl enable drand
 
 echo -e "${GREEN}Installation complete!${NC}"
 echo ""
