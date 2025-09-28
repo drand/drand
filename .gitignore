@@ -30,3 +30,8 @@ TODO.md
 *.dsc
 *.tar.gz
 *.tar.xz
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/drand/
+debian/files
