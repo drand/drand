@@ -20,6 +20,7 @@ docker run --rm \
     export GOROOT=/usr/local/go && \
     export GOOS=linux && \
     export GOARCH=arm64 && \
+    # Change GOARCH to amd64 for x86_64 Linux systems && \
     export CGO_ENABLED=0 && \
     dpkg-buildpackage -us -uc -b && \
     # Copy generated files to workspace root
