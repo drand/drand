@@ -139,9 +139,9 @@ func (d *DBState) Equals(e *DBState) bool {
 		d.Epoch == e.Epoch &&
 		d.State == e.State &&
 		d.Threshold == e.Threshold &&
-		d.Timeout == e.Timeout &&
+		d.Timeout.Unix() == e.Timeout.Unix() &&
 		d.SchemeID == e.SchemeID &&
-		d.GenesisTime == e.GenesisTime &&
+		d.GenesisTime.Unix() == e.GenesisTime.Unix() &&
 		bytes.Equal(d.GenesisSeed, e.GenesisSeed) &&
 		d.CatchupPeriod == e.CatchupPeriod &&
 		d.BeaconPeriod == e.BeaconPeriod &&
@@ -200,7 +200,7 @@ func (d *DBState) TOML() DBStateTOML {
 		Threshold:     d.Threshold,
 		Timeout:       d.Timeout,
 		SchemeID:      d.SchemeID,
-		GenesisTime:   d.GenesisTime,
+		GenesisTime:   d.GenesisTime.UTC(),
 		GenesisSeed:   d.GenesisSeed,
 		CatchupPeriod: d.CatchupPeriod,
 		BeaconPeriod:  d.BeaconPeriod,
@@ -246,7 +246,7 @@ func (d *DBStateTOML) FromTOML() (*DBState, error) {
 		Threshold:     d.Threshold,
 		Timeout:       d.Timeout,
 		SchemeID:      d.SchemeID,
-		GenesisTime:   d.GenesisTime,
+		GenesisTime:   d.GenesisTime.UTC(),
 		GenesisSeed:   d.GenesisSeed,
 		CatchupPeriod: d.CatchupPeriod,
 		BeaconPeriod:  d.BeaconPeriod,
