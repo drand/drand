@@ -839,7 +839,7 @@ func validateReshareTerms(currentState *DBState, terms *drand.ProposalTerms) err
 }
 
 func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTerms) error {
-	if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
+	if terms.GenesisTime.AsTime().Unix() != currentState.GenesisTime.Unix() {
 		return fmt.Errorf("%w: %d != %d",
 			ErrGenesisTimeNotEqual,
 			terms.GenesisTime.AsTime().Unix(),
