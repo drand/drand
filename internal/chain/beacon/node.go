@@ -155,10 +155,7 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		return new(proto.Empty), nil
 	}
 
-	span.AddEvent("h.crypto.DigestBeacon")
-	msg := h.crypto.DigestBeacon(&common.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
-	span.AddEvent("h.crypto.DigestBeacon - done")
-
+	// Extract index from partial signature first (cheap operation)
 	idx, err := h.crypto.ThresholdScheme.IndexOf(p.GetPartialSig())
 	if err != nil {
 		span.RecordError(err)
@@ -167,13 +164,14 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 		return nil, err
 	}
 	if idx < 0 {
-		err := fmt.Errorf("invalid index %d in partial with msg %v partial_round %v", idx, msg, pRound)
+		err := fmt.Errorf("invalid index %d in partial for round %v", idx, pRound)
 		span.RecordError(err)
 		h.l.Errorw("error", "err", err)
 
 		return nil, err
 	}
 
+	// Check if node is in group file before any expensive operations
 	node := h.crypto.GetGroup().Node(uint32(idx))
 	if node == nil {
 		err := fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
@@ -182,6 +180,10 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 
 		return nil, err
 	}
+
+	span.AddEvent("h.crypto.DigestBeacon")
+	msg := h.crypto.DigestBeacon(&common.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
+	span.AddEvent("h.crypto.DigestBeacon - done")
 
 	nodeName := node.Address()
 	if nodeName == h.addr {
