@@ -30,11 +30,12 @@ func TestChainInfo(t *testing.T) {
 	require.NotNil(t, h1)
 
 	fake := &key.Group{
-		Period:      g1.Period,
-		GenesisTime: g1.GenesisTime,
-		PublicKey:   g1.PublicKey,
-		Scheme:      g1.Scheme,
-		ID:          beaconID,
+		Period:        g1.Period,
+		GenesisTime:   g1.GenesisTime,
+		PublicKey:     g1.PublicKey,
+		Scheme:        g1.Scheme,
+		ID:            beaconID,
+		CatchupPeriod: g1.CatchupPeriod,
 	}
 
 	c12 := NewChainInfo(fake)
@@ -86,26 +87,36 @@ func TestChainInfo(t *testing.T) {
 	_, err = InfoFromJSON(&c3Buff)
 	require.ErrorContains(t, err, "invalid scheme")
 
-	// test with invalid public key
-	data := c2Buff.Bytes()
-	// changing 7 bytes to have negligible chances of falling on a valid point
-	data[17] = 0x41
-	data[18] = 0x41
-	data[19] = 0x41
-	data[20] = 0x41
-	data[21] = 0x41
-	data[22] = 0x41
-	data[23] = 0x41
-	_, err = InfoFromJSON(bytes.NewReader(data))
-	if !strings.Contains(err.Error(), "point is not on") && !strings.Contains(err.Error(), "malformed point") {
-		t.Error("Invalid public key interpreted as valid")
+	// test with invalid public key (mutate JSON public_key deterministically)
+	var obj map[string]any
+	err = json.Unmarshal(c2Buff.Bytes(), &obj)
+	require.NoError(t, err)
+	pkStr, ok := obj["public_key"].(string)
+	require.True(t, ok)
+	// Replace the key with an all-zero byte string of the same length (invalid point)
+	if len(pkStr)%2 == 1 {
+		pkStr = pkStr[:len(pkStr)-1]
 	}
+	pkStr = strings.Repeat("00", len(pkStr)/2)
+	obj["public_key"] = pkStr
+	tampered, err := json.Marshal(obj)
+	require.NoError(t, err)
+	_, err = InfoFromJSON(bytes.NewReader(tampered))
+	require.Error(t, err)
 
 	// testing ToProto
 	packet := c1.ToProto(&drand.Metadata{
 		BeaconID: "differentfrom" + beaconID,
 	})
 	require.Equal(t, beaconID, packet.Metadata.BeaconID)
+	// verify catchup period is present in JSON
+	var jsonBuf bytes.Buffer
+	err = c1.ToJSON(&jsonBuf, nil)
+	require.NoError(t, err)
+	var jsonMap map[string]any
+	err = json.Unmarshal(jsonBuf.Bytes(), &jsonMap)
+	require.NoError(t, err)
+	require.EqualValues(t, uint32(g1.CatchupPeriod.Seconds()), jsonMap["catchup_period_seconds"])
 }
 
 func TestJsonFromRelay(t *testing.T) {

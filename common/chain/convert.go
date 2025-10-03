@@ -72,5 +72,16 @@ func InfoFromJSON(buff io.Reader) (*Info, error) {
 // ToJSON provides a json serialization of an info packet
 func (i *Info) ToJSON(w io.Writer, metadata *drand.Metadata) error {
 	info := i.ToProto(metadata)
-	return json.NewEncoder(w).Encode(info)
+	// Marshal proto to JSON first (ensures existing fields/encodings are preserved)
+	b, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+	// Unmarshal into a generic map to inject extra fields
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	}
+	m["catchup_period_seconds"] = uint32(i.CatchupPeriod.Seconds())
+	return json.NewEncoder(w).Encode(m)
 }

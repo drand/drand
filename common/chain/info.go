@@ -25,17 +25,20 @@ type Info struct {
 	Scheme      string        `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
 	GenesisSeed []byte        `json:"group_hash"`
+	// CatchupPeriod is the node sleep delay during catchup mode
+	CatchupPeriod time.Duration `json:"-"`
 }
 
 // NewChainInfo makes a chain Info from a group.
 func NewChainInfo(g *key.Group) *Info {
 	return &Info{
-		ID:          g.ID,
-		Period:      g.Period,
-		Scheme:      g.Scheme.Name,
-		PublicKey:   g.PublicKey.Key(),
-		GenesisTime: g.GenesisTime,
-		GenesisSeed: g.GetGenesisSeed(),
+		ID:            g.ID,
+		Period:        g.Period,
+		Scheme:        g.Scheme.Name,
+		PublicKey:     g.PublicKey.Key(),
+		GenesisTime:   g.GenesisTime,
+		GenesisSeed:   g.GetGenesisSeed(),
+		CatchupPeriod: g.CatchupPeriod,
 	}
 }
 
