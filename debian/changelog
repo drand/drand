@@ -1,0 +1,8 @@
+drand (2.0.1-1) unstable; urgency=medium
+
+  * Initial Debian package release
+  * Includes systemd service integration
+  * Provides drand daemon and configuration files
+
+ -- Drand Team <team@drand.love>  Mon, 01 Jan 2024 12:00:00 +0000
+

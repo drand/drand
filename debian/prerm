@@ -1,0 +1,20 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # Stop the service if it's running
+        if systemctl is-active --quiet drand; then
+            systemctl stop drand
+        fi
+        
+        # Disable the service
+        if systemctl is-enabled --quiet drand; then
+            systemctl disable drand
+        fi
+        ;;
+esac
+
+exit 0
+

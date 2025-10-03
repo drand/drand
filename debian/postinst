@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        # Create drand user if it doesn't exist
+        if ! id "drand" &>/dev/null; then
+            useradd --system --home /var/lib/drand --shell /bin/false drand
+        fi
+        
+        # Create drand directories
+        mkdir -p /var/lib/drand
+        mkdir -p /etc/drand
+        chown drand:drand /var/lib/drand
+        chmod 755 /var/lib/drand
+        
+        # Copy example config if no config exists
+        if [ ! -f /etc/drand/drand.conf ]; then
+            cp /etc/drand/drand.conf.example /etc/drand/drand.conf
+            chown drand:drand /etc/drand/drand.conf
+            chmod 644 /etc/drand/drand.conf
+        fi
+        
+        # Reload systemd (if available)
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl daemon-reload
+        fi
+        
+        echo "Drand installed successfully!"
+        echo "Configuration file: /etc/drand/drand.conf"
+        echo "To start the service: systemctl start drand"
+        echo "To enable on boot: systemctl enable drand"
+        ;;
+esac
+
+exit 0
+
