@@ -2,6 +2,7 @@
 package dkg
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -363,7 +364,7 @@ func TestProposalValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			result := ValidateProposal(test.state, test.terms)
-			require.Equal(t, test.expected, result, "expected %s, got %s", test.expected, result)
+			require.True(t, errors.Is(result, test.expected), "expected %s, got %s", test.expected, result)
 		})
 	}
 }

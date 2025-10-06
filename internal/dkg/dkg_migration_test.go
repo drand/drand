@@ -51,7 +51,7 @@ func TestStateAlreadyInDBForBeaconIDFails(t *testing.T) {
 	require.NoError(t, err)
 
 	// save an existing state in it
-	now := time.Now()
+	now := time.Now().UTC()
 	err = store.SaveFinished(beaconID, &DBState{
 		BeaconID:      beaconID,
 		Epoch:         1,
@@ -87,7 +87,7 @@ func TestStateInDBForDifferentBeaconIDDoesntFail(t *testing.T) {
 	require.NoError(t, err)
 
 	// save an existing state but for a different beacon ID
-	now := time.Now()
+	now := time.Now().UTC()
 	err = store.SaveFinished(aDifferentBeaconID, &DBState{
 		BeaconID:      aDifferentBeaconID,
 		Epoch:         1,
