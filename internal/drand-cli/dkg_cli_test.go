@@ -2,6 +2,7 @@ package drand
 
 import (
 	"encoding/hex"
+	"os"
 	"testing"
 	"time"
 
@@ -64,4 +65,40 @@ func NewParticipant(name string) *drand.Participant {
 		Address: name,
 		Key:     pk,
 	}
+}
+
+func TestSourceFlag(t *testing.T) {
+	// Create a temporary file with random data
+	fileData := []byte("randomdata")
+	tmpFile, err := os.CreateTemp("", "test-entropy-*.dat")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(fileData); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	// Verify source flag exists and has the correct properties
+	require.Equal(t, "source", sourceFlag.Name)
+	require.Contains(t, sourceFlag.Usage, "provide external entropy")
+	require.Contains(t, sourceFlag.EnvVars, "DRAND_SOURCE")
+
+	// Verify the source flag is included in the dkg init command
+	found := false
+	for _, subcmd := range dkgCommand.Subcommands {
+		if subcmd.Name == "init" {
+			for _, flag := range subcmd.Flags {
+				if flag.Names()[0] == sourceFlag.Name {
+					found = true
+					break
+				}
+			}
+		}
+	}
+	require.True(t, found, "source flag should be included in dkg init command flags")
 }

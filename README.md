@@ -40,6 +40,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
 - [Usage](#usage)
   - [Run Drand locally](#run-drand-locally)
   - [Create a Drand deployment](#create-a-drand-deployment)
+  - [Using Custom Entropy Source](#using-custom-entropy-source)
   - [Fetching Public Randomness](#fetching-public-randomness)
   - [Using HTTP endpoints](#using-http-endpoints)
   - [JavaScript client](#javascript-client)
@@ -171,6 +172,23 @@ through TLS by using a reverse-proxy to perform TLS termination.
 ### Create a Drand deployment
 
 Consult full instructions at [DEPLOYMENT](https://drand.love/operator/deploy/)
+
+### Using Custom Entropy Source
+
+When setting up a new drand network, you can provide additional entropy to the DKG process using the `--source` flag with the `dkg init` command:
+
+```bash
+drand dkg init --source /path/to/entropy/source [other flags...]
+```
+
+The `--source` flag accepts regular files containing random bytes, such as `/dev/urandom`:
+
+```bash
+# Using /dev/urandom as an entropy source (recommended)
+drand dkg init --source /dev/urandom [other flags...]
+```
+
+You can use any file that contains random bytes. The DKG process will read bytes directly from this file.
 
 ### Fetching Public Randomness
 
