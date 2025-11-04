@@ -539,7 +539,7 @@ func (h *DrandHandler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
+	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0).UTC(), bytes.NewReader(chainBuff.Bytes()))
 }
 
 func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {

@@ -438,11 +438,10 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		if addr == bp.priv.Public.Address() {
 			continue
 		}
-		// TODO add TLS disable later
 		peers = append(peers, net.CreatePeer(addr))
 	}
 
-	logger.Debugw("validate_and_sync", "up_to", req.UpTo)
+	logger.Debugw("validate_and_sync", "up_to", req.UpTo, "peers", peers)
 	faultyBeacons, err := bp.beacon.ValidateChain(ctx, req.UpTo, cb)
 	if err != nil {
 		return err
