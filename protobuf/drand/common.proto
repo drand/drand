@@ -121,4 +121,6 @@ message ChainInfoPacket {
     // indicates a set of values the process will use to act in specific ways
     string schemeID = 6;
     Metadata metadata = 7;
+    // catchup_period_seconds indicates the node's sleep delay during catchup, in seconds
+    uint32 catchup_period_seconds = 8;
 }
