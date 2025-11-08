@@ -122,3 +122,43 @@ jobs:
           SCHEME_ID: ${{ matrix.scheme_id }}
           CI: "true"
       - run: bash <(curl -s https://codecov.io/bash)
+
+  test-endianness-interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: false
+    name: Test Endianness Interoperability
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install QEMU and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support
+      - name: Set up Go for s390x (big-endian)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.8'
+      - name: Run endianness tests on s390x (big-endian) via QEMU
+        run: |
+          # Install Go for s390x architecture
+          docker run --rm --platform linux/s390x \
+            -v $PWD:/workspace \
+            -w /workspace \
+            -e DRAND_TEST_LOGS=INFO \
+            -e CI=true \
+            golang:1.23.8 \
+            bash -c "
+              go get -v -t -d ./test/...
+              go test ./test -v -run 'TestBigEndian|TestEndianness|TestCrossEndianness'
+            "
+      - name: Run endianness tests locally (little-endian)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.8'
+        env:
+          DRAND_TEST_LOGS: "INFO"
+          CI: "true"
+        run: |
+          go get -v -t -d ./test/...
+          go test ./test -v -run "TestBigEndian|TestEndianness|TestCrossEndianness"
