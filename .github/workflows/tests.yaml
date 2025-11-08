@@ -135,13 +135,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static binfmt-support
-      - name: Set up Go for s390x (big-endian)
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23.8'
       - name: Run endianness tests on s390x (big-endian) via QEMU
         run: |
-          # Install Go for s390x architecture
           docker run --rm --platform linux/s390x \
             -v $PWD:/workspace \
             -w /workspace \
@@ -152,10 +147,11 @@ jobs:
               go get -v -t -d ./test/...
               go test ./test -v -run 'TestBigEndian|TestEndianness|TestCrossEndianness'
             "
-      - name: Run endianness tests locally (little-endian)
+      - name: Set up Go for local tests
         uses: actions/setup-go@v5
         with:
           go-version: '1.23.8'
+      - name: Run endianness tests locally (little-endian)
         env:
           DRAND_TEST_LOGS: "INFO"
           CI: "true"
