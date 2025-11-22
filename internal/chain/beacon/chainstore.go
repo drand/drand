@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/drand/drand/v2/common/tracer"
 
@@ -112,10 +113,8 @@ func newChainStore(ctx context.Context, l log.Logger, cf *Config, cl net.Protoco
 		}
 		cs.beaconStoredAgg <- b
 	})
-	// TODO maybe look if it's worth having multiple workers there
-	go func() {
-		cs.runAggregator()
-	}()
+	// Start the aggregator with restart logic
+	cs.startAggregator()
 	return cs, nil
 }
 
@@ -133,6 +132,59 @@ func (c *chainStore) Stop() {
 	c.syncm.Stop()
 	c.RemoveCallback("chainstore")
 	_ = c.CallbackStore.Close()
+}
+
+// startAggregator starts the aggregator goroutine with automatic restart logic.
+// It ensures the beacon is initialized before starting and will restart the aggregator
+// on recoverable errors, but respects graceful shutdown via context cancellation.
+func (c *chainStore) startAggregator() {
+	go func() {
+		restartDelay := 1 * time.Second
+		maxRestartDelay := 30 * time.Second
+
+		for {
+			select {
+			case <-c.ctx.Done():
+				c.l.Debugw("stopping aggregator due to context cancellation")
+				return
+			default:
+			}
+
+			group := c.crypto.GetGroup()
+			if group == nil {
+				c.l.Debugw("aggregator not started: beacon not initialized (no group)")
+				select {
+				case <-c.ctx.Done():
+					return
+				case <-time.After(1 * time.Second):
+					continue
+				}
+			}
+
+			c.l.Debugw("starting chain aggregator")
+			restartDelay = 1 * time.Second
+			c.runAggregator()
+
+			select {
+			case <-c.ctx.Done():
+				c.l.Debugw("aggregator stopped due to context cancellation, not restarting")
+				return
+			default:
+				c.l.Warnw("aggregator stopped unexpectedly, will restart after delay", "delay", restartDelay)
+				select {
+				case <-c.ctx.Done():
+					return
+				case <-time.After(restartDelay):
+					if restartDelay*2 < maxRestartDelay {
+						restartDelay = restartDelay * 2
+					} else {
+						restartDelay = maxRestartDelay
+					}
+					c.l.Infow("restarting aggregator", "next_restart_delay", restartDelay)
+				}
+			}
+		}
+	}()
 }
 
 // we store partials that are up to this amount of rounds more than the last
@@ -179,12 +231,18 @@ func (c *chainStore) runAggregator() {
 						return
 					}
 					if strings.Contains(err.Error(), "sql: database is closed") {
-						c.l.Errorw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+						c.l.Warnw("database closed, aggregator will restart", "loading", "last_beacon", "err", err)
 						span.End()
 						return
 					}
 					span.End()
-					c.l.Fatalw("stopping chain_aggregator", "loading", "last_beacon", "err", err)
+					c.l.Errorw("error loading last beacon, will retry", "loading", "last_beacon", "err", err)
+					select {
+					case <-c.ctx.Done():
+						return
+					case <-time.After(1 * time.Second):
+						continue
+					}
 				}
 			}
 
