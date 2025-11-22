@@ -60,3 +60,8 @@ func (k *KeyStore) Reset() error {
 	k.share = nil
 	return nil
 }
+
+func (k *KeyStore) GroupFilePath() string {
+	// Test store doesn't have a file path, return empty string
+	return ""
+}
