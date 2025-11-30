@@ -1,0 +1,26 @@
+# Drand systemd service configuration example
+# Copy this file to /etc/drand/drand.conf and modify as needed
+
+# Basic configuration
+DRAND_PRIVATE_LISTEN=0.0.0.0:8080
+DRAND_PUBLIC_LISTEN=0.0.0.0:9080
+DRAND_CONTROL_PORT=8888
+DRAND_FOLDER=/var/lib/drand
+
+# Database configuration (optional)
+# DRAND_DB_TYPE=bolt
+# DRAND_DB_PATH=/var/lib/drand/beacons.db
+
+# Logging configuration
+DRAND_LOG_LEVEL=info
+DRAND_VERBOSE=false
+
+# Network configuration
+# TLS is not configured here. Drand expects TLS termination to be handled by a reverse proxy in front of this service.
+
+# Metrics configuration (optional)
+# DRAND_METRICS_PORT=9090
+
+# Example for a specific beacon configuration
+# DRAND_BEACON_ID=mainnet
+# DRAND_SCHEME=pedersen-bls-chained

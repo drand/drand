@@ -1,5 +1,27 @@
 # Running a node with Docker
 
+## Quick start (local 3-node network)
+
+For a fast local setup using Docker, run:
+
+```shell
+cd docker
+./start-network.sh
+```
+
+This spins up a 3-node drand network and runs the initial DKG. The public endpoints will be available at:
+
+- http://127.0.0.1:9010
+- http://127.0.0.1:9020
+- http://127.0.0.1:9030
+
+To tear down the network and clean up resources:
+
+```shell
+cd docker
+./cleanup.sh
+```
+
 ## Prerequisites
 - install docker
 - install docker compose (probably bundled with your version of docker)
