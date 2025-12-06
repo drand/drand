@@ -406,7 +406,24 @@ func (d *Process) StartAccept(
 	_, span := tracer.NewSpan(ctx, "dkg.StartAccept")
 	defer span.End()
 
-	nextState, err := state.Accepted(me)
+	// First, process own acceptance through ReceivedAcceptance to ensure consistency
+	// with how other nodes store acceptances. This ensures all nodes have the
+	// same DKG state (key share notwithstanding).
+	metadata := &drand.GossipMetadata{
+		BeaconID: beaconID,
+		Address:  me.Address,
+	}
+	stateWithAcceptance, err := state.ReceivedAcceptance(me, metadata)
+	if err != nil {
+		// If already in Acceptors, that's fine - continue with normal flow
+		if err != ErrDuplicateAcceptance {
+			return nil, nil, err
+		}
+		stateWithAcceptance = state
+	}
+
+	// Now apply the Accepted state change
+	nextState, err := stateWithAcceptance.Accepted(me)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -435,7 +452,24 @@ func (d *Process) StartReject(
 	_, span := tracer.NewSpan(ctx, "dkg.StartReject")
 	defer span.End()
 
-	nextState, err := state.Rejected(me)
+	// First, process own rejection through ReceivedRejection to ensure consistency
+	// with how other nodes store rejections. This ensures all nodes have the
+	// same DKG state (key share notwithstanding).
+	metadata := &drand.GossipMetadata{
+		BeaconID: beaconID,
+		Address:  me.Address,
+	}
+	stateWithRejection, err := state.ReceivedRejection(me, metadata)
+	if err != nil {
+		// If already in Rejectors, that's fine - continue with normal flow
+		if err != ErrDuplicateRejection {
+			return nil, nil, err
+		}
+		stateWithRejection = state
+	}
+
+	// Now apply the Rejected state change
+	nextState, err := stateWithRejection.Rejected(me)
 	if err != nil {
 		return nil, nil, err
 	}
