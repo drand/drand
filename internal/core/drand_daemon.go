@@ -388,7 +388,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		}
 
 		// Log which groupfile was loaded
-		groupFilePath := store.GroupFilePath()
+		groupFilePath := key.GroupFilePath(store)
 		if groupFilePath != "" {
 			dd.log.Infow("loaded groupfile for migration", "beacon_id", beaconID, "groupfile", groupFilePath, "group_hash", hex.EncodeToString(g.Hash()))
 		}

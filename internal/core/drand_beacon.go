@@ -123,7 +123,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 
 	// Log which groupfile was loaded
-	groupFilePath := bp.store.GroupFilePath()
+	groupFilePath := key.GroupFilePath(bp.store)
 	if groupFilePath != "" {
 		bp.log.Infow("loaded groupfile", "groupfile", groupFilePath, "group_hash", hex.EncodeToString(bp.group.Hash()))
 	}
