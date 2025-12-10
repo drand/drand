@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.23-bookworm AS builder
+FROM --platform=linux/amd64 golang:1.25-bookworm AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG major=0
