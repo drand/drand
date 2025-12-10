@@ -407,14 +407,13 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 	// Check if DKG has state but group file is missing
 	if status.Complete != nil {
 		g, err := store.LoadGroup()
-		if err != nil && errors.Is(err, fs.ErrNotExist) {
+		if errors.Is(err, fs.ErrNotExist) {
 			// DKG DB has state but group file is missing - fail only this beacon
 			dd.log.Errorw("beacon failed to start: group file missing but DKG DB has state",
 				"beacon id", beaconID,
 				"err", err)
 			return nil, ErrMissingGroupFileWithDKGState
-		}
-		if err != nil {
+		} else if err != nil {
 			return nil, err
 		}
 		if g == nil {
