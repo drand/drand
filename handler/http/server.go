@@ -23,6 +23,7 @@ import (
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/internal/metrics"
+	"github.com/drand/drand/v2/protobuf/drand"
 )
 
 const (
@@ -33,6 +34,14 @@ const (
 	chainHashParamKey   = "chainHash"
 	roundParamKey       = "round"
 )
+
+// randResponse ensures the round field is always included in JSON, even when it's 0
+type randResponse struct {
+	Round             uint64 `json:"round"`
+	Signature         []byte `json:"signature,omitempty"`
+	PreviousSignature []byte `json:"previous_signature,omitempty"`
+	Randomness        []byte `json:"randomness,omitempty"`
+}
 
 var (
 	// Timeout for how long to wait for the drand.PublicClient before timing out
@@ -380,7 +389,19 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 		return nil, err
 	}
 
-	return json.Marshal(resp)
+	// Create a response that always includes the round field, even when it's 0
+	jsonResp := randResponse{
+		Round:      resp.GetRound(),
+		Signature:  resp.GetSignature(),
+		Randomness: resp.GetRandomness(),
+	}
+
+	// Get previous signature if available (from PublicRandResponse)
+	if protoResp, ok := resp.(*drand.PublicRandResponse); ok {
+		jsonResp.PreviousSignature = protoResp.PreviousSignature
+	}
+
+	return json.Marshal(jsonResp)
 }
 
 func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
@@ -389,11 +410,6 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
-		return
-	}
-
-	if roundN == 0 {
-		h.LatestRand(w, r)
 		return
 	}
 
