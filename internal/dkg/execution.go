@@ -67,6 +67,11 @@ func (d *Process) setupDKG(ctx context.Context, beaconID string) (*dkg.Config, e
 		return nil, err
 	}
 
+	// Evicted/leaving nodes should not participate in DKG execution
+	if util.Contains(current.Leaving, me) {
+		return nil, fmt.Errorf("node is leaving the network and cannot participate in DKG execution")
+	}
+
 	sortedParticipants := util.SortedByPublicKey(append(current.Remaining, current.Joining...))
 	var config *dkg.Config
 	if lastCompleted == nil {
