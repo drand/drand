@@ -6,12 +6,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
+	"github.com/drand/drand/v2/internal/entropy"
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
@@ -298,6 +301,18 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		oldThreshold = current.FinalGroup.Threshold
 	}
 
+	// Check if a custom entropy source is specified via environment variable
+	var reader io.Reader
+	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
+		d.log.Infow("Using custom entropy source", "source", entropySource)
+		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
+		if err != nil {
+			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
+				"source", entropySource, "error", err)
+			reader = nil
+		}
+	}
+
 	suite := sch.KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
@@ -308,8 +323,8 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		OldThreshold:   oldThreshold,
 		Share:          nil,
 		Threshold:      int(current.Threshold),
-		Reader:         nil,
-		UserReaderOnly: false,
+		Reader:         reader,
+		UserReaderOnly: reader != nil, // Only use the user's reader if it's provided
 		FastSync:       true,
 		Nonce:          nonceFor(current),
 		Auth:           schnorr.NewScheme(suite),
@@ -333,6 +348,18 @@ func (d *Process) reshareDKGConfig(
 		return nil, err
 	}
 
+	// Check if a custom entropy source is specified via environment variable
+	var reader io.Reader
+	if entropySource := os.Getenv("DRAND_ENTROPY_SOURCE"); entropySource != "" {
+		d.log.Infow("Using custom entropy source", "source", entropySource)
+		reader, err = entropy.GetReaderFromSource(entropySource, d.log)
+		if err != nil {
+			d.log.Errorw("Failed to create reader for entropy source, falling back to default",
+				"source", entropySource, "error", err)
+			reader = nil
+		}
+	}
+
 	suite := keypair.Scheme().KeyGroup.(dkg.Suite)
 	return &dkg.Config{
 		Suite:          suite,
@@ -343,8 +370,8 @@ func (d *Process) reshareDKGConfig(
 		Share:          &previous.KeyShare.DistKeyShare,
 		Threshold:      int(current.Threshold),
 		OldThreshold:   int(previous.Threshold),
-		Reader:         nil,
-		UserReaderOnly: false,
+		Reader:         reader,
+		UserReaderOnly: reader != nil, // Only use the user's reader if it's provided
 		FastSync:       true,
 		Nonce:          nonceFor(current),
 		Auth:           schnorr.NewScheme(suite),
