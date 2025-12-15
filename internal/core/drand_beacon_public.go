@@ -128,7 +128,7 @@ type proxyRequest struct {
 }
 
 func (p *proxyRequest) GetFromRound() uint64 {
-	return p.PublicRandRequest.GetRound()
+	return p.GetRound()
 }
 
 type proxyStream struct {

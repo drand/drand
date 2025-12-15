@@ -95,7 +95,7 @@ func (g *Group) DKGNodes() []dkg.Node {
 	for i, node := range g.Nodes {
 		dnodes[i] = dkg.Node{
 			Index:  node.Index,
-			Public: node.Identity.Key,
+			Public: node.Key,
 		}
 	}
 	return dnodes
@@ -476,7 +476,7 @@ func (g *Group) ToProto(version common2.Version) *proto.GroupPacket {
 func (g *Group) UnsignedIdentities() []*Node {
 	var unsigned []*Node
 	for _, n := range g.Nodes {
-		if n.Identity.ValidSignature() != nil {
+		if n.ValidSignature() != nil {
 			unsigned = append(unsigned, n)
 		}
 	}

@@ -64,11 +64,9 @@ func (s *Store) Put(ctx context.Context, beacon *common.Beacon) error {
 		}
 	}
 
-	shouldSort := false
-	if len(s.store) > 0 &&
-		beacon.Round < s.store[len(s.store)-1].Round {
-		shouldSort = true
-	}
+	shouldSort := len(s.store) > 0 &&
+		beacon.Round < s.store[len(s.store)-1].Round
+
 	s.store = append(s.store, beacon)
 	if shouldSort {
 		sort.Slice(s.store, func(i, j int) bool {
