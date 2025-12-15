@@ -72,6 +72,7 @@ type Store interface {
 
 	// MigrateFromGroupfile takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 	// It will fail if DKG state already exists for the given beaconID
+	//
 	// Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 	MigrateFromGroupfile(beaconID string, groupFile *key.Group, share *key.Share) error
 }
@@ -121,6 +122,7 @@ func (d *Process) Close() {
 
 // Migrate takes an existing groupfile and keyshare, and creates a first epoch DKG state for them.
 // It will fail if DKG state already exists for the given beaconID
+//
 // Deprecated: will only exist in 2.0.0 for migration from v1.5.* to 2.0.0
 func (d *Process) Migrate(beaconID string, groupfile *key.Group, share *key.Share) error {
 	d.log.Infow("Migrating DKG from group file...", "beaconID", beaconID)

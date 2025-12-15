@@ -29,10 +29,8 @@ func startCmd(c *cli.Context, l log.Logger) error {
 		return err
 	}
 
-	singleBeacon := false
-	if c.IsSet(beaconIDFlag.Name) {
-		singleBeacon = true
-	}
+	singleBeacon := c.IsSet(beaconIDFlag.Name)
+
 	span.SetAttributes(
 		attribute.Bool("singleBeaconMode", singleBeacon),
 	)
