@@ -6,7 +6,82 @@ on:
       - 'v*'
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate version.go and compare with tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="common/version.go"
+
+          # Extract numeric fields
+          MAJOR="$(sed -nE 's/^[[:space:]]*Major:[[:space:]]*([0-9]+),.*/\1/p' "$FILE")"
+          MINOR="$(sed -nE 's/^[[:space:]]*Minor:[[:space:]]*([0-9]+),.*/\1/p' "$FILE")"
+          PATCH="$(sed -nE 's/^[[:space:]]*Patch:[[:space:]]*([0-9]+),.*/\1/p' "$FILE")"
+          PRERELEASE="$(sed -nE 's/^[[:space:]]*Prerelease:[[:space:]]*"([^"]*)",.*/\1/p' "$FILE")"
+
+          if [[ -z "${MAJOR}" || -z "${MINOR}" || -z "${PATCH}" || -z "${PRERELEASE+x}" ]]; then
+            echo "Could not parse version fields from ${FILE}"
+            echo "Need Major/Minor/Patch/Prerelease entries like:"
+            echo '  Major: 2,'
+            echo '  Minor: 1,'
+            echo '  Patch: 3,'
+            echo '  Prerelease: "",'
+            exit 1
+          fi
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}${PRERELEASE}"
+
+          # Basic validation: prerelease must be "" or start with "-"
+          if [[ -n "${PRERELEASE}" && "${PRERELEASE}" != -* ]]; then
+            echo "Prerelease must be empty or start with '-'. Got: '${PRERELEASE}'"
+            exit 1
+          fi
+
+          # Expected tag style
+          EXPECTED_TAG="v${VERSION}"
+
+          echo "Computed version: ${VERSION}"
+          echo "Expected tag:     ${EXPECTED_TAG}"
+
+          # Ensure tag doesn't already exist
+          if git rev-parse -q --verify "refs/tags/${EXPECTED_TAG}" >/dev/null; then
+            echo "Tag '${EXPECTED_TAG}' already exists. Bump version.go to a new version."
+            exit 1
+          fi
+
+          # Ensure version base is greater than latest tag base (X.Y.Z only)
+          LATEST_TAG="$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)"
+          if [[ -n "${LATEST_TAG}" ]]; then
+            LATEST_NORM="${LATEST_TAG#v}"
+
+            # Compare only X.Y.Z (ignore prerelease parts)
+            FILE_BASE="${VERSION%%[-+]*}"
+            LATEST_BASE="${LATEST_NORM%%[-+]*}"
+
+            ver_to_int() {
+              local v="$1"
+              IFS=. read -r a b c <<<"$v"
+              printf "%d%03d%03d" "$a" "$b" "$c"
+            }
+
+            if [[ "$(ver_to_int "$FILE_BASE")" -le "$(ver_to_int "$LATEST_BASE")" ]]; then
+              echo "version.go base version (${FILE_BASE}) must be greater than latest tag base (${LATEST_BASE})."
+              exit 1
+            fi
+          fi
+
+          echo "OK"
+
   goreleaser:
+    needs: check-version
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
