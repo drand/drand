@@ -1,0 +1,40 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# Build drand binary
+	go mod tidy
+	export CGO_ENABLED=0 && \
+	go build -o drand -ldflags "-X github.com/drand/drand/v2/common.COMMIT=$(shell git rev-parse --short HEAD) -X github.com/drand/drand/v2/common.BUILDDATE=$(shell date -u +%d/%m/%Y@%H:%M:%S) -X github.com/drand/drand/v2/internal/drand-cli.buildDate=$(shell date -u +%d/%m/%Y@%H:%M:%S) -X github.com/drand/drand/v2/internal/drand-cli.gitCommit=$(shell git rev-parse --short HEAD)" ./cmd/drand
+
+override_dh_auto_test:
+	# Skip tests that require CGO
+	@echo "Skipping tests due to CGO requirements"
+
+override_dh_dwz:
+	# Skip dwz compression
+	@echo "Skipping dwz compression"
+
+override_dh_auto_install:
+	# Install drand binary
+	install -D -m 755 drand $(CURDIR)/debian/drand/usr/bin/drand
+	
+	# Install systemd service file
+	install -D -m 644 contrib/systemd/drand.service $(CURDIR)/debian/drand/lib/systemd/system/drand.service
+	
+	# Install configuration example
+	install -D -m 644 contrib/systemd/drand.conf.example $(CURDIR)/debian/drand/etc/drand/drand.conf.example
+	
+	# Install install script
+	install -D -m 755 contrib/systemd/install.sh $(CURDIR)/debian/drand/usr/share/drand/install.sh
+
+override_dh_installsystemd:
+	# Install systemd service file
+	install -D -m 644 contrib/systemd/drand.service $(CURDIR)/debian/drand/lib/systemd/system/drand.service
+
+override_dh_auto_clean:
+	rm -f drand

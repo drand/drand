@@ -1,0 +1,24 @@
+Source: drand
+Section: net
+Priority: optional
+Maintainer: Drand Team <team@drand.love>
+Build-Depends: debhelper (>= 12), git, curl
+Standards-Version: 4.6.0
+Homepage: https://drand.love/
+Vcs-Git: https://github.com/drand/drand.git
+Vcs-Browser: https://github.com/drand/drand
+
+Package: drand
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Distributed Randomness Beacon Daemon
+ Drand (pronounced "dee-rand") is a distributed randomness beacon daemon
+ written in Golang. Linked drand nodes collectively produce publicly
+ verifiable, unbiased and unpredictable random values at fixed intervals
+ using bilinear pairings and threshold cryptography.
+ .
+ A drand network is operated by a group of organizations around the world
+ that includes Cloudflare, EPFL, Kudelski Security, Protocol Labs, Celo,
+ UCL, and UIUC.
+ .
+ This package provides the drand daemon and systemd service files.
