@@ -329,6 +329,14 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(ctx context.Context, metricsFlag stri
 
 		_, err := dd.LoadBeaconFromStore(ctx, beaconID, fileStore)
 		if err != nil {
+			// If this is a missing group file with DKG state error, log it but continue
+			// loading other beacons instead of failing the entire daemon
+			if errors.Is(err, ErrMissingGroupFileWithDKGState) {
+				dd.log.Errorw("skipping beacon: group file missing but DKG DB has state",
+					"beacon id", beaconID,
+					"err", err)
+				continue
+			}
 			return err
 		}
 
@@ -399,6 +407,25 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 
 		if err := dd.dkg.Migrate(beaconID, g, share); err != nil {
 			return nil, err
+		}
+	}
+
+	// Check if DKG has state but group file is missing
+	if status.Complete != nil {
+		g, err := store.LoadGroup()
+		if errors.Is(err, fs.ErrNotExist) {
+			// DKG DB has state but group file is missing - fail only this beacon
+			dd.log.Errorw("beacon failed to start: group file missing but DKG DB has state",
+				"beacon id", beaconID,
+				"err", err)
+			return nil, ErrMissingGroupFileWithDKGState
+		} else if err != nil {
+			return nil, err
+		}
+		if g == nil {
+			dd.log.Errorw("beacon failed to start: group file missing but DKG DB has state",
+				"beacon id", beaconID)
+			return nil, ErrMissingGroupFileWithDKGState
 		}
 	}
 
