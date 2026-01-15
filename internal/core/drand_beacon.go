@@ -56,6 +56,8 @@ type BeaconProcess struct {
 
 	// general logger
 	log dlog.Logger
+	// base logger without node index (used to recreate logger with new index after resharing)
+	baseLog dlog.Logger
 
 	// global state lock
 	state  sync.RWMutex
@@ -93,6 +95,7 @@ func NewBeaconProcess(ctx context.Context,
 		beaconID:      common.GetCanonicalBeaconID(beaconID),
 		store:         store,
 		log:           log,
+		baseLog:       log, // Store base logger (without node index)
 		priv:          priv,
 		version:       common.GetAppVersion(),
 		opts:          opts,
@@ -154,7 +157,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 	bp.state.Lock()
 	bp.index = int(thisBeacon.Index)
-	bp.log = bp.log.Named(fmt.Sprint(bp.index))
+	bp.log = bp.baseLog.Named(fmt.Sprint(bp.index))
 	bp.state.Unlock()
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
@@ -273,6 +276,13 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 	bp.group = group
 	bp.share = share
 	bp.chainHash = public.NewChainInfo(bp.group).Hash()
+
+	// Update node index and logger after group change (e.g., during resharing)
+	thisBeacon := bp.group.Find(bp.priv.Public)
+	if thisBeacon != nil {
+		bp.index = int(thisBeacon.Index)
+		bp.log = bp.baseLog.Named(fmt.Sprint(bp.index))
+	}
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {
