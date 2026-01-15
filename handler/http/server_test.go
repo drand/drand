@@ -303,3 +303,103 @@ func TestHTTP404(t *testing.T) {
 		t.Fatal("response should 404 on beacon hash that doesn't exist")
 	}
 }
+
+func TestHTTPRoundParameterValidation(t *testing.T) {
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	test.Tracer(t, ctx)
+
+	clk := clock.NewFakeClockAt(time.Now())
+	c, _ := withClient(t, clk)
+
+	handler, err := dhttp.New(ctx, "")
+	require.NoError(t, err)
+
+	info, err := c.Info(ctx)
+	require.NoError(t, err)
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	server := http.Server{Handler: handler.GetHTTPHandler()}
+	go func() { _ = server.Serve(listener) }()
+	defer func() { _ = server.Shutdown(ctx) }()
+
+	time.Sleep(50 * time.Millisecond)
+
+	baseURL := fmt.Sprintf("http://%s/%s/public/", listener.Addr().String(), info.HashString())
+
+	testCases := []struct {
+		name           string
+		round          string
+		expectedStatus int
+		description    string
+	}{
+		{
+			name:           "invalid format - non-numeric",
+			round:          "abc",
+			expectedStatus: http.StatusBadRequest,
+			description:    "non-numeric round should return 400",
+		},
+		{
+			name:           "invalid format - negative",
+			round:          "-1",
+			expectedStatus: http.StatusBadRequest,
+			description:    "negative round should return 400",
+		},
+		{
+			name:           "invalid format - decimal",
+			round:          "1.5",
+			expectedStatus: http.StatusBadRequest,
+			description:    "decimal round should return 400",
+		},
+		{
+			name:           "extremely large number - parse error",
+			round:          "999999999999999999999999999999999999999999999999999999999999999999999999",
+			expectedStatus: http.StatusBadRequest,
+			description:    "extremely large round (parse error) should return 400",
+		},
+		{
+			name:           "large but parseable number exceeding reasonable max",
+			round:          "1152921504606846977", // 2^60 + 1, exceeds maxReasonableRound (2^60)
+			expectedStatus: http.StatusBadRequest,
+			description:    "round exceeding reasonable maximum should return 400",
+		},
+		{
+			name:           "valid round number",
+			round:          "1",
+			expectedStatus: http.StatusOK,
+			description:    "valid round should return 200 or appropriate status",
+		},
+		{
+			name:           "zero round (redirects to latest)",
+			round:          "0",
+			expectedStatus: http.StatusOK,
+			description:    "round 0 redirects to latest and should work",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			url := baseURL + tc.round
+			resp := getWithCtx(ctx, url, t)
+			defer func() { _ = resp.Body.Close() }()
+
+			// For valid rounds, we accept OK or NotFound (depending on whether round exists)
+			// For invalid rounds, we must get BadRequest
+			if tc.expectedStatus == http.StatusBadRequest {
+				require.Equal(t, http.StatusBadRequest, resp.StatusCode,
+					"%s: expected %d, got %d", tc.description, tc.expectedStatus, resp.StatusCode)
+			} else {
+				// Valid rounds might return OK or NotFound depending on data availability
+				require.Contains(t, []int{http.StatusOK, http.StatusNotFound}, resp.StatusCode,
+					"%s: expected OK or NotFound, got %d", tc.description, resp.StatusCode)
+			}
+		})
+	}
+}

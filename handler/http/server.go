@@ -387,8 +387,8 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// Get the round.
 	roundN, err := readRound(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
@@ -624,7 +624,26 @@ func readChainHash(r *http.Request) ([]byte, error) {
 
 func readRound(r *http.Request) (uint64, error) {
 	round := chi.URLParam(r, roundParamKey)
-	return strconv.ParseUint(round, roundNumBase, roundNumSize)
+	if round == "" {
+		return 0, fmt.Errorf("round parameter is required")
+	}
+
+	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
+	if err != nil {
+		return 0, fmt.Errorf("invalid round number %q: %w", round, err)
+	}
+
+	// Validate that round number is reasonable
+	// While uint64 can hold very large values, we set a practical maximum
+	// to prevent potential issues with time calculations. The underlying
+	// TimeOfRound function also validates, but we provide early feedback here.
+	// 2^60 is a very large but reasonable maximum (1,152,921,504,606,846,976)
+	const maxReasonableRound = uint64(1 << 60)
+	if roundN > maxReasonableRound {
+		return 0, fmt.Errorf("round number %d exceeds maximum allowed value %d", roundN, maxReasonableRound)
+	}
+
+	return roundN, nil
 }
 
 func dateOfRound(round uint64, info *chain2.Info) time.Time {
