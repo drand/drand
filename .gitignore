@@ -22,3 +22,16 @@ cover*
 gh-md-toc
 identity.key
 TODO.md
+
+# Debian packaging
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+*.tar.gz
+*.tar.xz
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/drand/
+debian/files
