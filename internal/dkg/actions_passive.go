@@ -58,6 +58,19 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 	}
 
 	if packet.GetExecute() != nil {
+		// Check if this node is leaving - if so, don't execute DKG
+		// We need to re-read the state after applyPacketToState as it may have changed
+		current, err := d.store.GetCurrent(beaconID)
+		if err != nil {
+			return nil, err
+		}
+
+		// If the state transitioned to Left (because node is leaving), skip DKG execution
+		if current.State == Left {
+			d.log.Infow("node is leaving, skipping DKG execution", "beaconID", beaconID)
+			return &drand.EmptyDKGResponse{}, nil
+		}
+
 		if err := d.executeDKG(ctx, beaconID, packet.GetExecute().GetTime().AsTime()); err != nil {
 			return nil, err
 		}

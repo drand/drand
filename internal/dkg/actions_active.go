@@ -349,6 +349,19 @@ func (d *Process) StartExecute(
 		return nil, nil, err
 	}
 
+	// If this node is leaving, it should not participate in the DKG execution
+	// StartExecuting() transitions leaving nodes to Left state instead of Executing
+	if nextState.State == Left {
+		d.log.Infow("node is leaving, skipping DKG execution", "beaconID", beaconID)
+		return nextState, &drand.GossipPacket{
+			Packet: &drand.GossipPacket_Execute{
+				Execute: &drand.StartExecution{
+					Time: timestamppb.New(time.Now()),
+				},
+			},
+		}, nil
+	}
+
 	kickoffTime := time.Now().Add(d.config.KickoffGracePeriod)
 	err = d.executeDKG(ctx, beaconID, kickoffTime)
 	if err != nil {
