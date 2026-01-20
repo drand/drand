@@ -161,6 +161,10 @@ operations and will continue to print out new randomness every Xs (currently
 6s).
 For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
 
+#### Quick Start with Docker
+
+For quick start and detailed Docker instructions, see the [docker README](https://github.com/drand/drand/tree/master/docker/README.md).
+
 
 A drand beacon provides several public services to clients. A drand node
 exposes its public services on a gRPC endpoint as well as a REST JSON endpoint,

@@ -66,8 +66,9 @@ func CreateSecureFile(file string) (*os.File, error) {
 	}
 	fd.Close()
 	if err := os.Chmod(file, rwFilePermission); err != nil {
-		// TODO: check why we don't return the error here
-		return nil, nil //nolint
+		// If chmod fails, we should return the error as the file permissions
+		// are critical for security. The file was created but with wrong permissions.
+		return nil, fmt.Errorf("failed to set secure permissions on file %s: %w", file, err)
 	}
 	return os.OpenFile(file, os.O_RDWR, rwFilePermission)
 }
