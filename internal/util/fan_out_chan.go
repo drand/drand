@@ -24,11 +24,19 @@ func NewFanOutChan[T any]() *FanOutChan[T] {
 	go func() {
 		for item := range f.delegate {
 			f.lock.RLock()
-			for _, l := range f.listeners {
-				l := l
-				l <- item
-			}
+			listeners := make([]chan T, len(f.listeners))
+			copy(listeners, f.listeners)
 			f.lock.RUnlock()
+
+			for _, l := range listeners {
+				select {
+				case l <- item:
+					// Successfully sent to listener
+				default:
+					// Channel full, skip this listener to avoid blocking
+					// This prevents deadlock when a listener is not consuming messages
+				}
+			}
 		}
 	}()
 
@@ -63,6 +71,7 @@ func (f *FanOutChan[T]) Chan() chan T {
 func (f *FanOutChan[T]) Close() {
 	f.lock.Lock()
 	defer f.lock.Unlock()
+	close(f.delegate)
 	for _, l := range f.listeners {
 		close(l)
 	}
