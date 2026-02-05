@@ -3,6 +3,7 @@
 package test
 
 import (
+	"fmt"
 	n "net"
 	"os"
 	"path"
@@ -100,10 +101,14 @@ func FreeBind(a string) string {
 		}
 		if !found {
 			allPorts = append(allPorts, p)
-			_ = l.Close()
+			if err := l.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to close listener: %v\n", err)
+			}
 			return l.Addr().String()
 		}
-		_ = l.Close()
+		if err := l.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close listener: %v\n", err)
+		}
 	}
 }
 

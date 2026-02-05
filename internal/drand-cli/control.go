@@ -419,7 +419,7 @@ func checkCmd(c *cli.Context, l log.Logger) error {
 			}
 
 			l.Errorw("received an error", "err", err)
-			return fmt.Errorf("errror when checking the chain: %w", err)
+			return fmt.Errorf("error when checking the chain: %w", err)
 		}
 	}
 }

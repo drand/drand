@@ -26,7 +26,11 @@ func HomeFolder() string {
 // CreateSecureFolder checks if the folder exists and has the appropriate permission rights. In case of bad permission rights
 // the empty string is returned. If the folder doesn't exist it, create it.
 func CreateSecureFolder(folder string) string {
-	if exists, _ := Exists(folder); exists {
+	exists, err := Exists(folder)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error checking if folder exists: %v\n", err)
+	}
+	if exists {
 		info, err := os.Lstat(folder)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error checking stat folder: ", err)
@@ -217,7 +221,11 @@ func TestWrite(dir string) error {
 	if err != nil {
 		return fmt.Errorf("unable to write to folder %q: %w", dir, err)
 	}
-	tempFile.Close()
-	os.Remove(tempFile.Name())
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("unable to close temporary file %q: %w", tempFile.Name(), err)
+	}
+	if err := os.Remove(tempFile.Name()); err != nil {
+		return fmt.Errorf("unable to remove temporary file %q: %w", tempFile.Name(), err)
+	}
 	return nil
 }
