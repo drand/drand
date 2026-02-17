@@ -530,6 +530,32 @@ func testFailStatus(t *testing.T, ctrlPort, beaconID string) {
 	}
 }
 
+func testStatusAll(t *testing.T, ctrlPort string) {
+	t.Helper()
+	t.Logf(" + running STATUS --all with control %s\n", ctrlPort)
+	for i := 0; i < 3; i++ {
+		err := CLI().Run([]string{"drand", "util", "status", "--control", ctrlPort, "--all"})
+		if err == nil {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, CLI().Run([]string{"drand", "util", "status", "--control", ctrlPort, "--all"}))
+}
+
+func testStatusListIDs(t *testing.T, ctrlPort string) {
+	t.Helper()
+	t.Logf(" + running STATUS --list-ids with control %s\n", ctrlPort)
+	for i := 0; i < 3; i++ {
+		err := CLI().Run([]string{"drand", "util", "status", "--control", ctrlPort, "--list-ids"})
+		if err == nil {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, CLI().Run([]string{"drand", "util", "status", "--control", ctrlPort, "--list-ids"}))
+}
+
 func testListSchemes(t *testing.T, ctrlPort string) {
 	t.Helper()
 
@@ -666,6 +692,17 @@ func TestDrandListSchemes(t *testing.T) {
 
 		err := CLI().Run(remote)
 		require.NoError(t, err)
+	}
+}
+
+// TestDrandStatusAllAndListIDs checks status --all and --list-ids on the control port
+func TestDrandStatusAllAndListIDs(t *testing.T) {
+	n := 2
+	instances := genAndLaunchDrandInstances(t, n)
+
+	for _, instance := range instances {
+		testStatusAll(t, instance.ctrlPort)
+		testStatusListIDs(t, instance.ctrlPort)
 	}
 }
 
