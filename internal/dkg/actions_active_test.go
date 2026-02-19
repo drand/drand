@@ -509,8 +509,11 @@ type MockDKGClient struct {
 	mock.Mock
 }
 
+// errUnexpectedMockCall is returned by Command/DKGStatus when called without an expectation, so tests fail clearly instead of silently succeeding
+var errUnexpectedMockCall = errors.New("unexpected call to mock")
+
 func (m *MockDKGClient) Command(_ context.Context, _ net.Peer, _ *drand.DKGCommand, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
-	panic("implement me")
+	return nil, errUnexpectedMockCall
 }
 
 func (m *MockDKGClient) Packet(_ context.Context, _ net.Peer, in *drand.GossipPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
@@ -519,7 +522,7 @@ func (m *MockDKGClient) Packet(_ context.Context, _ net.Peer, in *drand.GossipPa
 }
 
 func (m *MockDKGClient) DKGStatus(_ context.Context, _ net.Peer, _ *drand.DKGStatusRequest, _ ...grpc.CallOption) (*drand.DKGStatusResponse, error) {
-	panic("implement me")
+	return nil, errUnexpectedMockCall
 }
 
 func (m *MockDKGClient) BroadcastDKG(_ context.Context, _ net.Peer, in *drand.DKGPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
