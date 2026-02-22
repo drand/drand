@@ -3,7 +3,6 @@
 If you are reading this, it means you are about to work on the codebase.
 
 ## Table of Contents
-
 - [Getting started](#getting-started)
   - [Installing dependencies](#installing-dependencies)
   - [Development flow](#development-flow)
@@ -33,20 +32,17 @@ To keep your environment clean from any external tools required to interact with
 #### Using the devenv tools
 
 To launch the tools, run
-
 ```shell
 cd devenv
 docker compose up -d
 ```
 
 If you wish to stop the stack, run:
-
 ```shell
 docker compose down
 ```
 
 To cleanup and remove all data, run:
-
 ```shell
 cd devenv
 docker compose down --volumes --remove-orphans
@@ -112,20 +108,17 @@ If you want to run an isolated version of Postgres, you can use the `devenv/dock
 from the root of this repository to do so.
 
 To start the database, use:
-
 ```shell
 cd devenv/
 docker compose up -d
 ```
 
 To stop the database, use:
-
 ```shell
 docker compose down
 ```
 
 If you wish to remove the database volume too, use this command instead to stop:
-
 ```shell
 docker compose down --volumes --remove-orphans
 ```
@@ -136,7 +129,6 @@ To make sure new changes can integrate without issues with the existing deployme
 you can run regression testing.
 
 To do so, run the following commands:
-
 ```shell
 git checkout master
 go build -o drand-existing
