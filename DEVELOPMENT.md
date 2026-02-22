@@ -3,6 +3,7 @@
 If you are reading this, it means you are about to work on the codebase.
 
 ## Table of Contents
+
 - [Getting started](#getting-started)
   - [Installing dependencies](#installing-dependencies)
   - [Development flow](#development-flow)
@@ -14,7 +15,7 @@ If you are reading this, it means you are about to work on the codebase.
 To start, you'll need to run a few commands to make sure you have the
 correct development environment tools installed:
 
-- `make install_deps_<os>` where `<os>` can be `linux` or `macos`. This will install the proto compiler under `/usr/local/bin/protoc`.
+- `make install_deps_<os>` where `<os>` can be `linux`, `darwin` (macOS Intel), or `darwin-m` (macOS Apple Silicon). This will install the proto compiler under `/usr/local/bin/protoc`.
 - `make install_lint`. This will install `golangci-lint` at the version used during Drand's development.
 - `make build_proto`. This will compile the project's proto files.
 
@@ -32,17 +33,20 @@ To keep your environment clean from any external tools required to interact with
 #### Using the devenv tools
 
 To launch the tools, run
+
 ```shell
 cd devenv
 docker compose up -d
 ```
 
 If you wish to stop the stack, run:
+
 ```shell
 docker compose down
 ```
 
 To cleanup and remove all data, run:
+
 ```shell
 cd devenv
 docker compose down --volumes --remove-orphans
@@ -58,6 +62,7 @@ For more details, see the [testing section below](#testing-with-postgresql-as-da
 
 Drand can produce traces compatible with OpenTelemetry specification. To turn on this feature, set the `DRAND_TRACES`
 environment variable to the desired destination, e.g.
+
 ```shell
 export DRAND_TRACES=127.0.0.1:4317
 export DRAND_TRACES_PROBABILITY=1 # This will sample all traces to the destination server
@@ -107,17 +112,20 @@ If you want to run an isolated version of Postgres, you can use the `devenv/dock
 from the root of this repository to do so.
 
 To start the database, use:
+
 ```shell
 cd devenv/
 docker compose up -d
 ```
 
 To stop the database, use:
+
 ```shell
 docker compose down
 ```
 
 If you wish to remove the database volume too, use this command instead to stop:
+
 ```shell
 docker compose down --volumes --remove-orphans
 ```
@@ -128,6 +136,7 @@ To make sure new changes can integrate without issues with the existing deployme
 you can run regression testing.
 
 To do so, run the following commands:
+
 ```shell
 git checkout master
 go build -o drand-existing
