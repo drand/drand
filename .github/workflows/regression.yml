@@ -24,7 +24,7 @@ jobs:
     steps:
       # Deps
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25'
 
@@ -34,7 +34,7 @@ jobs:
       # Latest release
       - name: Get latest release
         id: latest_release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           REPOSITORY: ${{ github.repository }}
         with:
@@ -48,7 +48,7 @@ jobs:
             return release.tag_name;
 
       - name: Checkout latest release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ steps.latest_release.outputs.result }}
 
@@ -81,7 +81,7 @@ jobs:
 
       - name: Record Comment
         if: ${{ failure() }}
-        uses: marocchino/sticky-pull-request-comment@v2.3.1
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message: ${{ steps.report.outputs.result }}

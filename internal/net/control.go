@@ -44,6 +44,7 @@ func NewGRPCListener(l log.Logger, s Service, controlAddr string) (ControlListen
 
 // NewListener creates a net.Listener which should be shared between different gRPC servers
 func newListener(controlAddr string) (net.Listener, error) {
+	//nolint:noctx
 	return net.Listen(listenAddrFor(controlAddr))
 }
 

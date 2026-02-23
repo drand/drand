@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -55,6 +56,8 @@ type BeaconProcess struct {
 
 	// general logger
 	log dlog.Logger
+	// base logger without node index (used to recreate logger with new index after resharing)
+	baseLog dlog.Logger
 
 	// global state lock
 	state  sync.RWMutex
@@ -92,6 +95,7 @@ func NewBeaconProcess(ctx context.Context,
 		beaconID:      common.GetCanonicalBeaconID(beaconID),
 		store:         store,
 		log:           log,
+		baseLog:       log, // Store base logger (without node index)
 		priv:          priv,
 		version:       common.GetAppVersion(),
 		opts:          opts,
@@ -121,6 +125,11 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 		return ErrDKGNotStarted
 	}
 
+	// Log which groupfile was loaded
+	if groupFilePath := key.GroupFilePath(bp.store); groupFilePath != "" {
+		bp.log.Infow("loaded groupfile", "groupfile", groupFilePath, "group_hash", hex.EncodeToString(bp.group.Hash()))
+	}
+
 	// this is a migration path to mitigate for the shares being loaded before the group file
 	if bp.priv.Public.Scheme.Name != bp.group.Scheme.Name {
 		bp.log.Errorw("Scheme from share and group did not match. Aborting",
@@ -148,7 +157,7 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	}
 	bp.state.Lock()
 	bp.index = int(thisBeacon.Index)
-	bp.log = bp.log.Named(fmt.Sprint(bp.index))
+	bp.log = bp.baseLog.Named(fmt.Sprint(bp.index))
 	bp.state.Unlock()
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
@@ -267,6 +276,13 @@ func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, s
 	bp.group = group
 	bp.share = share
 	bp.chainHash = public.NewChainInfo(bp.group).Hash()
+
+	// Update node index and logger after group change (e.g., during resharing)
+	thisBeacon := bp.group.Find(bp.priv.Public)
+	if thisBeacon != nil {
+		bp.index = int(thisBeacon.Index)
+		bp.log = bp.baseLog.Named(fmt.Sprint(bp.index))
+	}
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {
