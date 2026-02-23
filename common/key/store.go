@@ -105,6 +105,15 @@ func NewFileStore(baseFolder, beaconID string) Store {
 	return store
 }
 
+// GroupFilePath returns the group file path for file-based stores.
+// For non-file stores it returns an empty string.
+func GroupFilePath(store Store) string {
+	if fsStore, ok := store.(*fileStore); ok {
+		return fsStore.groupFile
+	}
+	return ""
+}
+
 // TestWrite attempts to write temp files to the key and group folders to make sure a node is able to go through DKG
 // without losing its results
 func (f *fileStore) TestWrite() error {

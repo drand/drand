@@ -383,6 +383,7 @@ func Start(logger log.Logger, metricsBind string, pprof http.Handler, cli Client
 	if !strings.Contains(metricsBind, ":") {
 		metricsBind = "127.0.0.1:" + metricsBind
 	}
+	//nolint:noctx
 	l, err := net.Listen("tcp", metricsBind)
 	if err != nil {
 		logger.Warnw("", "metrics", "listen failed", "err", err)
