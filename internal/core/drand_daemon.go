@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -384,6 +385,11 @@ func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string,
 		if g == nil {
 			dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
 			return bp, nil
+		}
+
+		// Log which groupfile was loaded
+		if gFP := key.GroupFilePath(store); gFP != "" {
+			dd.log.Infow("loaded groupfile for migration", "beacon_id", beaconID, "groupfile", gFP, "group_hash", hex.EncodeToString(g.Hash()))
 		}
 
 		share, err := store.LoadShare()
