@@ -24,6 +24,11 @@ import (
 const (
 	defaultPartialChanBuffer = 10
 	defaultNewBeaconBuffer   = 100
+
+	// aggregator restart backoff and init poll interval
+	aggregatorInitialRestartDelay = 1 * time.Second
+	aggregatorMaxRestartDelay     = 30 * time.Second
+	aggregatorInitPollInterval   = 1 * time.Second
 )
 
 // chainStore implements CallbackStore, Syncer and deals with reconstructing the
@@ -135,53 +140,60 @@ func (c *chainStore) Stop() {
 }
 
 // startAggregator starts the aggregator goroutine with automatic restart logic.
-// It ensures the beacon is initialized before starting and will restart the aggregator
-// on recoverable errors, but respects graceful shutdown via context cancellation.
+// It waits for the beacon to be initialized (group loaded) before starting, then
+// runs the aggregator and restarts it with exponential backoff on recoverable errors.
+// Graceful shutdown via context cancellation is respected and does not trigger a restart.
 func (c *chainStore) startAggregator() {
 	go func() {
-		restartDelay := 1 * time.Second
-		maxRestartDelay := 30 * time.Second
+		restartDelay := aggregatorInitialRestartDelay
 
 		for {
-			select {
-			case <-c.ctx.Done():
+			if c.ctx.Err() != nil {
 				c.l.Debugw("stopping aggregator due to context cancellation")
 				return
-			default:
 			}
 
 			group := c.crypto.GetGroup()
 			if group == nil {
 				c.l.Debugw("aggregator not started: beacon not initialized (no group)")
-				select {
-				case <-c.ctx.Done():
-					return
-				case <-time.After(1 * time.Second):
-					continue
+				initTicker := time.NewTicker(aggregatorInitPollInterval)
+				groupReady := false
+				for !groupReady {
+					select {
+					case <-c.ctx.Done():
+						initTicker.Stop()
+						return
+					case <-initTicker.C:
+						if c.crypto.GetGroup() != nil {
+							groupReady = true
+						}
+					}
 				}
+				initTicker.Stop()
 			}
 
 			c.l.Debugw("starting chain aggregator")
-			restartDelay = 1 * time.Second
+			restartDelay = aggregatorInitialRestartDelay
 			c.runAggregator()
 
-			select {
-			case <-c.ctx.Done():
+			if c.ctx.Err() != nil {
 				c.l.Debugw("aggregator stopped due to context cancellation, not restarting")
 				return
-			default:
-				c.l.Warnw("aggregator stopped unexpectedly, will restart after delay", "delay", restartDelay)
-				select {
-				case <-c.ctx.Done():
-					return
-				case <-time.After(restartDelay):
-					if restartDelay*2 < maxRestartDelay {
-						restartDelay = restartDelay * 2
-					} else {
-						restartDelay = maxRestartDelay
-					}
-					c.l.Infow("restarting aggregator", "next_restart_delay", restartDelay)
+			}
+
+			c.l.Warnw("aggregator stopped unexpectedly, will restart after delay", "delay", restartDelay)
+			restartTimer := time.NewTimer(restartDelay)
+			select {
+			case <-c.ctx.Done():
+				restartTimer.Stop()
+				return
+			case <-restartTimer.C:
+				if restartDelay*2 < aggregatorMaxRestartDelay {
+					restartDelay = restartDelay * 2
+				} else {
+					restartDelay = aggregatorMaxRestartDelay
 				}
+				c.l.Infow("restarting aggregator", "next_restart_delay", restartDelay)
 			}
 		}
 	}()
