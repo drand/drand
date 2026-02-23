@@ -185,14 +185,6 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 	msg := h.crypto.DigestBeacon(&common.Beacon{Round: pRound, PreviousSig: p.GetPreviousSignature()})
 	span.AddEvent("h.crypto.DigestBeacon - done")
 
-	nodeName := node.Address()
-	if nodeName == h.addr {
-		h.l.Warnw("received a partial with our own address", "partial", pRound, "from", addr)
-		span.RecordError(fmt.Errorf("invalid own address in received partial"))
-
-		return nil, fmt.Errorf("invalid own index %d in partial with msg %v partial_round %v", idx, msg, pRound)
-	}
-
 	// verify if request is valid
 	span.AddEvent("h.crypto.ThresholdScheme.VerifyPartial")
 	err = h.crypto.ThresholdScheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig())
@@ -205,11 +197,18 @@ func (h *Handler) ProcessPartialBeacon(ctx context.Context, p *proto.PartialBeac
 			"curr_round", currentRound,
 			"partial_round", pRound,
 			"msg_sign", shortSigStr(msg),
-			"from_idx", idx,
-			"from_node", nodeName)
+			"sig_idx", idx)
 		span.RecordError(err)
 
 		return nil, err
+	}
+
+	nodeName := node.Address()
+	if nodeName == h.addr {
+		h.l.Warnw("received a partial with our own address", "partial", pRound, "from", addr)
+		span.RecordError(fmt.Errorf("invalid own address in received partial"))
+
+		return nil, fmt.Errorf("invalid own index %d in partial with msg %v partial_round %v", idx, msg, pRound)
 	}
 
 	h.l.Debugw("",
@@ -305,8 +304,8 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	//nolint:govet // We don't want to call the cancel explicitly, it's not lost we're relying on the deadline
-	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0).Add(-h.conf.Group.Period))
+	ctx, cancel := context.WithDeadline(ctx, time.Unix(targetTime, 0).Add(-h.conf.Group.Period))
+	defer cancel()
 	h.chain.RunSync(ctx, tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
