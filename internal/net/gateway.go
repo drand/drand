@@ -26,7 +26,7 @@ type PrivateGateway struct {
 
 // StartAll starts the control and public functionalities of the node
 func (g *PrivateGateway) StartAll() {
-	go g.Listener.Start()
+	go g.Start()
 }
 
 // StopAll stops the control and public functionalities of the node
@@ -34,7 +34,7 @@ func (g *PrivateGateway) StopAll(ctx context.Context) {
 	if s, ok := g.ProtocolClient.(Stoppable); ok {
 		s.Stop()
 	}
-	g.Listener.Stop(ctx)
+	g.Stop(ctx)
 }
 
 // Listener is the active listener for incoming requests.
@@ -88,12 +88,12 @@ type PublicGateway struct {
 
 // StartAll starts the control and public functionalities of the node
 func (g *PublicGateway) StartAll() {
-	go g.Listener.Start()
+	go g.Start()
 }
 
 // StopAll stops the control and public functionalities of the node
 func (g *PublicGateway) StopAll(ctx context.Context) {
-	g.Listener.Stop(ctx)
+	g.Stop(ctx)
 }
 
 // NewRESTPublicGateway returns a grpc gateway listening on "listen" for the

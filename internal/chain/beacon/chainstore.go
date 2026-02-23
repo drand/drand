@@ -136,7 +136,7 @@ func (c *chainStore) Stop() {
 	c.ctxCancel()
 	c.syncm.Stop()
 	c.RemoveCallback("chainstore")
-	_ = c.CallbackStore.Close()
+	_ = c.Close()
 }
 
 // startAggregator starts the aggregator goroutine with automatic restart logic.
@@ -316,7 +316,7 @@ func (c *chainStore) runAggregator() {
 			span.AddEvent("aggregating")
 			msg := c.crypto.DigestBeacon(roundCache)
 
-			finalSig, err := c.crypto.Scheme.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
+			finalSig, err := c.crypto.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Errorw("invalid_recovery", "error", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				span.RecordError(errors.New("invalid recovery"))
@@ -324,7 +324,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			span.AddEvent("VerifyRecovered")
-			if err := c.crypto.Scheme.ThresholdScheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
+			if err := c.crypto.ThresholdScheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
 				c.l.Errorw("invalid_sig", "error", err, "round", pRound)
 				span.RecordError(errors.New("invalid signature"))
 				span.End()
@@ -383,7 +383,7 @@ func (c *chainStore) tryAppend(ctx context.Context, last, newB *common.Beacon) b
 		return false
 	}
 
-	if err := c.CallbackStore.Put(ctx, newB); err != nil {
+	if err := c.Put(ctx, newB); err != nil {
 		span.RecordError(err)
 		// if round is ok but bytes are different, error will be raised
 		if errors.Is(err, ErrBeaconAlreadyStored) {

@@ -45,6 +45,7 @@ func (r *ScriptReader) Read(p []byte) (n int, err error) {
 	var b bytes.Buffer
 	read := 0
 	for read < len(p) {
+		//nolint:noctx
 		cmd := exec.Command(r.Path) // #nosec
 		cmd.Stdout = bufio.NewWriter(&b)
 		err = cmd.Run()

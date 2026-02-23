@@ -315,7 +315,7 @@ func TestRunDKGReshareAbsentNodeDuringExecution(t *testing.T) {
 	// the node that had stopped must not be in the group
 	t.Logf("Check node %d is not included in the group \n", nodeIndexToStop)
 	missingPublic := nodeToStop.drand.priv.Public
-	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
+	require.Nil(t, newGroup.Find(missingPublic), "missing public is found: %v", missingPublic)
 }
 
 // This tests when a node first signal his intention to participate in a resharing
