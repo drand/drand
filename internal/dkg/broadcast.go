@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -92,7 +91,7 @@ func newEchoBroadcast(
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
-		hashes:     new(arraySet),
+		hashes:     newMapSet(),
 		scheme:     scheme,
 		config:     c,
 		isStopped:  false,
@@ -240,32 +239,34 @@ type hash []byte
 
 // set is a simple interface to keep tracks of all the packet hashes that we
 // have rebroadcast already
-// TODO: check if having a map makes more sense.
 type set interface {
 	put(hash)
 	exists(hash) bool
 }
 
-type arraySet struct {
-	hashes [][]byte
+// mapSet provides O(1) lookup performance for hash existence checks.
+// It uses the hex encoding of the hash as the map key since Go maps
+// don't support byte slices as keys directly.
+type mapSet struct {
+	hashes map[string]struct{}
 }
 
-func (a *arraySet) put(hash hash) {
-	for _, h := range a.hashes {
-		if bytes.Equal(h, hash) {
-			return
-		}
+func newMapSet() *mapSet {
+	return &mapSet{
+		hashes: make(map[string]struct{}),
 	}
-	a.hashes = append(a.hashes, hash)
 }
 
-func (a *arraySet) exists(hash hash) bool {
-	for _, h := range a.hashes {
-		if bytes.Equal(h, hash) {
-			return true
-		}
-	}
-	return false
+func (m *mapSet) put(h hash) {
+	// Use hex encoding as map key since []byte cannot be used directly
+	key := string(h)
+	m.hashes[key] = struct{}{}
+}
+
+func (m *mapSet) exists(h hash) bool {
+	key := string(h)
+	_, ok := m.hashes[key]
+	return ok
 }
 
 type broadcastPacket = *pdkg.DKGPacket
