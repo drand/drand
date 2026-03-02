@@ -92,7 +92,7 @@ func newEchoBroadcast(
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
-		hashes:     new(arraySet),
+		hashes:     newMapSet(),
 		scheme:     scheme,
 		config:     c,
 		isStopped:  false,
@@ -246,26 +246,23 @@ type set interface {
 	exists(hash) bool
 }
 
-type arraySet struct {
-	hashes [][]byte
+type mapSet struct {
+	hashes map[string]struct{}
 }
 
-func (a *arraySet) put(hash hash) {
-	for _, h := range a.hashes {
-		if bytes.Equal(h, hash) {
-			return
-		}
+func newMapSet() *mapSet {
+	return &mapSet{
+		hashes: make(map[string]struct{}),
 	}
-	a.hashes = append(a.hashes, hash)
 }
 
-func (a *arraySet) exists(hash hash) bool {
-	for _, h := range a.hashes {
-		if bytes.Equal(h, hash) {
-			return true
-		}
-	}
-	return false
+func (m *mapSet) put(hash hash) {
+	m.hashes[string(hash)] = struct{}{}
+}
+
+func (m *mapSet) exists(hash hash) bool {
+	_, ok := m.hashes[string(hash)]
+	return ok
 }
 
 type broadcastPacket = *pdkg.DKGPacket
