@@ -271,11 +271,25 @@ func asGroup(ctx context.Context, details *DBState, keyShare *key.Share, finalNo
 		PublicKey:      keyShare.Public(),
 	}
 
+	// Ensure GenesisTime is always a multiple of 10 seconds
+	if group.GenesisTime != 0 {
+		group.GenesisTime = floorToNearest10(group.GenesisTime)
+	}
+
 	if len(group.GenesisSeed) == 0 {
 		group.GenesisSeed = group.Hash()
 	}
 
 	return group, nil
+}
+
+// floorToNearest10 floors a UNIX timestamp to the nearest lower multiple of 10 seconds
+// e.g. 1692803367 -> 1692803360. Zero remains zero.
+func floorToNearest10(ts int64) int64 {
+	if ts == 0 {
+		return 0
+	}
+	return ts - (ts % 10)
 }
 
 func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedParticipants []*drand.Participant) (*dkg.Config, error) {
