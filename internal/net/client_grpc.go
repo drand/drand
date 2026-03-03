@@ -218,9 +218,9 @@ func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest
 func (g *grpcClient) Stop() {
 	g.Lock()
 	defer g.Unlock()
-	for _, c := range g.conns {
+	for addr, c := range g.conns {
 		if err := c.Close(); err != nil {
-			g.log.Errorw("", "grpc client", "close", "err", err)
+			g.log.Warnw("", "grpc client", "close", "addr", addr, "err", err)
 		}
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
