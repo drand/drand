@@ -219,7 +219,9 @@ func (g *grpcClient) Stop() {
 	g.Lock()
 	defer g.Unlock()
 	for _, c := range g.conns {
-		_ = c.Close()
+		if err := c.Close(); err != nil {
+			g.log.Errorw("", "grpc client", "close", "err", err)
+		}
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
 }
