@@ -147,12 +147,35 @@ func (s *Store) Del(ctx context.Context, round uint64) error {
 	return nil
 }
 
-func (s *Store) SaveTo(ctx context.Context, _ io.Writer) error {
+func (s *Store) SaveTo(ctx context.Context, w io.Writer) error {
 	_, span := tracer.NewSpan(ctx, "memDB.SaveTo")
 	defer span.End()
 
-	// TODO implement me
-	return fmt.Errorf("saveTo not implemented for MemDB Store")
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	s.storeMtx.RLock()
+	defer s.storeMtx.RUnlock()
+
+	// Write each beacon as a JSON line (newline-delimited JSON format)
+	for _, beacon := range s.store {
+		data, err := beacon.Marshal()
+		if err != nil {
+			return fmt.Errorf("failed to marshal beacon round %d: %w", beacon.Round, err)
+		}
+		if _, err := w.Write(data); err != nil {
+			return fmt.Errorf("failed to write beacon round %d: %w", beacon.Round, err)
+		}
+		// Write newline separator between beacons
+		if _, err := w.Write([]byte("\n")); err != nil {
+			return fmt.Errorf("failed to write newline after beacon round %d: %w", beacon.Round, err)
+		}
+	}
+
+	return nil
 }
 
 type memDBCursor struct {

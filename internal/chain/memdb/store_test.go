@@ -3,9 +3,11 @@
 package memdb_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,61 @@ import (
 	chainerrors "github.com/drand/drand/v2/internal/chain/errors"
 	"github.com/drand/drand/v2/internal/chain/memdb"
 )
+
+func TestStoreSaveTo(t *testing.T) {
+	ctx := context.Background()
+
+	store := memdb.NewStore(10)
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
+
+	// Test saving empty store
+	var buf bytes.Buffer
+	err := store.SaveTo(ctx, &buf)
+	require.NoError(t, err)
+	require.Empty(t, buf.String())
+
+	// Add some beacons
+	b1 := &common.Beacon{
+		PreviousSig: []byte("sig0"),
+		Round:       1,
+		Signature:   []byte("sig1"),
+	}
+	b2 := &common.Beacon{
+		PreviousSig: []byte("sig1"),
+		Round:       2,
+		Signature:   []byte("sig2"),
+	}
+	b3 := &common.Beacon{
+		PreviousSig: []byte("sig2"),
+		Round:       3,
+		Signature:   []byte("sig3"),
+	}
+
+	require.NoError(t, store.Put(ctx, b1))
+	require.NoError(t, store.Put(ctx, b2))
+	require.NoError(t, store.Put(ctx, b3))
+
+	// Save to buffer
+	buf.Reset()
+	err = store.SaveTo(ctx, &buf)
+	require.NoError(t, err)
+
+	// Check that output contains all beacons as newline-delimited JSON
+	output := buf.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	require.Len(t, lines, 3)
+
+	// Verify each line can be unmarshaled back to a beacon
+	for i, line := range lines {
+		var beacon common.Beacon
+		err := beacon.Unmarshal([]byte(line))
+		require.NoError(t, err)
+		require.Equal(t, uint64(i+1), beacon.Round)
+	}
+}
+
 
 func TestStoreBoltOrder(t *testing.T) {
 	ctx := context.Background()
