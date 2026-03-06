@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,9 +21,29 @@ import (
 	"github.com/drand/drand/v2/common/testlogger"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/chain"
+	"github.com/drand/drand/v2/internal/chain/beacon"
+	"github.com/drand/drand/v2/internal/chain/memdb"
 	"github.com/drand/drand/v2/internal/dkg"
 	"github.com/drand/drand/v2/internal/test"
+	pdrand "github.com/drand/drand/v2/protobuf/drand"
 )
+
+func TestBackupDatabase_RejectsMemDB(t *testing.T) {
+	store := memdb.NewStore(100)
+
+	bp := &BeaconProcess{
+		log:     testlogger.New(t),
+		dbStore: store,
+		beacon:  &beacon.Handler{},
+		state:   sync.RWMutex{},
+	}
+
+	_, err := bp.BackupDatabase(context.Background(), &pdrand.BackupDBRequest{
+		OutputFile: "/tmp/backup-test",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "backup is not supported for in-memory databases")
+}
 
 func TestBeaconProcess_Stop(t *testing.T) {
 	l := testlogger.New(t)
