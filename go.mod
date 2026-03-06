@@ -3,6 +3,7 @@ module github.com/drand/drand/v2
 go 1.25.0
 
 require (
+	github.com/AnomalRoil/syncclock v0.0.1
 	github.com/BurntSushi/toml v1.6.0
 	github.com/ardanlabs/darwin/v2 v2.0.0
 	github.com/briandowns/spinner v1.23.2

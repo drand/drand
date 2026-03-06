@@ -6,10 +6,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/AnomalRoil/syncclock"
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
@@ -50,17 +52,6 @@ func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 	return resp
 }
 
-func validateEndpoint(endpoint string, round float64) error {
-	resp, _ := http.Get(fmt.Sprintf("http://%s", endpoint))
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status: %v", resp.StatusCode)
-	}
-
-	return validateBodyFormat(resp.Body, round)
-}
-
 func validateBodyFormat(respBody io.Reader, round float64) error {
 	body := make(map[string]interface{})
 	if err := json.NewDecoder(respBody).Decode(&body); err != nil {
@@ -94,8 +85,17 @@ func TestHTTPWaiting(t *testing.T) {
 
 		test.Tracer(t, ctx)
 
-		clk := clock.NewFakeClockAt(time.Now())
-		c, push := withClient(t, clk)
+		clk := syncclock.NewFakeClockAt(time.Now())
+		sch, err := crypto.GetSchemeFromEnv()
+		require.NoError(t, err)
+
+		// Use NewMockServer (no gRPC listener) and call the HTTP handler
+		// directly via httptest to avoid non-durable IO wait goroutines that
+		// prevent syncclock.Advance (time.Sleep) from completing inside the
+		// synctest bubble.
+		s := mock.NewMockServer(t, false, sch, clk)
+		c := mock.NewGrpcClient(s.(*mock.Server))
+		push := s.(mock.Service).EmitRand
 
 		handler, err := dhttp.New(ctx, "")
 		require.NoError(t, err)
@@ -104,23 +104,16 @@ func TestHTTPWaiting(t *testing.T) {
 		require.NoError(t, err)
 
 		handler.RegisterNewBeaconHandler(c, info.HashString())
+		h := handler.GetHTTPHandler()
 
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-
-		server := http.Server{Handler: handler.GetHTTPHandler()}
-		go func() { _ = server.Serve(listener) }()
-		defer func() { _ = server.Shutdown(ctx) }()
-
-		t.Logf("first request")
 		// The first request will trigger background watch. 1 get (1969)
-		u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
-		next := getWithCtx(ctx, u, t)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1", nil)
+		h.ServeHTTP(rec, req)
+		resp := rec.Result()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, validateBodyFormat(resp.Body, 1969))
 
-		validateBodyFormat(next.Body, 1969)
-		if err := next.Body.Close(); err != nil {
-			t.Fatal(err)
-		}
 		// 1 watch get will occur (1970 - the bad one)
 		push(false)
 
@@ -129,20 +122,21 @@ func TestHTTPWaiting(t *testing.T) {
 		before := clk.Now()
 		go func() {
 			t.Logf("next request")
-
-			endpoint := listener.Addr().String() + "/" + info.HashString() + "/public/1971"
-			if err = validateEndpoint(endpoint, 1971.0); err != nil {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1971", nil)
+			h.ServeHTTP(rec, req)
+			resp := rec.Result()
+			require.NoError(t, validateBodyFormat(resp.Body, 1971))
+			if resp.StatusCode != http.StatusOK {
+				err = fmt.Errorf("unexpected status: %v", rec.Code)
 				done <- time.Unix(0, 0)
 				return
 			}
 			done <- clk.Now()
 		}()
 
-		select {
-		case <-done:
-			t.Fatal("shouldn't be done.", err)
-		default:
-		}
+		synctest.Wait()
+
 		// we emit the request after having requested it
 		push(false)
 		push(true)
@@ -153,6 +147,8 @@ func TestHTTPWaiting(t *testing.T) {
 		case x := <-done:
 			require.NoError(t, err)
 			after = x
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("should return after a round")
 		}
 
 		t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
@@ -161,6 +157,7 @@ func TestHTTPWaiting(t *testing.T) {
 		if after.Sub(before) > time.Second {
 			t.Fatalf("unexpected timing to receive response: before: %s after: %s", before, after)
 		}
+
 	})
 }
 
