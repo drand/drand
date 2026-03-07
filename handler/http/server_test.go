@@ -58,46 +58,6 @@ func validateEndpoint(endpoint string, round float64) error {
 	return validateBodyFormat(resp.Body, round)
 }
 
-// readAndLogBody reads the HTTP response body, logs all beacon fields, validates format, and returns the raw body map.
-func readAndLogBody(t *testing.T, label string, respBody io.Reader, expectedRound float64) (map[string]interface{}, error) {
-	t.Helper()
-	body := make(map[string]interface{})
-	if err := json.NewDecoder(respBody).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode body: %w", err)
-	}
-
-	round, _ := body["round"].(float64)
-	randomness, _ := body["randomness"].(string)
-	signature, _ := body["signature"].(string)
-	prevSig, _ := body["previous_signature"].(string)
-
-	t.Logf("%s Response body:", label)
-	t.Logf("  round            = %.0f (expected %.0f)", round, expectedRound)
-	t.Logf("  randomness       = %s (len=%d)", randomness, len(randomness))
-	t.Logf("  signature        = %s... (len=%d)", truncate(signature, 32), len(signature))
-	t.Logf("  prev_signature   = %s... (len=%d)", truncate(prevSig, 32), len(prevSig))
-	t.Logf("  total fields     = %d", len(body))
-
-	err := validateBodyFormat(reencodeBody(body), expectedRound)
-	if err != nil {
-		t.Logf("%s VALIDATION FAILED: %v", label, err)
-	}
-	return body, err
-}
-
-func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen]
-}
-
-// reencodeBody re-encodes a map back to a reader so validateBodyFormat can consume it.
-func reencodeBody(body map[string]interface{}) io.Reader {
-	data, _ := json.Marshal(body)
-	return io.NopCloser(io.Reader(bytes.NewReader(data)))
-}
-
 func validateBodyFormat(respBody io.Reader, round float64) error {
 	body := make(map[string]interface{})
 	if err := json.NewDecoder(respBody).Decode(&body); err != nil {
@@ -120,8 +80,6 @@ func validateBodyFormat(respBody io.Reader, round float64) error {
 	}
 	return nil
 }
-
-
 
 func TestHTTPWaiting(t *testing.T) {
 	lg := testlogger.New(t)
