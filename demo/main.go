@@ -33,6 +33,7 @@ var testF = flag.Bool("test", false, "Run it as a test that finishes.")
 var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
 var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
 var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. Supported values: bolt, postgres, or memdb.")
+var push = flag.Bool("push", false, "Start in push mode (no initial catchup) for in-process demo nodes.")
 
 func main() {
 	flag.Parse()
@@ -70,6 +71,7 @@ func main() {
 		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  true,
+		Push:         *push,
 		DBEngineType: chain.StorageType(*dbEngineType),
 		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
 		MemDBSize:    2000,
