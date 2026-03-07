@@ -110,6 +110,7 @@ func NewBeaconProcess(ctx context.Context,
 }
 
 var ErrDKGNotStarted = errors.New("DKG not started")
+var ErrMissingGroupFileWithDKGState = errors.New("group file missing but DKG DB has state")
 
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
