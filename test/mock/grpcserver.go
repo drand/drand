@@ -31,6 +31,9 @@ import (
 // the EmitRand method on the mock server
 type Service interface {
 	EmitRand(bool)
+	// WaitForStream blocks until a PublicRandStream client connects or the
+	// timeout expires. Returns true if the stream is ready.
+	WaitForStream(timeout time.Duration) bool
 }
 
 type logger interface {
@@ -47,13 +50,14 @@ func (fmtLogger) Log(params ...any) {
 type Server struct {
 	addr string
 	*testnet.EmptyServer
-	l          sync.Mutex
-	stream     drand.Public_PublicRandStreamServer
-	streamDone chan error
-	d          *Data
-	t          logger
-	clk        clock.Clock
-	chainInfo  *drand.ChainInfoPacket
+	l           sync.Mutex
+	stream      drand.Public_PublicRandStreamServer
+	streamDone  chan error
+	streamReady chan struct{} // closed when stream is first set
+	d           *Data
+	t           logger
+	clk         clock.Clock
+	chainInfo   *drand.ChainInfoPacket
 }
 
 func newMockServer(t logger, d *Data, clk clock.Clock) *Server {
@@ -63,6 +67,7 @@ func newMockServer(t logger, d *Data, clk clock.Clock) *Server {
 
 	return &Server{
 		EmptyServer: new(testnet.EmptyServer),
+		streamReady: make(chan struct{}, 1),
 		d:           d,
 		t:           t,
 		clk:         clk,
@@ -109,6 +114,11 @@ func (s *Server) PublicRandStream(_ *drand.PublicRandRequest, stream drand.Publi
 	s.l.Lock()
 	s.streamDone = streamDone
 	s.stream = stream
+	// Signal that a stream is now connected.
+	select {
+	case s.streamReady <- struct{}{}:
+	default:
+	}
 	s.l.Unlock()
 
 	// We want to remove the stream here but not while it's in use.
@@ -122,6 +132,16 @@ func (s *Server) PublicRandStream(_ *drand.PublicRandRequest, stream drand.Publi
 
 	// Wait for values to be sent before returning from this function.
 	return <-streamDone
+}
+
+// WaitForStream blocks until a gRPC stream client connects or the timeout expires.
+func (s *Server) WaitForStream(timeout time.Duration) bool {
+	select {
+	case <-s.streamReady:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`

@@ -1,7 +1,6 @@
 package http_test
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
