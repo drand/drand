@@ -158,7 +158,7 @@ func TestHTTPWaiting(t *testing.T) {
 		require.NoError(t, err)
 		after = x
 	case <-time.After(500 * time.Millisecond):
-		t.Fatal("should return after a round 500")
+		t.Fatal("should return after a round")
 	}
 
 	t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
