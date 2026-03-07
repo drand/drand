@@ -64,12 +64,13 @@ type BeaconHandler struct {
 	client client2.Client
 
 	// synchronization for blocking writes until randomness available.
-	pendingLk   sync.RWMutex
-	startOnce   sync.Once
-	pending     []chan []byte
-	context     context.Context
-	latestRound uint64
-	version     string
+	pendingLk    sync.RWMutex
+	startOnce    sync.Once
+	pending      []chan []byte
+	pendingAdded chan struct{} // signals when a request is registered as pending
+	context      context.Context
+	latestRound  uint64
+	version      string
 }
 
 // New creates an HTTP handler for the public Drand API
@@ -148,19 +149,33 @@ func (h *DrandHandler) RegisterNewBeaconHandler(c client2.Client, chainHash stri
 	defer h.state.Unlock()
 
 	bh := &BeaconHandler{
-		context:     h.context,
-		client:      c,
-		latestRound: 0,
-		pending:     nil,
-		chainInfo:   nil,
-		version:     h.version,
-		log:         h.log,
+		context:      h.context,
+		client:       c,
+		latestRound:  0,
+		pending:      nil,
+		chainInfo:    nil,
+		version:      h.version,
+		log:          h.log,
+		pendingAdded: make(chan struct{}, 1),
 	}
 
 	h.beacons[chainHash] = bh
 	h.log.Infow("New beacon handler registered", "chainHash", chainHash)
 
 	return bh
+}
+
+// WaitForPending blocks until at least one HTTP request has registered itself
+// as pending for the next round, or the timeout expires. Returns true if a
+// pending request was registered within the timeout. Useful in tests to
+// synchronize before emitting the round that should unblock the request.
+func (bh *BeaconHandler) WaitForPending(timeout time.Duration) bool {
+	select {
+	case <-bh.pendingAdded:
+		return true
+	case <-time.After(timeout):
+		return false
+	}
 }
 
 func (h *DrandHandler) GetHTTPHandler() http.Handler {
@@ -337,6 +352,10 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 		block = (bh.latestRound+1 == round) && bh.latestRound != 0
 		if block {
 			bh.pending = append(bh.pending, ch)
+			select {
+			case bh.pendingAdded <- struct{}{}:
+			default:
+			}
 		}
 		bh.pendingLk.Unlock()
 

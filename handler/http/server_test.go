@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ import (
 	"github.com/drand/drand/v2/test/mock"
 )
 
-func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool), waitStream func(time.Duration) bool) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
@@ -34,7 +35,7 @@ func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)
 	require.NoError(t, err)
 
 	service := s.(mock.Service)
-	return c, service.EmitRand
+	return c, service.EmitRand, service.WaitForStream
 }
 
 func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
@@ -55,6 +56,46 @@ func validateEndpoint(endpoint string, round float64) error {
 	}
 
 	return validateBodyFormat(resp.Body, round)
+}
+
+// readAndLogBody reads the HTTP response body, logs all beacon fields, validates format, and returns the raw body map.
+func readAndLogBody(t *testing.T, label string, respBody io.Reader, expectedRound float64) (map[string]interface{}, error) {
+	t.Helper()
+	body := make(map[string]interface{})
+	if err := json.NewDecoder(respBody).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode body: %w", err)
+	}
+
+	round, _ := body["round"].(float64)
+	randomness, _ := body["randomness"].(string)
+	signature, _ := body["signature"].(string)
+	prevSig, _ := body["previous_signature"].(string)
+
+	t.Logf("%s Response body:", label)
+	t.Logf("  round            = %.0f (expected %.0f)", round, expectedRound)
+	t.Logf("  randomness       = %s (len=%d)", randomness, len(randomness))
+	t.Logf("  signature        = %s... (len=%d)", truncate(signature, 32), len(signature))
+	t.Logf("  prev_signature   = %s... (len=%d)", truncate(prevSig, 32), len(prevSig))
+	t.Logf("  total fields     = %d", len(body))
+
+	err := validateBodyFormat(reencodeBody(body), expectedRound)
+	if err != nil {
+		t.Logf("%s VALIDATION FAILED: %v", label, err)
+	}
+	return body, err
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen]
+}
+
+// reencodeBody re-encodes a map back to a reader so validateBodyFormat can consume it.
+func reencodeBody(body map[string]interface{}) io.Reader {
+	data, _ := json.Marshal(body)
+	return io.NopCloser(io.Reader(bytes.NewReader(data)))
 }
 
 func validateBodyFormat(respBody io.Reader, round float64) error {
@@ -80,6 +121,8 @@ func validateBodyFormat(respBody io.Reader, round float64) error {
 	return nil
 }
 
+
+
 func TestHTTPWaiting(t *testing.T) {
 	lg := testlogger.New(t)
 	ctx := log.ToContext(context.Background(), lg)
@@ -89,7 +132,7 @@ func TestHTTPWaiting(t *testing.T) {
 	test.Tracer(t, ctx)
 
 	clk := clock.NewFakeClockAt(time.Now())
-	c, push := withClient(t, clk)
+	c, push, waitStream := withClient(t, clk)
 
 	handler, err := dhttp.New(ctx, "")
 	require.NoError(t, err)
@@ -97,7 +140,7 @@ func TestHTTPWaiting(t *testing.T) {
 	info, err := c.Info(ctx)
 	require.NoError(t, err)
 
-	handler.RegisterNewBeaconHandler(c, info.HashString())
+	bh := handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -116,6 +159,13 @@ func TestHTTPWaiting(t *testing.T) {
 	if err := next.Body.Close(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Wait until the mock gRPC stream is actually established before pushing.
+	// The Watch goroutine starts a goroutine to call PublicRandStream; without
+	// this, push(false) can fire before s.stream is set and silently do nothing,
+	// leaving latestRound at 0 so the round-1971 request never blocks.
+	require.True(t, waitStream(2*time.Second), "timed out waiting for gRPC stream")
+
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
 
@@ -135,7 +185,7 @@ func TestHTTPWaiting(t *testing.T) {
 		}
 		done <- clk.Now()
 	}()
-	time.Sleep(100 * time.Millisecond)
+	require.True(t, bh.WaitForPending(2*time.Second), "timed out waiting for request to register as pending")
 	select {
 	case <-done:
 		t.Fatal("shouldn't be done.", err)
@@ -150,8 +200,8 @@ func TestHTTPWaiting(t *testing.T) {
 	case x := <-done:
 		require.NoError(t, err)
 		after = x
-	case <-time.After(10 * time.Millisecond):
-		t.Fatal("should return after a round")
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("should return after a round 500")
 	}
 
 	t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
@@ -172,7 +222,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	clk := clock.NewFakeClockAt(time.Now())
-	c, _ := withClient(t, clk)
+	c, _, _ := withClient(t, clk)
 
 	test.Tracer(t, ctx)
 
@@ -216,7 +266,7 @@ func TestHTTPHealth(t *testing.T) {
 	test.Tracer(t, ctx)
 
 	clk := clock.NewFakeClockAt(time.Now())
-	c, push := withClient(t, clk)
+	c, push, _ := withClient(t, clk)
 
 	handler, err := dhttp.New(ctx, "")
 	require.NoError(t, err)
@@ -260,7 +310,7 @@ func TestHTTP404(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, _ := withClient(t, clock.NewFakeClock())
+	c, _, _ := withClient(t, clock.NewFakeClock())
 
 	handler, err := dhttp.New(ctx, "")
 	if err != nil {
