@@ -132,7 +132,9 @@ func (c *chainStore) Stop() {
 	c.ctxCancel()
 	c.syncm.Stop()
 	c.RemoveCallback("chainstore")
-	_ = c.Close()
+	if err := c.Close(); err != nil {
+		c.l.Errorw("", "chainstore", "close", "err", err)
+	}
 }
 
 // we store partials that are up to this amount of rounds more than the last

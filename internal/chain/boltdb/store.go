@@ -119,7 +119,9 @@ func shouldUseTrimmedBolt(ctx context.Context, l log.Logger, sourceBeaconPath st
 		return true
 	}
 	defer func() {
-		_ = existingDB.Close()
+		if err := existingDB.Close(); err != nil {
+			l.Errorw("", "boltdb", "close", "err", err)
+		}
 	}()
 
 	err = existingDB.View(func(tx *bolt.Tx) error {
