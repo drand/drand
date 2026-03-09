@@ -114,6 +114,10 @@ func TestHTTPWaiting(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		require.NoError(t, validateBodyFormat(resp.Body, 1969))
 
+		// Ensure the PublicRandStream goroutine has set s.stream on the mock
+		// before we try to emit through it.
+		synctest.Wait()
+
 		// 1 watch get will occur (1970 - the bad one)
 		push(false)
 
@@ -126,12 +130,12 @@ func TestHTTPWaiting(t *testing.T) {
 			req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1971", nil)
 			h.ServeHTTP(rec, req)
 			resp := rec.Result()
-			require.NoError(t, validateBodyFormat(resp.Body, 1971))
 			if resp.StatusCode != http.StatusOK {
-				err = fmt.Errorf("unexpected status: %v", rec.Code)
+				err = fmt.Errorf("unexpected status: %v", resp.StatusCode)
 				done <- time.Unix(0, 0)
 				return
 			}
+			require.NoError(t, validateBodyFormat(resp.Body, 1971))
 			done <- clk.Now()
 		}()
 
