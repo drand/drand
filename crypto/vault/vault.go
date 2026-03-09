@@ -67,7 +67,7 @@ func (v *Vault) GetInfo() *chain.Info {
 func (v *Vault) SignPartial(msg []byte) ([]byte, error) {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	return v.Scheme.ThresholdScheme.Sign(v.share.PrivateShare(), msg)
+	return v.ThresholdScheme.Sign(v.share.PrivateShare(), msg)
 }
 
 // Index returns the index of the share

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -119,6 +120,11 @@ func (bp *BeaconProcess) Load(ctx context.Context) error {
 	if err != nil || bp.group == nil {
 		span.RecordError(err)
 		return ErrDKGNotStarted
+	}
+
+	// Log which groupfile was loaded
+	if groupFilePath := key.GroupFilePath(bp.store); groupFilePath != "" {
+		bp.log.Infow("loaded groupfile", "groupfile", groupFilePath, "group_hash", hex.EncodeToString(bp.group.Hash()))
 	}
 
 	// this is a migration path to mitigate for the shares being loaded before the group file
