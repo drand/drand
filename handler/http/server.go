@@ -197,36 +197,27 @@ func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request
 
 func (h *DrandHandler) start(bh *BeaconHandler) {
 	bh.pendingLk.Lock()
-	defer bh.pendingLk.Unlock()
-
 	bh.pending = make([]chan []byte, 0)
-	ready := make(chan bool)
-	go h.Watch(bh, ready)
+	bh.pendingLk.Unlock()
 
-	<-ready
+	go h.Watch(bh)
 }
 
-func (h *DrandHandler) Watch(bh *BeaconHandler, ready chan bool) {
+func (h *DrandHandler) Watch(bh *BeaconHandler) {
 	for {
 		select {
 		case <-bh.context.Done():
 			return
 		default:
 		}
-		h.watchWithTimeout(bh, ready)
+		h.watchWithTimeout(bh)
 	}
 }
 
-func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler, ready chan bool) {
+func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler) {
 	watchCtx, cncl := context.WithCancel(bh.context)
 	defer cncl()
 	stream := bh.client.Watch(watchCtx)
-
-	// signal that the watch is ready
-	select {
-	case ready <- true:
-	default:
-	}
 
 	expectedRoundDelayBackoff := time.Minute
 	bh.chainInfoLk.RLock()
