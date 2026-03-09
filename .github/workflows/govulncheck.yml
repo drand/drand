@@ -5,7 +5,7 @@ on:
     branches: [ master ]
 
 concurrency:
-  group: ci-${{ github.ref }}-lint
+  group: ci-${{ github.ref }}-govulncheck
   cancel-in-progress: true
 
 jobs:
