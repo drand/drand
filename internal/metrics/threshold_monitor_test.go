@@ -295,29 +295,17 @@ type mockLogger struct {
 	mock.Mock
 }
 
-func (m *mockLogger) Info(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Info(keyvals ...interface{}) {}
 
-func (m *mockLogger) Debug(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Debug(keyvals ...interface{}) {}
 
-func (m *mockLogger) Warn(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Warn(keyvals ...interface{}) {}
 
-func (m *mockLogger) Error(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Error(keyvals ...interface{}) {}
 
-func (m *mockLogger) Fatal(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Fatal(keyvals ...interface{}) {}
 
-func (m *mockLogger) Panic(keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Panic(keyvals ...interface{}) {}
 
 func (m *mockLogger) Infow(msg string, keyvals ...interface{}) {
 	m.Called()
@@ -335,24 +323,20 @@ func (m *mockLogger) Errorw(msg string, keyvals ...interface{}) {
 	m.Called()
 }
 
-func (m *mockLogger) Fatalw(msg string, keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Fatalw(msg string, keyvals ...interface{}) {}
 
-func (m *mockLogger) Panicw(msg string, keyvals ...interface{}) {
-	panic("implement me")
-}
+func (m *mockLogger) Panicw(msg string, keyvals ...interface{}) {}
 
 func (m *mockLogger) With(args ...interface{}) log.Logger {
-	panic("implement me")
+	return m
 }
 
 func (m *mockLogger) Named(s string) log.Logger {
-	panic("implement me")
+	return m
 }
 
 func (m *mockLogger) Name() string { return "mockLogger" }
 
 func (m *mockLogger) AddCallerSkip(skip int) log.Logger {
-	panic("implement me")
+	return m
 }
