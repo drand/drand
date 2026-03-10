@@ -175,6 +175,7 @@ func (s *SyncManager) Run() {
 				cancel()
 				// note how we use the uber-parent s.ctx context and not the one we just canceled, obviously.
 				ctx, cancel = context.WithCancel(s.ctx)
+				lastRoundTime = s.clock.Now()
 				// CancelFunc as arg to avoid overwriting it
 				go func(innerCancel context.CancelFunc) {
 					if err := s.Sync(ctx, request); err != nil {
