@@ -116,9 +116,17 @@ func (g *grpcClient) PublicRandStream(
 				return
 			}
 			if err != nil {
-				// TODO should probably do stg different here but since we are
-				// continuously stream, if stream stops, it means stg went
-				// wrong
+				if ctx.Err() != nil {
+					g.log.Debugw("stopping public randomness stream due to context cancellation",
+						"public_rand_stream", "recv",
+						"err", err,
+					)
+				} else {
+					g.log.Warnw("public randomness stream stopped with error",
+						"public_rand_stream", "recv",
+						"err", err,
+					)
+				}
 				close(outCh)
 				return
 			}
@@ -219,7 +227,9 @@ func (g *grpcClient) Stop() {
 	g.Lock()
 	defer g.Unlock()
 	for _, c := range g.conns {
-		_ = c.Close()
+		if err := c.Close(); err != nil {
+			g.log.Errorw("", "grpc client", "close", "err", err)
+		}
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
 }
