@@ -14,6 +14,10 @@ const defaultDirectoryPermission = 0740
 const rwFilePermission = 0600
 const copyChunkSize = 128 * 1024
 
+// chmodFunc is a small indirection around os.Chmod so tests can
+// simulate chmod failures without requiring special filesystem setup.
+var chmodFunc = os.Chmod
+
 // HomeFolder returns the home folder of the current user.
 func HomeFolder() string {
 	u, err := user.Current()
@@ -65,9 +69,8 @@ func CreateSecureFile(file string) (*os.File, error) {
 		return nil, err
 	}
 	fd.Close()
-	if err := os.Chmod(file, rwFilePermission); err != nil {
-		// TODO: check why we don't return the error here
-		return nil, nil //nolint
+	if err := chmodFunc(file, rwFilePermission); err != nil {
+		return nil, fmt.Errorf("failed to set file permissions: %w", err)
 	}
 	return os.OpenFile(file, os.O_RDWR, rwFilePermission)
 }
