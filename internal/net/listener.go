@@ -81,6 +81,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, bindingAddr string, s Servic
 		grpcServer:   grpcServer,
 		lis:          lis,
 		healthServer: healthcheck,
+		log:          l,
 	}
 
 	grpcprometheus.Register(grpcServer)
@@ -148,6 +149,7 @@ type grpcListener struct {
 	grpcServer   *grpc.Server
 	lis          net.Listener
 	healthServer *health.Server
+	log          log.Logger
 }
 
 func (g *grpcListener) Addr() string {
@@ -164,5 +166,7 @@ func (g *grpcListener) Start() {
 func (g *grpcListener) Stop(_ context.Context) {
 	g.healthServer.SetServingStatus("", healthgrpc.HealthCheckResponse_NOT_SERVING)
 	g.grpcServer.Stop()
-	_ = g.lis.Close()
+	if err := g.lis.Close(); err != nil {
+		g.log.Warnw("", "grpc listener", "close", "err", err)
+	}
 }

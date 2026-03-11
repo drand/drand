@@ -71,7 +71,9 @@ func (g *ControlListener) Stop() {
 		g.conns.Stop()
 	}
 
-	g.lis.Close()
+	if err := g.lis.Close(); err != nil {
+		g.log.Warnw("", "control listener", "close", "err", err)
+	}
 }
 
 // ControlClient is a struct that implement proto.ControlClient and is used to
