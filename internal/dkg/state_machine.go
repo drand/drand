@@ -630,6 +630,9 @@ var ErrGenesisTimeNotEqual = errors.New("genesis time cannot be changed after th
 var ErrNoGenesisSeedForFirstEpoch = errors.New("the genesis seed is created during the first epoch, so you can't provide it in the proposal")
 var ErrGenesisTimeNotConsistentWithProposal = errors.New("the genesis time in the group file provided did not match the one from the proposal")
 var ErrGenesisSeedCannotChange = errors.New("genesis seed cannot change after the first epoch")
+var ErrBeaconPeriodNotConsistentWithProposal = errors.New("the beacon period in the group file provided did not match the one from the proposal")
+var ErrCatchupPeriodNotConsistentWithProposal = errors.New("the catchup period in the group file provided did not match the one from the proposal")
+var ErrSchemeIDNotConsistentWithProposal = errors.New("the scheme ID in the group file provided did not match the one from the proposal")
 var ErrSelfMissingFromProposal = errors.New("you must include yourself in a proposal")
 var ErrCannotJoinIfNotInJoining = errors.New("you cannot join a proposal in which you are not a joiner")
 var ErrJoiningAfterFirstEpochNeedsGroupFile = errors.New("joining after the first epoch requires a previous group file")
@@ -894,6 +897,22 @@ func validatePreviousGroupForJoiners(d *DBState, previousGroup *key.Group) error
 
 	if !bytes.Equal(previousGroup.GenesisSeed, d.GenesisSeed) {
 		return ErrGenesisSeedCannotChange
+	}
+
+	if previousGroup.Period != d.BeaconPeriod {
+		return ErrBeaconPeriodNotConsistentWithProposal
+	}
+
+	if previousGroup.CatchupPeriod != d.CatchupPeriod {
+		return ErrCatchupPeriodNotConsistentWithProposal
+	}
+
+	if previousGroup.Scheme == nil {
+		return ErrSchemeIDNotConsistentWithProposal
+	}
+
+	if previousGroup.Scheme.Name != d.SchemeID {
+		return ErrSchemeIDNotConsistentWithProposal
 	}
 
 	return nil
