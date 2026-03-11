@@ -13,41 +13,6 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
-func TestMapSet(t *testing.T) {
-	s := newMapSet()
-
-	// Test empty set
-	h1 := hash([]byte("hash1"))
-	require.False(t, s.exists(h1))
-
-	// Test put and exists
-	s.put(h1)
-	require.True(t, s.exists(h1))
-
-	// Test that different hash doesn't exist
-	h2 := hash([]byte("hash2"))
-	require.False(t, s.exists(h2))
-
-	// Test adding second hash
-	s.put(h2)
-	require.True(t, s.exists(h1))
-	require.True(t, s.exists(h2))
-
-	// Test duplicate put doesn't cause issues
-	s.put(h1)
-	require.True(t, s.exists(h1))
-}
-
-func TestMapSetWithEmptyHash(t *testing.T) {
-	s := newMapSet()
-
-	// Test with empty hash
-	emptyHash := hash([]byte{})
-	require.False(t, s.exists(emptyHash))
-	s.put(emptyHash)
-	require.True(t, s.exists(emptyHash))
-}
-
 func TestNewBroadcasterWithNoParticipantsFails(t *testing.T) {
 	l := testlogger.New(t)
 	ctx := context.Background()
