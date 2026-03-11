@@ -14,7 +14,7 @@ If you are reading this, it means you are about to work on the codebase.
 To start, you'll need to run a few commands to make sure you have the
 correct development environment tools installed:
 
-- `make install_deps_<os>` where `<os>` can be `linux` or `macos`. This will install the proto compiler under `/usr/local/bin/protoc`.
+- `make install_deps_<os>` where `<os>` can be `linux`, `darwin` (macOS Intel), or `darwin-m` (macOS Apple Silicon). This will install the proto compiler under `/usr/local/bin/protoc`.
 - `make install_lint`. This will install `golangci-lint` at the version used during Drand's development.
 - `make build_proto`. This will compile the project's proto files.
 
