@@ -6,9 +6,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/AnomalRoil/syncclock"
 	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
@@ -28,6 +31,9 @@ func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)
 	require.NoError(t, err)
 	lg := testlogger.New(t)
 	l, s := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", true, sch, clk)
+	t.Cleanup(func() {
+		l.Stop(context.Background())
+	})
 	go l.Start()
 
 	c = mock.NewGrpcClient(s.(*mock.Server))
@@ -44,17 +50,6 @@ func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	return resp
-}
-
-func validateEndpoint(endpoint string, round float64) error {
-	resp, _ := http.Get(fmt.Sprintf("http://%s", endpoint))
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status: %v", resp.StatusCode)
-	}
-
-	return validateBodyFormat(resp.Body, round)
 }
 
 func validateBodyFormat(respBody io.Reader, round float64) error {
@@ -81,85 +76,92 @@ func validateBodyFormat(respBody io.Reader, round float64) error {
 }
 
 func TestHTTPWaiting(t *testing.T) {
-	lg := testlogger.New(t)
-	ctx := log.ToContext(context.Background(), lg)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	synctest.Test(t, func(t *testing.T) {
+		lg := testlogger.New(t)
 
-	test.Tracer(t, ctx)
+		ctx := log.ToContext(context.Background(), lg)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	clk := clock.NewFakeClockAt(time.Now())
-	c, push := withClient(t, clk)
+		test.Tracer(t, ctx)
 
-	handler, err := dhttp.New(ctx, "")
-	require.NoError(t, err)
-
-	info, err := c.Info(ctx)
-	require.NoError(t, err)
-
-	handler.RegisterNewBeaconHandler(c, info.HashString())
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
-	defer func() { _ = server.Shutdown(ctx) }()
-
-	time.Sleep(50 * time.Millisecond)
-
-	// The first request will trigger background watch. 1 get (1969)
-	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
-	next := getWithCtx(ctx, u, t)
-
-	validateBodyFormat(next.Body, 1969)
-	if err := next.Body.Close(); err != nil {
-		t.Fatal(err)
-	}
-	// 1 watch get will occur (1970 - the bad one)
-	push(false)
-
-	// Wait a bit after we send this request since DrandHandler.getRand() might not contain
-	// the expected beacon from above due to lock contention on bh.pendingLk.
-	// Note: Removing this sleep will cause the test to randomly break.
-	time.Sleep(100 * time.Millisecond)
-
-	// the following tests when the request is among the pending ones and get released when it's emitted
-	done := make(chan time.Time)
-	before := clk.Now()
-	go func() {
-		endpoint := listener.Addr().String() + "/" + info.HashString() + "/public/1971"
-		if err = validateEndpoint(endpoint, 1971.0); err != nil {
-			done <- time.Unix(0, 0)
-			return
-		}
-		done <- clk.Now()
-	}()
-	time.Sleep(100 * time.Millisecond)
-	select {
-	case <-done:
-		t.Fatal("shouldn't be done.", err)
-	default:
-	}
-	// we emit the request after having requested it
-	push(false)
-
-	var after time.Time
-	select {
-	// it should have arrived as soon as it's emitted
-	case x := <-done:
+		clk := syncclock.NewFakeClockAt(time.Now())
+		sch, err := crypto.GetSchemeFromEnv()
 		require.NoError(t, err)
-		after = x
-	case <-time.After(10 * time.Millisecond):
-		t.Fatal("should return after a round")
-	}
 
-	t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
+		// Use NewMockServer (no gRPC listener) and call the HTTP handler
+		// directly via httptest to avoid non-durable IO wait goroutines that
+		// prevent syncclock.Advance (time.Sleep) from completing inside the
+		// synctest bubble.
+		s := mock.NewMockServer(t, false, sch, clk)
+		c := mock.NewGrpcClient(s.(*mock.Server))
+		push := s.(mock.Service).EmitRand
 
-	// mock grpc server spits out new round every second on streaming interface.
-	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
-		t.Fatalf("unexpected timing to receive response: before: %s after: %s", before, after)
-	}
+		handler, err := dhttp.New(ctx, "")
+		require.NoError(t, err)
+
+		info, err := c.Info(ctx)
+		require.NoError(t, err)
+
+		handler.RegisterNewBeaconHandler(c, info.HashString())
+		h := handler.GetHTTPHandler()
+
+		// The first request will trigger background watch. 1 get (1969)
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1", nil)
+		h.ServeHTTP(rec, req)
+		resp := rec.Result()
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.NoError(t, validateBodyFormat(resp.Body, 1969))
+
+		// Ensure the PublicRandStream goroutine has set s.stream on the mock
+		// before we try to emit through it.
+		synctest.Wait()
+
+		// 1 watch get will occur (1970 - the bad one)
+		push(false)
+
+		// the following tests when the request is among the pending ones and get released when it's emitted
+		done := make(chan time.Time)
+		before := clk.Now()
+		go func() {
+			t.Logf("next request")
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1971", nil)
+			h.ServeHTTP(rec, req)
+			resp := rec.Result()
+			if resp.StatusCode != http.StatusOK {
+				err = fmt.Errorf("unexpected status: %v", resp.StatusCode)
+				done <- time.Unix(0, 0)
+				return
+			}
+			require.NoError(t, validateBodyFormat(resp.Body, 1971))
+			done <- clk.Now()
+		}()
+
+		synctest.Wait()
+
+		// we emit the request after having requested it
+		push(false)
+		push(true)
+
+		var after time.Time
+		select {
+		// it should have arrived as soon as it's emitted
+		case x := <-done:
+			require.NoError(t, err)
+			after = x
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("should return after a round")
+		}
+
+		t.Logf("comparing values: before: %d after: %d\n", before.Unix(), after.Unix())
+
+		// mock grpc server spits out new round every second on streaming interface.
+		if after.Sub(before) > time.Second {
+			t.Fatalf("unexpected timing to receive response: before: %s after: %s", before, after)
+		}
+	})
 }
 
 func TestHTTPWatchFuture(t *testing.T) {
