@@ -240,9 +240,13 @@ func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler) {
 			bh.pendingLk.Lock()
 			bh.latestRound = 0
 			bh.pendingLk.Unlock()
-			// backoff on failures a bit to not fall into a tight loop.
-			// TODO: tuning.
-			time.Sleep(watchConnectBackoff)
+			// backoff on failures a bit to not fall into a tight loop, but
+			// still respect context cancellation.
+			select {
+			case <-time.After(watchConnectBackoff):
+			case <-bh.context.Done():
+				return
+			}
 			return
 		}
 
