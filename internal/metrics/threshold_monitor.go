@@ -40,12 +40,15 @@ func (t *ThresholdMonitor) Start() {
 	t.log.Infow("starting threshold monitor", "beaconID", t.beaconID)
 
 	go func() {
+		ticker := time.NewTicker(t.period)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-t.ctx.Done():
 				t.log.Infow("ending threshold monitor", "beaconID", t.beaconID)
 				return
-			default:
+			case <-ticker.C:
 				t.lock.RLock()
 				var failingNodes []string
 				for address := range t.failedConnections {
@@ -86,8 +89,6 @@ func (t *ThresholdMonitor) Start() {
 				t.lock.Lock()
 				t.failedConnections = make(map[string]bool)
 				t.lock.Unlock()
-
-				time.Sleep(t.period)
 			}
 		}
 	}()
