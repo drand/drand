@@ -161,7 +161,6 @@ func TestHTTPWaiting(t *testing.T) {
 		if after.Sub(before) > time.Second {
 			t.Fatalf("unexpected timing to receive response: before: %s after: %s", before, after)
 		}
-
 	})
 }
 

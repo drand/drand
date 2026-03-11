@@ -153,7 +153,10 @@ func WithPgDSN(dsn string) ConfigOption {
 		d.pgDSN = dsn
 
 		if d.dbStorageEngine != chain.PostgreSQL {
-			// TODO (dlsniper): Would be nice to have a log here. It needs to be injected somehow.
+			if d.logger != nil {
+				d.logger.Warnw("ignoring PostgreSQL DSN because db storage engine is not PostgreSQL",
+					"db_storage_engine", d.dbStorageEngine)
+			}
 			return
 		}
 
