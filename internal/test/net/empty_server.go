@@ -72,9 +72,9 @@ func (s *EmptyServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*
 	return nil, nil
 }
 
-// ListBeaconIDs is an empty implementation
+// ListBeaconIDs is an empty implementation (returns empty list; never nil response)
 func (s *EmptyServer) ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
-	return nil, nil
+	return &drand.ListBeaconIDsResponse{}, nil
 }
 
 // PublicKey is an empty implementation

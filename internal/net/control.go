@@ -151,7 +151,8 @@ func (c *ControlClient) LoadBeacon(beaconID string) (*proto.LoadBeaconResponse, 
 	return c.client.LoadBeacon(context.Background(), &proto.LoadBeaconRequest{Metadata: &metadata})
 }
 
-// ListBeaconIDs returns a list of all beacon ids
+// ListBeaconIDs returns a list of all beacon ids by calling the public API
+// over the existing connection.
 func (c *ControlClient) ListBeaconIDs() (*proto.ListBeaconIDsResponse, error) {
 	publicClient := proto.NewPublicClient(c.conn)
 
