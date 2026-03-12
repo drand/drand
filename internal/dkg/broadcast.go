@@ -240,7 +240,6 @@ type hash []byte
 
 // set is a simple interface to keep tracks of all the packet hashes that we
 // have rebroadcast already
-// TODO: check if having a map makes more sense.
 type set interface {
 	put(hash)
 	exists(hash) bool
