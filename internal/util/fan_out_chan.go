@@ -25,8 +25,12 @@ func NewFanOutChan[T any]() *FanOutChan[T] {
 		for item := range f.delegate {
 			f.lock.RLock()
 			for _, l := range f.listeners {
-				l := l
-				l <- item
+				// non blocking send
+				// keep RLock to avoid send vs close races.
+				select {
+				case l <- item:
+				default:
+				}
 			}
 			f.lock.RUnlock()
 		}
@@ -63,6 +67,7 @@ func (f *FanOutChan[T]) Chan() chan T {
 func (f *FanOutChan[T]) Close() {
 	f.lock.Lock()
 	defer f.lock.Unlock()
+	close(f.delegate)
 	for _, l := range f.listeners {
 		close(l)
 	}

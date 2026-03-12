@@ -1,6 +1,8 @@
 package fs
 
 import (
+	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -78,4 +80,37 @@ func TestCopyFolder(t *testing.T) {
 			t.Error("folder1 should be inside subFolder2 path")
 		}
 	}
+}
+
+func TestCreateSecureFile_ErrorHandling(t *testing.T) {
+	tmpPath := t.TempDir()
+	file := path.Join(tmpPath, "secured")
+
+	// Test successful creation
+	f, err := CreateSecureFile(file)
+	require.NotNil(t, f)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	// Verify file was created with correct permissions
+	info, err := os.Stat(file)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(rwFilePermission), info.Mode().Perm())
+
+	// Test that errors from chmod are returned (not silently ignored)
+	t.Run("chmod error is propagated", func(t *testing.T) {
+		fileWithChmodError := path.Join(tmpPath, "secured-chmod-error")
+
+		// Override chmodFunc to simulate a chmod failure
+		orig := chmodFunc
+		chmodFunc = func(string, os.FileMode) error {
+			return fmt.Errorf("simulated chmod failure")
+		}
+		defer func() { chmodFunc = orig }()
+
+		f2, err := CreateSecureFile(fileWithChmodError)
+		require.Nil(t, f2)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "simulated chmod failure")
+	})
 }
