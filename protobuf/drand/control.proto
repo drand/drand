@@ -40,9 +40,6 @@ service Control {
 
   // RemoteStatus request the status of some remote drand nodes
   rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) {}
-
-  // ListBeaconIDs responds with the list of Beacon IDs running on this node (for status --all / --list-ids)
-  rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) {}
 }
 
 // EntropyInfo contains information about external entropy sources

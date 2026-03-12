@@ -151,9 +151,12 @@ func (c *ControlClient) LoadBeacon(beaconID string) (*proto.LoadBeaconResponse, 
 	return c.client.LoadBeacon(context.Background(), &proto.LoadBeaconRequest{Metadata: &metadata})
 }
 
-// ListBeaconIDs returns a list of all beacon ids (used by status --all / --list-ids)
+// ListBeaconIDs returns a list of all beacon ids by calling the public API
+// over the existing connection.
 func (c *ControlClient) ListBeaconIDs() (*proto.ListBeaconIDsResponse, error) {
-	return c.client.ListBeaconIDs(context.Background(), &proto.ListBeaconIDsRequest{})
+	publicClient := proto.NewPublicClient(c.conn)
+
+	return publicClient.ListBeaconIDs(context.Background(), &proto.ListBeaconIDsRequest{})
 }
 
 // Status gets the current daemon status
