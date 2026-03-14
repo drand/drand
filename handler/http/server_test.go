@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"github.com/AnomalRoil/syncclock"
-	clock "github.com/jonboulle/clockwork"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 
@@ -25,31 +23,16 @@ import (
 	"github.com/drand/drand/v2/test/mock"
 )
 
-func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T, clk *syncclock.SyncClock) (client.Client, func(bool)) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	lg := testlogger.New(t)
-	l, s := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", true, sch, clk)
-	t.Cleanup(func() {
-		l.Stop(context.Background())
-	})
-	go l.Start()
 
-	c = mock.NewGrpcClient(s.(*mock.Server))
-	require.NoError(t, err)
+	s := mock.NewMockServer(t, false, sch, clk)
+	c := mock.NewGrpcClient(s.(*mock.Server))
 
 	service := s.(mock.Service)
 	return c, service.EmitRand
-}
-
-func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
-	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
-	require.NoError(t, err)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	return resp
 }
 
 func validateBodyFormat(respBody io.Reader, round float64) error {
@@ -86,16 +69,12 @@ func TestHTTPWaiting(t *testing.T) {
 		test.Tracer(t, ctx)
 
 		clk := syncclock.NewFakeClockAt(time.Now())
-		sch, err := crypto.GetSchemeFromEnv()
-		require.NoError(t, err)
 
 		// Use NewMockServer (no gRPC listener) and call the HTTP handler
 		// directly via httptest to avoid non-durable IO wait goroutines that
 		// prevent syncclock.Advance (time.Sleep) from completing inside the
 		// synctest bubble.
-		s := mock.NewMockServer(t, false, sch, clk)
-		c := mock.NewGrpcClient(s.(*mock.Server))
-		push := s.(mock.Service).EmitRand
+		c, push := withClient(t, clk)
 
 		handler, err := dhttp.New(ctx, "")
 		require.NoError(t, err)
@@ -165,143 +144,131 @@ func TestHTTPWaiting(t *testing.T) {
 }
 
 func TestHTTPWatchFuture(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test in short mode.")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		lg := testlogger.New(t)
+		ctx := log.ToContext(context.Background(), lg)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	lg := testlogger.New(t)
-	ctx := log.ToContext(context.Background(), lg)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	clk := clock.NewFakeClockAt(time.Now())
-	c, _ := withClient(t, clk)
+		clk := syncclock.NewFakeClockAt(time.Now())
+		c, push := withClient(t, clk)
 
-	test.Tracer(t, ctx)
+		test.Tracer(t, ctx)
 
-	handler, err := dhttp.New(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+		handler, err := dhttp.New(ctx, "")
+		require.NoError(t, err)
 
-	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+		info, err := c.Info(ctx)
+		require.NoError(t, err)
 
-	handler.RegisterNewBeaconHandler(c, info.HashString())
+		handler.RegisterNewBeaconHandler(c, info.HashString())
+		h := handler.GetHTTPHandler()
 
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
-	defer func() { _ = server.Shutdown(ctx) }()
+		// Trigger background watch by making an initial request.
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/"+info.HashString()+"/public/1", nil)
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Result().StatusCode)
 
-	time.Sleep(50 * time.Millisecond)
+		synctest.Wait()
 
-	// watching sets latest round, future rounds should become inaccessible.
-	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
-	resp := getWithCtx(ctx, u, t)
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatal("response should fail on requests in the future")
-	}
+		// watching sets latest round, future rounds should become inaccessible.
+		rec = httptest.NewRecorder()
+		req = httptest.NewRequest("GET", "/"+info.HashString()+"/public/2000", nil)
+		h.ServeHTTP(rec, req)
+		if rec.Result().StatusCode != http.StatusNotFound {
+			t.Fatal("response should fail on requests in the future")
+		}
+
+		// Close the stream to unblock the background watch goroutine before the bubble exits.
+		push(true)
+		synctest.Wait()
+	})
 }
 
 func TestHTTPHealth(t *testing.T) {
-	lg := testlogger.New(t)
-	ctx := log.ToContext(context.Background(), lg)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	synctest.Test(t, func(t *testing.T) {
+		lg := testlogger.New(t)
+		ctx := log.ToContext(context.Background(), lg)
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 
-	test.Tracer(t, ctx)
+		test.Tracer(t, ctx)
 
-	clk := clock.NewFakeClockAt(time.Now())
-	c, push := withClient(t, clk)
+		clk := syncclock.NewFakeClockAt(time.Now())
+		c, push := withClient(t, clk)
 
-	handler, err := dhttp.New(ctx, "")
-	require.NoError(t, err)
+		handler, err := dhttp.New(ctx, "")
+		require.NoError(t, err)
 
-	info, err := c.Info(ctx)
-	require.NoError(t, err)
+		info, err := c.Info(ctx)
+		require.NoError(t, err)
 
-	handler.RegisterNewBeaconHandler(c, info.HashString())
+		handler.RegisterNewBeaconHandler(c, info.HashString())
+		h := handler.GetHTTPHandler()
 
-	listener, err := net.Listen("tcp", ":0")
-	require.NoError(t, err)
+		// Newly started server not expected to be synced.
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/"+info.HashString()+"/health", nil)
+		h.ServeHTTP(rec, req)
+		require.NotEqual(t, http.StatusOK, rec.Result().StatusCode, "newly started server not expected to be synced.")
 
-	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
-	defer func() { _ = server.Shutdown(ctx) }()
+		// First public request triggers background watch.
+		rec = httptest.NewRecorder()
+		req = httptest.NewRequest("GET", "/"+info.HashString()+"/public/0", nil)
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Result().StatusCode, "startup of the server on 1st request should happen")
 
-	time.Sleep(50 * time.Millisecond)
+		// Wait for the watch stream to be established before emitting.
+		synctest.Wait()
 
-	resp := getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
-	require.NotEqual(t, http.StatusOK, resp.StatusCode, "newly started server not expected to be synced.")
+		push(false)
 
-	resp.Body.Close()
+		synctest.Wait()
 
-	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString()), t)
-	require.Equal(t, http.StatusOK, resp.StatusCode, "startup of the server on 1st request should happen")
+		rec = httptest.NewRecorder()
+		req = httptest.NewRequest("GET", "/"+info.HashString()+"/health", nil)
+		h.ServeHTTP(rec, req)
+		result := rec.Result()
+		buf, err := io.ReadAll(result.Body)
+		require.NoError(t, err)
+		require.Equalf(t, http.StatusOK, result.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf), result.StatusCode)
 
-	push(false)
-	// Give some time for http server to get it
-	// Note: Removing this sleep will cause the test to randomly break.
-	time.Sleep(50 * time.Millisecond)
-	resp.Body.Close()
-
-	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
-	buf, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equalf(t, http.StatusOK, resp.StatusCode, "after start server expected to be healthy relatively quickly. %v - %v", string(buf), resp.StatusCode)
-	resp.Body.Close()
+		// Close the stream to unblock the background watch goroutine before the bubble exits.
+		push(true)
+		synctest.Wait()
+	})
 }
 
 func TestHTTP404(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-	c, _ := withClient(t, clock.NewFakeClock())
+		clk := syncclock.NewFakeClockAt(time.Now())
+		c, _ := withClient(t, clk)
 
-	handler, err := dhttp.New(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
+		handler, err := dhttp.New(ctx, "")
+		require.NoError(t, err)
 
-	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+		info, err := c.Info(ctx)
+		require.NoError(t, err)
 
-	handler.RegisterNewBeaconHandler(c, info.HashString())
+		handler.RegisterNewBeaconHandler(c, info.HashString())
+		h := handler.GetHTTPHandler()
 
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
-	defer func() { _ = server.Shutdown(ctx) }()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/deadbeef/public/latest", nil)
+		h.ServeHTTP(rec, req)
+		if rec.Result().StatusCode != http.StatusNotFound {
+			t.Fatal("response should 404 on beacon hash that doesn't exist")
+		}
 
-	// wait to know we're ready to serve
-	time.Sleep(50 * time.Millisecond)
-
-	u := fmt.Sprintf("http://%s/deadbeef/public/latest", listener.Addr().String())
-	resp, err := http.Get(u)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatal("response should 404 on beacon hash that doesn't exist")
-	}
-
-	u = fmt.Sprintf("http://%s/deadbeef/public/1", listener.Addr().String())
-	resp, err = http.Get(u)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatal("response should 404 on beacon hash that doesn't exist")
-	}
+		rec = httptest.NewRecorder()
+		req = httptest.NewRequest("GET", "/deadbeef/public/1", nil)
+		h.ServeHTTP(rec, req)
+		if rec.Result().StatusCode != http.StatusNotFound {
+			t.Fatal("response should 404 on beacon hash that doesn't exist")
+		}
+	})
 }
