@@ -17,6 +17,7 @@ import (
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/chain"
 	"github.com/drand/drand/v2/internal/chain/beacon"
+	"github.com/drand/drand/v2/internal/chain/memdb"
 	"github.com/drand/drand/v2/internal/fs"
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/protobuf/drand"
@@ -81,6 +82,10 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 	}
 	inst := bp.beacon
 	bp.state.RUnlock()
+
+	if _, ok := bp.dbStore.(*memdb.Store); ok {
+		return nil, errors.New("backup is not supported for in-memory databases")
+	}
 
 	w, err := fs.CreateSecureFile(req.OutputFile)
 	if err != nil {
