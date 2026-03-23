@@ -2,6 +2,7 @@ package util
 
 import (
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -33,37 +34,51 @@ func TestFanOutChan_NonBlockingSend(t *testing.T) {
 }
 
 func TestFanOutChan_CloseStopsGoroutine(t *testing.T) {
-	f := NewFanOutChan[int]()
+	synctest.Test(t, func(t *testing.T) {
 
-	// Create a listener
-	listener := f.Listen()
+		f := NewFanOutChan[int]()
 
-	// Send a message before closing
-	f.Chan() <- 1
+		// Create a listener
+		listener := f.Listen()
 
-	// Close the fanout - this should close delegate and all listeners
-	f.Close()
+		// Send a message before closing
+		f.Chan() <- 1
 
-	// Verify delegate channel is closed (send should panic)
-	func() {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Fatal("Expected panic when sending to closed delegate channel")
-			}
+		// Close the fanout - this should close delegate and all listeners
+		f.Close()
+
+		// Verify delegate channel is closed (send should panic)
+		func() {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatal("Expected panic when sending to closed delegate channel")
+				}
+			}()
+			f.Chan() <- 2
 		}()
-		f.Chan() <- 2
-	}()
 
-	// Verify listener is closed
-	select {
-	case _, ok := <-listener:
-		if ok {
-			t.Fatal("Listener channel should be closed")
+		// Verify listener is closed, we could get the one we sent before closing tho, so we test twice
+		select {
+		case num, ok := <-listener:
+			if ok && num != 1 {
+				t.Fatal("Listener channel should be closed")
+			}
+			// Channel is closed, which is expected
+		default:
+			t.Fatal("Listener channel should be closed and empty")
 		}
-		// Channel is closed, which is expected
-	default:
-		t.Fatal("Listener channel should be closed and empty")
-	}
+
+		select {
+		case _, ok := <-listener:
+			if ok {
+				t.Fatal("Listener channel should be closed")
+			}
+			// Channel is closed, which is expected
+		default:
+			t.Fatal("Listener channel should be closed and empty")
+		}
+
+	})
 }
 
 func TestFanOutChan_MultipleListeners(t *testing.T) {
