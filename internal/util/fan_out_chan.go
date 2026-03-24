@@ -65,10 +65,13 @@ func (f *FanOutChan[T]) StopListening(ch chan T) {
 // preventing a race with Close(). Returns false if the channel is closed.
 func (f *FanOutChan[T]) Send(item T) (sent bool) {
 	f.lock.RLock()
-	defer f.lock.RUnlock()
 	if f.closed {
+		f.lock.RUnlock()
+
 		return false
 	}
+	f.lock.RUnlock()
+
 	f.delegate <- item
 	return true
 }
