@@ -13,6 +13,7 @@ type FanOutChan[T any] struct {
 	lock      sync.RWMutex
 	delegate  chan T
 	listeners []chan T
+	closed    bool
 }
 
 func NewFanOutChan[T any]() *FanOutChan[T] {
@@ -44,7 +45,7 @@ func (f *FanOutChan[T]) Listen() chan T {
 
 	f.lock.Lock()
 	f.listeners = append(f.listeners, ch)
-	defer f.lock.Unlock()
+	f.lock.Unlock()
 	return ch
 }
 
@@ -60,13 +61,25 @@ func (f *FanOutChan[T]) StopListening(ch chan T) {
 	}
 }
 
-func (f *FanOutChan[T]) Chan() chan T {
-	return f.delegate
+// Send sends an item to the delegate channel while holding the read lock,
+// preventing a race with Close(). Returns false if the channel is closed.
+func (f *FanOutChan[T]) Send(item T) (sent bool) {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	if f.closed {
+		return false
+	}
+	f.delegate <- item
+	return true
 }
 
 func (f *FanOutChan[T]) Close() {
 	f.lock.Lock()
 	defer f.lock.Unlock()
+	if f.closed {
+		return
+	}
+	f.closed = true
 	close(f.delegate)
 	for _, l := range f.listeners {
 		close(l)

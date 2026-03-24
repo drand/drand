@@ -21,7 +21,7 @@ func TestFanOutChan_NonBlockingSend(t *testing.T) {
 	// Send a message - should not block even though listener is full
 	done := make(chan bool)
 	go func() {
-		f.Chan() <- 999
+		f.Send(999)
 		done <- true
 	}()
 
@@ -42,20 +42,17 @@ func TestFanOutChan_CloseStopsGoroutine(t *testing.T) {
 		listener := f.Listen()
 
 		// Send a message before closing
-		f.Chan() <- 1
+		if !f.Send(1) {
+			t.Fatal("Send operation failed")
+		}
 
 		// Close the fanout - this should close delegate and all listeners
 		f.Close()
 
-		// Verify delegate channel is closed (send should panic)
-		func() {
-			defer func() {
-				if r := recover(); r == nil {
-					t.Fatal("Expected panic when sending to closed delegate channel")
-				}
-			}()
-			f.Chan() <- 2
-		}()
+		// Verify delegate channel is closed (send should not work)
+		if f.Send(2) {
+			t.Fatal("Send operation should have failed after closing chan")
+		}
 
 		// Verify listener is closed, we could get the one we sent before closing tho, so we test twice
 		select {
@@ -81,6 +78,17 @@ func TestFanOutChan_CloseStopsGoroutine(t *testing.T) {
 	})
 }
 
+func TestFanOutChan_SendRespectsClosedChan(t *testing.T) {
+	f := NewFanOutChan[int]()
+
+	// Close the fanout - this should close delegate and all listeners
+	f.Close()
+
+	if f.Send(1) {
+		t.Fatal("Listener channel should be closed and Send should not send")
+	}
+}
+
 func TestFanOutChan_MultipleListeners(t *testing.T) {
 	f := NewFanOutChan[string]()
 	defer f.Close()
@@ -89,7 +97,7 @@ func TestFanOutChan_MultipleListeners(t *testing.T) {
 	listener2 := f.Listen()
 
 	// Send a message
-	f.Chan() <- "test"
+	f.Send("test")
 
 	// Both listeners should receive it
 	select {
