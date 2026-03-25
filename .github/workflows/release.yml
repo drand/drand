@@ -29,11 +29,8 @@ jobs:
 
           if [[ -z "${MAJOR}" || -z "${MINOR}" || -z "${PATCH}" || -z "${PRERELEASE+x}" ]]; then
             echo "Could not parse version fields from ${FILE}"
-            echo "Need Major/Minor/Patch/Prerelease entries like:"
-            echo '  Major: 2,'
-            echo '  Minor: 1,'
-            echo '  Patch: 3,'
-            echo '  Prerelease: "",'
+            echo "Need Major.Minor.Patch-Prerelease entries like:"
+            echo '  Major: 2.1.5-pre1'
             exit 1
           fi
 
@@ -45,26 +42,29 @@ jobs:
             exit 1
           fi
 
-          # Expected tag style
           EXPECTED_TAG="v${VERSION}"
 
-          echo "Computed version: ${VERSION}"
+          # Get the tag that triggered this workflow
+          PUSHED_TAG="${GITHUB_REF#refs/tags/}"
+
+          echo "Pushed tag:       ${PUSHED_TAG}"
           echo "Expected tag:     ${EXPECTED_TAG}"
 
-          # Ensure tag doesn't already exist
-          if git rev-parse -q --verify "refs/tags/${EXPECTED_TAG}" >/dev/null; then
-            echo "Tag '${EXPECTED_TAG}' already exists. Bump version.go to a new version."
+          # The pushed tag must MATCH version.go
+          if [[ "${PUSHED_TAG}" != "${EXPECTED_TAG}" ]]; then
+            echo "ERROR: Tag '${PUSHED_TAG}' does not match version in ${FILE} ('${EXPECTED_TAG}')."
+            echo "Update ${FILE} so the version matches the tag you are pushing."
             exit 1
           fi
 
-          # Ensure version base is greater than latest tag base (X.Y.Z only)
-          LATEST_TAG="$(git tag -l 'v*' --sort=-v:refname | head -n1 || true)"
-          if [[ -n "${LATEST_TAG}" ]]; then
-            LATEST_NORM="${LATEST_TAG#v}"
+          # Compare against the PREVIOUS tag, excluding the one we just pushed
+          PREVIOUS_TAG="$(git tag -l 'v*' --sort=-v:refname | grep -vxF "${PUSHED_TAG}" | head -n1 || true)"
 
-            # Compare only X.Y.Z (ignore prerelease parts)
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            PREVIOUS_NORM="${PREVIOUS_TAG#v}"
+
             FILE_BASE="${VERSION%%[-+]*}"
-            LATEST_BASE="${LATEST_NORM%%[-+]*}"
+            PREVIOUS_BASE="${PREVIOUS_NORM%%[-+]*}"
 
             ver_to_int() {
               local v="$1"
@@ -72,13 +72,13 @@ jobs:
               printf "%d%03d%03d" "$a" "$b" "$c"
             }
 
-            if [[ "$(ver_to_int "$FILE_BASE")" -le "$(ver_to_int "$LATEST_BASE")" ]]; then
-              echo "version.go base version (${FILE_BASE}) must be greater than latest tag base (${LATEST_BASE})."
+            if [[ "$(ver_to_int "$FILE_BASE")" -le "$(ver_to_int "$PREVIOUS_BASE")" ]]; then
+              echo "ERROR: version.go (${FILE_BASE}) must be greater than previous tag (${PREVIOUS_BASE})."
               exit 1
             fi
           fi
 
-          echo "OK"
+          echo "OK — tag ${PUSHED_TAG} matches ${FILE} and is newer than ${PREVIOUS_TAG:-'(none)'}."
 
   goreleaser:
     needs: check-version
