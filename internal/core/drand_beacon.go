@@ -268,22 +268,26 @@ func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.Sh
 }
 
 func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, share *key.Share) error {
-	bp.state.Lock()
-	defer bp.state.Unlock()
-	bp.group = group
-	bp.share = share
-	bp.chainHash = public.NewChainInfo(bp.group).Hash()
+	err := func() error {
+		bp.state.Lock()
+		defer bp.state.Unlock()
+		bp.group = group
+		bp.share = share
+		bp.chainHash = public.NewChainInfo(bp.group).Hash()
 
-	err := bp.store.SaveGroup(group)
+		if err := bp.store.SaveGroup(group); err != nil {
+			return err
+		}
+
+		return bp.store.SaveShare(share)
+	}()
 	if err != nil {
 		return err
 	}
 
-	err = bp.store.SaveShare(share)
-	if err != nil {
-		return err
-	}
-
+	// dkgCallback must be called after releasing bp.state to avoid a lock-ordering
+	// deadlock: dkgCallback -> AddBeaconHandler takes dd.state.Lock(), while
+	// readBeaconID takes dd.state.RLock() then bp.state.RLock() (opposite order).
 	bp.opts.dkgCallback(ctx, group)
 
 	return nil
