@@ -4,44 +4,26 @@ import (
 	"sync"
 )
 
-// MaxDKGsInFlight is an arbitrary limit set for the number of DKGs in flight to avoid
+// MaxMsgsInFlight is an arbitrary limit set for the number of messages in flight to avoid
 // overallocating channel capacity for the fanout channel
-const MaxDKGsInFlight = 20
+const MaxMsgsInFlight = 20
 
-// FanOutChan has one producer channel and multiple consumers for each message on the channel
+// FanOutChan has one producer and multiple consumers: each message sent is
+// delivered to every listener via a non-blocking send.
 type FanOutChan[T any] struct {
 	lock      sync.RWMutex
-	delegate  chan T
 	listeners []chan T
 	closed    bool
 }
 
 func NewFanOutChan[T any]() *FanOutChan[T] {
-	f := &FanOutChan[T]{
-		delegate:  make(chan T, MaxDKGsInFlight),
+	return &FanOutChan[T]{
 		listeners: make([]chan T, 0),
 	}
-
-	go func() {
-		for item := range f.delegate {
-			f.lock.RLock()
-			for _, l := range f.listeners {
-				// non blocking send
-				// keep RLock to avoid send vs close races.
-				select {
-				case l <- item:
-				default:
-				}
-			}
-			f.lock.RUnlock()
-		}
-	}()
-
-	return f
 }
 
 func (f *FanOutChan[T]) Listen() chan T {
-	ch := make(chan T, MaxDKGsInFlight)
+	ch := make(chan T, MaxMsgsInFlight)
 
 	f.lock.Lock()
 	f.listeners = append(f.listeners, ch)
@@ -61,18 +43,20 @@ func (f *FanOutChan[T]) StopListening(ch chan T) {
 	}
 }
 
-// Send sends an item to the delegate channel while holding the read lock,
-// preventing a race with Close(). Returns false if the channel is closed.
-func (f *FanOutChan[T]) Send(item T) (sent bool) {
+// Send fans out item to all listeners using non-blocking sends.
+// Returns false if the channel has been closed.
+func (f *FanOutChan[T]) Send(item T) bool {
 	f.lock.RLock()
+	defer f.lock.RUnlock()
 	if f.closed {
-		f.lock.RUnlock()
-
 		return false
 	}
-	f.lock.RUnlock()
-
-	f.delegate <- item
+	for _, l := range f.listeners {
+		select {
+		case l <- item:
+		default:
+		}
+	}
 	return true
 }
 
@@ -83,7 +67,6 @@ func (f *FanOutChan[T]) Close() {
 		return
 	}
 	f.closed = true
-	close(f.delegate)
 	for _, l := range f.listeners {
 		close(l)
 	}
