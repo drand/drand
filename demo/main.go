@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -94,6 +95,15 @@ func main() {
 		}
 	}()
 	setSignal(orch)
+	if *testF {
+		go func() {
+			<-time.After(10 * time.Minute)
+			buf := make([]byte, 64<<20)
+			n := runtime.Stack(buf, true)
+			fmt.Fprintf(os.Stderr, "=== TIMEOUT: demo still running after 10 minutes ===\n%s\n", buf[:n])
+			os.Exit(2)
+		}()
+	}
 	err = orch.StartCurrentNodes()
 	if err != nil {
 		panic(err)
