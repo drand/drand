@@ -119,8 +119,6 @@ func TestCLIInputVectors(t *testing.T) {
 	}
 }
 
-
-
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 	l := testlogger.New(t)
