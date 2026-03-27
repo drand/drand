@@ -3,6 +3,7 @@ package drand
 import (
 	"bytes"
 	"context"
+	stdjson "encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -37,26 +38,88 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
-func TestResetError(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
+const cliInputVectorsPath = "testdata/cli_input_vectors.json"
 
-	tmp := getSBFolderStructure(t)
-
-	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
-	app := CLI()
-	require.Error(t, app.Run(args))
+type cliInputVector struct {
+	Name              string   `json:"name"`
+	Args              []string `json:"args"`
+	Stdin             string   `json:"stdin"`
+	ExpectError       bool     `json:"expect_error"`
+	ExpectContains    []string `json:"expect_contains"`
+	ExpectNotContains []string `json:"expect_not_contains"`
 }
 
-func TestDeleteBeaconError(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
+func loadCLIInputVectors(t *testing.T) []cliInputVector {
+	t.Helper()
 
-	tmp := getSBFolderStructure(t)
+	vectorsRaw, err := os.ReadFile(filepath.Join(cliInputVectorsPath))
+	require.NoError(t, err)
 
-	// that command should delete round 3 and 4
-	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
-	app := CLI()
-	require.Error(t, app.Run(args))
+	var vectors []cliInputVector
+	require.NoError(t, stdjson.Unmarshal(vectorsRaw, &vectors))
+	require.NotEmpty(t, vectors)
+
+	return vectors
 }
+
+func expandVectorArgs(t *testing.T, args []string, tmpDir, beaconID string) []string {
+	t.Helper()
+
+	expanded := make([]string, len(args))
+	for i, arg := range args {
+		if strings.Contains(arg, "{{SB_TMP}}") {
+			arg = strings.ReplaceAll(arg, "{{SB_TMP}}", getSBFolderStructure(t))
+		}
+		arg = strings.ReplaceAll(arg, "{{TMP}}", tmpDir)
+		expanded[i] = strings.ReplaceAll(arg, "{{BEACON_ID}}", beaconID)
+	}
+
+	return expanded
+}
+
+func TestCLIInputVectors(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+	vectors := loadCLIInputVectors(t)
+
+	for _, vector := range vectors {
+		vector := vector
+		t.Run(vector.Name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			args := expandVectorArgs(t, vector.Args, tmpDir, beaconID)
+
+			cli := CLI()
+			var out bytes.Buffer
+			cli.Writer = &out
+
+			if vector.Stdin != "" {
+				cli.Reader = strings.NewReader(vector.Stdin)
+			}
+
+			err := cli.Run(args)
+			if vector.ExpectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			combinedOutput := out.String()
+
+			if err != nil {
+				combinedOutput += "\n" + err.Error()
+			}
+
+			for _, want := range vector.ExpectContains {
+				require.Contains(t, combinedOutput, want)
+			}
+
+			for _, unwanted := range vector.ExpectNotContains {
+				require.NotContains(t, combinedOutput, unwanted)
+			}
+		})
+	}
+}
+
+
 
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
@@ -119,27 +182,6 @@ func TestDeleteBeacon(t *testing.T) {
 	_, err = store.Get(ctx, 4)
 	require.Error(t, err)
 }
-
-func TestKeySelfSignError(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-
-	tmp := getSBFolderStructure(t)
-
-	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
-	app := CLI()
-	require.Error(t, app.Run(args))
-}
-
-func TestKeyGenError(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-
-	tmp := getSBFolderStructure(t)
-
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
-	app := CLI()
-	require.Error(t, app.Run(args))
-}
-
 func TestKeyGen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 	l := testlogger.New(t)
@@ -338,7 +380,6 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	t.Log("--- DRAND SHARE --- (expected to fail)")
 	// this must fail because not enough arguments
-	// TODO - test vectors testing on the inputs
 
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
@@ -996,32 +1037,6 @@ func TestDrandStatus_WithDKG_OneAddress(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestEmptyPortSelectionUsesDefaultDuringKeygen(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-
-	tmp := t.TempDir()
-	app := CLI()
-
-	// args are missing a port for the node address
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
-	// after being prompted for a port, the 'user' hits enter to select the default
-	app.Reader = strings.NewReader("\n")
-
-	require.NoError(t, app.Run(args))
-}
-
-func TestValidPortSelectionSucceedsDuringKeygen(t *testing.T) {
-	beaconID := test.GetBeaconIDFromEnv()
-
-	tmp := t.TempDir()
-	app := CLI()
-
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
-	app.Reader = strings.NewReader("8080\n")
-
-	require.NoError(t, app.Run(args))
 }
 
 type drandInstance struct {
