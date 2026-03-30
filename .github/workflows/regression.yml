@@ -48,7 +48,7 @@ jobs:
             return release.tag_name;
 
       - name: Checkout latest release
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.latest_release.outputs.result }}
 
@@ -57,7 +57,7 @@ jobs:
 
       # Candidate branch
       - name: Checkout candidate branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Build Candidate
         run: make build_insecure && cp drand ~/go/bin/drand-candidate
 
