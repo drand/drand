@@ -221,12 +221,17 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			require.NoError(t, err)
 
 			// we then wait for the signal on the completion channel that the DKG has been completed for this beaconID
+		LO:
 			for {
-				result := <-dkgCompletionChannel
-				if result.BeaconID != beaconID {
-					continue
+				select {
+				case result := <-dkgCompletionChannel:
+					if result.BeaconID != beaconID {
+						continue
+					}
+					break LO
+				case <-time.After(4 * time.Minute):
+					require.FailNow(t, "timed out waiting for DKG completion")
 				}
-				break
 			}
 
 			// we then run a resharing
@@ -244,12 +249,17 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			require.NoError(t, err)
 
 			// then we wait for the signal on the completion channel that the DKG has been completed for this beaconID
+		LO2:
 			for {
-				result := <-dkgCompletionChannel
-				if result.BeaconID != beaconID {
-					continue
+				select {
+				case result := <-dkgCompletionChannel:
+					if result.BeaconID != beaconID {
+						continue
+					}
+					break LO2
+				case <-time.After(4 * time.Minute):
+					require.FailNow(t, "timed out waiting for DKG completion")
 				}
-				break
 			}
 			wg.Done()
 		}(beaconID)
