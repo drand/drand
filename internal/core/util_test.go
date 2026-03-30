@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -121,6 +122,25 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 		t.Logf("Creating node %d (storage %s, scheme %s)\n", i, sch.Name, sch.Name)
 
 		daemon, err := NewDrandDaemon(ctx, NewConfig(l, confOptions...))
+		if err != nil && strings.Contains(err.Error(), "address already in use") {
+			t.Logf("Node %d hit 'address already in use', retrying with fresh ports", i)
+			newAddr := test.FreeBind("127.0.0.1")
+			privs[i], _ = key.NewKeyPair(newAddr, nil)
+			require.NoError(t, s.SaveKeyPair(privs[i]))
+
+			confOptions = []ConfigOption{WithConfigFolder(dirs[i])}
+			confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
+			confOptions = append(confOptions,
+				WithDkgKickoffGracePeriod(1*time.Second),
+				WithDkgPhaseTimeout(5*time.Second),
+				WithPrivateListenAddress(newAddr),
+				WithControlPort(test.FreePort()),
+				WithNamedLogger(fmt.Sprintf("[node %d]", currentNodeCount+i)),
+				WithMemDBSize(100),
+			)
+			confOptions = append(confOptions, opts...)
+			daemon, err = NewDrandDaemon(ctx, NewConfig(l, confOptions...))
+		}
 		require.NoError(t, err)
 
 		bp, err := daemon.InstantiateBeaconProcess(ctx, beaconID, s)
