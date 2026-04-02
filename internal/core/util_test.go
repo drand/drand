@@ -127,6 +127,7 @@ func BatchNewDrand(t *testing.T, currentNodeCount, n int,
 			newAddr := test.FreeBind("127.0.0.1")
 			privs[i], _ = key.NewKeyPair(newAddr, nil)
 			require.NoError(t, s.SaveKeyPair(privs[i]))
+			group.Nodes[i].Identity = privs[i].Public
 
 			confOptions = []ConfigOption{WithConfigFolder(dirs[i])}
 			confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
