@@ -13,20 +13,20 @@ import (
 	"github.com/drand/drand/v2/common/testlogger"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/test"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/util/random"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/util/random"
 )
 
 // distKey generates a coherent threshold key: a shared public polynomial and the
 // n private shares consistent with it, mirroring the output of a real DKG.
 func distKey(sch *crypto.Scheme, n, thr int) (commits []kyber.Point, shares []*share.PriShare) {
 	secret := sch.KeyGroup.Scalar().Pick(random.New())
-	priPoly := share.NewPriPoly(sch.KeyGroup, thr, secret, random.New())
+	priPoly := share.NewPriPoly(sch.KeyGroup, uint32(thr), secret, random.New())
 	pubPoly := priPoly.Commit(sch.KeyGroup.Point().Base())
 	_, commits = pubPoly.Info()
-	return commits, priPoly.Shares(n)
+	return commits, priPoly.Shares(uint32(n))
 }
 
 // newGroupWithShares builds a key.Group whose distributed public key matches the
@@ -89,7 +89,7 @@ func TestVaultPartialRoundTrip(t *testing.T) {
 			}
 
 			// only a threshold of partials is required to recover the full signature
-			sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, partials[:thr], thr, n)
+			sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, partials[:thr], uint32(thr), uint32(n))
 			require.NoError(t, err)
 
 			b.Signature = sig
@@ -105,7 +105,7 @@ func TestVaultIndexMatchesShare(t *testing.T) {
 
 	for i, sh := range shares {
 		v := NewVault(testlogger.New(t), group, sh, sch)
-		require.Equal(t, sh.Share.I, v.Index())
+		require.Equal(t, int(sh.Share.I), v.Index())
 		require.Equal(t, i, v.Index(), "share index should match node position")
 	}
 }
@@ -141,7 +141,7 @@ func TestVaultSetInfoKeepsChainInfoConstant(t *testing.T) {
 	v.SetInfo(newGroup, newShares[1])
 
 	require.Same(t, newGroup, v.GetGroup())
-	require.Equal(t, newShares[1].Share.I, v.Index())
+	require.Equal(t, int(newShares[1].Share.I), v.Index())
 	require.NotSame(t, pubBefore, v.GetPub(), "public polynomial should be refreshed")
 	// chain info is documented as constant across SetInfo
 	require.True(t, infoBefore.Equal(v.GetInfo()))

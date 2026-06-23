@@ -248,7 +248,7 @@ func (c *chainStore) runAggregator() {
 			span.AddEvent("aggregating")
 			msg := c.crypto.DigestBeacon(roundCache)
 
-			finalSig, err := c.crypto.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
+			finalSig, err := c.crypto.ThresholdScheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), uint32(thr), uint32(n))
 			if err != nil {
 				c.l.Errorw("invalid_recovery", "error", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				span.RecordError(errors.New("invalid recovery"))

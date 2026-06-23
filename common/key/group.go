@@ -18,8 +18,8 @@ import (
 	common2 "github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 func newHash256() hash.Hash {
@@ -258,7 +258,7 @@ func (g *Group) FromTOML(i interface{}) error {
 		}
 	}
 
-	if g.Threshold < dkg.MinimumT(len(gt.Nodes)) {
+	if g.Threshold < int(dkg.MinimumT(uint32(len(gt.Nodes)))) {
 		return errors.New("group file has threshold 0")
 	} else if g.Threshold > g.Len() {
 		return errors.New("group file threshold greater than number of participants")

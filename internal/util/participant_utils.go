@@ -9,8 +9,8 @@ import (
 	"github.com/drand/drand/v2/internal/net"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 func Contains(haystack []*drand.Participant, needle *drand.Participant) bool {

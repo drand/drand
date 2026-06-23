@@ -23,10 +23,10 @@ import (
 	testnet "github.com/drand/drand/v2/internal/test/net"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/util/random"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/util/random"
 )
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
@@ -70,7 +70,7 @@ func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []ky
 	var pubPoly *share.PubPoly
 	var err error
 	for i := 0; i < n; i++ {
-		pri := share.NewPriPoly(sch.KeyGroup, thr, sch.KeyGroup.Scalar().Pick(random.New()), random.New())
+		pri := share.NewPriPoly(sch.KeyGroup, uint32(thr), sch.KeyGroup.Scalar().Pick(random.New()), random.New())
 		pub := pri.Commit(sch.KeyGroup.Point().Base())
 		if priPoly == nil {
 			priPoly = pri
@@ -82,8 +82,8 @@ func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []ky
 		pubPoly, err = pubPoly.Add(pub)
 		require.NoError(t, err)
 	}
-	shares := priPoly.Shares(n)
-	secret, err := share.RecoverSecret(sch.KeyGroup, shares, thr, n)
+	shares := priPoly.Shares(uint32(n))
+	secret, err := share.RecoverSecret(sch.KeyGroup, shares, uint32(thr), uint32(n))
 	require.NoError(t, err)
 	require.True(t, secret.Equal(priPoly.Secret()), "secret not equal")
 
@@ -98,7 +98,7 @@ func dkgShares(t *testing.T, n, thr int, sch *crypto.Scheme) ([]*key.Share, []ky
 
 		dkgShares[i] = &key.Share{DistKeyShare: dkg.DistKeyShare{Share: shares[i], Commits: commits}, Scheme: sch}
 	}
-	sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, sigs, thr, n)
+	sig, err := sch.ThresholdScheme.Recover(pubPoly, msg, sigs, uint32(thr), uint32(n))
 	require.NoError(t, err)
 
 	err = sch.ThresholdScheme.VerifyRecovered(pubPoly.Commit(), msg, sig)
@@ -175,7 +175,7 @@ func NewBeaconTest(
 func (b *BeaconTest) CreateNode(ctx context.Context, t *testing.T, i int) {
 	findShare := func(target int) *key.Share {
 		for _, s := range b.shares {
-			if s.Share.I == target {
+			if int(s.Share.I) == target {
 				return s
 			}
 		}

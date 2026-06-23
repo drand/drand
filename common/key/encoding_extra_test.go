@@ -9,9 +9,9 @@ import (
 
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/util/random"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	"go.dedis.ch/kyber/v4/util/random"
 )
 
 // schemes returns every registered scheme so we can exercise the code paths
