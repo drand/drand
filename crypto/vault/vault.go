@@ -7,7 +7,7 @@ import (
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
-	"github.com/drand/kyber/share"
+	"go.dedis.ch/kyber/v4/share"
 )
 
 // CryptoSafe holds the cryptographic information to generate a partial beacon
@@ -74,7 +74,7 @@ func (v *Vault) SignPartial(msg []byte) ([]byte, error) {
 func (v *Vault) Index() int {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
-	return v.share.Share.I
+	return int(v.share.Share.I)
 }
 
 func (v *Vault) SetInfo(newGroup *key.Group, ks *key.Share) {

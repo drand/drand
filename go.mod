@@ -7,8 +7,6 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/ardanlabs/darwin/v2 v2.0.0
 	github.com/briandowns/spinner v1.23.2
-	github.com/drand/kyber v1.3.2
-	github.com/drand/kyber-bls12381 v0.3.4
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
@@ -40,6 +38,12 @@ require (
 )
 
 require (
+	github.com/bits-and-blooms/bitset v1.24.4 // indirect
+	github.com/cloudflare/circl v1.6.3 // indirect
+	github.com/consensys/gnark-crypto v0.19.2 // indirect
+)
+
+require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -64,6 +68,7 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.dedis.ch/fixbuf v1.0.3 // indirect
+	go.dedis.ch/kyber/v4 v4.0.2
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect

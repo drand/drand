@@ -31,10 +31,10 @@ import (
 	"github.com/drand/drand/v2/internal/fs"
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/test"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/util/random"
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/util/random"
 )
 
 func TestResetError(t *testing.T) {

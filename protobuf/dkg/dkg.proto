@@ -62,7 +62,7 @@ message Response {
     uint32 dealer_index = 1;
     // Status represents a complaint if set to false, a success if set to
     // true.
-    bool status = 2;
+    int32 status = 3;
 }
 
 // JustificationBundle is a packet that holds all justifications a dealer must

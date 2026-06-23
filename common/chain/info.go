@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
-	"github.com/drand/kyber"
+	"go.dedis.ch/kyber/v4"
 )
 
 // Info represents the public information that is necessary for a client to
