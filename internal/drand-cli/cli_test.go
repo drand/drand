@@ -325,11 +325,13 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 		}
 	}()
 	<-waitCh
-	// TODO can we maybe try to bind continuously to not having to wait
-	time.Sleep(200 * time.Millisecond)
 
+	// The node binds its listener asynchronously, so poll the check until it
+	// succeeds rather than relying on a fixed sleep (which is flaky under CI load).
 	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
-	require.NoError(t, CLI().Run(check))
+	require.Eventually(t, func() bool {
+		return CLI().Run(check) == nil
+	}, 5*time.Second, 100*time.Millisecond, "util check never succeeded against the running node")
 }
 
 //nolint:funlen
