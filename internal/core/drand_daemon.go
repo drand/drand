@@ -362,6 +362,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(ctx context.Context, beaconID string) 
 	return dd.LoadBeaconFromStore(ctx, beaconID, store)
 }
 
+//nolint:gocyclo // cohesive startup/migration flow; splitting it would reduce clarity
 func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string, store key.Store) (*BeaconProcess, error) {
 	ctx, span := tracer.NewSpan(ctx, "dd.LoadBeaconFromStore")
 	defer span.End()
