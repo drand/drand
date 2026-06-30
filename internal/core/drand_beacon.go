@@ -60,6 +60,9 @@ type BeaconProcess struct {
 	// global state lock
 	state  sync.RWMutex
 	exitCh chan bool
+	// stopOnce guards the close-once of exitCh so that concurrent Stop calls
+	// cannot panic with a double close or a send on a closed channel.
+	stopOnce sync.Once
 
 	// that cancel function is set when the drand process is following a chain
 	// but not participating. Drand calls the cancel func when the node
@@ -334,24 +337,21 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	ctx, span := tracer.NewSpan(ctx, "bp.Stop")
 	defer span.End()
 
-	bp.state.RLock()
-	select {
-	case <-bp.exitCh:
-		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
-		bp.state.RUnlock()
-		return
-	default:
+	// stopOnce makes Stop idempotent and safe to call concurrently: only the
+	// first caller signals and closes exitCh, every other caller is a no-op.
+	// exitCh is buffered (cap 1) and only ever written here, so the send under
+	// the Once can never block and we don't need a ctx-cancel escape hatch.
+	firstStop := false
+	bp.stopOnce.Do(func() {
+		firstStop = true
 		bp.log.Debugw("Stopping BeaconProcess", "id", bp.getBeaconID())
-	}
-
-	// we wait until we can send on the channel or the context got canceled
-	select {
-	case bp.exitCh <- true:
+		bp.exitCh <- true
 		close(bp.exitCh)
-	case <-ctx.Done():
-		bp.log.Warnw("Context canceled, BeaconProcess exitCh probably blocked")
+	})
+	if !firstStop {
+		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
+		return
 	}
-	bp.state.RUnlock()
 
 	bp.StopBeacon(ctx)
 }

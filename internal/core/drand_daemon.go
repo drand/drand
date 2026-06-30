@@ -46,6 +46,9 @@ type DrandDaemon struct {
 	state         sync.RWMutex
 	completedDKGs *util.FanOutChan[dkg.SharingOutput]
 	exitCh        chan bool
+	// stopOnce guards the close-once of exitCh and the one-shot shutdown
+	// sequence so that concurrent Stop calls cannot panic or run twice.
+	stopOnce sync.Once
 
 	// version indicates the base code variant
 	version common.Version
