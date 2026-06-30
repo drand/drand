@@ -223,12 +223,23 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 
 	dd.dkg.Close()
 
+	// Snapshot the beacon processes under the lock: writers (InstantiateBeaconProcess,
+	// RemoveBeaconHandler) mutate this map while holding dd.state, so iterating it here
+	// without the lock is a data race. We copy the pointers and release the lock before
+	// the (slow) per-process Stop/wait so we don't hold dd.state during shutdown.
+	dd.state.RLock()
+	bps := make([]*BeaconProcess, 0, len(dd.beaconProcesses))
 	for _, bp := range dd.beaconProcesses {
+		bps = append(bps, bp)
+	}
+	dd.state.RUnlock()
+
+	for _, bp := range bps {
 		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
 		bp.Stop(ctx)
 	}
 
-	for _, bp := range dd.beaconProcesses {
+	for _, bp := range bps {
 		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
 
 		//nolint:mnd // We want to wait for 5 seconds before sending a timeout for the beacon shutdown

@@ -6,6 +6,7 @@ import (
 	stdjson "encoding/json"
 	"errors"
 	"fmt"
+	stdnet "net"
 	"os"
 	"os/exec"
 	"path"
@@ -326,12 +327,24 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 	}()
 	<-waitCh
 
-	// The node binds its listener asynchronously, so poll the check until it
-	// succeeds rather than relying on a fixed sleep (which is flaky under CI load).
-	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
+	// Wait for the node to start accepting connections before running the check.
+	// We poll the raw TCP port rather than retrying `util check`: rerunning the CLI
+	// concurrently with the still-starting node command writes to the urfave/cli
+	// flag state they share and trips the race detector. Once the listener is up the
+	// start command has finished parsing its flags, so the single check below no
+	// longer races with it. This also replaces the previous fixed 200ms sleep, which
+	// was flaky under CI load.
 	require.Eventually(t, func() bool {
-		return CLI().Run(check) == nil
-	}, 5*time.Second, 100*time.Millisecond, "util check never succeeded against the running node")
+		conn, err := stdnet.DialTimeout("tcp", keyAddr, time.Second)
+		if err != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}, 10*time.Second, 100*time.Millisecond, "node never started listening on %s", keyAddr)
+
+	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
+	require.NoError(t, CLI().Run(check))
 }
 
 //nolint:funlen
