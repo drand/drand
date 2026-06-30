@@ -215,6 +215,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 		span.RecordError(err)
 		return nil, err
 	}
+	//nolint:gosec // G118: the listener goroutine intentionally runs for the lifetime of the beacon process
 	go bp.StartListeningForDKGUpdates(ctx)
 
 	dd.state.Lock()

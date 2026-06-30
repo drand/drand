@@ -558,7 +558,7 @@ func formatAddresses(arr []*drand.Participant) string {
 	b.WriteString("[")
 
 	for _, a := range arr {
-		b.WriteString(fmt.Sprintf("\n\t%s,", a.Address))
+		fmt.Fprintf(&b, "\n\t%s,", a.Address)
 	}
 	b.WriteString("\n]")
 
@@ -615,7 +615,7 @@ func formatFinalGroup(group []string) string {
 	b := strings.Builder{}
 	b.WriteString("[")
 	for _, a := range group {
-		b.WriteString(fmt.Sprintf("\n\t%s,", a))
+		fmt.Fprintf(&b, "\n\t%s,", a)
 	}
 	b.WriteString("\n]")
 	return b.String()

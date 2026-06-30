@@ -25,11 +25,11 @@ jobs:
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.7.2
+        version: v2.12.2
         args: --build-tags ${{ matrix.db_type }} --timeout 5m
 
     - name: golangci-lint tests non-tls
       uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.7.2
+        version: v2.12.2
         args: --build-tags conn_insecure --timeout 5m

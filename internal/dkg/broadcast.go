@@ -301,6 +301,7 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 			continue
 		}
 		sender := newSender(dkgClient, node, l, queue)
+		//nolint:gosec // G118: the sender goroutine intentionally runs until the broadcast is torn down
 		go sender.run(ctx)
 		senders = append(senders, sender)
 	}

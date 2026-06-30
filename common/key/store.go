@@ -195,6 +195,7 @@ func Save(filePath string, t Tomler, secure bool) error {
 	if secure {
 		fd, err = fs.CreateSecureFile(filePath)
 	} else {
+		//nolint:gosec // G703: filePath is derived from the node's own config folder, not external input
 		fd, err = os.Create(filePath)
 	}
 	if err != nil {
