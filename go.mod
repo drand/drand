@@ -1,6 +1,8 @@
 module github.com/drand/drand/v2
 
-go 1.26.4
+go 1.26
+
+toolchain go1.26.4
 
 require (
 	github.com/AnomalRoil/syncclock v0.0.2
