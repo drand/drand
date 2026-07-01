@@ -11,22 +11,22 @@ import (
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
 
-	"github.com/drand/kyber"
-	bls "github.com/drand/kyber-bls12381"
-	bn254 "github.com/drand/kyber/pairing/bn254"
-	"github.com/drand/kyber/sign"
+	"go.dedis.ch/kyber/v4"
+	bls "go.dedis.ch/kyber/v4/pairing/bls12381/kilic"
+	bn254 "go.dedis.ch/kyber/v4/pairing/bn254"
+	"go.dedis.ch/kyber/v4/sign"
 
-	// The package github.com/drand/kyber/sign/bls is deprecated because it is vulnerable to
+	// The package go.dedis.ch/kyber/v4/sign/bls is deprecated because it is vulnerable to
 	// rogue public-key attack against BLS aggregated signature. The new version of the protocol can be used to
 	// make sure a signature aggregate cannot be verified by a forged key. You can find the protocol in kyber/sign/bdn.
 	// Note that only the aggregation is broken by the attack and a later version will merge bls and asmbls.
 	// The way we are using this package does not do any aggregation and we're only using simple signatures and thus
 	// this is not a security issue for drand.
-	//nolint:staticcheck
-	signBls "github.com/drand/kyber/sign/bls"
-	"github.com/drand/kyber/sign/schnorr"
-	"github.com/drand/kyber/sign/tbls"
-	"github.com/drand/kyber/util/random"
+
+	signBls "go.dedis.ch/kyber/v4/sign/bls"
+	"go.dedis.ch/kyber/v4/sign/schnorr"
+	"go.dedis.ch/kyber/v4/sign/tbls"
+	"go.dedis.ch/kyber/v4/util/random"
 )
 
 type hashableBeacon interface {
@@ -68,6 +68,14 @@ type Scheme struct {
 // VerifyBeacon is verifying the aggregated beacon against the provided group public key
 func (s *Scheme) VerifyBeacon(b SignedBeacon, pubkey kyber.Point) error {
 	return s.ThresholdScheme.VerifyRecovered(pubkey, s.DigestBeacon(b), b.GetSignature())
+}
+
+// Digest returns the message bytes that are signed for the given beacon according to this scheme.
+// It only depends on the scheme's hashing rule (chained vs unchained, sha256 vs keccak) and is
+// independent of the elliptic-curve backend, which makes it convenient for cross-implementation
+// verification.
+func (s *Scheme) Digest(b SignedBeacon) []byte {
+	return s.DigestBeacon(b)
 }
 
 func (s *Scheme) String() string {

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"sort"
 
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/net"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
 )
 
 func Contains(haystack []*drand.Participant, needle *drand.Participant) bool {

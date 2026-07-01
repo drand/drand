@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"net"
 
+	"go.dedis.ch/kyber/v4"
+	"go.dedis.ch/kyber/v4/share"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/util/random"
+
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/util/random"
 )
 
 // Pair is a wrapper around a random scalar and the corresponding public
@@ -320,7 +321,7 @@ func (s *Share) TOMLValue() interface{} {
 // ShareTOML is the TOML representation of a dkg.DistKeyShare
 type ShareTOML struct {
 	// index of the share.
-	Index int
+	Index uint32
 	// evaluation of the private polynomial.
 	Share string
 	// coefficients of the public polynomial.

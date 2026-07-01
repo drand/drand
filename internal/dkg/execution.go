@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"time"
 
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v4/sign/schnorr"
+
 	"github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
@@ -15,9 +19,6 @@ import (
 	"github.com/drand/drand/v2/internal/metrics"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/sign/schnorr"
 )
 
 func (d *Process) executeDKG(ctx context.Context, beaconID string, executionStartTime time.Time) error {
@@ -293,9 +294,9 @@ func (d *Process) initialDKGConfig(current *DBState, keypair *key.Pair, sortedPa
 		OldNodes:       nodes,
 		NewNodes:       newNodes,
 		PublicCoeffs:   publicCoeffs,
-		OldThreshold:   oldThreshold,
+		OldThreshold:   uint32(oldThreshold),
 		Share:          nil,
-		Threshold:      int(current.Threshold),
+		Threshold:      current.Threshold,
 		Reader:         nil,
 		UserReaderOnly: false,
 		FastSync:       true,
@@ -329,8 +330,8 @@ func (d *Process) reshareDKGConfig(
 		NewNodes:       newNodes,
 		PublicCoeffs:   previous.FinalGroup.PublicKey.Coefficients,
 		Share:          &previous.KeyShare.DistKeyShare,
-		Threshold:      int(current.Threshold),
-		OldThreshold:   int(previous.Threshold),
+		Threshold:      current.Threshold,
+		OldThreshold:   previous.Threshold,
 		Reader:         nil,
 		UserReaderOnly: false,
 		FastSync:       true,
