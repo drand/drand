@@ -15,11 +15,12 @@ import (
 	"github.com/BurntSushi/toml"
 	"golang.org/x/crypto/blake2b"
 
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+
 	common2 "github.com/drand/drand/v2/common"
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	"go.dedis.ch/kyber/v4"
-	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 func newHash256() hash.Hash {

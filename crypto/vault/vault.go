@@ -3,11 +3,12 @@ package vault
 import (
 	"sync"
 
+	"go.dedis.ch/kyber/v4/share"
+
 	"github.com/drand/drand/v2/common/chain"
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/crypto"
-	"go.dedis.ch/kyber/v4/share"
 )
 
 // CryptoSafe holds the cryptographic information to generate a partial beacon

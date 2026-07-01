@@ -41,7 +41,14 @@ import (
 // circl and gnark hard-code the standard RFC9380 domain separation tags, so they
 // can verify the spec-compliant drand schemes but cannot reproduce the deprecated
 // "bls-unchained-on-g1" scheme, which abuses the G2 DST on G1.
-var BLS12381Backends = []string{"kilic", "circl", "gnark"}
+// BLS12-381 backend identifiers shipped by go.dedis.ch/kyber/v4.
+const (
+	BackendKilic = "kilic"
+	BackendCircl = "circl"
+	BackendGnark = "gnark"
+)
+
+var BLS12381Backends = []string{BackendKilic, BackendCircl, BackendGnark}
 
 // ErrUnsupportedBackend is returned when a backend cannot reproduce a given scheme.
 var ErrUnsupportedBackend = errors.New("backend cannot reproduce this scheme")
@@ -67,11 +74,11 @@ func NewVerifier(schemeName, backend string, pubKey []byte) (*Verifier, error) {
 	var threshold sign.ThresholdScheme
 
 	switch backend {
-	case "kilic":
+	case BackendKilic:
 		// This is the production code path: drand's schemes are built on kilic.
 		keyGroup = sch.KeyGroup
 		threshold = sch.ThresholdScheme
-	case "circl", "gnark":
+	case BackendCircl, BackendGnark:
 		suite, sigOnG1, err := bls12381Suite(backend, schemeName)
 		if err != nil {
 			return nil, err
@@ -122,7 +129,7 @@ func bls12381Suite(backend, schemeName string) (suite pairing.Suite, sigOnG1 boo
 }
 
 func newBLSSuite(backend string) pairing.Suite {
-	if backend == "gnark" {
+	if backend == BackendGnark {
 		return gnark.NewSuite()
 	}
 	return circl.NewSuite()
@@ -155,7 +162,7 @@ func (r *Result) OK() bool {
 func VerifyStore(ctx context.Context, store chain.Store, info *chaininfo.Info, backends []string) (map[string]*Result, error) {
 	rawPub, err := info.PublicKey.MarshalBinary()
 	if err != nil {
-		return nil, fmt.Errorf("marshalling chain public key: %w", err)
+		return nil, fmt.Errorf("marshaling chain public key: %w", err)
 	}
 
 	results := make(map[string]*Result, len(backends))
@@ -198,7 +205,7 @@ func VerifyStore(ctx context.Context, store chain.Store, info *chaininfo.Info, b
 				}
 			}
 		}
-		// Reaching the end of the database is signalled with ErrNoBeaconStored.
+		// Reaching the end of the database is signaled with ErrNoBeaconStored.
 		if err != nil && !errors.Is(err, chainerrors.ErrNoBeaconStored) {
 			return err
 		}

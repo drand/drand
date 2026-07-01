@@ -3,9 +3,10 @@ package key
 import (
 	"encoding/binary"
 
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+
 	"github.com/drand/drand/v2/crypto"
 	proto "github.com/drand/drand/v2/protobuf/drand"
-	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 // Index is the index of the node

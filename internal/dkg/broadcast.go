@@ -8,6 +8,9 @@ import (
 	"math/rand"
 	"sync"
 
+	"go.dedis.ch/kyber/v4"
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+
 	"github.com/drand/drand/v2/common/log"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/crypto"
@@ -15,8 +18,6 @@ import (
 	"github.com/drand/drand/v2/internal/util"
 	pdkg "github.com/drand/drand/v2/protobuf/dkg"
 	"github.com/drand/drand/v2/protobuf/drand"
-	"go.dedis.ch/kyber/v4"
-	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 // Broadcast is an interface that represents the minimum functionality required

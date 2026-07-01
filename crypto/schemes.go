@@ -22,7 +22,7 @@ import (
 	// Note that only the aggregation is broken by the attack and a later version will merge bls and asmbls.
 	// The way we are using this package does not do any aggregation and we're only using simple signatures and thus
 	// this is not a security issue for drand.
-	//nolint:staticcheck
+
 	signBls "go.dedis.ch/kyber/v4/sign/bls"
 	"go.dedis.ch/kyber/v4/sign/schnorr"
 	"go.dedis.ch/kyber/v4/sign/tbls"

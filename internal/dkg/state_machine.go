@@ -11,11 +11,12 @@ import (
 	"reflect"
 	"time"
 
+	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
+
 	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/crypto"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
-	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 )
 
 type Status uint32

@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/drand/drand/v2/crypto"
-	proto "github.com/drand/drand/v2/protobuf/drand"
 	"go.dedis.ch/kyber/v4"
 	"go.dedis.ch/kyber/v4/share"
 	dkg "go.dedis.ch/kyber/v4/share/dkg/pedersen"
 	"go.dedis.ch/kyber/v4/util/random"
+
+	"github.com/drand/drand/v2/crypto"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 // Pair is a wrapper around a random scalar and the corresponding public
