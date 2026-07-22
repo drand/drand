@@ -211,24 +211,38 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	defer span.End()
 
 	dd.log.Debugw("dd.Stop called")
-	select {
-	case <-dd.exitCh:
+	// stopOnce makes Stop idempotent and concurrency-safe: only the first caller
+	// runs the shutdown sequence and closes exitCh; any concurrent or later call
+	// is a no-op rather than panicking on a double close / send on closed channel.
+	firstStop := false
+	dd.stopOnce.Do(func() { firstStop = true })
+	if !firstStop {
 		msg := "trying to stop an already stopping daemon"
 		dd.log.Errorw(msg)
 		span.RecordError(errors.New(msg))
 		return
-	default:
-		dd.log.Infow("Stopping DrandDaemon")
 	}
+	dd.log.Infow("Stopping DrandDaemon")
 
 	dd.dkg.Close()
 
+	// Snapshot the beacon processes under the lock: writers (InstantiateBeaconProcess,
+	// RemoveBeaconHandler) mutate this map while holding dd.state, so iterating it here
+	// without the lock is a data race. We copy the pointers and release the lock before
+	// the (slow) per-process Stop/wait so we don't hold dd.state during shutdown.
+	dd.state.RLock()
+	bps := make([]*BeaconProcess, 0, len(dd.beaconProcesses))
 	for _, bp := range dd.beaconProcesses {
+		bps = append(bps, bp)
+	}
+	dd.state.RUnlock()
+
+	for _, bp := range bps {
 		dd.log.Debugw("Sending Stop to beaconProcesses", "id", bp.getBeaconID())
 		bp.Stop(ctx)
 	}
 
-	for _, bp := range dd.beaconProcesses {
+	for _, bp := range bps {
 		dd.log.Debugw("waiting for beaconProcess to finish", "id", bp.getBeaconID())
 
 		//nolint:mnd // We want to wait for 5 seconds before sending a timeout for the beacon shutdown
@@ -267,14 +281,11 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		dd.log.Debugw("control stopped successfully")
 	}()
 
-	select {
-	case dd.exitCh <- true:
-		dd.log.Debugw("signaled dd.exitCh")
-		close(dd.exitCh)
-	case <-ctx.Done():
-		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
-		close(dd.exitCh)
-	}
+	// exitCh is buffered (cap 1) and only ever written here, under stopOnce, so
+	// this send can never block and needs no ctx-cancel escape hatch.
+	dd.exitCh <- true
+	dd.log.Debugw("signaled dd.exitCh")
+	close(dd.exitCh)
 }
 
 // WaitExit returns a channel that signals when drand stops its operations

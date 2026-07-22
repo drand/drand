@@ -305,7 +305,7 @@ func (h *Handler) Transition(ctx context.Context, prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	//nolint:govet // We don't want to call the cancel explicitly, it's not lost we're relying on the deadline
+	//nolint:govet,gosec // We don't want to call the cancel explicitly, it's not lost we're relying on the deadline
 	ctx, _ = context.WithDeadline(ctx, time.Unix(targetTime, 0).Add(-h.conf.Group.Period))
 	h.chain.RunSync(ctx, tRound-1, toPeers(prevGroup.Nodes))
 

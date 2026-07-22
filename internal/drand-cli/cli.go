@@ -265,6 +265,7 @@ var storageTypeFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_DB"},
 }
 
+//nolint:gosec // G101: example default DSN with placeholder credentials, not a real secret
 var pgDSNFlag = &cli.StringFlag{
 	Name: "pg-dsn",
 	Usage: "PostgreSQL DSN configuration.\n" +

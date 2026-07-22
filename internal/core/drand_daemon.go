@@ -46,6 +46,9 @@ type DrandDaemon struct {
 	state         sync.RWMutex
 	completedDKGs *util.FanOutChan[dkg.SharingOutput]
 	exitCh        chan bool
+	// stopOnce guards the close-once of exitCh and the one-shot shutdown
+	// sequence so that concurrent Stop calls cannot panic or run twice.
+	stopOnce sync.Once
 
 	// version indicates the base code variant
 	version common.Version
@@ -215,6 +218,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(ctx context.Context, beaconID st
 		span.RecordError(err)
 		return nil, err
 	}
+	//nolint:gosec // G118: the listener goroutine intentionally runs for the lifetime of the beacon process
 	go bp.StartListeningForDKGUpdates(ctx)
 
 	dd.state.Lock()
@@ -361,6 +365,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(ctx context.Context, beaconID string) 
 	return dd.LoadBeaconFromStore(ctx, beaconID, store)
 }
 
+//nolint:gocyclo // cohesive startup/migration flow; splitting it would reduce clarity
 func (dd *DrandDaemon) LoadBeaconFromStore(ctx context.Context, beaconID string, store key.Store) (*BeaconProcess, error) {
 	ctx, span := tracer.NewSpan(ctx, "dd.LoadBeaconFromStore")
 	defer span.End()
