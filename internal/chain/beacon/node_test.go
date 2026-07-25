@@ -275,8 +275,7 @@ func (b *BeaconTest) StartBeacon(ctx context.Context, t *testing.T, i int, catch
 	b.nodes[j].started = true
 	if catchup {
 		t.Logf("Start BEACON %s - node pointer %p\n", b.nodes[j].handler.addr, b.nodes[j].handler)
-		b.nodes[j].handler.Catchup(ctx)
-		return nil
+		return b.nodes[j].handler.Catchup(ctx)
 	}
 
 	return b.nodes[j].handler.Start(ctx)
@@ -469,6 +468,23 @@ func TestBeaconSync(t *testing.T) {
 	// n - stayOnline for the previous round that the others catch up
 	t.Log("before doing round after enabling reception again")
 	doRound(n+(n-stayOnline), period)
+}
+
+func TestCatchup_CancelledContext(t *testing.T) {
+	ctx := context.Background()
+	fakeClock := clock.NewFakeClock()
+	genesisTime := fakeClock.Now().Add(2 * time.Second).Unix()
+	beaconID := test.GetBeaconIDFromEnv()
+
+	bt := NewBeaconTest(ctx, t, fakeClock, 1, 1, 2*time.Second, genesisTime, beaconID)
+	bt.ServeBeacon(t, 0)
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := bt.StartBeacon(cancelCtx, t, 0, true)
+	require.Error(t, err)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestBeaconSimple(t *testing.T) {

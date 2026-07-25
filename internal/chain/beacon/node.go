@@ -274,15 +274,19 @@ func (h *Handler) Start(ctx context.Context) error {
 // already running network . If the node does not have the previous randomness,
 // it syncs its local chain with other nodes to be able to participate in the
 // next upcoming round.
-func (h *Handler) Catchup(ctx context.Context) {
+func (h *Handler) Catchup(ctx context.Context) error {
 	ctx, span := tracer.NewSpan(ctx, "h.Catchup")
 	defer span.End()
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	nRound, tTime := common.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.thresholdMonitor.Start()
 	go h.run(tTime)
 	h.l.Infow("Launching in catchup", "upto", nRound, "period", h.conf.Group.Period, "catchup_period", h.conf.Group.CatchupPeriod)
 	h.chain.RunSync(ctx, nRound, nil)
+	return nil
 }
 
 // Transition makes this beacon continuously sync until the time written in the
