@@ -340,7 +340,7 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 
 	c := cursor{
 		store: p,
-		pos:   0,
+		// lastRound/hasLast are initialized lazily by First/Seek/Last.
 	}
 
 	return fn(ctx, &c)
@@ -398,7 +398,8 @@ func (p *Store) AddFK(ctx context.Context) error {
 // cursor implements support for iterating through the beacon table.
 type cursor struct {
 	store *Store
-	pos   uint64
+	lastRound uint64
+	hasLast   bool
 }
 
 // First returns the first beacon from the configured beacon table.
@@ -411,10 +412,6 @@ func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
 		return nil, ctx.Err()
 	default:
 	}
-
-	defer func() {
-		c.pos = 0
-	}()
 
 	const query = `
 	SELECT
@@ -433,7 +430,13 @@ func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	b, err := c.store.getBeacon(ctx, true, query, data)
+	if err != nil {
+		return nil, err
+	}
+	c.lastRound = b.Round
+	c.hasLast = true
+	return b, nil
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -447,10 +450,14 @@ func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
 	default:
 	}
 
-	defer func() {
-		c.pos++
-	}()
+	// If the cursor isn't initialized yet, fall back to First().
+	if !c.hasLast {
+		return c.First(ctx)
+	}
 
+	// Keyset pagination: advances using the last returned `round` rather than `OFFSET`.
+	// This relies on the database constraint `PRIMARY KEY (beacon_id, round)` for `beacon_details`,
+	// so `round` is unique per beacon_id and `ORDER BY round ASC` can use the PK/index efficiently.
 	const query = `
 	SELECT
 		round,
@@ -458,20 +465,26 @@ func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
 	FROM
 		beacon_details
 	WHERE
-		beacon_id = :id
+		beacon_id = :id AND
+		round > :last
 	ORDER BY
-		round ASC OFFSET :offset
+		round ASC
 	LIMIT 1`
 
 	data := struct {
-		ID     int    `db:"id"`
-		Offset uint64 `db:"offset"`
+		ID   int    `db:"id"`
+		Last uint64 `db:"last"`
 	}{
-		ID:     c.store.beaconID,
-		Offset: c.pos + 1,
+		ID:   c.store.beaconID,
+		Last: c.lastRound,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	b, err := c.store.getBeacon(ctx, true, query, data)
+	if err != nil {
+		return nil, err
+	}
+	c.lastRound = b.Round
+	return b, nil
 }
 
 // Seek searches the beacon table for the specified round
@@ -509,8 +522,9 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error)
 		return nil, err
 	}
 
-	err = c.seekPosition(ctx, ret.Round)
-	return ret, err
+	c.lastRound = ret.Round
+	c.hasLast = true
+	return ret, nil
 }
 
 // Last returns the last beacon from the configured beacon table.
@@ -546,55 +560,9 @@ func (c *cursor) Last(ctx context.Context) (*common.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	err = c.seekPosition(ctx, ret.Round)
-	return ret, err
-}
-
-// seekPosition updates the cursor position in the database for the next operation to work
-func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
-	ctx, span := tracer.NewSpan(ctx, "pgStore.Cursor.seekPosition")
-	defer span.End()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	const query = `
-	SELECT
-		count(beacon_id) as round_offset
-	FROM
-	    beacon_details
-	WHERE
-	    beacon_id = :id
-		AND round < :round`
-
-	data := struct {
-		ID    int    `db:"id"`
-		Round uint64 `db:"round"`
-	}{
-		ID:    c.store.beaconID,
-		Round: round,
-	}
-
-	var p struct {
-		Position uint64 `db:"round_offset"`
-	}
-	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return chainerrors.ErrNoBeaconStored
-	}
-	err = rows.StructScan(&p)
-
-	c.pos = p.Position
-	return err
+	c.lastRound = ret.Round
+	c.hasLast = true
+	return ret, nil
 }
 
 func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query string, data interface{}) (*common.Beacon, error) {

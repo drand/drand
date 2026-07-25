@@ -173,6 +173,65 @@ func TestStore_Cursor(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestStorePG_CursorKeysetIteration(t *testing.T) {
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
+
+	l, db := test.NewUnit(t, c, t.Name())
+
+	beaconName := t.Name()
+	dbStore, err := pgdb.NewStore(ctx, l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, dbStore.Close())
+	}()
+
+	// Insert beacons out of order to ensure Cursor iteration is driven by ORDER BY round,
+	// not by insertion order. This specifically validates the keyset-pagination approach
+	// used by Cursor.Next().
+	sigs := [][]byte{
+		{0x01, 0x02, 0x03},
+		{0x02, 0x03, 0x04},
+		{0x03, 0x04, 0x05},
+		{0x04, 0x05, 0x06},
+		{0x05, 0x06, 0x07},
+	}
+
+	expected := make([]*common.Beacon, 0, len(sigs))
+	for round := 0; round < len(sigs); round++ {
+		b := &common.Beacon{
+			Round:     uint64(round),
+			Signature: sigs[round],
+		}
+		if prevMatters && round > 0 {
+			b.PreviousSig = sigs[round-1]
+		}
+		expected = append(expected, b)
+	}
+
+	insertOrder := []int{3, 0, 4, 1, 2}
+	for _, i := range insertOrder {
+		require.NoError(t, dbStore.Put(ctx, expected[i]))
+	}
+
+	err = dbStore.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+		b, err := c.First(ctx)
+		require.NoError(t, err)
+		require.True(t, expected[0].Equal(b))
+
+		// Validate full iteration order/completeness via First()+Next().
+		for i := 1; i < len(expected); i++ {
+			b, err = c.Next(ctx)
+			require.NoError(t, err)
+			require.True(t, expected[i].Equal(b))
+		}
+
+		_, err = c.Next(ctx)
+		require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func Test_StorePG(t *testing.T) {
 	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
 
