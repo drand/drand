@@ -350,7 +350,7 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	}
 
 	// register callback to notify client of progress
-	cbStore := beacon.NewCallbackStore(bp.log, ss)
+	cbStore := beacon.NewCallbackStore(bp.log, ss, common.GetCanonicalBeaconID(info.ID))
 	defer cbStore.Close()
 
 	cb, done := bp.sendProgressCallback(ctx, stream, req.GetUpTo(), info, bp.opts.clock)

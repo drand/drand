@@ -70,7 +70,7 @@ func newChainStore(ctx context.Context, l log.Logger, cf *Config, cl net.Protoco
 	}
 
 	// we can register callbacks on it
-	cbs := NewCallbackStore(l, as)
+	cbs := NewCallbackStore(l, as, common.GetCanonicalBeaconID(cf.Group.ID))
 
 	// we give the final append store to the sync manager
 	syncm, err := NewSyncManager(ctx, &SyncConfig{

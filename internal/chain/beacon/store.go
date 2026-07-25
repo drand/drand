@@ -202,6 +202,7 @@ type callbackStore struct {
 	chain.Store
 	sync.RWMutex
 	l         log.Logger
+	beaconID  string
 	stopping  chan bool
 	callbacks map[string]CallbackFunc
 	newJob    map[string]chan cbPair
@@ -216,10 +217,12 @@ type cbPair struct {
 // NewCallbackStore returns a Store that uses a pool of worker to dispatch the
 // beacon to the registered callbacks. The callbacks are not called if the "Put"
 // operations failed.
-func NewCallbackStore(l log.Logger, s chain.Store) CallbackStore {
+// beaconID is used for Prometheus labels (sync_total_callbacks / sync_total_jobs) and must be canonical.
+func NewCallbackStore(l log.Logger, s chain.Store, beaconID string) CallbackStore {
 	cbs := &callbackStore{
 		Store:     s,
 		l:         l,
+		beaconID:  common.GetCanonicalBeaconID(beaconID),
 		callbacks: make(map[string]CallbackFunc),
 		newJob:    make(map[string]chan cbPair),
 		stopping:  make(chan bool, 1),
@@ -277,10 +280,8 @@ func (c *callbackStore) AddCallback(id string, fn CallbackFunc) {
 	c.newJob[id] = make(chan cbPair, CallbackWorkerQueue)
 
 	// Let us keep track of how many callbacks we have
-	// TODO: have the stores know their beacon name instead of using the logger name
-	loggerName := c.l.Name()
-	metrics.SyncCallbacks.WithLabelValues(loggerName).Set(float64(len(c.callbacks)))
-	metrics.SyncJobs.WithLabelValues(loggerName).Set(float64(len(c.newJob)))
+	metrics.SyncCallbacks.WithLabelValues(c.beaconID).Set(float64(len(c.callbacks)))
+	metrics.SyncJobs.WithLabelValues(c.beaconID).Set(float64(len(c.newJob)))
 	// we run one go routine per callback
 	go c.runWorker(c.newJob[id])
 }
@@ -296,10 +297,8 @@ func (c *callbackStore) RemoveCallback(id string) {
 	}
 
 	// Let us keep track of how many callbacks we have
-	// TODO: have the stores know their beacon name instead of using the logger name
-	loggerName := c.l.Name()
-	metrics.SyncCallbacks.WithLabelValues(loggerName).Set(float64(len(c.callbacks)))
-	metrics.SyncJobs.WithLabelValues(loggerName).Set(float64(len(c.newJob)))
+	metrics.SyncCallbacks.WithLabelValues(c.beaconID).Set(float64(len(c.callbacks)))
+	metrics.SyncJobs.WithLabelValues(c.beaconID).Set(float64(len(c.newJob)))
 }
 
 func (c *callbackStore) Close() error {
