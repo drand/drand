@@ -312,6 +312,7 @@ func TestJoin(t *testing.T) {
 		CatchupPeriod: sample.CatchupPeriod.String(),
 		GenesisTime:   sample.GenesisTime.Unix(),
 		GenesisSeed:   hex.EncodeToString(sample.GenesisSeed),
+		SchemeID:      sch.Name,
 		Nodes: []*key.NodeTOML{
 			{
 				PublicTOML: &key.PublicTOML{
