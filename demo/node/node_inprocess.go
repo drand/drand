@@ -47,6 +47,8 @@ type LocalNode struct {
 	pgDSN        func() string
 	memDBSize    int
 
+	pushMode bool // when true, start beacon in push mode
+
 	log log.Logger
 
 	daemon *core.DrandDaemon
@@ -79,6 +81,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		dbEngineType: cfg.DBEngineType,
 		pgDSN:        cfg.PgDSN,
 		memDBSize:    cfg.MemDBSize,
+		pushMode:     cfg.Push,
 		dkgRunner:    &dkg.TestRunner{BeaconID: cfg.BeaconID, Client: dkgClient, Clock: clock.NewRealClock()},
 	}
 
@@ -158,10 +161,8 @@ func (l *LocalNode) Start(dbEngineType chain.StorageType, pgDSN func() string, m
 			// Add beacon handler from chain hash for http server
 			drandDaemon.AddBeaconHandler(ctx, beaconID, bp)
 
-			// TODO make it configurable so that new share holder can still start if
-			//  nobody started.
-			// drand.StartBeacon(!c.Bool(pushFlag.Name))
-			catchup := true
+			// catchup=false when pushMode is true
+			catchup := !l.pushMode
 			err = bp.StartBeacon(ctx, catchup)
 			if err != nil {
 				return err
