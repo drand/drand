@@ -294,7 +294,7 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 		Round: round,
 	}
 
-	return p.getBeacon(ctx, canFetchPrevious, query, data)
+	return p.getBeaconWithCache(ctx, nil, canFetchPrevious, query, data)
 }
 
 // Del removes the specified round from the beacon table.
@@ -341,6 +341,13 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 	c := cursor{
 		store: p,
 		pos:   0,
+	}
+	if p.requiresPrevious {
+		// Avoid an extra DB round-trip per beacon by reusing already fetched
+		// signatures across the same cursor iteration. This cache is scoped to
+		// the lifetime of this Cursor call and primarily benefits sequential
+		// iteration; cache misses fall back to the existing DB lookup.
+		c.sigCache = make(map[uint64][]byte)
 	}
 
 	return fn(ctx, &c)
@@ -399,6 +406,9 @@ func (p *Store) AddFK(ctx context.Context) error {
 type cursor struct {
 	store *Store
 	pos   uint64
+	// sigCache caches signatures by round for the duration of a single Cursor call.
+	// It is used to resolve PreviousSig without an extra DB query when iterating sequentially.
+	sigCache map[uint64][]byte
 }
 
 // First returns the first beacon from the configured beacon table.
@@ -433,7 +443,7 @@ func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	return c.store.getBeaconWithCache(ctx, c.sigCache, true, query, data)
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -471,7 +481,7 @@ func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
 		Offset: c.pos + 1,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	return c.store.getBeaconWithCache(ctx, c.sigCache, true, query, data)
 }
 
 // Seek searches the beacon table for the specified round
@@ -504,7 +514,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error)
 		Round: round,
 	}
 
-	ret, err := c.store.getBeacon(ctx, true, query, data)
+	ret, err := c.store.getBeaconWithCache(ctx, c.sigCache, true, query, data)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +552,7 @@ func (c *cursor) Last(ctx context.Context) (*common.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	ret, err := c.store.getBeacon(ctx, true, query, data)
+	ret, err := c.store.getBeaconWithCache(ctx, c.sigCache, true, query, data)
 	if err != nil {
 		return nil, err
 	}
@@ -598,6 +608,10 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 }
 
 func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query string, data interface{}) (*common.Beacon, error) {
+	return p.getBeaconWithCache(ctx, nil, canFetchPrevious, query, data)
+}
+
+func (p *Store) getBeaconWithCache(ctx context.Context, cache map[uint64][]byte, canFetchPrevious bool, query string, data interface{}) (*common.Beacon, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -619,10 +633,23 @@ func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query stri
 		return nil, err
 	}
 
+	if cache != nil {
+		// Copy to avoid retaining/mutating shared backing arrays.
+		cache[ret.Round] = append([]byte(nil), ret.Signature...)
+	}
+
 	if canFetchPrevious &&
 		p.requiresPrevious &&
 		ret.Round > 0 {
-		prev, err := p.get(ctx, ret.Round-1, false)
+		prevRound := ret.Round - 1
+		if cache != nil {
+			if prevSig, ok := cache[prevRound]; ok {
+				ret.PreviousSig = prevSig
+				return toChainBeacon(ret), nil
+			}
+		}
+
+		prev, err := p.getWithCache(ctx, prevRound, false, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -630,4 +657,33 @@ func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query stri
 	}
 
 	return toChainBeacon(ret), nil
+}
+
+func (p *Store) getWithCache(ctx context.Context, round uint64, canFetchPrevious bool, cache map[uint64][]byte) (*common.Beacon, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	const query = `
+	SELECT
+		round,
+		signature
+	FROM
+		beacon_details
+	WHERE
+		beacon_id = :id AND
+		round = :round
+	LIMIT 1`
+
+	data := struct {
+		ID    int    `db:"id"`
+		Round uint64 `db:"round"`
+	}{
+		ID:    p.beaconID,
+		Round: round,
+	}
+
+	return p.getBeaconWithCache(ctx, cache, canFetchPrevious, query, data)
 }
