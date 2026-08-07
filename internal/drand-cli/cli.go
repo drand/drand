@@ -186,17 +186,9 @@ var hashOnly = &cli.BoolFlag{
 	EnvVars: []string{"DRAND_HASH"},
 }
 
-var hashInfoReq = &cli.StringFlag{
-	Name:     "chain-hash",
-	Usage:    "The hash of the chain info, used to validate integrity of the received group info",
-	Required: true,
-	EnvVars:  []string{"DRAND_CHAIN_HASH"},
-}
-
-// TODO (DLSNIPER): This is a duplicate of the hashInfoReq. Should these be merged into a single flag?
-var hashInfoNoReq = &cli.StringFlag{
+var chainHashFlag = &cli.StringFlag{
 	Name:    "chain-hash",
-	Usage:   "The hash of the chain info",
+	Usage:   "The hash of the chain info, used to validate integrity of received group/chain info (required with --follow)",
 	EnvVars: []string{"DRAND_CHAIN_HASH"},
 }
 
@@ -213,7 +205,7 @@ var syncNodeFlag = &cli.StringFlag{
 var followFlag = &cli.BoolFlag{
 	Name: "follow",
 	Usage: "Indicates whether we want to follow another daemon, if not we perform a check of our local DB. " +
-		"Requires to specify the chain-hash using the '" + hashInfoNoReq.Name + "' flag.",
+		"Requires to specify the chain-hash using the '" + chainHashFlag.Name + "' flag.",
 	EnvVars: []string{"DRAND_FOLLOW"},
 }
 
@@ -366,7 +358,7 @@ var appCommands = []*cli.Command{
 		Name: "sync",
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain. To follow a " +
 			"remote node, it requires the use of the '" + followFlag.Name + "' flag.",
-		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, chainHashFlag, syncNodeFlag,
 			upToFlag, beaconIDFlag, followFlag),
 		Action: func(c *cli.Context) error {
 			l := log.New(nil, logLevel(c), logJSON(c)).
