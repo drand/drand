@@ -3,6 +3,7 @@
 package pgdb_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -171,6 +172,80 @@ func TestStore_Cursor(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+func TestStorePG_SaveTo(t *testing.T) {
+	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
+
+	l, db := test.NewUnit(t, c, t.Name())
+
+	beaconName := t.Name()
+	dbStore, err := pgdb.NewStore(ctx, l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, dbStore.Close())
+	}()
+
+	// Insert a few beacons.
+	beacons := []*common.Beacon{
+		{
+			PreviousSig: nil,
+			Round:       1,
+			Signature:   common.HexBytes([]byte{0x01, 0x02, 0x03}),
+		},
+		{
+			PreviousSig: common.HexBytes([]byte{0x01, 0x02, 0x03}),
+			Round:       2,
+			Signature:   common.HexBytes([]byte{0x02, 0x03, 0x04}),
+		},
+		{
+			PreviousSig: common.HexBytes([]byte{0x02, 0x03, 0x04}),
+			Round:       3,
+			Signature:   common.HexBytes([]byte{0x03, 0x04, 0x05}),
+		},
+	}
+	if !prevMatters {
+		// In this mode, previous signatures are not guaranteed to be stored/returned.
+		beacons[1].PreviousSig = nil
+		beacons[2].PreviousSig = nil
+	}
+
+	for _, b := range beacons {
+		require.NoError(t, dbStore.Put(ctx, b))
+	}
+
+	var buf bytes.Buffer
+	require.NoError(t, dbStore.SaveTo(ctx, &buf))
+
+	output := bytes.TrimSpace(buf.Bytes())
+	require.NotEmpty(t, output)
+
+	lines := bytes.Split(output, []byte("\n"))
+	require.Len(t, lines, len(beacons))
+
+	for i, line := range lines {
+		var got common.Beacon
+		require.NoError(t, got.Unmarshal(line))
+		require.Equal(t, beacons[i].Round, got.Round)
+		require.Equal(t, beacons[i].Signature, got.Signature)
+	}
+}
+
+func TestStorePG_SaveTo_Empty(t *testing.T) {
+	ctx, _, _ := context2.PrevSignatureMattersOnContext(t, context.Background())
+
+	l, db := test.NewUnit(t, c, t.Name())
+
+	beaconName := t.Name()
+	dbStore, err := pgdb.NewStore(ctx, l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, dbStore.Close())
+	}()
+
+	var buf bytes.Buffer
+	require.NoError(t, dbStore.SaveTo(ctx, &buf))
+	require.Empty(t, bytes.TrimSpace(buf.Bytes()))
 }
 
 func Test_StorePG(t *testing.T) {
