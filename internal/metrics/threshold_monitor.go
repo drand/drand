@@ -57,24 +57,26 @@ func (t *ThresholdMonitor) Start() {
 				maxFailures := t.groupSize - t.threshold
 				failureCount := len(failingNodes)
 
-				if failureCount > 0 && failureCount >= maxFailures {
-					t.log.Errorw(
-						"failed connections crossed threshold in the last minute",
-						"beaconID", t.beaconID,
-						"groupSize", t.groupSize,
-						"threshold", t.threshold,
-						"failures", failureCount,
-						"nodes", strings.Join(failingNodes, ","),
-					)
-				} else if failureCount > 0 && failureCount*2 >= maxFailures {
-					t.log.Warnw(
-						"failed connections crossed half threshold in the last minute",
-						"beaconID", t.beaconID,
-						"groupSize", t.groupSize,
-						"threshold", t.threshold,
-						"failures", failureCount,
-						"nodes", strings.Join(failingNodes, ","),
-					)
+				if failureCount > 0 && failureCount*2 >= maxFailures {
+					if failureCount >= maxFailures {
+						t.log.Errorw(
+							"failed connections crossed threshold in the last minute",
+							"beaconID", t.beaconID,
+							"groupSize", t.groupSize,
+							"threshold", t.threshold,
+							"failures", failureCount,
+							"nodes", strings.Join(failingNodes, ","),
+						)
+					} else {
+						t.log.Warnw(
+							"failed connections crossed half threshold in the last minute",
+							"beaconID", t.beaconID,
+							"groupSize", t.groupSize,
+							"threshold", t.threshold,
+							"failures", failureCount,
+							"nodes", strings.Join(failingNodes, ","),
+						)
+					}
 				} else {
 					t.log.Debugw(
 						"threshold monitor healthy",
