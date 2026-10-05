@@ -484,8 +484,14 @@ func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint3
 		return nil, fmt.Errorf("DrandTestScenario.WaitForDKG failed: %w", err)
 	}
 
-	group := node.daemon.beaconProcesses[d.beaconID].group
-	require.NotNil(t, group, "group file was nil despite completion!")
+	bp := node.daemon.beaconProcesses[d.beaconID]
+	var group *key.Group
+	require.Eventually(t, func() bool {
+		bp.state.RLock()
+		defer bp.state.RUnlock()
+		group = bp.group
+		return group != nil && group != d.group
+	}, time.Second, 10*time.Millisecond, "beacon process did not install the completed DKG group")
 
 	t.Log("[WaitForDKG] Group file received by node", node.addr,
 		"GenesisTime is", group.GenesisTime,
