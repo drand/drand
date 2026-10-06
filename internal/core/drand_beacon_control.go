@@ -326,11 +326,17 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := bp.createDBStore(context.Background())
+	bp.state.RLock()
+	group := bp.group
+	bp.state.RUnlock()
+	store, err := bp.createDBStore(context.Background(), group)
 	if err != nil {
 		logger.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)
 	}
+	bp.state.Lock()
+	bp.dbStore = store
+	bp.state.Unlock()
 
 	// TODO find a better place to put that
 	if err := store.Put(ctx, chain.GenesisBeacon(info.GenesisSeed)); err != nil {
