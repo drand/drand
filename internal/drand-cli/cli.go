@@ -7,12 +7,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	gonet "net"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -566,6 +568,8 @@ func CLI() *cli.App {
 		cli.VersionPrinter = func(c *cli.Context) {
 			fmt.Fprintf(c.App.Writer, "drand %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 		}
+		cli.HelpFlag = isolatedBoolFlag{cli.HelpFlag.(*cli.BoolFlag)}
+		cli.VersionFlag = isolatedBoolFlag{cli.VersionFlag.(*cli.BoolFlag)}
 	})
 
 	app.ExitErrHandler = func(_ *cli.Context, _ error) {
@@ -575,18 +579,47 @@ func CLI() *cli.App {
 	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	// we need to copy the underlying commands to avoid races, cli sadly doesn't support concurrent executions well
 	appComm := make([]*cli.Command, len(appCommands))
 	for i, p := range appCommands {
-		if p == nil {
-			continue
-		}
-		v := *p
-		appComm[i] = &v
+		appComm[i] = cloneCommand(p)
 	}
 	app.Commands = appComm
 
 	return app
+}
+
+// isolatedBoolFlag applies a private copy of the flag on each parse. urfave/cli
+// writes into a flag when applying it, so its shared HelpFlag and VersionFlag
+// race between concurrent apps.
+type isolatedBoolFlag struct{ *cli.BoolFlag }
+
+func (f isolatedBoolFlag) Apply(set *flag.FlagSet) error {
+	c := *f.BoolFlag
+	return c.Apply(set)
+}
+
+// GetDefaultText hides "(default: false)", which urfave/cli only omits for *cli.BoolFlag.
+func (f isolatedBoolFlag) GetDefaultText() string { return "" }
+
+// cloneCommand deep-copies c, its flags and its subcommands. urfave/cli mutates
+// commands and flags while running, so concurrent apps must not share them.
+func cloneCommand(c *cli.Command) *cli.Command {
+	if c == nil {
+		return nil
+	}
+	cp := *c
+	cp.Flags = make([]cli.Flag, len(c.Flags))
+	for i, f := range c.Flags {
+		v := reflect.ValueOf(f).Elem()
+		clone := reflect.New(v.Type())
+		clone.Elem().Set(v)
+		cp.Flags[i] = clone.Interface().(cli.Flag)
+	}
+	cp.Subcommands = make([]*cli.Command, len(c.Subcommands))
+	for i, s := range c.Subcommands {
+		cp.Subcommands[i] = cloneCommand(s)
+	}
+	return &cp
 }
 
 func resetCmd(c *cli.Context, l log.Logger) error {
