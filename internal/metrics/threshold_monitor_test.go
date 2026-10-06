@@ -127,6 +127,40 @@ func TestLogsDebugWhenAllGood(t *testing.T) {
 	})
 }
 
+func TestLogsDebugWhenAllNodesRequiredAndHealthy(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		l := &mockLogger{}
+		period := time.Second
+		monitor := ThresholdMonitor{
+			lock:              sync.RWMutex{},
+			log:               l,
+			beaconID:          "default",
+			groupSize:         4,
+			threshold:         4,
+			failedConnections: make(map[string]bool),
+			ctx:               ctx,
+			cancel:            cancel,
+			period:            period,
+		}
+
+		l.On("Infow").Return()
+		l.On("Errorw").Return()
+		l.On("Debugw").Return()
+		l.On("Warnw").Return()
+
+		monitor.Start()
+		synctest.Wait()
+		time.Sleep(period)
+		synctest.Wait()
+		monitor.Stop()
+
+		l.AssertCalled(t, "Debugw", mock.Anything)
+		l.AssertNotCalled(t, "Warnw", mock.Anything)
+		l.AssertNotCalled(t, "Errorw", mock.Anything)
+	})
+}
+
 func TestStoppingMonitorStopsTheGoroutine(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		beaconID := "some-beacon"
@@ -246,7 +280,8 @@ func TestStateIsResetEveryPeriod(t *testing.T) {
 		synctest.Wait()
 		monitor.Stop()
 
-		l.AssertCalled(t, "Warnw", mock.Anything)
+		l.AssertCalled(t, "Debugw", mock.Anything)
+		l.AssertNotCalled(t, "Warnw", mock.Anything)
 		l.AssertNotCalled(t, "Errorw", mock.Anything)
 	})
 }
