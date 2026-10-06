@@ -257,7 +257,7 @@ func (p *Store) Last(ctx context.Context) (*common.Beacon, error) {
 		ID: p.beaconID,
 	}
 
-	return p.getBeacon(ctx, true, query, data)
+	return p.getBeacon(ctx, nil, true, query, data)
 }
 
 // Get returns the specified beacon from the configured beacon table.
@@ -294,7 +294,7 @@ func (p *Store) get(ctx context.Context, round uint64, canFetchPrevious bool) (*
 		Round: round,
 	}
 
-	return p.getBeacon(ctx, canFetchPrevious, query, data)
+	return p.getBeacon(ctx, nil, canFetchPrevious, query, data)
 }
 
 // Del removes the specified round from the beacon table.
@@ -397,8 +397,10 @@ func (p *Store) AddFK(ctx context.Context) error {
 
 // cursor implements support for iterating through the beacon table.
 type cursor struct {
-	store *Store
-	pos   uint64
+	store     *Store
+	pos       uint64
+	prevRound uint64
+	prevSig   []byte
 }
 
 // First returns the first beacon from the configured beacon table.
@@ -433,7 +435,7 @@ func (c *cursor) First(ctx context.Context) (*common.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	return c.store.getBeacon(ctx, c, true, query, data)
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -471,7 +473,7 @@ func (c *cursor) Next(ctx context.Context) (*common.Beacon, error) {
 		Offset: c.pos + 1,
 	}
 
-	return c.store.getBeacon(ctx, true, query, data)
+	return c.store.getBeacon(ctx, c, true, query, data)
 }
 
 // Seek searches the beacon table for the specified round
@@ -504,7 +506,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*common.Beacon, error)
 		Round: round,
 	}
 
-	ret, err := c.store.getBeacon(ctx, true, query, data)
+	ret, err := c.store.getBeacon(ctx, c, true, query, data)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +544,7 @@ func (c *cursor) Last(ctx context.Context) (*common.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	ret, err := c.store.getBeacon(ctx, true, query, data)
+	ret, err := c.store.getBeacon(ctx, c, true, query, data)
 	if err != nil {
 		return nil, err
 	}
@@ -597,7 +599,7 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 	return err
 }
 
-func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query string, data interface{}) (*common.Beacon, error) {
+func (p *Store) getBeacon(ctx context.Context, c *cursor, canFetchPrevious bool, query string, data interface{}) (*common.Beacon, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -622,11 +624,20 @@ func (p *Store) getBeacon(ctx context.Context, canFetchPrevious bool, query stri
 	if canFetchPrevious &&
 		p.requiresPrevious &&
 		ret.Round > 0 {
-		prev, err := p.get(ctx, ret.Round-1, false)
-		if err != nil {
-			return nil, err
+		if c != nil && c.prevSig != nil && c.prevRound == ret.Round-1 {
+			ret.PreviousSig = c.prevSig
+		} else {
+			prev, err := p.get(ctx, ret.Round-1, false)
+			if err != nil {
+				return nil, err
+			}
+			ret.PreviousSig = prev.Signature
 		}
-		ret.PreviousSig = prev.Signature
+	}
+
+	if c != nil {
+		// First, Seek, and Last also populate the cache, but only Next can ever hit it.
+		c.prevRound, c.prevSig = ret.Round, ret.Signature
 	}
 
 	return toChainBeacon(ret), nil
