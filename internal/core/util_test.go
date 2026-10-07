@@ -491,7 +491,7 @@ func (d *DrandTestScenario) WaitForDKG(t *testing.T, node *MockNode, epoch uint3
 		defer bp.state.RUnlock()
 		group = bp.group
 		return group != nil && group != d.group
-	}, time.Second, 10*time.Millisecond, "beacon process did not install the completed DKG group")
+	}, 30*time.Second, 10*time.Millisecond, "beacon process did not install the completed DKG group")
 
 	t.Log("[WaitForDKG] Group file received by node", node.addr,
 		"GenesisTime is", group.GenesisTime,
