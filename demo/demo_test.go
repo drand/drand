@@ -50,6 +50,7 @@ func testLocalOrchestration(t *testing.T) {
 		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  true,
+		Push:         true, // exercise push mode for in-process demo nodes in integration tests
 		DBEngineType: withTestDB(),
 		PgDSN:        withPgDSN(t),
 		MemDBSize:    10,
@@ -109,6 +110,7 @@ func TestRunShitloadsOfDKGs(t *testing.T) {
 		Scheme:       sch,
 		BeaconID:     beaconID,
 		IsCandidate:  true,
+		Push:         true, // exercise push mode for in-process demo nodes in integration tests
 		DBEngineType: withTestDB(),
 		PgDSN:        withPgDSN(t),
 		MemDBSize:    10,
