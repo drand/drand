@@ -197,7 +197,9 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, _ *drand.ListBeaconIDs
 }
 
 func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
+	dd.state.RLock()
 	bp, exists := dd.beaconProcesses[beaconID]
+	dd.state.RUnlock()
 	if !exists {
 		return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
 	}

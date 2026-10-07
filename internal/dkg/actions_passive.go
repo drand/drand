@@ -46,9 +46,8 @@ func (d *Process) Packet(ctx context.Context, packet *drand.GossipPacket) (*dran
 		return &drand.EmptyDKGResponse{}, nil
 	}
 
-	// if we're in the DKG protocol phase, we automatically broadcast it as it shouldn't update state
 	if packet.GetDkg() != nil {
-		return d.BroadcastDKG(ctx, packet.GetDkg())
+		return nil, errors.New("DKG protocol packets must be sent with BroadcastDKG")
 	}
 
 	beaconID := packet.Metadata.BeaconID
