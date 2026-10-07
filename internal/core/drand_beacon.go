@@ -264,13 +264,18 @@ func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.Sh
 		return err
 	}
 
-	// somehow the beacon process isn't set here sometimes o.O
-	if bp.beacon == nil {
-		return fmt.Errorf("cannot transitionToNext on a nil beacon handler")
+	bp.state.RLock()
+	handler := bp.beacon
+	bp.state.RUnlock()
+	// The DKG can land while newBeacon is still building the first handler. The
+	// group is already stored, so that build restarts on the new group instead.
+	if handler == nil {
+		bp.log.Warnw("no beacon handler yet, the beacon will start directly on the new group", "epoch", dkgOutput.New.Epoch)
+		return nil
 	}
-	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
+	handler.TransitionNewGroup(ctx, newShare, newGroup)
 
-	return err
+	return nil
 }
 
 func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, share *key.Share) error {
