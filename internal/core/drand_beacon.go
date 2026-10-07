@@ -59,7 +59,7 @@ type BeaconProcess struct {
 
 	// global state lock
 	state sync.RWMutex
-	// startLock serializes newBeacon, which builds the handler without holding state.
+	// startLock serializes newBeacon, which builds the handler under a read lock.
 	startLock sync.Mutex
 	exitCh    chan bool
 	// stopOnce guards the close-once of exitCh so that concurrent Stop calls
@@ -363,7 +363,7 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createDBStore(ctx context.Context, group *key.Group) (chain.Store, error) {
+func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error) {
 	ctx, span := tracer.NewSpan(ctx, "bp.createDBStore")
 	defer span.End()
 
@@ -371,8 +371,8 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context, group *key.Group) (c
 	var dbStore chain.Store
 	var err error
 
-	if group != nil &&
-		group.Scheme.Name == crypto.DefaultSchemeID {
+	if bp.group != nil &&
+		bp.group.Scheme.Name == crypto.DefaultSchemeID {
 		ctx = chain.SetPreviousRequiredOnContext(ctx)
 	}
 
@@ -412,35 +412,61 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 	bp.startLock.Lock()
 	defer bp.startLock.Unlock()
 
-	// Store setup and peer sync can take seconds, so they run without holding state.
-	bp.state.RLock()
-	group, share := bp.group, bp.share
-	bp.state.RUnlock()
+	for {
+		// Store setup and peer sync can take seconds: a read lock keeps the group
+		// stable without blocking other readers.
+		bp.state.RLock()
+		group := bp.group
+		b, store, err := bp.buildBeacon(ctx)
+		bp.state.RUnlock()
+		if err != nil {
+			return nil, err
+		}
 
+		bp.state.Lock()
+		if bp.group != group {
+			// A DKG installed a new group between the two locks: rebuild for it.
+			bp.state.Unlock()
+			b.Stop(ctx)
+			continue
+		}
+		bp.log.Infow("setting handler")
+		bp.dbStore = store
+		bp.beacon = b
+		// cancel any sync operations
+		if bp.syncerCancel != nil {
+			bp.syncerCancel()
+			bp.syncerCancel = nil
+		}
+		bp.state.Unlock()
+		return b, nil
+	}
+}
+
+// buildBeacon creates the store and handler for the current group. The caller
+// must hold bp.state.
+func (bp *BeaconProcess) buildBeacon(ctx context.Context) (*beacon.Handler, chain.Store, error) {
 	pub := bp.priv.Public
-	node := group.Find(pub)
+	node := bp.group.Find(pub)
 
 	if node == nil {
-		return nil, fmt.Errorf("public key %s not found in group", pub)
+		return nil, nil, fmt.Errorf("public key %s not found in group", pub)
 	}
 
-	store, err := bp.createDBStore(ctx, group)
+	store, err := bp.createDBStore(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	bp.state.Lock()
-	bp.dbStore = store
-	bp.state.Unlock()
 
 	conf := &beacon.Config{
 		Public: node,
-		Group:  group,
-		Share:  share,
+		Group:  bp.group,
+		Share:  bp.share,
 		Clock:  bp.opts.clock,
 	}
 
 	if bp.opts.dbStorageEngine == chain.MemDB {
-		err := bp.storeCurrentFromPeerNetwork(ctx, store, group)
+		err := bp.storeCurrentFromPeerNetwork(ctx, store)
 		if err != nil {
 			if errors.Is(err, errNoRoundInPeers) {
 				bp.log.Warnw("failed to find target beacon in peer network. Reverting to synced startup", "err", err)
@@ -448,26 +474,16 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 				bp.log.Warnw("failed to find target beacon in peer network in a reasonable time. Reverting to synced startup", "err", err)
 			} else {
 				bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
 
 	b, err := beacon.NewHandler(ctx, bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	bp.state.Lock()
-	defer bp.state.Unlock()
-	bp.log.Infow("setting handler")
-	bp.beacon = b
-	// cancel any sync operations
-	if bp.syncerCancel != nil {
-		bp.syncerCancel()
-		bp.syncerCancel = nil
-	}
-	return bp.beacon, nil
+	return b, store, nil
 }
 
 func checkGroup(l dlog.Logger, group *key.Group) {
@@ -522,17 +538,17 @@ func (bp *BeaconProcess) newMetadata() *drand.Metadata {
 
 var errNoRoundInPeers = errors.New("could not find round")
 
-func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store, group *key.Group) error {
+func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
 	ctx, span := tracer.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
 	defer span.End()
 
 	clkNow := bp.opts.clock.Now().Unix()
-	if group == nil {
+	if bp.group == nil {
 		return nil
 	}
 
-	targetRound := common.CurrentRound(clkNow, group.Period, group.GenesisTime)
-	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", group.Period, "genesis", group.GenesisTime)
+	targetRound := common.CurrentRound(clkNow, bp.group.Period, bp.group.GenesisTime)
+	bp.log.Debugw("computed the current round", "currentRound", targetRound, "period", bp.group.Period, "genesis", bp.group.GenesisTime)
 
 	//nolint:mnd // We cannot sync the initial round.
 	if targetRound < 2 {
@@ -540,7 +556,7 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 		return nil
 	}
 
-	peers := bp.computePeers(group.Nodes)
+	peers := bp.computePeers(bp.group.Nodes)
 	targetBeacon, err := bp.loadBeaconFromPeers(ctx, targetRound, peers)
 	if errors.Is(err, errNoRoundInPeers) {
 		// If we can't find the desired beacon round, let's try with the latest one.
@@ -562,11 +578,11 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 	// the correct one
 	if targetBeacon.Round == 0 {
 		bp.log.Warnw("No node in the network has created a beacon yet: storing genesis beacon instead")
-		err = store.Put(ctx, chain.GenesisBeacon(group.GenesisSeed))
+		err = store.Put(ctx, chain.GenesisBeacon(bp.group.GenesisSeed))
 		return err
 	}
 
-	err = group.Scheme.VerifyBeacon(&targetBeacon, group.PublicKey.Key())
+	err = bp.group.Scheme.VerifyBeacon(&targetBeacon, bp.group.PublicKey.Key())
 	if err != nil {
 		bp.log.Errorw("failed to verify beacon", "err", err)
 		return err
