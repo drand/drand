@@ -579,11 +579,13 @@ func CLI() *cli.App {
 	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	appComm := make([]*cli.Command, len(appCommands))
-	for i, p := range appCommands {
-		appComm[i] = cloneCommand(p)
+	app.Commands = make([]*cli.Command, 0, len(appCommands)+1)
+	for _, p := range appCommands {
+		app.Commands = append(app.Commands, cloneCommand(p))
 	}
-	app.Commands = appComm
+	app.Commands = append(app.Commands, helpCommand())
+	// urfave/cli only adds the help flag alongside its own help command.
+	app.Flags = append(app.Flags, cli.HelpFlag)
 
 	return app
 }
@@ -615,11 +617,31 @@ func cloneCommand(c *cli.Command) *cli.Command {
 		clone.Elem().Set(v)
 		cp.Flags[i] = clone.Interface().(cli.Flag)
 	}
-	cp.Subcommands = make([]*cli.Command, len(c.Subcommands))
-	for i, s := range c.Subcommands {
-		cp.Subcommands[i] = cloneCommand(s)
+	cp.Subcommands = make([]*cli.Command, 0, len(c.Subcommands)+1)
+	for _, s := range c.Subcommands {
+		cp.Subcommands = append(cp.Subcommands, cloneCommand(s))
 	}
+	if len(c.Subcommands) == 0 && cp.CustomHelpTemplate == "" {
+		// Keep the leaf template: the help subcommand below would otherwise
+		// make "help <command>" use the subcommand one.
+		cp.CustomHelpTemplate = cli.CommandHelpTemplate
+	}
+	cp.Subcommands = append(cp.Subcommands, helpCommand())
 	return &cp
+}
+
+// helpCommand returns a per-app copy of urfave/cli's help command, which it
+// appends to every command and writes into on each run. NewApp's default
+// action is that command's action.
+func helpCommand() *cli.Command {
+	return &cli.Command{
+		Name:            "help",
+		Aliases:         []string{"h"},
+		Usage:           "Shows a list of commands or help for one command",
+		ArgsUsage:       "[command]",
+		Action:          cli.NewApp().Action,
+		HideHelpCommand: true,
+	}
 }
 
 func resetCmd(c *cli.Context, l log.Logger) error {
