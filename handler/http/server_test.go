@@ -278,10 +278,16 @@ func TestChainHashesConcurrentRegistration(t *testing.T) {
 	require.NoError(t, err)
 	h := handler.GetHTTPHandler()
 
+	stop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := range 100 {
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
 			chainHash := fmt.Sprintf("%064x", i)
 			handler.RegisterNewBeaconHandler(nil, chainHash)
 			handler.RemoveBeaconHandler(chainHash)
@@ -293,5 +299,6 @@ func TestChainHashesConcurrentRegistration(t *testing.T) {
 		h.ServeHTTP(rec, httptest.NewRequest("GET", "/chains", nil))
 		require.Equal(t, http.StatusOK, rec.Result().StatusCode)
 	}
+	close(stop)
 	<-done
 }

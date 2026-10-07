@@ -537,7 +537,7 @@ func TestPacketRejectsDKGProtocolPacket(t *testing.T) {
 		}},
 	}
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		_, err := process.Packet(context.Background(), packet)
 		done <- err
@@ -545,7 +545,7 @@ func TestPacketRejectsDKGProtocolPacket(t *testing.T) {
 
 	select {
 	case err := <-done:
-		require.Error(t, err)
+		require.ErrorContains(t, err, "BroadcastDKG")
 	case <-time.After(5 * time.Second):
 		t.Fatal("Packet with a DKG protocol packet did not return")
 	}
