@@ -247,7 +247,9 @@ func TestStartAndStop(t *testing.T) {
 		// Marshal called with nil
 	}()
 	<-startCh
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return CLI().Run([]string{"drand", "util", "ping"}) == nil
+	}, 10*time.Second, 100*time.Millisecond, "control port never came up")
 
 	stopArgs := []string{"drand", "stop"}
 	err = CLI().Run(stopArgs)

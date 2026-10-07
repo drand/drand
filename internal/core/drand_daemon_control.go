@@ -223,6 +223,7 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 		return
 	}
 	dd.log.Infow("Stopping DrandDaemon")
+	dd.stopping.Store(true)
 
 	dd.dkg.Close()
 
@@ -291,4 +292,9 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 // WaitExit returns a channel that signals when drand stops its operations
 func (dd *DrandDaemon) WaitExit() chan bool {
 	return dd.exitCh
+}
+
+// Stopping reports whether Stop has started shutting the daemon down.
+func (dd *DrandDaemon) Stopping() bool {
+	return dd.stopping.Load()
 }

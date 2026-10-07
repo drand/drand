@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sync"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
 
@@ -49,6 +50,7 @@ type DrandDaemon struct {
 	// stopOnce guards the close-once of exitCh and the one-shot shutdown
 	// sequence so that concurrent Stop calls cannot panic or run twice.
 	stopOnce sync.Once
+	stopping atomic.Bool
 
 	// version indicates the base code variant
 	version common.Version
