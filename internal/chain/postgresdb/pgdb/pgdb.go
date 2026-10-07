@@ -3,6 +3,7 @@ package pgdb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -346,12 +347,55 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 	return fn(ctx, &c)
 }
 
-// SaveTo does something and I am not sure just yet.
-func (p *Store) SaveTo(ctx context.Context, _ io.Writer) error {
+// SaveTo exports all beacons in a newline-delimited JSON format (NDJSON),
+// compatible with memdb.Store.SaveTo output.
+func (p *Store) SaveTo(ctx context.Context, w io.Writer) error {
 	_, span := tracer.NewSpan(ctx, "pgStore.SaveTo")
 	defer span.End()
 
-	return fmt.Errorf("saveTo not implemented for Postgres Store")
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	return p.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+		b, err := c.First(ctx)
+		if err != nil {
+			// Empty store is fine: produce an empty output.
+			if errors.Is(err, chainerrors.ErrNoBeaconStored) {
+				return nil
+			}
+			return err
+		}
+
+		for {
+			// Export can be long-running; respect cancellation inside the loop.
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			data, err := b.Marshal()
+			if err != nil {
+				return fmt.Errorf("failed to marshal beacon round %d: %w", b.Round, err)
+			}
+			// Write one NDJSON line per beacon.
+			if _, err := w.Write(append(data, '\n')); err != nil {
+				return fmt.Errorf("failed to write beacon round %d: %w", b.Round, err)
+			}
+
+			next, err := c.Next(ctx)
+			if err != nil {
+				if errors.Is(err, chainerrors.ErrNoBeaconStored) {
+					return nil
+				}
+				return err
+			}
+			b = next
+		}
+	})
 }
 
 // DropFK is used to optimize the calls to Store.BatchPut and should be called before it.
