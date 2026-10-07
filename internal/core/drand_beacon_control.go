@@ -331,6 +331,9 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		logger.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)
 	}
+	bp.state.Lock()
+	bp.dbStore = store
+	bp.state.Unlock()
 
 	// TODO find a better place to put that
 	if err := store.Put(ctx, chain.GenesisBeacon(info.GenesisSeed)); err != nil {
