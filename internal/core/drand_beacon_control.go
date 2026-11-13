@@ -393,9 +393,9 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		case <-ctx.Done():
 			syncCancel()
 			return ctx.Err()
-		case <-errChan:
+		case err := <-errChan:
 			syncCancel()
-			logger.Errorw("Error while trying to follow chain, trying again in 2 periods")
+			logger.Errorw("Error while trying to follow chain, trying again in 2 periods", "err", err)
 			// in case of error we retry after a period elapsed, since follow must run until canceled
 			time.Sleep(info.Period)
 			continue
