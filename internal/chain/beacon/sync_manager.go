@@ -344,7 +344,7 @@ func (s *SyncManager) Sync(ctx context.Context, request RequestInfo) error {
 
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	// shuffle through the nodes
-	for _, n := range rand.Perm(len(request.nodes)) {
+	for _, n := range rand.Perm(len(request.nodes)) { //nolint:gosec // shuffling only
 		if request.nodes[n].Address() == s.nodeAddr {
 			// we ignore our own node
 			s.log.Debugw("skipping sync with our own node", "sync_manager", "sync")
