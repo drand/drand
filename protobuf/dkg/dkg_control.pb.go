@@ -66,7 +66,6 @@ type DKGCommand struct {
 
 	Metadata *CommandMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// Types that are assignable to Command:
-	//
 	//	*DKGCommand_Initial
 	//	*DKGCommand_Resharing
 	//	*DKGCommand_Join
@@ -272,7 +271,6 @@ type GossipPacket struct {
 
 	Metadata *GossipMetadata `protobuf:"bytes,1,opt,name=metadata,proto3" json:"metadata,omitempty"`
 	// Types that are assignable to Packet:
-	//
 	//	*GossipPacket_Proposal
 	//	*GossipPacket_Accept
 	//	*GossipPacket_Reject
