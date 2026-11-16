@@ -178,6 +178,7 @@ type PartialBeaconPacket struct {
 	// partial signature - a threshold of them needs to be aggregated to produce
 	// the final beacon at the given round.
 	PartialSig []byte `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
+	//
 	Metadata *Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
@@ -249,6 +250,7 @@ type SyncRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	FromRound uint64 `protobuf:"varint,1,opt,name=from_round,json=fromRound,proto3" json:"from_round,omitempty"`
+	//
 	Metadata *Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
