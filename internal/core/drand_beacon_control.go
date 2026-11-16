@@ -379,13 +379,15 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 	defer syncer.Stop()
 
 	logger.Debugw("Launching follow now")
-	var errChan chan error
+	// Buffered so the Sync goroutine never blocks once we stopped listening.
+	errChan := make(chan error, 1)
 
 	for {
 		syncCtx, syncCancel := context.WithCancel(ctx)
 		go func() {
 			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(ctx, req.GetUpTo(), peers))
-		}() // wait for all the callbacks to be called and progress sent before returning
+		}()
+		var err error
 		select {
 		case <-done:
 			syncCancel()
@@ -393,12 +395,27 @@ func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartS
 		case <-ctx.Done():
 			syncCancel()
 			return ctx.Err()
-		case err := <-errChan:
+		case err = <-errChan:
 			syncCancel()
-			logger.Errorw("Error while trying to follow chain, trying again in 2 periods", "err", err)
-			// in case of error we retry after a period elapsed, since follow must run until canceled
-			time.Sleep(info.Period)
-			continue
+		}
+
+		// A nil error means upTo was reached: wait for the progress callback to report it.
+		if err == nil {
+			select {
+			case <-done:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		logger.Errorw("Error while trying to follow chain, trying again in 1 period", "err", err)
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(info.Period):
 		}
 	}
 }
