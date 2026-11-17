@@ -670,6 +670,7 @@ var ErrReceivedRejection = errors.New("received rejection but not during proposa
 var ErrTooManyParticipants = fmt.Errorf("a proposal cannot contain more than %d participants", MaxParticipants)
 var ErrEmptyParticipant = errors.New("joining and remaining nodes must have an address and a public key, leaving nodes an address")
 var ErrDuplicateParticipant = errors.New("an address or public key appears more than once in the joining and remaining nodes, or an address in the remaining and leaving nodes, or a node leaves and joins unchanged")
+var ErrJoinerKeyInCurrentEpoch = errors.New("joining nodes cannot use the public key of a node of the current epoch")
 var ErrRemainingKeyMismatch = errors.New("remaining nodes must keep the public key they have in the current epoch")
 var ErrMissingPreviousGroup = errors.New("cannot validate a reshare without the group of the current epoch")
 
@@ -918,7 +919,7 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 		return ErrGenesisSeedCannotChange
 	}
 
-	if err := validateRosterAgainstGroup(currentState.FinalGroup, terms.Remaining, terms.Leaving); err != nil {
+	if err := validateRosterAgainstGroup(currentState.FinalGroup, terms.Remaining, terms.Leaving, terms.Joining); err != nil {
 		return err
 	}
 
@@ -929,22 +930,32 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 	return nil
 }
 
-// validateRosterAgainstGroup checks that the remaining and leaving nodes are exactly the nodes of the group.
+// validateRosterAgainstGroup checks that the remaining and leaving nodes are exactly the nodes of the group,
+// and that no joining node uses the key of one of them.
 // Remaining nodes must also hold the public key they have in the group; leaving nodes match by address only,
 // as a proposal can list them with a newer key than the group does and nothing relies on it.
 // Signatures are not compared: groups migrated from v1 do not hold the v2 ones.
-func validateRosterAgainstGroup(group *key.Group, remaining, leaving []*drand.Participant) error {
+func validateRosterAgainstGroup(group *key.Group, remaining, leaving, joining []*drand.Participant) error {
 	if group == nil {
 		return ErrMissingPreviousGroup
 	}
 
 	groupKeys := make(map[string][]byte, len(group.Nodes))
+	memberKeys := make(map[string]bool, len(group.Nodes))
 	for _, node := range group.Nodes {
 		k, err := node.Key.MarshalBinary()
 		if err != nil {
 			return err
 		}
 		groupKeys[node.Address()] = k
+		memberKeys[string(k)] = true
+	}
+
+	// a member listed as leaving at its address and as joining at another would run the DKG and then leave
+	for _, p := range joining {
+		if memberKeys[string(p.GetKey())] {
+			return ErrJoinerKeyInCurrentEpoch
+		}
 	}
 
 	for _, p := range remaining {
@@ -991,7 +1002,7 @@ func validatePreviousGroupForJoiners(d *DBState, previousGroup *key.Group) error
 		return ErrGenesisSeedCannotChange
 	}
 
-	return validateRosterAgainstGroup(previousGroup, d.Remaining, d.Leaving)
+	return validateRosterAgainstGroup(previousGroup, d.Remaining, d.Leaving, d.Joining)
 }
 
 func isProposalPhase(d *DBState) bool {

@@ -186,7 +186,6 @@ func TestPacketAcceptsProposalWithLeaver(t *testing.T) {
 		{name: "listed without key", leaving: &drand.Participant{Address: leaver.Address}},
 		{name: "listed with a newer key", leaving: withAddressOf(fresh, leaver)},
 		{name: "joining again with a new key", leaving: leaver, joining: []*drand.Participant{withAddressOf(fresh, leaver)}},
-		{name: "joining again at a new address", leaving: leaver, joining: []*drand.Participant{withAddressOf(leaver, fresh)}},
 	}
 
 	for _, test := range tests {
