@@ -715,6 +715,20 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
+	if err := validateTerms(currentState, terms); err != nil {
+		return err
+	}
+
+	sch, err := crypto.SchemeFromName(terms.SchemeID)
+	if err != nil {
+		return ErrInvalidScheme
+	}
+
+	// the signatures of the joiners are costly to verify, so they come after every other check
+	return validateJoinerSignatures(terms, sch)
+}
+
+func validateTerms(currentState *DBState, terms *drand.ProposalTerms) error {
 	if err := validateForAllDKGs(currentState, terms); err != nil {
 		return err
 	}
@@ -748,19 +762,12 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrInvalidBeaconID
 	}
 
-	// the cheap structural checks run before any signature verification
 	if err := validateParticipants(terms); err != nil {
 		return err
 	}
 
-	sch, err := crypto.SchemeFromName(terms.SchemeID)
-	if err != nil {
+	if _, err := crypto.SchemeFromName(terms.SchemeID); err != nil {
 		return ErrInvalidScheme
-	}
-
-	err = validateJoinerSignatures(terms, sch)
-	if err != nil {
-		return err
 	}
 
 	if terms.Timeout.AsTime().Before(time.Now()) {

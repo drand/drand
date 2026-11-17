@@ -649,6 +649,184 @@ func TestProposalValidation(t *testing.T) {
 }
 
 //nolint:funlen
+func TestProposalValidationChecksJoinerSignaturesLast(t *testing.T) {
+	t.Parallel()
+	beaconID := "some-wonderful-beacon-id"
+	current := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+	fresh := NewFreshState(beaconID)
+	// joiners whose signature does not verify
+	badAlice := withSignatureOf(alice, bob)
+	badCarol := withSignatureOf(carol, alice)
+	badDave := withSignatureOf(NewParticipant("dave"), alice)
+	// reshare returns a proposal for epoch 2 where alice and bob remain and badCarol joins
+	reshare := func(change func(p *drand.ProposalTerms)) *drand.ProposalTerms {
+		p := NewValidProposal(beaconID, 2, alice, bob)
+		p.Joining = []*drand.Participant{badCarol}
+		if change != nil {
+			change(p)
+		}
+		return p
+	}
+	// initial returns a proposal for epoch 1 led by badAlice, with badCarol
+	initial := func(change func(p *drand.ProposalTerms)) *drand.ProposalTerms {
+		p := NewInitialProposal(beaconID, badAlice, badCarol)
+		if change != nil {
+			change(p)
+		}
+		return p
+	}
+
+	tests := []struct {
+		name     string
+		state    *DBState
+		terms    *drand.ProposalTerms
+		expected error
+	}{
+		{
+			name:     "reshare for a remainer, valid otherwise",
+			state:    current,
+			terms:    reshare(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "reshare for a fresh joiner, valid otherwise",
+			state:    fresh,
+			terms:    reshare(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "first epoch, valid otherwise",
+			state:    fresh,
+			terms:    initial(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "invalid scheme",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.SchemeID = "nope" }),
+			expected: ErrInvalidScheme,
+		},
+		{
+			name:     "repeated joiner",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Joining = append(p.Joining, badCarol) }),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:     "timeout reached",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Timeout = timestamppb.New(time.Now().Add(-time.Minute)) }),
+			expected: ErrTimeoutReached,
+		},
+		{
+			name:     "threshold higher than the node count",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Threshold = 4 }),
+			expected: ErrThresholdHigherThanNodeCount,
+		},
+		{
+			name:     "threshold too low",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Threshold = 1 }),
+			expected: ErrThresholdTooLow,
+		},
+		{
+			name:     "first epoch proposed to a node with a finished DKG",
+			state:    current,
+			terms:    initial(nil),
+			expected: ErrInvalidEpoch,
+		},
+		{
+			name:     "skipped epoch",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Epoch = 3 }),
+			expected: ErrInvalidEpoch,
+		},
+		{
+			name:     "first epoch with a genesis seed",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.GenesisSeed = []byte("deadbeef") }),
+			expected: ErrNoGenesisSeedForFirstEpoch,
+		},
+		{
+			name:     "first epoch with a remainer",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.Remaining = []*drand.Participant{bob} }),
+			expected: ErrOnlyJoinersAllowedForFirstEpoch,
+		},
+		{
+			name:     "first epoch without the leader joining",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.Joining = []*drand.Participant{badCarol, badDave} }),
+			expected: ErrLeaderNotJoining,
+		},
+		{
+			name:  "reshare without remainers",
+			state: current,
+			terms: reshare(func(p *drand.ProposalTerms) {
+				p.Remaining = nil
+				p.Joining = append(p.Joining, badDave)
+			}),
+			expected: ErrNoNodesRemaining,
+		},
+		{
+			name:     "reshare for a remainer led by a joiner",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badCarol }),
+			expected: ErrLeaderCantJoinAfterFirstEpoch,
+		},
+		{
+			name:     "reshare for a fresh joiner led by a joiner",
+			state:    fresh,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badCarol }),
+			expected: ErrLeaderCantJoinAfterFirstEpoch,
+		},
+		{
+			name:     "reshare led by a node that does not remain",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badDave }),
+			expected: ErrLeaderNotRemaining,
+		},
+		{
+			name:     "reshare with less remainers than the previous threshold",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Remaining = []*drand.Participant{alice} }),
+			expected: ErrNodeCountTooLow,
+		},
+		{
+			name:     "reshare with another genesis time",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.GenesisTime = timestamppb.New(time.Unix(1, 0)) }),
+			expected: ErrGenesisTimeNotEqual,
+		},
+		{
+			name:     "reshare with another genesis seed",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.GenesisSeed = []byte("cafebabe") }),
+			expected: ErrGenesisSeedCannotChange,
+		},
+		{
+			name:     "reshare with another key for a remainer",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Remaining[0] = withAddressOf(NewParticipant("erin"), bob) }),
+			expected: ErrRemainingKeyMismatch,
+		},
+		{
+			name:     "reshare missing a node of the previous epoch",
+			state:    NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, NewParticipant("erin")),
+			terms:    reshare(nil),
+			expected: ErrMissingNodesInProposal,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, ValidateProposal(test.state, test.terms), test.expected)
+		})
+	}
+}
+
+//nolint:funlen
 func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
@@ -2014,6 +2192,11 @@ func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 // withAddressOf returns a copy of p that claims the address of other.
 func withAddressOf(p, other *drand.Participant) *drand.Participant {
 	return &drand.Participant{Address: other.Address, Key: p.Key, Signature: p.Signature}
+}
+
+// withSignatureOf returns a copy of p that holds the signature of other.
+func withSignatureOf(p, other *drand.Participant) *drand.Participant {
+	return &drand.Participant{Address: p.Address, Key: p.Key, Signature: other.Signature}
 }
 
 func NewParticipant(name string) *drand.Participant {

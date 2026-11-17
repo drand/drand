@@ -319,6 +319,76 @@ func TestPacketChecksProposalRosterBeforeSignatures(t *testing.T) {
 	})
 }
 
+func TestPacketChecksProposalTermsBeforeJoinerSignatures(t *testing.T) {
+	leaderPair, leader := newKeyedParticipant(t, "leader")
+	_, member := newKeyedParticipant(t, "member")
+	victimPair, victim := newKeyedParticipant(t, "victim")
+	senderPair, sender := newKeyedParticipant(t, "sender")
+	// joiners whose signature does not verify: reaching them fails with key.ErrInvalidKeyScheme
+	sender = withSignatureOf(sender, leader)
+	joiners := make([]*drand.Participant, 4)
+	for i := range joiners {
+		_, joiner := newKeyedParticipant(t, fmt.Sprintf("joiner%d", i))
+		joiners[i] = withSignatureOf(joiner, leader)
+	}
+
+	tests := []struct {
+		name          string
+		signer        *key.Pair
+		terms         *drand.ProposalTerms
+		expectedError error
+	}{
+		{
+			name:   "reshare led by a joiner",
+			signer: senderPair,
+			terms: func() *drand.ProposalTerms {
+				terms := NewValidProposal(authTestBeaconID, 2, sender)
+				terms.Remaining = []*drand.Participant{leader, member, victim}
+				terms.Joining = append([]*drand.Participant{sender}, joiners...)
+				terms.Threshold = 5
+				return terms
+			}(),
+			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
+		},
+		{
+			name:   "first epoch",
+			signer: senderPair,
+			terms: func() *drand.ProposalTerms {
+				terms := NewInitialProposal(authTestBeaconID, sender, joiners...)
+				terms.Threshold = 3
+				return terms
+			}(),
+			expectedError: ErrInvalidEpoch,
+		},
+		{
+			name:   "reshare valid but for its joiners",
+			signer: leaderPair,
+			terms: func() *drand.ProposalTerms {
+				terms := NewValidProposal(authTestBeaconID, 2, leader, member, victim)
+				terms.Joining = joiners
+				terms.Threshold = 4
+				return terms
+			}(),
+			expectedError: key.ErrInvalidKeyScheme,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, victim)
+			process := newPacketTestProcess(t, victimPair, finished)
+
+			sender := test.terms.Leader.Address
+			_, err := process.Packet(context.Background(), signedPacket(t, test.signer, sender, proposalPacket(test.terms), test.terms))
+			require.ErrorIs(t, err, test.expectedError)
+
+			current, err := process.store.GetCurrent(authTestBeaconID)
+			require.NoError(t, err)
+			require.Equal(t, Complete, current.State)
+		})
+	}
+}
+
 func TestReshareFromMigratedGroup(t *testing.T) {
 	leaderPair, leader := newKeyedParticipant(t, "leader")
 	followerPair, follower := newKeyedParticipant(t, "follower")
