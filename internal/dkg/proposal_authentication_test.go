@@ -84,6 +84,8 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 		// the rest of the roster
 		remaining []*drand.Participant
 		joining   []*drand.Participant
+		// leaderJoins lists the forged leader as a joiner instead of a remainer
+		leaderJoins bool
 		// expectedError is nil when the packet signature must be the reason of the rejection
 		expectedError error
 	}{
@@ -115,6 +117,14 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			remaining: []*drand.Participant{member, victim},
 			joining:   []*drand.Participant{outsider},
 		},
+		{
+			name:          "by listing the leader as a joiner with another key",
+			forged:        fresh,
+			signer:        freshPair,
+			remaining:     []*drand.Participant{member, victim},
+			leaderJoins:   true,
+			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
+		},
 	}
 
 	for _, test := range tests {
@@ -126,6 +136,10 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			terms := NewValidProposal(authTestBeaconID, 2, forgedLeader)
 			terms.Remaining = append(terms.Remaining, test.remaining...)
 			terms.Joining = test.joining
+			if test.leaderJoins {
+				terms.Remaining = test.remaining
+				terms.Joining = []*drand.Participant{forgedLeader}
+			}
 			terms.Threshold = 3
 			packet := signedPacket(t, test.signer, leader.Address, proposalPacket(terms), terms)
 
