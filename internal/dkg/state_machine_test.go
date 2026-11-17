@@ -472,23 +472,43 @@ func TestProposalValidation(t *testing.T) {
 				p.Remaining = append(p.Remaining, withAddressOf(carol, bob))
 				return p
 			}(),
-			expected: ErrParticipantKeyMismatch,
+			expected: ErrRemainingKeyMismatch,
 		},
 		{
-			name:  "a leaver with another key than in the previous epoch returns an error",
+			name:  "a leaver with another key than in the previous epoch is valid",
 			state: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol),
 			terms: func() *drand.ProposalTerms {
 				p := NewValidProposal(beaconID, 2, alice, bob)
 				p.Leaving = []*drand.Participant{withAddressOf(NewParticipant("dave"), carol)}
 				return p
 			}(),
-			expected: ErrParticipantKeyMismatch,
+			expected: nil,
+		},
+		{
+			name:  "a leaver missing from the previous epoch returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				return p
+			}(),
+			expected: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
+		},
+		{
+			name:  "a leaver with the key of a node of the previous epoch under another address returns an error",
+			state: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{withAddressOf(carol, NewParticipant("dave"))}
+				return p
+			}(),
+			expected: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
 		},
 		{
 			name:     "a leader with another key than in the previous epoch returns an error",
 			state:    current,
 			terms:    NewValidProposal(beaconID, 2, withAddressOf(carol, alice), bob),
-			expected: ErrParticipantKeyMismatch,
+			expected: ErrRemainingKeyMismatch,
 		},
 		{
 			name:  "a leader differing from its remaining entry returns an error",
@@ -828,7 +848,21 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 			transitionFn: func(in *DBState) (*DBState, error) {
 				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, withAddressOf(NewParticipant("dave"), bob)).FinalGroup)
 			},
-			expectedError: ErrParticipantKeyMismatch,
+			expectedError: ErrRemainingKeyMismatch,
+		},
+		{
+			name: "joining succeeds if a leaver has another key than in the group file",
+			startingState: func() *DBState {
+				terms := NewValidProposal(beaconID, 2, alice, bob)
+				terms.Joining = []*drand.Participant{carol}
+				terms.Leaving = []*drand.Participant{withAddressOf(NewParticipant("erin"), NewParticipant("dave"))}
+				s, err := NewFreshState(beaconID).Proposed(carol, terms, &drand.GossipMetadata{Address: alice.Address})
+				require.NoError(t, err)
+				return s
+			}(),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, NewParticipant("dave")).FinalGroup)
+			},
 		},
 		{
 			name:          "joining fails if a remainer is not in the group file",

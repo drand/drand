@@ -670,7 +670,7 @@ var ErrReceivedRejection = errors.New("received rejection but not during proposa
 var ErrTooManyParticipants = fmt.Errorf("a proposal cannot contain more than %d participants", MaxParticipants)
 var ErrEmptyParticipant = errors.New("participants must have an address and a public key")
 var ErrDuplicateParticipant = errors.New("an address or public key appears more than once across the joining, remaining and leaving nodes")
-var ErrParticipantKeyMismatch = errors.New("remaining and leaving nodes must keep the public key they have in the current epoch")
+var ErrRemainingKeyMismatch = errors.New("remaining nodes must keep the public key they have in the current epoch")
 var ErrMissingPreviousGroup = errors.New("cannot validate a reshare without the group of the current epoch")
 
 // isValidStateChange details all the viable state changes
@@ -898,8 +898,10 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 	return nil
 }
 
-// validateRosterAgainstGroup checks that the remaining and leaving nodes are exactly the nodes of the group,
-// by address and public key. Signatures are not compared: groups migrated from v1 do not hold the v2 ones.
+// validateRosterAgainstGroup checks that the remaining and leaving nodes are exactly the nodes of the group.
+// Remaining nodes must also hold the public key they have in the group; leaving nodes match by address only,
+// as a proposal can list them with a newer key than the group does and nothing relies on it.
+// Signatures are not compared: groups migrated from v1 do not hold the v2 ones.
 func validateRosterAgainstGroup(group *key.Group, remaining, leaving []*drand.Participant) error {
 	if group == nil {
 		return ErrMissingPreviousGroup
@@ -914,15 +916,22 @@ func validateRosterAgainstGroup(group *key.Group, remaining, leaving []*drand.Pa
 		groupKeys[node.Address()] = k
 	}
 
-	for _, p := range util.Concat(remaining, leaving) {
+	for _, p := range remaining {
 		k, ok := groupKeys[p.GetAddress()]
 		if !ok {
 			return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
 		}
 		if !bytes.Equal(k, p.GetKey()) {
-			return ErrParticipantKeyMismatch
+			return ErrRemainingKeyMismatch
 		}
 		// a node of the group can only be matched once
+		delete(groupKeys, p.GetAddress())
+	}
+
+	for _, p := range leaving {
+		if _, ok := groupKeys[p.GetAddress()]; !ok {
+			return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
+		}
 		delete(groupKeys, p.GetAddress())
 	}
 

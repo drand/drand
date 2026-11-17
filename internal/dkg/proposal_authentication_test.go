@@ -149,7 +149,7 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			} else {
 				require.ErrorContains(t, err, "invalid packet signature")
 				// the roster is rejected as well, whoever signs it
-				require.ErrorIs(t, ValidateProposal(finished, terms), ErrParticipantKeyMismatch)
+				require.ErrorIs(t, ValidateProposal(finished, terms), ErrRemainingKeyMismatch)
 			}
 
 			current, err := process.store.GetCurrent(authTestBeaconID)
