@@ -50,6 +50,7 @@ var dkgCommand = &cli.Command{
 				proposalFlag,
 				dkgTimeoutFlag,
 				genesisTimeFlag,
+				genesisTimeAbsoluteFlag,
 			),
 			Action: func(c *cli.Context) error {
 				l := log.New(nil, logLevel(c), logJSON(c)).
@@ -182,7 +183,12 @@ var formatFlag = &cli.StringFlag{
 
 var genesisTimeFlag = &cli.StringFlag{
 	Name:  "genesis-delay",
-	Usage: "The duration from now until the network should start creating randomness",
+	Usage: "The duration from now until the network should start creating randomness (e.g., '20s', '1h')",
+}
+
+var genesisTimeAbsoluteFlag = &cli.StringFlag{
+	Name:  "genesis-time",
+	Usage: "The absolute time when the network should start creating randomness (RFC3339 format, e.g., '2024-01-01T12:00:00Z')",
 }
 
 var dkgTimeoutFlag = &cli.StringFlag{
@@ -259,7 +265,7 @@ func withDefault(first, second string) string {
 }
 
 func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
-	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag, genesisTimeFlag}
+	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag}
 
 	for _, flag := range requiredFlags {
 		if !c.IsSet(flag.Name) {
@@ -270,6 +276,16 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	// this is IntFlag and not StringFlag so must be checked separately
 	if !c.IsSet(thresholdFlag.Name) {
 		return nil, fmt.Errorf("%s flag is required for initial proposals", thresholdFlag.Name)
+	}
+
+	// Check that exactly one of genesis-delay or genesis-time is set
+	genesisDelaySet := c.IsSet(genesisTimeFlag.Name)
+	genesisTimeSet := c.IsSet(genesisTimeAbsoluteFlag.Name)
+	if !genesisDelaySet && !genesisTimeSet {
+		return nil, fmt.Errorf("either %s or %s flag is required for initial proposals", genesisTimeFlag.Name, genesisTimeAbsoluteFlag.Name)
+	}
+	if genesisDelaySet && genesisTimeSet {
+		return nil, fmt.Errorf("cannot specify both %s and %s flags; use only one", genesisTimeFlag.Name, genesisTimeAbsoluteFlag.Name)
 	}
 
 	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
@@ -285,7 +301,22 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	period := c.Duration(periodFlag.Name)
 	timeout := time.Now().Add(c.Duration(dkgTimeoutFlag.Name))
 
-	genesisTime := time.Now().Add(c.Duration(genesisTimeFlag.Name))
+	var genesisTime time.Time
+	if genesisTimeSet {
+		// Parse absolute time (RFC3339 format)
+		genesisTimeStr := c.String(genesisTimeAbsoluteFlag.Name)
+		genesisTime, err = time.Parse(time.RFC3339, genesisTimeStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid genesis-time format: %w (expected RFC3339 format, e.g., '2024-01-01T12:00:00Z')", err)
+		}
+		// Validate that the time is in the future
+		if genesisTime.Before(time.Now()) {
+			return nil, fmt.Errorf("genesis-time must be in the future, got: %s", genesisTime.Format(time.RFC3339))
+		}
+	} else {
+		// Parse relative delay
+		genesisTime = time.Now().Add(c.Duration(genesisTimeFlag.Name))
+	}
 
 	return &drand.FirstProposalOptions{
 		Timeout:              timestamppb.New(timeout),
