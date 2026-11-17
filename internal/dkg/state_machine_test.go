@@ -26,6 +26,7 @@ func TestProposalValidation(t *testing.T) {
 	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	current := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+	threeNodes := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
 	tests := []struct {
 		name     string
 		state    *DBState
@@ -422,6 +423,99 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrDuplicateParticipant,
 		},
 		{
+			name:  "a node repeated in leaving returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol, carol}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a leaver using the address of a remainer returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol, withAddressOf(NewParticipant("dave"), bob)}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a node leaving and joining at the same address with a new key is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{withAddressOf(NewParticipant("dave"), carol)}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a node leaving and joining with the same key at a new address is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{withAddressOf(carol, NewParticipant("dave"))}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a node leaving and joining unchanged is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{carol}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver using the key of a remainer is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{withAddressOf(bob, carol)}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver without key is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{{Address: carol.Address}}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver without address returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{{Key: carol.Key, Signature: carol.Signature}}
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "a remainer without key returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice)
+				p.Remaining = append(p.Remaining, &drand.Participant{Address: bob.Address})
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
 			name:  "a nil participant returns an error",
 			state: current,
 			terms: func() *drand.ProposalTerms {
@@ -432,7 +526,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrEmptyParticipant,
 		},
 		{
-			name:  "a participant without address returns an error",
+			name:  "a joiner without address returns an error",
 			state: current,
 			terms: func() *drand.ProposalTerms {
 				p := NewValidProposal(beaconID, 2, alice, bob)
@@ -442,7 +536,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: ErrEmptyParticipant,
 		},
 		{
-			name:  "a participant without key returns an error",
+			name:  "a joiner without key returns an error",
 			state: current,
 			terms: func() *drand.ProposalTerms {
 				p := NewValidProposal(beaconID, 2, alice, bob)

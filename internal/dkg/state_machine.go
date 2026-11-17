@@ -668,8 +668,8 @@ var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil 
 var ErrReceivedAcceptance = errors.New("received acceptance but not during proposal phase")
 var ErrReceivedRejection = errors.New("received rejection but not during proposal phase")
 var ErrTooManyParticipants = fmt.Errorf("a proposal cannot contain more than %d participants", MaxParticipants)
-var ErrEmptyParticipant = errors.New("participants must have an address and a public key")
-var ErrDuplicateParticipant = errors.New("an address or public key appears more than once across the joining, remaining and leaving nodes")
+var ErrEmptyParticipant = errors.New("joining and remaining nodes must have an address and a public key, leaving nodes an address")
+var ErrDuplicateParticipant = errors.New("an address or public key appears more than once in the joining and remaining nodes, or an address in the remaining and leaving nodes")
 var ErrRemainingKeyMismatch = errors.New("remaining nodes must keep the public key they have in the current epoch")
 var ErrMissingPreviousGroup = errors.New("cannot validate a reshare without the group of the current epoch")
 
@@ -780,6 +780,7 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 }
 
 // validateParticipants bounds the size of a proposal and rejects empty or repeated participants.
+// A leaving node can also be listed as joining: that is how a node changes its key or address in a reshare.
 func validateParticipants(terms *drand.ProposalTerms) error {
 	count := len(terms.GetJoining()) + len(terms.GetRemaining()) + len(terms.GetLeaving())
 	if count > MaxParticipants {
@@ -788,7 +789,7 @@ func validateParticipants(terms *drand.ProposalTerms) error {
 
 	addresses := make(map[string]bool, count)
 	keys := make(map[string]bool, count)
-	for _, p := range util.Concat(terms.GetJoining(), terms.GetRemaining(), terms.GetLeaving()) {
+	for _, p := range util.Concat(terms.GetJoining(), terms.GetRemaining()) {
 		if p.GetAddress() == "" || len(p.GetKey()) == 0 {
 			return ErrEmptyParticipant
 		}
@@ -797,6 +798,20 @@ func validateParticipants(terms *drand.ProposalTerms) error {
 		}
 		addresses[p.GetAddress()] = true
 		keys[string(p.GetKey())] = true
+	}
+
+	previous := make(map[string]bool, len(terms.GetRemaining())+len(terms.GetLeaving()))
+	for _, p := range terms.GetRemaining() {
+		previous[p.GetAddress()] = true
+	}
+	for _, p := range terms.GetLeaving() {
+		if p.GetAddress() == "" {
+			return ErrEmptyParticipant
+		}
+		if previous[p.GetAddress()] {
+			return ErrDuplicateParticipant
+		}
+		previous[p.GetAddress()] = true
 	}
 	return nil
 }

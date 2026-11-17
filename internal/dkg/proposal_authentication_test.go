@@ -84,6 +84,7 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 		// the rest of the roster
 		remaining []*drand.Participant
 		joining   []*drand.Participant
+		leaving   []*drand.Participant
 		// leaderJoins lists the forged leader as a joiner instead of a remainer
 		leaderJoins bool
 		// expectedError is nil when the packet signature must be the reason of the rejection
@@ -125,6 +126,15 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			leaderJoins:   true,
 			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
 		},
+		{
+			name:          "by listing the leader as leaving and as a joiner with another key",
+			forged:        fresh,
+			signer:        freshPair,
+			remaining:     []*drand.Participant{member, victim},
+			leaving:       []*drand.Participant{leader},
+			leaderJoins:   true,
+			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
+		},
 	}
 
 	for _, test := range tests {
@@ -136,6 +146,7 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			terms := NewValidProposal(authTestBeaconID, 2, forgedLeader)
 			terms.Remaining = append(terms.Remaining, test.remaining...)
 			terms.Joining = test.joining
+			terms.Leaving = test.leaving
 			if test.leaderJoins {
 				terms.Remaining = test.remaining
 				terms.Joining = []*drand.Participant{forgedLeader}
@@ -156,6 +167,45 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, Complete, current.State)
 			require.Equal(t, uint32(1), current.Epoch)
+		})
+	}
+}
+
+func TestPacketAcceptsProposalWithLeaver(t *testing.T) {
+	leaderPair, leader := newKeyedParticipant(t, "leader")
+	memberPair, member := newKeyedParticipant(t, "member")
+	_, leaver := newKeyedParticipant(t, "leaver")
+	_, fresh := newKeyedParticipant(t, "fresh")
+
+	tests := []struct {
+		name    string
+		leaving *drand.Participant
+		joining []*drand.Participant
+	}{
+		{name: "listed as in the last group", leaving: leaver},
+		{name: "listed without key", leaving: &drand.Participant{Address: leaver.Address}},
+		{name: "listed with a newer key", leaving: withAddressOf(fresh, leaver)},
+		{name: "joining again with a new key", leaving: leaver, joining: []*drand.Participant{withAddressOf(fresh, leaver)}},
+		{name: "joining again at a new address", leaving: leaver, joining: []*drand.Participant{withAddressOf(leaver, fresh)}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, leaver)
+			process := newPacketTestProcess(t, memberPair, finished)
+
+			terms := NewValidProposal(authTestBeaconID, 2, leader, member)
+			terms.Leaving = []*drand.Participant{test.leaving}
+			terms.Joining = test.joining
+
+			_, err := process.Packet(context.Background(), signedPacket(t, leaderPair, leader.Address, proposalPacket(terms), terms))
+			require.NoError(t, err)
+
+			current, err := process.store.GetCurrent(authTestBeaconID)
+			require.NoError(t, err)
+			require.Equal(t, Proposed, current.State)
+			require.Len(t, current.Leaving, 1)
+			require.Len(t, current.Joining, len(test.joining))
 		})
 	}
 }
