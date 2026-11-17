@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path"
 	"sync"
@@ -43,6 +45,27 @@ func TestBackupDatabase_RejectsMemDB(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "backup is not supported for in-memory databases")
+}
+
+func TestWriteBackup(t *testing.T) {
+	ctx := context.Background()
+	file := path.Join(t.TempDir(), "backup")
+
+	err := writeBackup(ctx, file, func(_ context.Context, w io.Writer) error {
+		_, err := w.Write([]byte("partial"))
+		require.NoError(t, err)
+		return errors.New("export failed")
+	})
+	require.ErrorContains(t, err, "export failed")
+	require.NoFileExists(t, file, "a failed backup must not leave a partial file")
+
+	require.NoError(t, writeBackup(ctx, file, func(_ context.Context, w io.Writer) error {
+		_, err := w.Write([]byte("full"))
+		return err
+	}))
+	got, err := os.ReadFile(file)
+	require.NoError(t, err)
+	require.Equal(t, "full", string(got))
 }
 
 func TestBeaconProcess_Stop(t *testing.T) {

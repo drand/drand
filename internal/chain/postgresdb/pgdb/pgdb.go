@@ -1,6 +1,7 @@
 package pgdb
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"fmt"
@@ -346,12 +347,73 @@ func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Curso
 	return fn(ctx, &c)
 }
 
-// SaveTo does something and I am not sure just yet.
-func (p *Store) SaveTo(ctx context.Context, _ io.Writer) error {
-	_, span := tracer.NewSpan(ctx, "pgStore.SaveTo")
+// SaveTo exports all beacons in a newline-delimited JSON format (NDJSON),
+// compatible with memdb.Store.SaveTo output.
+func (p *Store) SaveTo(ctx context.Context, w io.Writer) error {
+	ctx, span := tracer.NewSpan(ctx, "pgStore.SaveTo")
 	defer span.End()
 
-	return fmt.Errorf("saveTo not implemented for Postgres Store")
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	// A single streamed query: walking the cursor costs one OFFSET query per beacon.
+	const query = `
+	SELECT
+		round,
+		signature
+	FROM
+		beacon_details
+	WHERE
+		beacon_id = :id
+	ORDER BY
+		round ASC`
+
+	data := struct {
+		ID int `db:"id"`
+	}{
+		ID: p.beaconID,
+	}
+
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	bw := bufio.NewWriter(w)
+	var prev dbBeacon
+	for rows.Next() {
+		var b dbBeacon
+		if err := rows.StructScan(&b); err != nil {
+			return err
+		}
+
+		// Chained beacons carry the previous signature, so the previous round must be the row before.
+		if p.requiresPrevious && b.Round > 0 {
+			if prev.Signature == nil || prev.Round != b.Round-1 {
+				return fmt.Errorf("cannot export beacon round %d without round %d: %w", b.Round, b.Round-1, chainerrors.ErrNoBeaconStored)
+			}
+			b.PreviousSig = prev.Signature
+		}
+
+		line, err := toChainBeacon(b).Marshal()
+		if err != nil {
+			return fmt.Errorf("failed to marshal beacon round %d: %w", b.Round, err)
+		}
+		// Write one NDJSON line per beacon.
+		if _, err := bw.Write(append(line, '\n')); err != nil {
+			return fmt.Errorf("failed to write beacon round %d: %w", b.Round, err)
+		}
+		prev = b
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	return bw.Flush()
 }
 
 // DropFK is used to optimize the calls to Store.BatchPut and should be called before it.
