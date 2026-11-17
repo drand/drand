@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/drand/v2/common/key"
 	"github.com/drand/drand/v2/common/tracer"
 	"github.com/drand/drand/v2/internal/metrics"
 
@@ -76,15 +77,31 @@ func (d *Process) applyPacketToState(beaconID string, packet *drand.GossipPacket
 		return err
 	}
 
+	finished, err := d.store.GetFinished(beaconID)
+	if err != nil {
+		return err
+	}
+
 	// if we have aborted or timed out, we actually want to apply the proposal to the last successful state
 	if util.Cont(terminalStates, current.State) {
-		current, err = d.store.GetFinished(beaconID)
-		if err != nil {
-			return err
-		}
-
+		current = finished
 		if current == nil {
 			current = NewFreshState(beaconID)
+		}
+	}
+
+	var lastGroup *key.Group
+	if finished != nil {
+		lastGroup = finished.FinalGroup
+	}
+
+	// a proposal is authenticated before `Apply` verifies the signature of each of its joiners
+	if proposal := packet.GetProposal(); proposal != nil {
+		if err := validateParticipants(proposal); err != nil {
+			return err
+		}
+		if err := d.verifyMessage(packet, proposal, lastGroup); err != nil {
+			return fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
 		}
 	}
 
@@ -94,7 +111,7 @@ func (d *Process) applyPacketToState(beaconID string, packet *drand.GossipPacket
 	}
 
 	// we must verify the message against the next state, as the current state upon first proposal will be empty
-	err = d.verifyMessage(packet, termsFromState(nextState))
+	err = d.verifyMessage(packet, termsFromState(nextState), lastGroup)
 	if err != nil {
 		return fmt.Errorf("invalid packet signature from %s: %w", packet.Metadata.Address, err)
 	}
