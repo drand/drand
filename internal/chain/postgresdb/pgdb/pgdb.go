@@ -353,6 +353,12 @@ func (p *Store) SaveTo(ctx context.Context, w io.Writer) error {
 	ctx, span := tracer.NewSpan(ctx, "pgStore.SaveTo")
 	defer span.End()
 
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// A single streamed query: walking the cursor costs one OFFSET query per beacon.
 	const query = `
 	SELECT
