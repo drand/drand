@@ -238,15 +238,13 @@ func TestStorePG_SaveTo(t *testing.T) {
 	}
 }
 
-func TestStorePG_SaveTo_MissingPrevious(t *testing.T) {
+func TestStorePG_SaveTo_Gap(t *testing.T) {
 	ctx, _, prevMatters := context2.PrevSignatureMattersOnContext(t, context.Background())
-	if !prevMatters {
-		t.Skip("only chained schemes need the previous round to export a beacon")
-	}
 
 	l, db := test.NewUnit(t, c, t.Name())
 
-	// Each chain misses a round, so the beacon after the gap has no PreviousSig.
+	// Each chain misses a round: chained schemes cannot resolve the PreviousSig after the gap,
+	// unchained schemes don't need it and export every stored beacon.
 	for name, rounds := range map[string][]uint64{
 		"missing_genesis": {1, 2},
 		"missing_middle":  {0, 1, 3},
@@ -259,7 +257,13 @@ func TestStorePG_SaveTo_MissingPrevious(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		require.ErrorIs(t, dbStore.SaveTo(ctx, &buf), chainerrors.ErrNoBeaconStored, name)
+		err = dbStore.SaveTo(ctx, &buf)
+		if prevMatters {
+			require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored, name)
+		} else {
+			require.NoError(t, err, name)
+			require.Len(t, bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n")), len(rounds), name)
+		}
 		require.NoError(t, dbStore.Close())
 	}
 }

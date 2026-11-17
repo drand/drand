@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
@@ -87,13 +89,32 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 		return nil, errors.New("backup is not supported for in-memory databases")
 	}
 
-	w, err := fs.CreateSecureFile(req.OutputFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not open file for backup: %w", err)
+	if err := writeBackup(ctx, req.OutputFile, inst.Store().SaveTo); err != nil {
+		return nil, err
 	}
-	defer w.Close()
 
-	return &drand.BackupDBResponse{Metadata: bp.newMetadata()}, inst.Store().SaveTo(ctx, w)
+	return &drand.BackupDBResponse{Metadata: bp.newMetadata()}, nil
+}
+
+// writeBackup writes a backup to file with save, and removes the file if the backup is incomplete.
+func writeBackup(ctx context.Context, file string, save func(context.Context, io.Writer) error) error {
+	w, err := fs.CreateSecureFile(file)
+	if err != nil {
+		return fmt.Errorf("could not open file for backup: %w", err)
+	}
+
+	err = save(ctx, w)
+	if closeErr := w.Close(); err == nil && closeErr != nil {
+		err = fmt.Errorf("could not close backup file: %w", closeErr)
+	}
+	if err != nil {
+		if rmErr := os.Remove(file); rmErr != nil {
+			return errors.Join(err, fmt.Errorf("could not remove incomplete backup: %w", rmErr))
+		}
+		return err
+	}
+
+	return nil
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node
