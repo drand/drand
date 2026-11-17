@@ -669,7 +669,7 @@ var ErrReceivedAcceptance = errors.New("received acceptance but not during propo
 var ErrReceivedRejection = errors.New("received rejection but not during proposal phase")
 var ErrTooManyParticipants = fmt.Errorf("a proposal cannot contain more than %d participants", MaxParticipants)
 var ErrEmptyParticipant = errors.New("joining and remaining nodes must have an address and a public key, leaving nodes an address")
-var ErrDuplicateParticipant = errors.New("an address or public key appears more than once in the joining and remaining nodes, or an address in the remaining and leaving nodes")
+var ErrDuplicateParticipant = errors.New("an address or public key appears more than once in the joining and remaining nodes, or an address in the remaining and leaving nodes, or a node leaves and joins unchanged")
 var ErrRemainingKeyMismatch = errors.New("remaining nodes must keep the public key they have in the current epoch")
 var ErrMissingPreviousGroup = errors.New("cannot validate a reshare without the group of the current epoch")
 
@@ -807,6 +807,11 @@ func validateParticipants(terms *drand.ProposalTerms) error {
 		keys[string(p.GetKey())] = true
 	}
 
+	joiners := make(map[string][]byte, len(terms.GetJoining()))
+	for _, p := range terms.GetJoining() {
+		joiners[p.GetAddress()] = p.GetKey()
+	}
+
 	previous := make(map[string]bool, len(terms.GetRemaining())+len(terms.GetLeaving()))
 	for _, p := range terms.GetRemaining() {
 		previous[p.GetAddress()] = true
@@ -816,6 +821,10 @@ func validateParticipants(terms *drand.ProposalTerms) error {
 			return ErrEmptyParticipant
 		}
 		if previous[p.GetAddress()] {
+			return ErrDuplicateParticipant
+		}
+		// a node can leave and join again to change its key, but not unchanged: it would leave after the DKG
+		if k, ok := joiners[p.GetAddress()]; ok && bytes.Equal(k, p.GetKey()) {
 			return ErrDuplicateParticipant
 		}
 		previous[p.GetAddress()] = true

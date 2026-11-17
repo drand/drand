@@ -465,7 +465,7 @@ func TestProposalValidation(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:  "a node leaving and joining unchanged is valid",
+			name:  "a node leaving and joining unchanged returns an error",
 			state: threeNodes,
 			terms: func() *drand.ProposalTerms {
 				p := NewValidProposal(beaconID, 2, alice, bob)
@@ -473,7 +473,7 @@ func TestProposalValidation(t *testing.T) {
 				p.Joining = []*drand.Participant{carol}
 				return p
 			}(),
-			expected: nil,
+			expected: ErrDuplicateParticipant,
 		},
 		{
 			name:  "a leaver using the key of a remainer is valid",
