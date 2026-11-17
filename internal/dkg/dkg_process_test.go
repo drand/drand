@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -205,8 +206,6 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			leader, err := leaderNode.RunnerFor(beaconID)
 			require.NoError(t, err)
 
-			dkgCompletionChannel := leaderNode.delegate.completedDKGs.Listen()
-
 			err = leader.StartNetwork(2, 1, crypto.DefaultSchemeID, 1*time.Minute, 1, identities)
 			require.NoError(t, err)
 
@@ -220,19 +219,8 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			err = leader.StartExecution()
 			require.NoError(t, err)
 
-			// we then wait for the signal on the completion channel that the DKG has been completed for this beaconID
-		LO:
-			for {
-				select {
-				case result := <-dkgCompletionChannel:
-					if result.BeaconID != beaconID {
-						continue
-					}
-					break LO
-				case <-time.After(4 * time.Minute):
-					require.FailNow(t, "timed out waiting for DKG completion")
-				}
-			}
+			// WaitForDKG returns as soon as the DKG fails, rather than waiting out a deadline.
+			require.NoError(t, leader.WaitForDKG(log.DefaultLogger(), 1, 240), "beacon %s", beaconID)
 
 			// we then run a resharing
 			err = leader.StartReshare(2, 1, nil, identities, nil)
@@ -248,19 +236,7 @@ func TestMultipleDKGsInFlight(t *testing.T) {
 			err = leader.StartExecution()
 			require.NoError(t, err)
 
-			// then we wait for the signal on the completion channel that the DKG has been completed for this beaconID
-		LO2:
-			for {
-				select {
-				case result := <-dkgCompletionChannel:
-					if result.BeaconID != beaconID {
-						continue
-					}
-					break LO2
-				case <-time.After(4 * time.Minute):
-					require.FailNow(t, "timed out waiting for DKG completion")
-				}
-			}
+			require.NoError(t, leader.WaitForDKG(log.DefaultLogger(), 2, 240), "beacon %s", beaconID)
 			wg.Done()
 		}(beaconID)
 	}
@@ -457,11 +433,10 @@ func (m *messageBus) BroadcastDKG(
 // stubbedDKGProcess simulates errors and delegates to a real DKG process when not in an error state
 // it has pairwise pointers with the TestRunner to simplify usage - naughty, naughty
 type stubbedDKGProcess struct {
-	lock     sync.Mutex
 	delegate *Process
 	runners  []*TestRunner
 	key      *key.Pair
-	broken   bool
+	broken   atomic.Bool
 }
 
 func newStubbedDKGProcess(t *testing.T, name string, bus *messageBus, beaconIDs ...string) (*stubbedDKGProcess, error) {
@@ -486,7 +461,6 @@ func newStubbedDKGProcess(t *testing.T, name string, bus *messageBus, beaconIDs 
 	wrapper := &stubbedDKGProcess{
 		delegate: delegate,
 		key:      kp,
-		broken:   false,
 	}
 
 	runners := make([]*TestRunner, len(beaconIDs))
@@ -515,15 +489,11 @@ func (p *stubbedDKGProcess) RunnerFor(beaconID string) (*TestRunner, error) {
 }
 
 func (p *stubbedDKGProcess) Break() {
-	p.lock.Lock()
-	p.broken = true
-	p.lock.Unlock()
+	p.broken.Store(true)
 }
 
 func (p *stubbedDKGProcess) Fix() {
-	p.lock.Lock()
-	p.broken = false
-	p.lock.Unlock()
+	p.broken.Store(false)
 }
 
 func (p *stubbedDKGProcess) DKGStatus(
@@ -531,21 +501,15 @@ func (p *stubbedDKGProcess) DKGStatus(
 	request *dkg.DKGStatusRequest,
 	_ ...grpc.CallOption,
 ) (*dkg.DKGStatusResponse, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
 	return p.delegate.DKGStatus(ctx, request)
 }
 
 func (p *stubbedDKGProcess) Command(ctx context.Context, command *dkg.DKGCommand, _ ...grpc.CallOption) (*dkg.EmptyDKGResponse, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
 	return p.delegate.Command(ctx, command)
 }
 
 func (p *stubbedDKGProcess) Packet(ctx context.Context, packet *dkg.GossipPacket, _ ...grpc.CallOption) (*dkg.EmptyDKGResponse, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	if p.broken {
+	if p.broken.Load() {
 		return nil, errors.New("boom")
 	}
 
@@ -561,9 +525,7 @@ func (p *stubbedDKGProcess) BroadcastDKG(
 	packet *dkg.DKGPacket,
 	_ ...grpc.CallOption,
 ) (*dkg.EmptyDKGResponse, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
-	if p.broken {
+	if p.broken.Load() {
 		return nil, errors.New("boom")
 	}
 

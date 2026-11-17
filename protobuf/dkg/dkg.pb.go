@@ -32,7 +32,6 @@ type Packet struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Bundle:
-	//
 	//	*Packet_Deal
 	//	*Packet_Response
 	//	*Packet_Justification

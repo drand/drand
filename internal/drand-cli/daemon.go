@@ -38,6 +38,13 @@ func startCmd(c *cli.Context, l log.Logger) error {
 	// Check stores and start BeaconProcess
 	err = drandDaemon.LoadBeaconsFromDisk(ctx, c.String(metricsFlag.Name), singleBeacon, c.String(beaconIDFlag.Name))
 	if err != nil {
+		// A stop that lands mid-load closes the stores under it. That is a
+		// clean shutdown, not a startup failure.
+		if drandDaemon.Stopping() {
+			span.End()
+			<-drandDaemon.WaitExit()
+			return nil
+		}
 		err = fmt.Errorf("couldn't load existing beacons: %w", err)
 		span.RecordError(err)
 		span.End()
