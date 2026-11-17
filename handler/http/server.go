@@ -588,11 +588,13 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 
 func (h *DrandHandler) ChainHashes(w http.ResponseWriter, _ *http.Request) {
 	chainHashes := make([]string, 0)
+	h.state.RLock()
 	for chainHash := range h.beacons {
 		if chainHash != common.DefaultChainHash {
 			chainHashes = append(chainHashes, chainHash)
 		}
 	}
+	h.state.RUnlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "max-age=300")

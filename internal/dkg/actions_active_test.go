@@ -21,6 +21,7 @@ import (
 	"github.com/drand/drand/v2/internal/net"
 	"github.com/drand/drand/v2/internal/util"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+	proto "github.com/drand/drand/v2/protobuf/drand"
 )
 
 func TestInitialDKG(t *testing.T) {
@@ -525,4 +526,27 @@ func (m *MockDKGClient) DKGStatus(_ context.Context, _ net.Peer, _ *drand.DKGSta
 func (m *MockDKGClient) BroadcastDKG(_ context.Context, _ net.Peer, in *drand.DKGPacket, _ ...grpc.CallOption) (*drand.EmptyDKGResponse, error) {
 	args := m.Called(in)
 	return nil, args.Error(0)
+}
+
+func TestPacketRejectsDKGProtocolPacket(t *testing.T) {
+	process := NewDKGProcess(nil, nil, nil, nil, nil, Config{}, log.DefaultLogger())
+	packet := &drand.GossipPacket{
+		Metadata: &drand.GossipMetadata{BeaconID: "default", Signature: []byte("signature")},
+		Packet: &drand.GossipPacket_Dkg{Dkg: &drand.DKGPacket{
+			Dkg: &drand.Packet{Metadata: &proto.Metadata{BeaconID: "default"}},
+		}},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := process.Packet(context.Background(), packet)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "BroadcastDKG")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Packet with a DKG protocol packet did not return")
+	}
 }

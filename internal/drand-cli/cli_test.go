@@ -247,7 +247,9 @@ func TestStartAndStop(t *testing.T) {
 		// Marshal called with nil
 	}()
 	<-startCh
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return CLI().Run([]string{"drand", "util", "ping"}) == nil
+	}, 10*time.Second, 100*time.Millisecond, "control port never came up")
 
 	stopArgs := []string{"drand", "stop"}
 	err = CLI().Run(stopArgs)
@@ -325,11 +327,13 @@ func TestUtilCheckSucceedsForPortMatchingKeypair(t *testing.T) {
 		}
 	}()
 	<-waitCh
-	// TODO can we maybe try to bind continuously to not having to wait
-	time.Sleep(200 * time.Millisecond)
 
+	// The port opens before the daemon serves gRPC and registers the beacon, so
+	// retry the check itself rather than probing the port.
 	check := []string{"drand", "util", "check", "--id", beaconID, keyAddr}
-	require.NoError(t, CLI().Run(check))
+	require.Eventually(t, func() bool {
+		return CLI().Run(check) == nil
+	}, 30*time.Second, 200*time.Millisecond, "util check never succeeded against %s", keyAddr)
 }
 
 //nolint:funlen

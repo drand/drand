@@ -58,8 +58,13 @@ type BeaconProcess struct {
 	log dlog.Logger
 
 	// global state lock
-	state  sync.RWMutex
-	exitCh chan bool
+	state sync.RWMutex
+	// startLock serializes newBeacon, which builds the handler under a read lock.
+	startLock sync.Mutex
+	exitCh    chan bool
+	// stopOnce guards the close-once of exitCh so that concurrent Stop calls
+	// cannot panic with a double close or a send on a closed channel.
+	stopOnce sync.Once
 
 	// that cancel function is set when the drand process is following a chain
 	// but not participating. Drand calls the cancel func when the node
@@ -107,6 +112,7 @@ func NewBeaconProcess(ctx context.Context,
 }
 
 var ErrDKGNotStarted = errors.New("DKG not started")
+var ErrMissingGroupFileWithDKGState = errors.New("group file missing but DKG DB has state")
 
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
@@ -258,13 +264,18 @@ func (bp *BeaconProcess) transitionToNext(ctx context.Context, dkgOutput *dkg.Sh
 		return err
 	}
 
-	// somehow the beacon process isn't set here sometimes o.O
-	if bp.beacon == nil {
-		return fmt.Errorf("cannot transitionToNext on a nil beacon handler")
+	bp.state.RLock()
+	handler := bp.beacon
+	bp.state.RUnlock()
+	// The DKG can land while newBeacon is still building the first handler. The
+	// group is already stored, so that build restarts on the new group instead.
+	if handler == nil {
+		bp.log.Warnw("no beacon handler yet, the beacon will start directly on the new group", "epoch", dkgOutput.New.Epoch)
+		return nil
 	}
-	bp.beacon.TransitionNewGroup(ctx, newShare, newGroup)
+	handler.TransitionNewGroup(ctx, newShare, newGroup)
 
-	return err
+	return nil
 }
 
 func (bp *BeaconProcess) storeDKGOutput(ctx context.Context, group *key.Group, share *key.Share) error {
@@ -333,24 +344,21 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	ctx, span := tracer.NewSpan(ctx, "bp.Stop")
 	defer span.End()
 
-	bp.state.RLock()
-	select {
-	case <-bp.exitCh:
-		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
-		bp.state.RUnlock()
-		return
-	default:
+	// stopOnce makes Stop idempotent and safe to call concurrently: only the
+	// first caller signals and closes exitCh, every other caller is a no-op.
+	// exitCh is buffered (cap 1) and only ever written here, so the send under
+	// the Once can never block and we don't need a ctx-cancel escape hatch.
+	firstStop := false
+	bp.stopOnce.Do(func() {
+		firstStop = true
 		bp.log.Debugw("Stopping BeaconProcess", "id", bp.getBeaconID())
-	}
-
-	// we wait until we can send on the channel or the context got canceled
-	select {
-	case bp.exitCh <- true:
+		bp.exitCh <- true
 		close(bp.exitCh)
-	case <-ctx.Done():
-		bp.log.Warnw("Context canceled, BeaconProcess exitCh probably blocked")
+	})
+	if !firstStop {
+		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
+		return
 	}
-	bp.state.RUnlock()
 
 	bp.StopBeacon(ctx)
 }
@@ -399,7 +407,6 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 		return nil, fmt.Errorf("unknown database storage engine type %q", bp.opts.dbStorageEngine)
 	}
 
-	bp.dbStore = dbStore
 	return dbStore, err
 }
 
@@ -407,19 +414,53 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 	ctx, span := tracer.NewSpan(ctx, "bp.newBeacon")
 	defer span.End()
 
-	bp.state.Lock()
-	defer bp.state.Unlock()
+	bp.startLock.Lock()
+	defer bp.startLock.Unlock()
 
+	for {
+		// Store setup and peer sync can take seconds: a read lock keeps the group
+		// stable without blocking other readers.
+		bp.state.RLock()
+		group := bp.group
+		b, store, err := bp.buildBeacon(ctx)
+		bp.state.RUnlock()
+		if err != nil {
+			return nil, err
+		}
+
+		bp.state.Lock()
+		if bp.group != group {
+			// A DKG installed a new group between the two locks: rebuild for it.
+			bp.state.Unlock()
+			b.Stop(ctx)
+			continue
+		}
+		bp.log.Infow("setting handler")
+		bp.dbStore = store
+		bp.beacon = b
+		// cancel any sync operations
+		if bp.syncerCancel != nil {
+			bp.syncerCancel()
+			bp.syncerCancel = nil
+		}
+		bp.state.Unlock()
+		return b, nil
+	}
+}
+
+// buildBeacon creates the store and handler for the current group. The caller
+// must hold bp.state.
+func (bp *BeaconProcess) buildBeacon(ctx context.Context) (*beacon.Handler, chain.Store, error) {
 	pub := bp.priv.Public
 	node := bp.group.Find(pub)
 
 	if node == nil {
-		return nil, fmt.Errorf("public key %s not found in group", pub)
+		return nil, nil, fmt.Errorf("public key %s not found in group", pub)
 	}
 
 	store, err := bp.createDBStore(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	conf := &beacon.Config{
@@ -438,23 +479,16 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 				bp.log.Warnw("failed to find target beacon in peer network in a reasonable time. Reverting to synced startup", "err", err)
 			} else {
 				bp.log.Errorw("got error from storing the beacon in db at startup", "err", err)
-				return nil, err
+				return nil, nil, err
 			}
 		}
 	}
 
 	b, err := beacon.NewHandler(ctx, bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	bp.log.Infow("setting handler")
-	bp.beacon = b
-	// cancel any sync operations
-	if bp.syncerCancel != nil {
-		bp.syncerCancel()
-		bp.syncerCancel = nil
-	}
-	return bp.beacon, nil
+	return b, store, nil
 }
 
 func checkGroup(l dlog.Logger, group *key.Group) {

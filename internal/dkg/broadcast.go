@@ -301,6 +301,7 @@ func newDispatcher(ctx context.Context, dkgClient net.DKGClient, l log.Logger, t
 			continue
 		}
 		sender := newSender(dkgClient, node, l, queue)
+		//nolint:gosec // G118: the sender goroutine intentionally runs until the broadcast is torn down
 		go sender.run(ctx)
 		senders = append(senders, sender)
 	}
@@ -315,7 +316,7 @@ func (d *dispatcher) broadcast(ctx context.Context, p broadcastPacket) {
 	ctx, span := tracer.NewSpanFromContext(context.Background(), ctx, "d.broadcast")
 	defer span.End()
 
-	for _, i := range rand.Perm(len(d.senders)) {
+	for _, i := range rand.Perm(len(d.senders)) { //nolint:gosec // shuffling only
 		d.senders[i].sendPacket(ctx, p)
 	}
 }
@@ -326,7 +327,7 @@ func (d *dispatcher) broadcastDirect(ctx context.Context, p broadcastPacket) {
 	ctx, span := tracer.NewSpan(ctx, "d.broadcastDirect")
 	defer span.End()
 
-	for _, i := range rand.Perm(len(d.senders)) {
+	for _, i := range rand.Perm(len(d.senders)) { //nolint:gosec // shuffling only
 		d.senders[i].sendDirect(ctx, p)
 	}
 }

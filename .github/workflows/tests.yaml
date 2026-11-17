@@ -18,9 +18,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -42,8 +42,8 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380", "bls-bn254-unchained-on-g1" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -66,8 +66,8 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380", "bls-bn254-unchained-on-g1" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -90,8 +90,8 @@ jobs:
         scheme_id: [ "pedersen-bls-chained", "pedersen-bls-unchained", "bls-unchained-on-g1", "bls-unchained-g1-rfc9380", "bls-bn254-unchained-on-g1" ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -116,8 +116,8 @@ jobs:
       CI: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+        uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
           cache: true

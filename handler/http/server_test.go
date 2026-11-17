@@ -272,3 +272,33 @@ func TestHTTP404(t *testing.T) {
 		}
 	})
 }
+
+func TestChainHashesConcurrentRegistration(t *testing.T) {
+	handler, err := dhttp.New(context.Background(), "")
+	require.NoError(t, err)
+	h := handler.GetHTTPHandler()
+
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			chainHash := fmt.Sprintf("%064x", i)
+			handler.RegisterNewBeaconHandler(nil, chainHash)
+			handler.RemoveBeaconHandler(chainHash)
+		}
+	}()
+
+	for range 100 {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", "/chains", nil))
+		require.Equal(t, http.StatusOK, rec.Result().StatusCode)
+	}
+	close(stop)
+	<-done
+}

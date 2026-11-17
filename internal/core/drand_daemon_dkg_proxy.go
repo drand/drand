@@ -61,6 +61,8 @@ func (dd *DrandDaemon) BroadcastDKG(ctx context.Context, packet *drand.DKGPacket
 }
 
 func (dd *DrandDaemon) beaconExists(beaconID string) bool {
+	dd.state.RLock()
+	defer dd.state.RUnlock()
 	_, exists := dd.beaconProcesses[beaconID]
 	return exists
 }

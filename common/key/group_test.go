@@ -30,6 +30,39 @@ func newIds(t *testing.T, n int) []*Node {
 	return ids
 }
 
+func TestNewHash256(t *testing.T) {
+	vectors := []struct {
+		name  string
+		input []byte
+	}{
+		{name: "empty", input: nil},
+		{name: "small", input: []byte("drand")},
+		{name: "longer", input: bytes.Repeat([]byte("a"), 1024)},
+	}
+
+	for _, tt := range vectors {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHash256()
+			require.NotNil(t, h)
+
+			_, err := h.Write(tt.input)
+			require.NoError(t, err)
+			require.Len(t, h.Sum(nil), 32)
+
+			h.Reset()
+			_, err = h.Write(tt.input)
+			require.NoError(t, err)
+			require.Len(t, h.Sum(nil), 32)
+		})
+	}
+
+	t.Run("hashFunc_returns_independent_instances", func(t *testing.T) {
+		h1 := hashFunc()
+		h2 := hashFunc()
+		require.NotSame(t, h1, h2)
+	})
+}
+
 func TestGroupProtobuf(t *testing.T) {
 	type testVector struct {
 		group  *Group

@@ -22,8 +22,16 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
-// TODO new256 returns an error so we make a wrapper around
-var hashFunc = func() hash.Hash { h, _ := blake2b.New256(nil); return h }
+func newHash256() hash.Hash {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		// New256 only errors if the key length is invalid; with a nil key this should never happen.
+		panic(err)
+	}
+	return h
+}
+
+var hashFunc = newHash256
 
 // Group holds all information about a group of drand nodes.
 type Group struct {

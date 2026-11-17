@@ -140,7 +140,7 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 		Round:             b.Round,
 		Signature:         b.Signature,
 		PreviousSignature: b.PreviousSignature,
-		Randomness:        crypto.RandomnessFromSignature(b.Signature),
+		Randomness:        crypto.RandomnessFromSignature(b.Signature), //nolint:staticcheck // kept for older clients
 		Metadata:          b.Metadata,
 	})
 }
