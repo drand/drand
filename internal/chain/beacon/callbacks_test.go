@@ -19,7 +19,7 @@ func TestStoreCallback(t *testing.T) {
 	l := testlogger.New(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir)
 	require.NoError(t, err)
-	cb := NewCallbackStore(l, bbstore)
+	cb := NewCallbackStore(l, bbstore, common.DefaultBeaconID)
 	id1 := "superid"
 	doneCh := make(chan bool, 1)
 	cb.AddCallback(id1, func(b *common.Beacon, closed bool) {
