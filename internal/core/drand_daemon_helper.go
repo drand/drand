@@ -11,8 +11,11 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 	rcvBeaconID := metadata.GetBeaconID()
 
 	if chainHashBytes := metadata.GetChainHash(); len(chainHashBytes) != 0 {
-		chainHash := fmt.Sprintf("%x", chainHashBytes)
-
+		chainHash := common.DefaultChainHash
+		//nolint:gomnd
+		if len(chainHashBytes) > 16 { // otherwise it's the default one
+			chainHash = fmt.Sprintf("%x", chainHashBytes)
+		}
 		dd.state.RLock()
 		defer dd.state.RUnlock()
 		beaconIDByHash, isChainHashFound := dd.chainHashes[chainHash]
@@ -24,6 +27,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *drand.Metadata) (string, error) {
 			}
 			rcvBeaconID = beaconIDByHash
 		} else {
+			dd.log.Debugw("unknown chain hash", "chain hash", chainHash)
 			// for the case where our node is still waiting for the chain hash to be set
 			rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
 			for id, bp := range dd.beaconProcesses {
