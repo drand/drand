@@ -436,7 +436,10 @@ func (d *DBState) Accepted(me *drand.Participant) (*DBState, error) {
 		return nil, ErrCannotAcceptProposalWhereJoining
 	}
 
-	d.Acceptors = append(d.Acceptors, me)
+	// Only add to Acceptors if not already present (may have been added via ReceivedAcceptance)
+	if !util.Contains(d.Acceptors, me) {
+		d.Acceptors = append(d.Acceptors, me)
+	}
 	d.Rejectors = util.Without(d.Rejectors, me)
 
 	d.State = Accepted
@@ -462,7 +465,10 @@ func (d *DBState) Rejected(me *drand.Participant) (*DBState, error) {
 		return nil, ErrCannotRejectProposalWhereLeaving
 	}
 
-	d.Rejectors = append(d.Rejectors, me)
+	// Only add to Rejectors if not already present (may have been added via ReceivedRejection)
+	if !util.Contains(d.Rejectors, me) {
+		d.Rejectors = append(d.Rejectors, me)
+	}
 	d.Acceptors = util.Without(d.Acceptors, me)
 
 	d.State = Rejected
