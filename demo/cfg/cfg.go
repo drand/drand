@@ -16,6 +16,7 @@ type Config struct {
 	Scheme       *crypto.Scheme
 	BeaconID     string
 	IsCandidate  bool
+	Push         bool // if true, in-process nodes start beacon without catchup
 	DBEngineType chain.StorageType
 	PgDSN        func() string
 	MemDBSize    int

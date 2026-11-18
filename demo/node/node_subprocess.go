@@ -183,9 +183,18 @@ func (n *NodeProc) Start(dbEngineType chain.StorageType, pgDSN func() string, me
 		defer func() {
 			_ = logFile.Close()
 		}()
-		// TODO make the "stop" command returns a graceful error code when stopped
+		// Treat context cancellation as a graceful shutdown instead of an error.
 		err := cmd.Run()
-		fmt.Printf("Error while running node %s: %s", n.privAddr, err)
+		if err != nil {
+			// When the node is stopped via NodeProc.Stop, the context is cancelled and
+			// cmd.Run returns an error. That should be considered a normal shutdown
+			if ctx.Err() == context.Canceled {
+				fmt.Printf("Node %s stopped gracefully (context canceled)\n", n.privAddr)
+				return
+			}
+
+			fmt.Printf("Error while running node %s: %s", n.privAddr, err)
+		}
 	}()
 	return nil
 }
