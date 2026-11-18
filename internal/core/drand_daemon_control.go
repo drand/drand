@@ -77,9 +77,20 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 	ctx, span := tracer.NewSpan(ctx, "dd.Shutdown")
 	defer span.End()
 
+	metadata := drand.NewMetadata(dd.version.ToProto())
+	metadata.BeaconID = in.GetMetadata().GetBeaconID()
+
 	// If beacon id is empty, we will stop the entire node. Otherwise, we will stop the specific beacon process
 	if in.GetMetadata().GetBeaconID() == "" {
-		dd.Stop(ctx)
+		// Launch shutdown in a goroutine to allow the response to be sent first
+		go func() {
+			// Small delay to ensure the response is sent before shutdown begins
+			time.Sleep(50 * time.Millisecond)
+			
+			// Use a background context to prevent cancellation during shutdown
+			shutdownCtx := context.Background()
+			dd.Stop(shutdownCtx)
+		}()
 	} else {
 		beaconID, err := dd.readBeaconID(in.GetMetadata())
 		if err != nil {
@@ -91,16 +102,20 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 			return nil, err
 		}
 
-		dd.RemoveBeaconHandler(ctx, beaconID, bp)
+		// Launch beacon shutdown in a goroutine to allow the response to be sent first
+		go func() {
+			// Small delay to ensure the response is sent before shutdown begins
+			time.Sleep(50 * time.Millisecond)
 
-		bp.Stop(ctx)
-		<-bp.WaitExit()
-
-		dd.RemoveBeaconProcess(ctx, beaconID, bp)
+			// Use a background context to prevent cancellation during shutdown
+			shutdownCtx := context.Background()
+			dd.RemoveBeaconHandler(shutdownCtx, beaconID, bp)
+			bp.Stop(shutdownCtx)
+			<-bp.WaitExit()
+			dd.RemoveBeaconProcess(shutdownCtx, beaconID, bp)
+		}()
 	}
 
-	metadata := drand.NewMetadata(dd.version.ToProto())
-	metadata.BeaconID = in.GetMetadata().GetBeaconID()
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
 
