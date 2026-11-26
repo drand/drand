@@ -64,7 +64,7 @@ func createTestCBStore(t *testing.T) CallbackStore {
 	l := testlogger.New(t)
 	bbstore, err := boltdb.NewBoltStore(ctx, l, dir)
 	require.NoError(t, err)
-	cb := NewCallbackStore(l, bbstore)
+	cb := NewCallbackStore(l, bbstore, common.DefaultBeaconID)
 
 	for i := uint64(0); i < 10; i++ {
 		err := cb.Put(context.Background(), &common.Beacon{
