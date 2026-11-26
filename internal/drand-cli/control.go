@@ -326,7 +326,7 @@ func checkCmd(c *cli.Context, l log.Logger) error {
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 
-	channel, errCh, err := ctrlClient.StartCheckChain(c.Context, c.String(hashInfoReq.Name),
+	channel, errCh, err := ctrlClient.StartCheckChain(c.Context, c.String(chainHashFlag.Name),
 		addrs, uint64(c.Int(upToFlag.Name)), c.String(beaconIDFlag.Name))
 
 	if err != nil {
@@ -440,7 +440,7 @@ func followSync(c *cli.Context, l log.Logger) error {
 	defer ctrlClient.Close()
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, errCh, err := ctrlClient.StartFollowChain(c.Context, c.String(hashInfoReq.Name),
+	channel, errCh, err := ctrlClient.StartFollowChain(c.Context, c.String(chainHashFlag.Name),
 		addrs, uint64(c.Int(upToFlag.Name)), getBeaconID(c))
 
 	if err != nil {
