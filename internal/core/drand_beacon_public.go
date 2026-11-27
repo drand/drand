@@ -178,6 +178,8 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, _ *drand.ChainInfoReques
 	}
 
 	response := chain2.NewChainInfo(group).ToProto(bp.newMetadata())
+	// GroupSize stays out of chain.Info since it changes on reshare and must not affect the chain hash.
+	response.GroupSize = uint32(len(group.Nodes))
 
 	return response, nil
 }
