@@ -121,4 +121,6 @@ message ChainInfoPacket {
     // indicates a set of values the process will use to act in specific ways
     string schemeID = 6;
     Metadata metadata = 7;
+    // number of nodes in the current group, which can change after a reshare
+    uint32 group_size = 8;
 }

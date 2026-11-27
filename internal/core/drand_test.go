@@ -563,6 +563,10 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 		t.Logf("Check Node %d has the same chain info \n", i)
 		require.True(t, chainInfo.Equal(received))
+
+		packet, err := d.ChainInfo(ctx, &drand.ChainInfoRequest{})
+		require.NoError(t, err)
+		require.Equal(t, uint32(n), packet.GetGroupSize())
 	}
 
 	for i, node := range dt.nodes {
