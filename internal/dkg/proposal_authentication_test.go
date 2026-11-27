@@ -69,68 +69,68 @@ func abortPacket() *drand.GossipPacket {
 	return &drand.GossipPacket{Packet: &drand.GossipPacket_Abort{Abort: &drand.AbortDKG{Reason: "none"}}}
 }
 
-func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
+func TestPacketRejectsProposalWithAnotherLeaderKey(t *testing.T) {
 	_, leader := newKeyedParticipant(t, "leader")
 	memberPair, member := newKeyedParticipant(t, "member")
-	victimPair, victim := newKeyedParticipant(t, "victim")
+	receiverPair, receiver := newKeyedParticipant(t, "receiver")
 	outsiderPair, outsider := newKeyedParticipant(t, "outsider")
 	freshPair, fresh := newKeyedParticipant(t, "fresh")
 
 	tests := []struct {
 		name string
 		// the key listed under the address of the leader, and its owner
-		forged *drand.Participant
+		other  *drand.Participant
 		signer *key.Pair
 		// the rest of the roster
 		remaining []*drand.Participant
 		joining   []*drand.Participant
 		leaving   []*drand.Participant
-		// leaderJoins lists the forged leader as a joiner instead of a remainer
+		// leaderJoins lists the other leader as a joiner instead of a remainer
 		leaderJoins bool
 		// expectedError is nil when the packet signature must be the reason of the rejection
 		expectedError error
 	}{
 		{
 			name:          "by a member listing its own key twice",
-			forged:        member,
+			other:         member,
 			signer:        memberPair,
-			remaining:     []*drand.Participant{member, victim},
+			remaining:     []*drand.Participant{member, receiver},
 			expectedError: ErrDuplicateParticipant,
 		},
 		{
 			name:      "by a member listing another key",
-			forged:    fresh,
+			other:     fresh,
 			signer:    freshPair,
-			remaining: []*drand.Participant{member, victim},
+			remaining: []*drand.Participant{member, receiver},
 		},
 		{
 			name:          "by a joiner listing its own key twice",
-			forged:        outsider,
+			other:         outsider,
 			signer:        outsiderPair,
-			remaining:     []*drand.Participant{member, victim},
+			remaining:     []*drand.Participant{member, receiver},
 			joining:       []*drand.Participant{outsider},
 			expectedError: ErrDuplicateParticipant,
 		},
 		{
 			name:      "by a joiner listing another key",
-			forged:    fresh,
+			other:     fresh,
 			signer:    freshPair,
-			remaining: []*drand.Participant{member, victim},
+			remaining: []*drand.Participant{member, receiver},
 			joining:   []*drand.Participant{outsider},
 		},
 		{
 			name:          "by listing the leader as a joiner with another key",
-			forged:        fresh,
+			other:         fresh,
 			signer:        freshPair,
-			remaining:     []*drand.Participant{member, victim},
+			remaining:     []*drand.Participant{member, receiver},
 			leaderJoins:   true,
 			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
 		},
 		{
 			name:          "by listing the leader as leaving and as a joiner with another key",
-			forged:        fresh,
+			other:         fresh,
 			signer:        freshPair,
-			remaining:     []*drand.Participant{member, victim},
+			remaining:     []*drand.Participant{member, receiver},
 			leaving:       []*drand.Participant{leader},
 			leaderJoins:   true,
 			expectedError: ErrLeaderCantJoinAfterFirstEpoch,
@@ -139,17 +139,17 @@ func TestPacketRejectsProposalForgedForLeader(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, victim)
-			process := newPacketTestProcess(t, victimPair, finished)
+			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, receiver)
+			process := newPacketTestProcess(t, receiverPair, finished)
 
-			forgedLeader := withAddressOf(test.forged, leader)
-			terms := NewValidProposal(authTestBeaconID, 2, forgedLeader)
+			otherLeader := withAddressOf(test.other, leader)
+			terms := NewValidProposal(authTestBeaconID, 2, otherLeader)
 			terms.Remaining = append(terms.Remaining, test.remaining...)
 			terms.Joining = test.joining
 			terms.Leaving = test.leaving
 			if test.leaderJoins {
 				terms.Remaining = test.remaining
-				terms.Joining = []*drand.Participant{forgedLeader}
+				terms.Joining = []*drand.Participant{otherLeader}
 			}
 			terms.Threshold = 3
 			packet := signedPacket(t, test.signer, leader.Address, proposalPacket(terms), terms)
@@ -212,23 +212,23 @@ func TestPacketAcceptsProposalWithLeaver(t *testing.T) {
 func TestPacketAbortMustBeSignedByLeader(t *testing.T) {
 	leaderPair, leader := newKeyedParticipant(t, "leader")
 	memberPair, member := newKeyedParticipant(t, "member")
-	victimPair, victim := newKeyedParticipant(t, "victim")
+	receiverPair, receiver := newKeyedParticipant(t, "receiver")
 
-	finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, victim)
-	process := newPacketTestProcess(t, victimPair, finished)
+	finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, receiver)
+	process := newPacketTestProcess(t, receiverPair, finished)
 	currentState := func() *DBState {
 		current, err := process.store.GetCurrent(authTestBeaconID)
 		require.NoError(t, err)
 		return current
 	}
 
-	terms := NewValidProposal(authTestBeaconID, 2, leader, member, victim)
+	terms := NewValidProposal(authTestBeaconID, 2, leader, member, receiver)
 	_, err := process.Packet(context.Background(), signedPacket(t, leaderPair, leader.Address, proposalPacket(terms), terms))
 	require.NoError(t, err)
 	require.Equal(t, Proposed, currentState().State)
 
-	forged := signedPacket(t, memberPair, leader.Address, abortPacket(), termsFromState(currentState()))
-	_, err = process.Packet(context.Background(), forged)
+	other := signedPacket(t, memberPair, leader.Address, abortPacket(), termsFromState(currentState()))
+	_, err = process.Packet(context.Background(), other)
 	require.ErrorContains(t, err, "invalid packet signature")
 	require.Equal(t, Proposed, currentState().State)
 
@@ -321,7 +321,7 @@ func TestPacketChecksProposalRosterBeforeSignatures(t *testing.T) {
 func TestPacketChecksProposalTermsBeforeJoinerSignatures(t *testing.T) {
 	leaderPair, leader := newKeyedParticipant(t, "leader")
 	_, member := newKeyedParticipant(t, "member")
-	victimPair, victim := newKeyedParticipant(t, "victim")
+	receiverPair, receiver := newKeyedParticipant(t, "receiver")
 	senderPair, sender := newKeyedParticipant(t, "sender")
 	// joiners whose signature does not verify: reaching them fails with key.ErrInvalidKeyScheme
 	sender = withSignatureOf(sender, leader)
@@ -342,7 +342,7 @@ func TestPacketChecksProposalTermsBeforeJoinerSignatures(t *testing.T) {
 			signer: senderPair,
 			terms: func() *drand.ProposalTerms {
 				terms := NewValidProposal(authTestBeaconID, 2, sender)
-				terms.Remaining = []*drand.Participant{leader, member, victim}
+				terms.Remaining = []*drand.Participant{leader, member, receiver}
 				terms.Joining = append([]*drand.Participant{sender}, joiners...)
 				terms.Threshold = 5
 				return terms
@@ -363,7 +363,7 @@ func TestPacketChecksProposalTermsBeforeJoinerSignatures(t *testing.T) {
 			name:   "reshare valid but for its joiners",
 			signer: leaderPair,
 			terms: func() *drand.ProposalTerms {
-				terms := NewValidProposal(authTestBeaconID, 2, leader, member, victim)
+				terms := NewValidProposal(authTestBeaconID, 2, leader, member, receiver)
 				terms.Joining = joiners
 				terms.Threshold = 4
 				return terms
@@ -374,8 +374,8 @@ func TestPacketChecksProposalTermsBeforeJoinerSignatures(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, victim)
-			process := newPacketTestProcess(t, victimPair, finished)
+			finished := NewCompleteDKGEntry(t, authTestBeaconID, Complete, leader, member, receiver)
+			process := newPacketTestProcess(t, receiverPair, finished)
 
 			sender := test.terms.Leader.Address
 			_, err := process.Packet(context.Background(), signedPacket(t, test.signer, sender, proposalPacket(test.terms), test.terms))
