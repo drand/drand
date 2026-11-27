@@ -302,9 +302,6 @@ func TestJoin(t *testing.T) {
 	bob := NewParticipant("bob")
 	beaconID := "someBeaconID"
 
-	pub, err := myKeypair.Public.Key.MarshalBinary()
-	require.NoError(t, err)
-
 	sample := NewCompleteDKGEntry(t, beaconID, Proposed, alice)
 	require.NoError(t, err)
 	groupFileToml := key.GroupTOML{
@@ -316,30 +313,21 @@ func TestJoin(t *testing.T) {
 		Nodes: []*key.NodeTOML{
 			{
 				PublicTOML: &key.PublicTOML{
-					Address:    alice.Address,
-					SchemeName: sch.Name,
-					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
-				},
-				Index: 1,
-			},
-			{
-				PublicTOML: &key.PublicTOML{
 					Address:    bob.Address,
 					SchemeName: sch.Name,
 					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
+					Key:        hex.EncodeToString(bob.Key),
 				},
-				Index: 2,
+				Index: 1,
 			},
 			{
 				PublicTOML: &key.PublicTOML{
 					Address:    carol.Address,
 					SchemeName: sch.Name,
 					Signature:  "deadbeef",
-					Key:        hex.EncodeToString(pub),
+					Key:        hex.EncodeToString(carol.Key),
 				},
-				Index: 3,
+				Index: 2,
 			},
 		},
 	}

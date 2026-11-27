@@ -61,6 +61,10 @@ const (
 	Failed
 )
 
+// MaxParticipants is the highest number of joining, remaining and leaving nodes a proposal can list.
+// It is far above the size of any drand network and bounds the work done to validate a proposal.
+const MaxParticipants = 1000
+
 var terminalStates = []Status{
 	Aborted,
 	TimedOut,
@@ -355,7 +359,7 @@ func (d *DBState) Proposed(me *drand.Participant, terms *drand.ProposalTerms, me
 	// it's important to verify that the sender (and by extension the signature of the sender)
 	// is the same as the proposed leader, to avoid nodes trying to propose DKGs on behalf of somebody else
 	sender := metadata.Address
-	if terms.Leader.Address != sender {
+	if terms.GetLeader().GetAddress() != sender {
 		return nil, ErrCannotProposeAsNonLeader
 	}
 
@@ -663,6 +667,12 @@ var ErrFinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a ni
 var ErrKeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
 var ErrReceivedAcceptance = errors.New("received acceptance but not during proposal phase")
 var ErrReceivedRejection = errors.New("received rejection but not during proposal phase")
+var ErrTooManyParticipants = fmt.Errorf("a proposal cannot contain more than %d participants", MaxParticipants)
+var ErrEmptyParticipant = errors.New("joining and remaining nodes must have an address and a public key, leaving nodes an address")
+var ErrDuplicateParticipant = errors.New("an address or public key appears more than once in the joining and remaining nodes, or an address in the remaining and leaving nodes, or a node leaves and joins unchanged")
+var ErrJoinerKeyInCurrentEpoch = errors.New("joining nodes cannot use the public key of a node of the current epoch")
+var ErrRemainingKeyMismatch = errors.New("remaining nodes must keep the public key they have in the current epoch")
+var ErrMissingPreviousGroup = errors.New("cannot validate a reshare without the group of the current epoch")
 
 // isValidStateChange details all the viable state changes
 //
@@ -706,6 +716,20 @@ func hasTimedOut(details *DBState) bool {
 }
 
 func ValidateProposal(currentState *DBState, terms *drand.ProposalTerms) error {
+	if err := validateTerms(currentState, terms); err != nil {
+		return err
+	}
+
+	sch, err := crypto.SchemeFromName(terms.SchemeID)
+	if err != nil {
+		return ErrInvalidScheme
+	}
+
+	// the signatures of the joiners are costly to verify, so they come after every other check
+	return validateJoinerSignatures(terms, sch)
+}
+
+func validateTerms(currentState *DBState, terms *drand.ProposalTerms) error {
 	if err := validateForAllDKGs(currentState, terms); err != nil {
 		return err
 	}
@@ -739,14 +763,12 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 		return ErrInvalidBeaconID
 	}
 
-	sch, err := crypto.SchemeFromName(terms.SchemeID)
-	if err != nil {
-		return ErrInvalidScheme
+	if err := validateParticipants(terms); err != nil {
+		return err
 	}
 
-	err = validateJoinerSignatures(terms, sch)
-	if err != nil {
-		return err
+	if _, err := crypto.SchemeFromName(terms.SchemeID); err != nil {
+		return ErrInvalidScheme
 	}
 
 	if terms.Timeout.AsTime().Before(time.Now()) {
@@ -763,6 +785,52 @@ func validateForAllDKGs(currentState *DBState, terms *drand.ProposalTerms) error
 	}
 
 	return validateEpoch(currentState, terms)
+}
+
+// validateParticipants bounds the size of a proposal and rejects empty or repeated participants.
+// A leaving node can also be listed as joining: that is how a node changes its key or address in a reshare.
+func validateParticipants(terms *drand.ProposalTerms) error {
+	count := len(terms.GetJoining()) + len(terms.GetRemaining()) + len(terms.GetLeaving())
+	if count > MaxParticipants {
+		return ErrTooManyParticipants
+	}
+
+	addresses := make(map[string]bool, count)
+	keys := make(map[string]bool, count)
+	for _, p := range util.Concat(terms.GetJoining(), terms.GetRemaining()) {
+		if p.GetAddress() == "" || len(p.GetKey()) == 0 {
+			return ErrEmptyParticipant
+		}
+		if addresses[p.GetAddress()] || keys[string(p.GetKey())] {
+			return ErrDuplicateParticipant
+		}
+		addresses[p.GetAddress()] = true
+		keys[string(p.GetKey())] = true
+	}
+
+	joiners := make(map[string][]byte, len(terms.GetJoining()))
+	for _, p := range terms.GetJoining() {
+		joiners[p.GetAddress()] = p.GetKey()
+	}
+
+	previous := make(map[string]bool, len(terms.GetRemaining())+len(terms.GetLeaving()))
+	for _, p := range terms.GetRemaining() {
+		previous[p.GetAddress()] = true
+	}
+	for _, p := range terms.GetLeaving() {
+		if p.GetAddress() == "" {
+			return ErrEmptyParticipant
+		}
+		if previous[p.GetAddress()] {
+			return ErrDuplicateParticipant
+		}
+		// a node can leave and join again to change its key, but not unchanged: it would leave after the DKG
+		if k, ok := joiners[p.GetAddress()]; ok && bytes.Equal(k, p.GetKey()) {
+			return ErrDuplicateParticipant
+		}
+		previous[p.GetAddress()] = true
+	}
+	return nil
 }
 
 func validateJoinerSignatures(terms *drand.ProposalTerms, targetSch *crypto.Scheme) error {
@@ -851,28 +919,66 @@ func validateReshareForRemainers(currentState *DBState, terms *drand.ProposalTer
 		return ErrGenesisSeedCannotChange
 	}
 
-	lastEpochParticipants := make([]*drand.Participant, len(currentState.FinalGroup.Nodes))
-	for i, node := range currentState.FinalGroup.Nodes {
-		k, err := node.Key.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		lastEpochParticipants[i] = &drand.Participant{
-			Address:   node.Address(),
-			Key:       k,
-			Signature: node.Signature,
-		}
-	}
-	if !util.ContainsAll(lastEpochParticipants, append(terms.Remaining, terms.Leaving...)) {
-		return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
-	}
-
-	if !util.ContainsAll(append(terms.Remaining, terms.Leaving...), lastEpochParticipants) {
-		return ErrMissingNodesInProposal
+	if err := validateRosterAgainstGroup(currentState.FinalGroup, terms.Remaining, terms.Leaving, terms.Joining); err != nil {
+		return err
 	}
 
 	if len(terms.Remaining) < int(currentState.Threshold) {
 		return ErrNodeCountTooLow
+	}
+
+	return nil
+}
+
+// validateRosterAgainstGroup checks that the remaining and leaving nodes are exactly the nodes of the group,
+// and that no joining node uses the key of one of them.
+// Remaining nodes must also hold the public key they have in the group; leaving nodes match by address only,
+// as a proposal can list them with a newer key than the group does and nothing relies on it.
+// Signatures are not compared: groups migrated from v1 do not hold the v2 ones.
+func validateRosterAgainstGroup(group *key.Group, remaining, leaving, joining []*drand.Participant) error {
+	if group == nil {
+		return ErrMissingPreviousGroup
+	}
+
+	groupKeys := make(map[string][]byte, len(group.Nodes))
+	memberKeys := make(map[string]bool, len(group.Nodes))
+	for _, node := range group.Nodes {
+		k, err := node.Key.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		groupKeys[node.Address()] = k
+		memberKeys[string(k)] = true
+	}
+
+	// a member listed as leaving at its address and as joining at another would run the DKG and then leave
+	for _, p := range joining {
+		if memberKeys[string(p.GetKey())] {
+			return ErrJoinerKeyInCurrentEpoch
+		}
+	}
+
+	for _, p := range remaining {
+		k, ok := groupKeys[p.GetAddress()]
+		if !ok {
+			return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
+		}
+		if !bytes.Equal(k, p.GetKey()) {
+			return ErrRemainingKeyMismatch
+		}
+		// a node of the group can only be matched once
+		delete(groupKeys, p.GetAddress())
+	}
+
+	for _, p := range leaving {
+		if _, ok := groupKeys[p.GetAddress()]; !ok {
+			return ErrRemainingAndLeavingNodesMustExistInCurrentEpoch
+		}
+		delete(groupKeys, p.GetAddress())
+	}
+
+	if len(groupKeys) != 0 {
+		return ErrMissingNodesInProposal
 	}
 
 	return nil
@@ -896,7 +1002,7 @@ func validatePreviousGroupForJoiners(d *DBState, previousGroup *key.Group) error
 		return ErrGenesisSeedCannotChange
 	}
 
-	return nil
+	return validateRosterAgainstGroup(previousGroup, d.Remaining, d.Leaving, d.Joining)
 }
 
 func isProposalPhase(d *DBState) bool {

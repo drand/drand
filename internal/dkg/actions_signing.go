@@ -11,8 +11,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/drand/drand/v2/common/key"
-	"github.com/drand/drand/v2/internal/util"
+	"github.com/drand/drand/v2/crypto"
 	drand "github.com/drand/drand/v2/protobuf/dkg"
+	"github.com/drand/kyber"
 )
 
 func (d *Process) signMessage(
@@ -36,24 +37,12 @@ func (d *Process) signMessage(
 	}, nil
 }
 
-func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.ProposalTerms) error {
+// verifyMessage checks the packet signature against the key of its alleged sender. lastGroup is the group of the
+// last finished DKG, if any: it is the only trusted source for the keys of the remaining nodes.
+func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.ProposalTerms, lastGroup *key.Group) error {
 	beaconID := packet.GetMetadata().GetBeaconID()
-	d.log.Debugw("Verifying DKG packet", "beaconID", beaconID, "from", packet.GetMetadata().GetAddress())
-
-	participants := util.Concat(proposal.GetRemaining(), proposal.GetJoining())
-	// signing is done before the metadata is attached, so we must remove it before we perform verification
-
-	// find the participant the signature is allegedly from
-	var p *drand.Participant
-	for _, participant := range participants {
-		if participant.GetAddress() == packet.GetMetadata().GetAddress() {
-			p = participant
-			break
-		}
-	}
-	if p == nil {
-		return errors.New("no such participant")
-	}
+	sender := packet.GetMetadata().GetAddress()
+	d.log.Debugw("Verifying DKG packet", "beaconID", beaconID, "from", sender)
 
 	// get the scheme for the network, so we can correctly unmarshal the public key
 	kp, err := d.beaconIdentifier.KeypairFor(beaconID)
@@ -62,10 +51,9 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.Prop
 	}
 
 	// use that scheme to verify the message came from the alleged author
-	pubPoint := kp.Scheme().KeyGroup.Point()
-	err = pubPoint.UnmarshalBinary(p.Key)
+	pubPoint, err := senderKey(kp.Scheme(), proposal, sender, lastGroup)
 	if err != nil {
-		return fmt.Errorf("unable to verify packet allegedly from %s: %w", packet.GetMetadata().GetAddress(), key.ErrInvalidKeyScheme)
+		return err
 	}
 
 	// we need to copy here or the GC/compiler does something weird
@@ -80,6 +68,42 @@ func (d *Process) verifyMessage(packet *drand.GossipPacket, proposal *drand.Prop
 			hex.EncodeToString(msg),
 			packet.GetMetadata(),
 			err)
+	}
+	return nil
+}
+
+// senderKey returns the public key of the participant a packet is allegedly from.
+// Joiners sign their own key, which is validated with the proposal, so their key is taken from the proposal;
+// the keys of the remaining nodes are only taken from the proposal when there is no finished group to look them up in.
+func senderKey(sch *crypto.Scheme, proposal *drand.ProposalTerms, sender string, lastGroup *key.Group) (kyber.Point, error) {
+	p := withAddress(proposal.GetJoining(), sender)
+	if p == nil {
+		p = withAddress(proposal.GetRemaining(), sender)
+		if p == nil {
+			return nil, errors.New("no such participant")
+		}
+		if lastGroup != nil {
+			for _, node := range lastGroup.Nodes {
+				if node.Address() == sender {
+					return node.Key, nil
+				}
+			}
+			return nil, errors.New("no such participant in the last group")
+		}
+	}
+
+	pubPoint := sch.KeyGroup.Point()
+	if err := pubPoint.UnmarshalBinary(p.GetKey()); err != nil {
+		return nil, fmt.Errorf("unable to verify packet allegedly from %s: %w", sender, key.ErrInvalidKeyScheme)
+	}
+	return pubPoint, nil
+}
+
+func withAddress(participants []*drand.Participant, address string) *drand.Participant {
+	for _, p := range participants {
+		if p.GetAddress() == address {
+			return p
+		}
 	}
 	return nil
 }

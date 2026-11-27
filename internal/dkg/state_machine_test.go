@@ -26,6 +26,7 @@ func TestProposalValidation(t *testing.T) {
 	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
 	current := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+	threeNodes := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
 	tests := []struct {
 		name     string
 		state    *DBState
@@ -133,6 +134,7 @@ func TestProposalValidation(t *testing.T) {
 				proposal.Joining = []*drand.Participant{
 					proposal.Leader,
 				}
+				proposal.Remaining = []*drand.Participant{bob}
 				return proposal
 			}(),
 			expected: ErrLeaderCantJoinAfterFirstEpoch,
@@ -145,6 +147,8 @@ func TestProposalValidation(t *testing.T) {
 				proposal.Leaving = []*drand.Participant{
 					proposal.Leader,
 				}
+				proposal.Remaining = []*drand.Participant{bob}
+				proposal.Threshold = 1
 				return proposal
 			}(),
 			expected: ErrLeaderNotRemaining,
@@ -358,6 +362,281 @@ func TestProposalValidation(t *testing.T) {
 			}(),
 			expected: nil,
 		},
+		{
+			name:  "a node repeated in remaining returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Remaining = append(p.Remaining, bob)
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a node both remaining and leaving returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{bob}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a node both joining and remaining returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Joining = []*drand.Participant{bob}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a joiner using the address of a remainer returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Joining = []*drand.Participant{withAddressOf(carol, alice)}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a joiner using the key of a remainer returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Joining = []*drand.Participant{withAddressOf(bob, carol)}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "duplicate joiners in the first epoch return an error",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewInitialProposal(beaconID, alice, bob)
+				p.Joining = append(p.Joining, bob)
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a node repeated in leaving returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol, carol}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a leaver using the address of a remainer returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol, withAddressOf(NewParticipant("dave"), bob)}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a node leaving and joining at the same address with a new key is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{withAddressOf(NewParticipant("dave"), carol)}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a node leaving and joining with the same key at a new address returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{withAddressOf(carol, NewParticipant("dave"))}
+				return p
+			}(),
+			expected: ErrJoinerKeyInCurrentEpoch,
+		},
+		{
+			name:  "a node leaving and joining unchanged returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				p.Joining = []*drand.Participant{carol}
+				return p
+			}(),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:  "a leaver using the key of a remainer is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{withAddressOf(bob, carol)}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver without key is valid",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{{Address: carol.Address}}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver without address returns an error",
+			state: threeNodes,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{{Key: carol.Key, Signature: carol.Signature}}
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "a remainer without key returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice)
+				p.Remaining = append(p.Remaining, &drand.Participant{Address: bob.Address})
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "a nil participant returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{nil}
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "a joiner without address returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Joining = []*drand.Participant{{Key: carol.Key, Signature: carol.Signature}}
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "a joiner without key returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Joining = []*drand.Participant{{Address: carol.Address, Signature: carol.Signature}}
+				return p
+			}(),
+			expected: ErrEmptyParticipant,
+		},
+		{
+			name:  "more participants than the maximum returns an error",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewInitialProposal(beaconID, alice)
+				p.Joining = make([]*drand.Participant, MaxParticipants+1)
+				for i := range p.Joining {
+					p.Joining[i] = alice
+				}
+				return p
+			}(),
+			expected: ErrTooManyParticipants,
+		},
+		{
+			name:  "a remainer with another key than in the previous epoch returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice)
+				p.Remaining = append(p.Remaining, withAddressOf(carol, bob))
+				return p
+			}(),
+			expected: ErrRemainingKeyMismatch,
+		},
+		{
+			name:  "a leaver with another key than in the previous epoch is valid",
+			state: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{withAddressOf(NewParticipant("dave"), carol)}
+				return p
+			}(),
+			expected: nil,
+		},
+		{
+			name:  "a leaver missing from the previous epoch returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{carol}
+				return p
+			}(),
+			expected: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
+		},
+		{
+			name:  "a leaver with the key of a node of the previous epoch under another address returns an error",
+			state: NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leaving = []*drand.Participant{withAddressOf(carol, NewParticipant("dave"))}
+				return p
+			}(),
+			expected: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
+		},
+		{
+			name:     "a leader with another key than in the previous epoch returns an error",
+			state:    current,
+			terms:    NewValidProposal(beaconID, 2, withAddressOf(carol, alice), bob),
+			expected: ErrRemainingKeyMismatch,
+		},
+		{
+			name:  "a leader differing from its remaining entry returns an error",
+			state: current,
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, 2, alice, bob)
+				p.Leader = withAddressOf(carol, alice)
+				return p
+			}(),
+			expected: ErrLeaderNotRemaining,
+		},
+		{
+			name: "signatures differing from the previous group are valid",
+			state: func() *DBState {
+				// groups migrated from v1 do not hold the v2 signatures
+				state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+				for _, node := range state.FinalGroup.Nodes {
+					node.Signature = []byte("v1 signature")
+				}
+				return state
+			}(),
+			terms:    NewValidProposal(beaconID, 2, alice, bob),
+			expected: nil,
+		},
+		{
+			name: "a non-fresh state without a group returns an error",
+			state: func() *DBState {
+				state := NewCompleteDKGEntry(t, beaconID, Left, alice, bob)
+				state.FinalGroup = nil
+				return state
+			}(),
+			terms:    NewValidProposal(beaconID, 2, alice, bob),
+			expected: ErrMissingPreviousGroup,
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -365,6 +644,184 @@ func TestProposalValidation(t *testing.T) {
 			t.Parallel()
 			result := ValidateProposal(test.state, test.terms)
 			require.True(t, errors.Is(result, test.expected), "expected %s, got %s", test.expected, result)
+		})
+	}
+}
+
+//nolint:funlen
+func TestProposalValidationChecksJoinerSignaturesLast(t *testing.T) {
+	t.Parallel()
+	beaconID := "some-wonderful-beacon-id"
+	current := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob)
+	fresh := NewFreshState(beaconID)
+	// joiners whose signature does not verify
+	badAlice := withSignatureOf(alice, bob)
+	badCarol := withSignatureOf(carol, alice)
+	badDave := withSignatureOf(NewParticipant("dave"), alice)
+	// reshare returns a proposal for epoch 2 where alice and bob remain and badCarol joins
+	reshare := func(change func(p *drand.ProposalTerms)) *drand.ProposalTerms {
+		p := NewValidProposal(beaconID, 2, alice, bob)
+		p.Joining = []*drand.Participant{badCarol}
+		if change != nil {
+			change(p)
+		}
+		return p
+	}
+	// initial returns a proposal for epoch 1 led by badAlice, with badCarol
+	initial := func(change func(p *drand.ProposalTerms)) *drand.ProposalTerms {
+		p := NewInitialProposal(beaconID, badAlice, badCarol)
+		if change != nil {
+			change(p)
+		}
+		return p
+	}
+
+	tests := []struct {
+		name     string
+		state    *DBState
+		terms    *drand.ProposalTerms
+		expected error
+	}{
+		{
+			name:     "reshare for a remainer, valid otherwise",
+			state:    current,
+			terms:    reshare(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "reshare for a fresh joiner, valid otherwise",
+			state:    fresh,
+			terms:    reshare(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "first epoch, valid otherwise",
+			state:    fresh,
+			terms:    initial(nil),
+			expected: key.ErrInvalidKeyScheme,
+		},
+		{
+			name:     "invalid scheme",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.SchemeID = "nope" }),
+			expected: ErrInvalidScheme,
+		},
+		{
+			name:     "repeated joiner",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Joining = append(p.Joining, badCarol) }),
+			expected: ErrDuplicateParticipant,
+		},
+		{
+			name:     "timeout reached",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Timeout = timestamppb.New(time.Now().Add(-time.Minute)) }),
+			expected: ErrTimeoutReached,
+		},
+		{
+			name:     "threshold higher than the node count",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Threshold = 4 }),
+			expected: ErrThresholdHigherThanNodeCount,
+		},
+		{
+			name:     "threshold too low",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Threshold = 1 }),
+			expected: ErrThresholdTooLow,
+		},
+		{
+			name:     "first epoch proposed to a node with a finished DKG",
+			state:    current,
+			terms:    initial(nil),
+			expected: ErrInvalidEpoch,
+		},
+		{
+			name:     "skipped epoch",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Epoch = 3 }),
+			expected: ErrInvalidEpoch,
+		},
+		{
+			name:     "first epoch with a genesis seed",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.GenesisSeed = []byte("deadbeef") }),
+			expected: ErrNoGenesisSeedForFirstEpoch,
+		},
+		{
+			name:     "first epoch with a remainer",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.Remaining = []*drand.Participant{bob} }),
+			expected: ErrOnlyJoinersAllowedForFirstEpoch,
+		},
+		{
+			name:     "first epoch without the leader joining",
+			state:    fresh,
+			terms:    initial(func(p *drand.ProposalTerms) { p.Joining = []*drand.Participant{badCarol, badDave} }),
+			expected: ErrLeaderNotJoining,
+		},
+		{
+			name:  "reshare without remainers",
+			state: current,
+			terms: reshare(func(p *drand.ProposalTerms) {
+				p.Remaining = nil
+				p.Joining = append(p.Joining, badDave)
+			}),
+			expected: ErrNoNodesRemaining,
+		},
+		{
+			name:     "reshare for a remainer led by a joiner",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badCarol }),
+			expected: ErrLeaderCantJoinAfterFirstEpoch,
+		},
+		{
+			name:     "reshare for a fresh joiner led by a joiner",
+			state:    fresh,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badCarol }),
+			expected: ErrLeaderCantJoinAfterFirstEpoch,
+		},
+		{
+			name:     "reshare led by a node that does not remain",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Leader = badDave }),
+			expected: ErrLeaderNotRemaining,
+		},
+		{
+			name:     "reshare with less remainers than the previous threshold",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Remaining = []*drand.Participant{alice} }),
+			expected: ErrNodeCountTooLow,
+		},
+		{
+			name:     "reshare with another genesis time",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.GenesisTime = timestamppb.New(time.Unix(1, 0)) }),
+			expected: ErrGenesisTimeNotEqual,
+		},
+		{
+			name:     "reshare with another genesis seed",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.GenesisSeed = []byte("cafebabe") }),
+			expected: ErrGenesisSeedCannotChange,
+		},
+		{
+			name:     "reshare with another key for a remainer",
+			state:    current,
+			terms:    reshare(func(p *drand.ProposalTerms) { p.Remaining[0] = withAddressOf(NewParticipant("erin"), bob) }),
+			expected: ErrRemainingKeyMismatch,
+		},
+		{
+			name:     "reshare missing a node of the previous epoch",
+			state:    NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, NewParticipant("erin")),
+			terms:    reshare(nil),
+			expected: ErrMissingNodesInProposal,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, ValidateProposal(test.state, test.terms), test.expected)
 		})
 	}
 }
@@ -586,6 +1043,14 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 func TestJoiningADKGFromProposal(t *testing.T) {
 	t.Parallel()
 	beaconID := "some-wonderful-beacon-id"
+	// the state of a fresh joiner proposed an epoch 2 where alice and bob remain
+	reshareProposedTo := func(joiner *drand.Participant) *DBState {
+		terms := NewValidProposal(beaconID, 2, alice, bob)
+		terms.Joining = []*drand.Participant{joiner}
+		s, err := NewFreshState(beaconID).Proposed(joiner, terms, &drand.GossipMetadata{Address: alice.Address})
+		require.NoError(t, err)
+		return s
+	}
 	tests := []stateChangeTableTest{
 		{
 			name: "fresh state can join with a valid proposal",
@@ -641,6 +1106,51 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 				return in.Joined(bob, nil)
 			},
 			expectedError: ErrJoiningAfterFirstEpochNeedsGroupFile,
+		},
+		{
+			name:          "joining after first epoch with the group of the remaining and leaving nodes succeeds",
+			startingState: reshareProposedTo(carol),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, bob).FinalGroup)
+			},
+		},
+		{
+			name:          "joining fails if a remainer has another key than in the group file",
+			startingState: reshareProposedTo(carol),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, withAddressOf(NewParticipant("dave"), bob)).FinalGroup)
+			},
+			expectedError: ErrRemainingKeyMismatch,
+		},
+		{
+			name: "joining succeeds if a leaver has another key than in the group file",
+			startingState: func() *DBState {
+				terms := NewValidProposal(beaconID, 2, alice, bob)
+				terms.Joining = []*drand.Participant{carol}
+				terms.Leaving = []*drand.Participant{withAddressOf(NewParticipant("erin"), NewParticipant("dave"))}
+				s, err := NewFreshState(beaconID).Proposed(carol, terms, &drand.GossipMetadata{Address: alice.Address})
+				require.NoError(t, err)
+				return s
+			}(),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, NewParticipant("dave")).FinalGroup)
+			},
+		},
+		{
+			name:          "joining fails if a remainer is not in the group file",
+			startingState: reshareProposedTo(carol),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice).FinalGroup)
+			},
+			expectedError: ErrRemainingAndLeavingNodesMustExistInCurrentEpoch,
+		},
+		{
+			name:          "joining fails if a node of the group file is missing from the proposal",
+			startingState: reshareProposedTo(carol),
+			transitionFn: func(in *DBState) (*DBState, error) {
+				return in.Joined(carol, NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, NewParticipant("dave")).FinalGroup)
+			},
+			expectedError: ErrMissingNodesInProposal,
 		},
 	}
 
@@ -1679,6 +2189,16 @@ func RunStateChangeTest(t *testing.T, tests []stateChangeTableTest) {
 	}
 }
 
+// withAddressOf returns a copy of p that claims the address of other.
+func withAddressOf(p, other *drand.Participant) *drand.Participant {
+	return &drand.Participant{Address: other.Address, Key: p.Key, Signature: p.Signature}
+}
+
+// withSignatureOf returns a copy of p that holds the signature of other.
+func withSignatureOf(p, other *drand.Participant) *drand.Participant {
+	return &drand.Participant{Address: p.Address, Key: p.Key, Signature: other.Signature}
+}
+
 func NewParticipant(name string) *drand.Participant {
 	sch, _ := crypto.GetSchemeFromEnv()
 	k, _ := key.NewKeyPair(name, sch)
@@ -1775,4 +2295,38 @@ func NewValidProposal(beaconID string, epoch uint32, leader *drand.Participant, 
 func PastTimeout(d *DBState) *DBState {
 	d.Timeout = time.Now().Add(-1 * time.Minute).UTC()
 	return d
+}
+
+func TestProposalWithOverlappingRosterIsRejected(t *testing.T) {
+	t.Parallel()
+	beaconID := "some-wonderful-beacon-id"
+	overlapping := func() *drand.ProposalTerms {
+		terms := NewValidProposal(beaconID, 2, alice, bob, carol)
+		terms.Leaving = []*drand.Participant{bob, carol}
+		return terms
+	}
+
+	t.Run("by the leader", func(t *testing.T) {
+		t.Parallel()
+		state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+		_, err := state.Proposing(alice, overlapping())
+		require.ErrorIs(t, err, ErrDuplicateParticipant)
+	})
+
+	t.Run("by the other nodes", func(t *testing.T) {
+		t.Parallel()
+		state := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob, carol)
+		_, err := state.Proposed(bob, overlapping(), &drand.GossipMetadata{Address: alice.Address})
+		require.ErrorIs(t, err, ErrDuplicateParticipant)
+	})
+}
+
+func TestProposedWithoutLeaderIsRejected(t *testing.T) {
+	t.Parallel()
+	beaconID := "some-wonderful-beacon-id"
+	terms := NewValidProposal(beaconID, 2, alice, bob)
+	terms.Leader = nil
+
+	_, err := NewCompleteDKGEntry(t, beaconID, Complete, alice, bob).Proposed(bob, terms, &drand.GossipMetadata{Address: alice.Address})
+	require.ErrorIs(t, err, ErrCannotProposeAsNonLeader)
 }
